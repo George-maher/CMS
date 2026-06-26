@@ -16,7 +16,7 @@ class AuthTest extends TestCase
 
     public function test_user_can_register_via_invite(): void
     {
-        $church = Church::create(['name' => 'Test Church', 'slug' => 'test-church']);
+        $church = Church::factory()->create();
         $admin = User::factory()->create([
             'role' => UserRole::Admin,
             'church_id' => $church->id,
@@ -64,7 +64,7 @@ class AuthTest extends TestCase
 
     public function test_user_cannot_register_with_expired_invite(): void
     {
-        $church = Church::create(['name' => 'Test Church 2', 'slug' => 'test-church-2']);
+        $church = Church::factory()->create();
         $admin = User::factory()->create([
             'role' => UserRole::Admin,
             'church_id' => $church->id,
@@ -94,7 +94,7 @@ class AuthTest extends TestCase
 
     public function test_user_cannot_register_with_used_invite(): void
     {
-        $church = Church::create(['name' => 'Test Church 3', 'slug' => 'test-church-3']);
+        $church = Church::factory()->create();
         $admin = User::factory()->create([
             'role' => UserRole::Admin,
             'church_id' => $church->id,
@@ -126,13 +126,13 @@ class AuthTest extends TestCase
     public function test_user_can_login(): void
     {
         $user = User::factory()->create([
-            'email' => 'test@test.com',
+            'email' => 'login@test.com',
             'password' => bcrypt('Test@1234'),
             'application_status' => 'approved',
         ]);
 
         $response = $this->postJson('/api/v1/auth/login', [
-            'email' => 'test@test.com',
+            'email' => 'login@test.com',
             'password' => 'Test@1234',
         ]);
 
@@ -188,7 +188,7 @@ class AuthTest extends TestCase
 
     public function test_registration_does_not_return_token(): void
     {
-        $church = Church::create(['name' => 'Test Church 4', 'slug' => 'test-church-4']);
+        $church = Church::factory()->create();
         $admin = User::factory()->create([
             'role' => UserRole::Admin,
             'church_id' => $church->id,

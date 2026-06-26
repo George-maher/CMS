@@ -45,6 +45,18 @@ class AuthService implements AuthServiceInterface
             ]);
         }
 
+        if ($user->application_status === 'rejected') {
+            throw ValidationException::withMessages([
+                'email' => ['Your account has been rejected and cannot log in.'],
+            ]);
+        }
+
+        if ($user->application_status !== 'approved') {
+            throw ValidationException::withMessages([
+                'email' => ['Your account is pending approval.'],
+            ]);
+        }
+
         if ($user->church_id) {
             $church = $user->church()->withTrashed()->first();
             if ($church && $church->is_suspended) {

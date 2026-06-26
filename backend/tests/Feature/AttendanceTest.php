@@ -3,8 +3,11 @@
 namespace Tests\Feature;
 
 use App\Enums\UserRole;
+use App\Models\AttendanceContext;
 use App\Models\Classe;
+use App\Models\Permission;
 use App\Models\User;
+use Database\Seeders\PermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -12,16 +15,29 @@ class AttendanceTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->seed(PermissionSeeder::class);
+        Permission::clearCache();
+    }
+
     public function test_servant_can_record_attendance_for_member(): void
     {
         $classe = Classe::factory()->create();
         $servant = User::factory()->create([
             'role' => UserRole::Servant,
-            'class_year_id' => $classe->id,
+            'church_id' => $classe->church_id,
+            'class_id' => $classe->id,
+        ]);
+        $context = AttendanceContext::factory()->create([
+            'church_id' => $classe->church_id,
+            'created_by' => $servant->id,
         ]);
         $member = User::factory()->create([
             'role' => UserRole::Member,
-            'class_year_id' => $classe->id,
+            'church_id' => $classe->church_id,
+            'class_id' => $classe->id,
             'attendance_qr_token' => User::generateAttendanceQrToken(),
         ]);
 
@@ -30,6 +46,7 @@ class AttendanceTest extends TestCase
         $response = $this->withHeader('Authorization', "Bearer $token")
             ->postJson('/api/v1/attendances/record', [
                 'qr_token' => $member->attendance_qr_token,
+                'attendance_context_id' => $context->id,
             ]);
 
         $response->assertStatus(201)
@@ -41,11 +58,17 @@ class AttendanceTest extends TestCase
         $classe = Classe::factory()->create();
         $servant = User::factory()->create([
             'role' => UserRole::Servant,
-            'class_year_id' => $classe->id,
+            'church_id' => $classe->church_id,
+            'class_id' => $classe->id,
+        ]);
+        $context = AttendanceContext::factory()->create([
+            'church_id' => $classe->church_id,
+            'created_by' => $servant->id,
         ]);
         $member = User::factory()->create([
             'role' => UserRole::Member,
-            'class_year_id' => $classe->id,
+            'church_id' => $classe->church_id,
+            'class_id' => $classe->id,
             'attendance_qr_token' => User::generateAttendanceQrToken(),
         ]);
 
@@ -54,11 +77,13 @@ class AttendanceTest extends TestCase
         $this->withHeader('Authorization', "Bearer $token")
             ->postJson('/api/v1/attendances/record', [
                 'qr_token' => $member->attendance_qr_token,
+                'attendance_context_id' => $context->id,
             ])->assertStatus(201);
 
         $response = $this->withHeader('Authorization', "Bearer $token")
             ->postJson('/api/v1/attendances/record', [
                 'qr_token' => $member->attendance_qr_token,
+                'attendance_context_id' => $context->id,
             ]);
 
         $response->assertStatus(422);

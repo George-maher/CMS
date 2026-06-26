@@ -72,7 +72,7 @@ class QRInviteResource extends JsonResource
 
         return [
             'id' => $this->id,
-            'token' => $this->when($this->token, fn() => $this->token),
+            'url' => config('app.frontend_url') . '/invite/' . urlencode($this->token),
             'type' => $this->type?->value,
             'type_label' => $this->type?->label(),
             'status' => $status,

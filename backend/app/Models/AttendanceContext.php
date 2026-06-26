@@ -3,13 +3,16 @@
 namespace App\Models;
 
 use App\Traits\BelongsToChurch;
+use Database\Factories\AttendanceContextFactory;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Str;
 
 class AttendanceContext extends Model
 {
-    use BelongsToChurch;
+    /** @use HasFactory<AttendanceContextFactory> */
+    use HasFactory, BelongsToChurch;
 
     protected $fillable = [
         'church_id',

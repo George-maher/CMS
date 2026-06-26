@@ -32,12 +32,12 @@ class AttendanceContextPolicy
 
     public function delete(User $user): bool
     {
-        return $user->isAdmin() || $user->isAssistantAdmin() || $user->isServant();
+        return $user->isAdmin() || $user->isAssistantAdmin();
     }
 
     public function toggleActive(User $user): bool
     {
-        return $user->isAdmin() || $user->isAssistantAdmin() || $user->isServant();
+        return $user->isAdmin() || $user->isAssistantAdmin();
     }
 
     public function restore(User $user): bool

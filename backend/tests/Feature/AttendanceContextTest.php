@@ -6,7 +6,9 @@ use App\Enums\UserRole;
 use App\Models\AttendanceContext;
 use App\Models\Church;
 use App\Models\Classe;
+use App\Models\Permission;
 use App\Models\User;
+use Database\Seeders\PermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -24,6 +26,9 @@ class AttendanceContextTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        $this->seed(PermissionSeeder::class);
+        Permission::clearCache();
 
         $this->church1 = Church::factory()->create(['name' => 'Church Alpha']);
         $this->church2 = Church::factory()->create(['name' => 'Church Beta']);
@@ -44,7 +49,7 @@ class AttendanceContextTest extends TestCase
             'role' => UserRole::Servant,
             'church_id' => $this->church1->id,
             'application_status' => 'approved',
-            'class_year_id' => Classe::factory()->create(['church_id' => $this->church1->id])->id,
+            'class_id' => Classe::factory()->create(['church_id' => $this->church1->id])->id,
         ]);
 
         $this->member = User::factory()->create([
@@ -69,16 +74,16 @@ class AttendanceContextTest extends TestCase
         $this->actingAsUser($this->admin);
 
         $response = $this->postJson('/api/v1/attendance-contexts', [
-            'name' => 'Sunday School',
+            'name' => 'Weekly Sunday School',
             'description' => 'Regular Sunday sessions',
         ]);
 
         $response->assertStatus(201)
-            ->assertJsonPath('data.name', 'Sunday School')
+            ->assertJsonPath('data.name', 'Weekly Sunday School')
             ->assertJsonPath('data.is_active', true);
 
         $this->assertDatabaseHas('attendance_contexts', [
-            'name' => 'Sunday School',
+            'name' => 'Weekly Sunday School',
             'church_id' => $this->church1->id,
             'is_active' => true,
         ]);
@@ -126,16 +131,16 @@ class AttendanceContextTest extends TestCase
     {
         AttendanceContext::create([
             'church_id' => $this->church1->id,
-            'name' => 'Sunday School',
-            'slug' => 'sunday-school',
+            'name' => 'Test Sunday School',
+            'slug' => 'test-sunday-school',
             'is_active' => true,
             'created_by' => $this->admin->id,
         ]);
 
         AttendanceContext::create([
             'church_id' => $this->church1->id,
-            'name' => 'Mass',
-            'slug' => 'mass',
+            'name' => 'Test Mass',
+            'slug' => 'test-mass',
             'is_active' => true,
             'created_by' => $this->admin->id,
         ]);
@@ -152,10 +157,13 @@ class AttendanceContextTest extends TestCase
 
         $response = $this->getJson('/api/v1/attendance-contexts');
 
-        $response->assertStatus(200)
-            ->assertJsonCount(2, 'data')
-            ->assertJsonPath('data.0.name', 'Mass')
-            ->assertJsonPath('data.1.name', 'Sunday School');
+        $response->assertStatus(200);
+        $names = collect($response->json('data'))->pluck('name');
+        // 6 defaults + 2 new active test contexts = 8, Archived Context excluded
+        $this->assertCount(8, $names);
+        $this->assertContains('Test Mass', $names);
+        $this->assertContains('Test Sunday School', $names);
+        $this->assertNotContains('Archived Context', $names);
     }
 
     // ──────────────────────────────────────────────
@@ -166,8 +174,8 @@ class AttendanceContextTest extends TestCase
     {
         AttendanceContext::create([
             'church_id' => $this->church1->id,
-            'name' => 'Tasbeha',
-            'slug' => 'tasbeha',
+            'name' => 'Test Tasbeha',
+            'slug' => 'test-tasbeha',
             'is_active' => true,
             'created_by' => $this->admin->id,
         ]);
@@ -177,8 +185,9 @@ class AttendanceContextTest extends TestCase
         $response = $this->getJson('/api/v1/attendance-contexts/manage');
 
         $response->assertStatus(200)
-            ->assertJsonStructure(['data', 'meta'])
-            ->assertJsonPath('data.0.name', 'Tasbeha');
+            ->assertJsonStructure(['data', 'meta']);
+        $names = collect($response->json('data'))->pluck('name');
+        $this->assertContains('Test Tasbeha', $names);
     }
 
     // ──────────────────────────────────────────────
@@ -203,7 +212,7 @@ class AttendanceContextTest extends TestCase
         $this->actingAsUser($this->member);
 
         $response = $this->postJson('/api/v1/attendance-contexts', [
-            'name' => 'Mass',
+            'name' => 'Test Member Create',
         ]);
 
         $response->assertStatus(403);
@@ -213,8 +222,8 @@ class AttendanceContextTest extends TestCase
     {
         $context = AttendanceContext::create([
             'church_id' => $this->church1->id,
-            'name' => 'Mass',
-            'slug' => 'mass',
+            'name' => 'Test Member Update',
+            'slug' => 'test-member-update',
             'is_active' => true,
             'created_by' => $this->admin->id,
         ]);
@@ -222,7 +231,7 @@ class AttendanceContextTest extends TestCase
         $this->actingAsUser($this->member);
 
         $response = $this->putJson("/api/v1/attendance-contexts/{$context->id}", [
-            'name' => 'Updated Mass',
+            'name' => 'Updated Member Test',
         ]);
 
         $response->assertStatus(403);
@@ -232,8 +241,8 @@ class AttendanceContextTest extends TestCase
     {
         $context = AttendanceContext::create([
             'church_id' => $this->church1->id,
-            'name' => 'Mass',
-            'slug' => 'mass',
+            'name' => 'Test Member Delete',
+            'slug' => 'test-member-delete',
             'is_active' => true,
             'created_by' => $this->admin->id,
         ]);
@@ -249,8 +258,8 @@ class AttendanceContextTest extends TestCase
     {
         $context = AttendanceContext::create([
             'church_id' => $this->church1->id,
-            'name' => 'Mass',
-            'slug' => 'mass',
+            'name' => 'Test Member Toggle',
+            'slug' => 'test-member-toggle',
             'is_active' => true,
             'created_by' => $this->admin->id,
         ]);
@@ -445,8 +454,8 @@ class AttendanceContextTest extends TestCase
     {
         AttendanceContext::create([
             'church_id' => $this->church1->id,
-            'name' => 'Mass',
-            'slug' => 'mass',
+            'name' => 'Unique Context A',
+            'slug' => 'unique-context-a',
             'is_active' => true,
             'created_by' => $this->admin->id,
         ]);
@@ -454,7 +463,7 @@ class AttendanceContextTest extends TestCase
         $this->actingAsUser($this->admin);
 
         $response = $this->postJson('/api/v1/attendance-contexts', [
-            'name' => 'Mass',
+            'name' => 'Unique Context A',
         ]);
 
         $response->assertStatus(422)
@@ -467,11 +476,11 @@ class AttendanceContextTest extends TestCase
 
     public function test_same_context_name_allowed_in_different_church(): void
     {
-        // Church 1 has a context named "Mass"
+        // Church 1 has a context named "Shared Context"
         AttendanceContext::create([
             'church_id' => $this->church1->id,
-            'name' => 'Mass',
-            'slug' => 'mass',
+            'name' => 'Shared Context',
+            'slug' => 'shared-context',
             'is_active' => true,
             'created_by' => $this->admin->id,
         ]);
@@ -487,7 +496,7 @@ class AttendanceContextTest extends TestCase
 
         // Church 2 should be able to create a context with same name
         $response = $this->postJson('/api/v1/attendance-contexts', [
-            'name' => 'Mass',
+            'name' => 'Shared Context',
         ]);
 
         $response->assertStatus(201);

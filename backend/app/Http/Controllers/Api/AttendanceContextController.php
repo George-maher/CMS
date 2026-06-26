@@ -51,7 +51,7 @@ class AttendanceContextController extends Controller
 
     public function show(int $id): JsonResponse
     {
-        $context = AttendanceContext::withoutGlobalScope(\App\Models\Scopes\ChurchScope::class)->findOrFail($id);
+        $context = AttendanceContext::findOrFail($id);
         $this->authorize('view', $context);
 
         $result = $this->contextService->findById($id);
@@ -65,7 +65,7 @@ class AttendanceContextController extends Controller
 
     public function update(StoreAttendanceContextRequest $request, int $id): JsonResponse
     {
-        $context = AttendanceContext::withoutGlobalScope(\App\Models\Scopes\ChurchScope::class)->findOrFail($id);
+        $context = AttendanceContext::findOrFail($id);
         $this->authorize('update', $context);
 
         $result = $this->contextService->update(
@@ -82,7 +82,7 @@ class AttendanceContextController extends Controller
 
     public function destroy(int $id): JsonResponse
     {
-        $context = AttendanceContext::withoutGlobalScope(\App\Models\Scopes\ChurchScope::class)->findOrFail($id);
+        $context = AttendanceContext::findOrFail($id);
         $this->authorize('delete', $context);
 
         $this->contextService->delete($id);
@@ -94,7 +94,7 @@ class AttendanceContextController extends Controller
 
     public function toggleActive(int $id): JsonResponse
     {
-        $context = AttendanceContext::withoutGlobalScope(\App\Models\Scopes\ChurchScope::class)->findOrFail($id);
+        $context = AttendanceContext::findOrFail($id);
         $this->authorize('toggleActive', $context);
 
         $result = $this->contextService->update(

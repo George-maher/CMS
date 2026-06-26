@@ -20,18 +20,18 @@ return new class extends Migration
             $table->dropIndex(['attended_at']);
         });
 
-        // Since we dropped the unique(user_id, attended_at) in 000007 and
-        // only added a plain index, we need to re-add proper protection.
-        // PostgreSQL supports partial unique indexes on expressions.
+        $driver = DB::connection()->getDriverName();
+        $dateExpr = $driver === 'sqlite' ? 'date(attended_at)' : '(attended_at::date)';
+
         DB::statement("
             CREATE UNIQUE INDEX attendances_user_date_unique
-            ON attendances (user_id, (attended_at::date))
+            ON attendances (user_id, $dateExpr)
             WHERE event_id IS NULL
         ");
 
         DB::statement("
             CREATE UNIQUE INDEX attendances_user_date_event_unique
-            ON attendances (user_id, (attended_at::date), event_id)
+            ON attendances (user_id, $dateExpr, event_id)
             WHERE event_id IS NOT NULL
         ");
     }
