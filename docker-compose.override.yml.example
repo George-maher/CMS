@@ -1,0 +1,17 @@
+# Docker Compose Override for Local Development
+# Copy to docker-compose.override.yml to enable:
+#   - Xdebug configuration
+#   - Additional volumes for development
+#
+# Usage: cp docker-compose.override.yml.example docker-compose.override.yml
+#        docker-compose up
+
+services:
+  app:
+    environment:
+      APP_DEBUG: "true"
+      LOG_LEVEL: debug
+      # Xdebug — uncomment if using Xdebug
+      # PHP_IDE_CONFIG: "serverName=church_app"
+      # XDEBUG_MODE: "debug,develop"
+      # XDEBUG_CONFIG: "client_host=host.docker.internal client_port=9003"

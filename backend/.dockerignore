@@ -1,0 +1,6 @@
+public/storage
+D*xampp*storage
+vendor/
+node_modules/
+.git/
+.env

@@ -1,0 +1,1659 @@
+================================================================================
+                    CHURCH MANAGEMENT SYSTEM (CMS)
+                    COMPREHENSIVE TECHNICAL DOCUMENTATION
+================================================================================
+
+Version: 1.0.0
+Last Updated: 2026-06-26
+Project Root: D:\xampp\htdocs\CHproject
+
+================================================================================
+TABLE OF CONTENTS
+================================================================================
+
+1.  PROJECT OVERVIEW
+2.  TECHNOLOGY STACK
+3.  PROJECT STRUCTURE
+4.  BACKEND ARCHITECTURE (Laravel 12)
+5.  FRONTEND ARCHITECTURE (React 19 + TypeScript)
+6.  DATABASE ANALYSIS
+7.  AUTHENTICATION & AUTHORIZATION
+8.  BUSINESS MODULES
+9.  FLOW ANALYSIS
+10. API REFERENCE
+11. DOCKER & DEPLOYMENT
+12. SECURITY ANALYSIS
+13. PROJECT STRENGTHS
+14. PROJECT WEAKNESSES
+15. RECOMMENDATIONS
+16. PRESENTATION SUMMARY
+
+================================================================================
+1. PROJECT OVERVIEW
+================================================================================
+
+The Church Management System (CMS) is a production-grade platform designed to
+manage church operations including member management, attendance tracking via QR
+codes, points/leaderboard gamification, event management, feedback systems, and
+role-based administration. It serves multiple churches through a platform admin
+model where each church operates as an independent tenant with its own admin,
+servants, and members.
+
+The system is built with a clean architecture pattern in Laravel 12 backend,
+React 19 with TypeScript frontend, PostgreSQL database, and Docker containerization.
+It uses Laravel Sanctum for API authentication and Resend for email delivery.
+
+Key Capabilities:
+- Multi-tenant church management
+- QR code-based attendance system
+- Invite-based registration (admin-to-servant, servant-to-member)
+- Points and leaderboard gamification for member engagement
+- Event management with viewing analytics
+- Feedback system with anonymous submissions
+- Daily verse management
+- Attendance context system (Sunday School, Mass, Trips, etc.)
+- Role-based dashboards (Platform Admin, Church Admin, Assistant Admin, Servant, Member)
+- Bilingual support (English + Arabic)
+- Dark mode / Light mode theming
+
+================================================================================
+2. TECHNOLOGY STACK
+================================================================================
+
+2.1 Backend
+-----------
+Language:        PHP ^8.2
+Framework:       Laravel ^12.0
+Authentication:  Laravel Sanctum ^4.3 (token-based API auth)
+Database:        PostgreSQL (primary) / SQLite (dev) / MySQL / MariaDB
+Email:           Resend (resend/resend-laravel ^1.4)
+Queue:           Laravel Queue (database driver)
+Cache:           Database/file/Redis
+Schedule:        Laravel Scheduler
+Testing:         PHPUnit ^11.5, Mockery ^1.6
+Dev Tools:       Laravel Sail ^1.41, Laravel Pint ^1.24, Laravel Pail ^1.2
+
+Key Backend Dependencies:
+- laravel/framework ^12.0   - Core Laravel framework
+- laravel/sanctum ^4.3      - API token authentication (SPA + mobile)
+- laravel/tinker ^2.10      - Interactive REPL for artisan
+- resend/resend-laravel ^1.4 - Resend email integration
+
+2.2 Frontend
+------------
+Language:       TypeScript ~6.0
+Framework:      React ^19.2
+Routing:        react-router-dom ^7.5
+Build Tool:     Vite ^8.0
+CSS:            TailwindCSS ^4.1 (via @tailwindcss/vite)
+HTTP Client:    axios ^1.7
+i18n:           i18next ^24.2 + react-i18next ^15.4
+QR Generation:  qrcode ^1.5
+QR Scanning:    html5-qrcode ^2.3
+Icons:          lucide-react ^0.483
+Validation:     zod ^3.24
+Notifications:  react-hot-toast ^2.5
+
+Dev Dependencies:
+- TypeScript ~6.0, ESLint ^10.3, @vitejs/plugin-react ^6.0
+- typescript-eslint ^8.59, eslint-plugin-react-hooks ^7.1
+
+2.3 Infrastructure
+------------------
+Containerization: Docker + Docker Compose
+Web Server:      Nginx (reverse proxy for PHP-FPM)
+PHP Runtime:     PHP-FPM (in app container)
+Frontend Server: Vite dev server / Nginx (production)
+Queue Worker:    php artisan queue:work
+Scheduler:       php artisan schedule:work
+Networking:      Docker bridge network (church_network)
+
+================================================================================
+3. PROJECT STRUCTURE
+================================================================================
+
+3.1 Root Directory
+------------------
+CHproject/
+├── .env                  # Root environment variables
+├── .env.docker           # Docker-specific environment
+├── .github/              # GitHub Actions workflows
+├── AGENTS.md             # AI agent configuration & project rules
+├── AUDIT_CHANGES.md      # Audit trail of changes
+├── backend/              # Laravel application
+├── docker/               # Docker infrastructure files
+├── docker-compose.yml    # Docker Compose configuration
+├── docker-compose.override.yml.example
+├── emails/               # Email templates directory
+├── frontend/             # React + TypeScript application
+└── check_dockerfiles.bat # Windows batch script
+
+3.2 Backend Structure
+---------------------
+backend/
+├── app/
+│   ├── Console/Commands/     # Artisan commands
+│   ├── Contracts/            # Service/Repository interfaces
+│   ├── DTOs/                 # Data Transfer Objects
+│   │   ├── AttendanceDTO.php
+│   │   ├── InviteDTO.php
+│   │   └── UserDTO.php
+│   ├── Enums/                # PHP 8.1 Enums
+│   │   ├── EventType.php
+│   │   ├── FeedbackCategory.php
+│   │   ├── PasswordResetRequestStatus.php
+│   │   ├── PointType.php
+│   │   ├── QRInviteType.php
+│   │   └── UserRole.php
+│   ├── Events/               # Event classes
+│   │   └── AttendanceRecorded.php
+│   ├── Exceptions/           # Custom exceptions
+│   ├── Helpers/              # Helper utilities
+│   │   ├── DateHelper.php
+│   │   ├── GeneralHelper.php
+│   │   └── QrHelper.php
+│   ├── Http/
+│   │   ├── Controllers/      # API Controllers
+│   │   ├── Middleware/       # Custom middleware
+│   │   ├── Requests/        # Form Request validation
+│   │   └── Resources/       # API Resources (transformers)
+│   ├── Jobs/                 # Queue jobs
+│   │   ├── SendEmailJob.php
+│   │   └── SyncAnalyticsToPython.php
+│   ├── Listeners/            # Event listeners
+│   │   ├── AwardAttendancePoints.php
+│   │   ├── DispatchAnalyticsSync.php
+│   │   └── InvalidateAttendanceCache.php
+│   ├── Mail/                 # Mailables
+│   │   └── SystemMail.php
+│   ├── Models/               # Eloquent models
+│   ├── Modules/              # Modular components
+│   │   └── User/            # User module (controller, policies, repos, services)
+│   ├── Notifications/        # Notification classes
+│   ├── Observers/            # Model observers
+│   ├── Policies/             # Authorization policies
+│   ├── Providers/            # Service providers
+│   ├── Repositories/         # Repository pattern implementations
+│   ├── Rules/                # Custom validation rules
+│   │   └── NotPlaceholder.php
+│   ├── Services/             # Business logic services
+│   └── Traits/               # Reusable traits
+│       ├── ApiResponseTrait.php
+│       ├── AuditableTrait.php
+│       ├── BelongsToChurch.php
+│       └── HasPermissions.php
+├── bootstrap/                # Framework bootstrap
+├── config/                   # Configuration files
+├── database/
+│   ├── factories/            # Model factories
+│   ├── migrations/           # Database migrations
+│   └── seeders/              # Database seeders
+├── public/                   # Public entry point
+├── resources/
+│   ├── lang/                 # Translation files
+│   │   ├── en.json
+│   │   └── ar.json
+│   └── views/               # Blade templates
+├── routes/                   # Route definitions
+│   ├── api.php              # API routes (primary)
+│   ├── web.php              # Web routes
+│   └── console.php          # Console commands
+├── storage/                  # File storage
+├── tests/                    # PHPUnit tests
+│   ├── Feature/
+│   └── Unit/
+├── composer.json
+├── Dockerfile
+├── docker-entrypoint.sh
+├── phpunit.xml
+└── vite.config.js
+
+3.3 Frontend Structure
+----------------------
+frontend/
+├── public/
+│   ├── favicon.svg
+│   └── icons.svg
+├── src/
+│   ├── api/                  # API client functions
+│   │   ├── analytics.ts
+│   │   ├── attendance.ts
+│   │   ├── attendanceContexts.ts
+│   │   ├── auth.ts
+│   │   ├── churchApplications.ts
+│   │   ├── churches.ts
+│   │   ├── classes.ts
+│   │   ├── client.ts         # Axios instance with interceptors
+│   │   ├── dailyverse.ts
+│   │   ├── dashboard.ts
+│   │   ├── events.ts
+│   │   ├── feedback.ts
+│   │   ├── membershipRequests.ts
+│   │   ├── notifications.ts
+│   │   ├── passwordResetRequests.ts
+│   │   ├── points.ts
+│   │   ├── qr.ts
+│   │   ├── stages.ts
+│   │   ├── structure.ts
+│   │   └── users.ts
+│   ├── assets/               # Static assets
+│   ├── components/
+│   │   ├── admin/            # Admin-specific components
+│   │   ├── common/           # Shared UI components
+│   │   │   ├── Badge.tsx
+│   │   │   ├── CopyButton.tsx
+│   │   │   ├── DailyVerseBanner.tsx
+│   │   │   ├── DataTable.tsx
+│   │   │   ├── EventDetailModal.tsx
+│   │   │   ├── ImageUpload.tsx
+│   │   │   ├── ImageWithFallback.tsx
+│   │   │   ├── LoadingSpinner.tsx
+│   │   │   ├── Modal.tsx
+│   │   │   ├── MotionDiv.tsx
+│   │   │   └── StatCard.tsx
+│   │   ├── layout/           # Layout components
+│   │   │   ├── AppLayout.tsx
+│   │   │   ├── Header.tsx
+│   │   │   ├── PublicLayout.tsx
+│   │   │   └── Sidebar.tsx
+│   │   └── leaderboard/      # Leaderboard components
+│   │       ├── LeaderboardRow.tsx
+│   │       └── PodiumCard.tsx
+│   ├── contexts/             # React contexts
+│   │   ├── AuthContext.tsx
+│   │   └── ThemeContext.tsx
+│   ├── hooks/                # Custom React hooks
+│   │   ├── useApi.ts
+│   │   ├── useCache.ts
+│   │   ├── useGsap.ts
+│   │   ├── usePagination.ts
+│   │   └── useRoleAccess.ts
+│   ├── i18n/                 # Internationalization
+│   │   ├── ar.json
+│   │   ├── en.json
+│   │   └── index.ts
+│   ├── lib/                  # Utility functions
+│   │   ├── contextLabels.ts
+│   │   ├── roles.ts
+│   │   └── validation.ts
+│   ├── pages/                # Page components
+│   │   ├── admin/            # Admin pages
+│   │   │   ├── Analytics.tsx
+│   │   │   ├── ClasseDetail.tsx
+│   │   │   ├── Dashboard.tsx
+│   │   │   ├── Events.tsx
+│   │   │   ├── Leaderboard.tsx
+│   │   │   ├── PasswordResetRequests.tsx
+│   │   │   ├── QRManagement.tsx
+│   │   │   ├── StageDetail.tsx
+│   │   │   ├── StructureManagement.tsx
+│   │   │   ├── UserDetail.tsx
+│   │   │   └── Users.tsx
+│   │   ├── auth/             # Authentication pages
+│   │   │   ├── ForgotPassword.tsx
+│   │   │   ├── InviteLanding.tsx
+│   │   │   ├── InviteRegister.tsx
+│   │   │   ├── Login.tsx
+│   │   │   ├── PlatformLogin.tsx
+│   │   │   ├── ResetPassword.tsx
+│   │   │   ├── ResetPasswordFromRequest.tsx
+│   │   │   └── VerifyEmail.tsx
+│   │   ├── member/           # Member pages
+│   │   │   ├── Attendance.tsx
+│   │   │   ├── Dashboard.tsx
+│   │   │   ├── EventDetail.tsx
+│   │   │   ├── Events.tsx
+│   │   │   ├── Leaderboard.tsx
+│   │   │   ├── MyQR.tsx
+│   │   │   └── Points.tsx
+│   │   ├── platform/         # Platform admin pages
+│   │   │   └── ChurchDeletion.tsx
+│   │   ├── servant/          # Servant pages
+│   │   │   ├── Attendance.tsx
+│   │   │   ├── Dashboard.tsx
+│   │   │   ├── Events.tsx
+│   │   │   ├── Leaderboard.tsx
+│   │   │   ├── LocalAttend.tsx
+│   │   │   ├── MemberDetail.tsx
+│   │   │   ├── Members.tsx
+│   │   │   ├── Points.tsx
+│   │   │   ├── QRInvites.tsx
+│   │   │   └── ScanQR.tsx
+│   │   ├── AbsentMembers.tsx
+│   │   ├── AttendanceContextManagement.tsx
+│   │   ├── FeedbackManagement.tsx
+│   │   ├── FeedbackSubmit.tsx
+│   │   ├── Forbidden.tsx
+│   │   ├── JoinNow.tsx
+│   │   ├── JoinRequest.tsx
+│   │   ├── Landing.tsx
+│   │   ├── NotFound.tsx
+│   │   ├── PendingDashboard.tsx
+│   │   ├── PlatformApplicationDetail.tsx
+│   │   ├── PlatformDashboard.tsx
+│   │   ├── RejectedDashboard.tsx
+│   │   └── ServerError.tsx
+│   └── types/                # TypeScript type definitions
+│       ├── html5-qrcode.d.ts
+│       ├── index.ts
+│       └── qrcode.d.ts
+├── index.html
+├── nginx.conf               # Production Nginx config
+├── Dockerfile
+├── package.json
+├── tsconfig.json
+├── tsconfig.app.json
+├── tsconfig.node.json
+├── vite.config.ts
+└── eslint.config.js
+
+================================================================================
+4. BACKEND ARCHITECTURE
+================================================================================
+
+4.1 Architectural Pattern
+-------------------------
+The backend follows a Service-Repository pattern with dependency injection:
+
+Controller → Service (Business Logic) → Repository (Data Access) → Model (Eloquent)
+
+- Controllers handle HTTP requests/responses using the ApiResponseTrait
+- Services contain all business logic (no business logic in controllers)
+- Repositories encapsulate database queries
+- Models define relationships and scopes
+- Contracts (interfaces) enable loose coupling and testability
+- DTOs (Data Transfer Objects) for structured data passing
+- Form Requests handle validation
+- API Resources transform model data for JSON responses
+- Policies handle authorization
+- Enums provide type-safe constants
+- Traits provide reusable functionality across models/classes
+
+4.2 Service Layer (25 services)
+--------------------------------
+Services are bound to interfaces in AppServiceProvider::register().
+
+Core Services:
+- AuthService          - Login, register, logout, password reset, email verification
+- AttendanceService    - Record attendance, history, stats, absent members, context analytics
+- UserService          - User CRUD, promotion, demotion, member management
+- QRInviteService      - Generate QR invites, validate tokens, accept invites
+- PointService         - Add points, balance, history, leaderboard, bonus points
+- EventService         - Event CRUD, filtering, viewing
+- FeedbackService      - Submit feedback, reply, resolve
+- StageService         - Stage CRUD, bulk operations
+- ClasseService        - Class CRUD, servant/member assignments, reordering
+- LeaderboardService   - Global, class-specific, and stage-specific leaderboards
+- MembershipRequestService - Submit, approve, reject membership requests
+- PasswordResetRequestService - Admin-approved password reset flow
+- AttendanceContextService - Context management (Sunday School, Mass, etc.)
+- VerseService         - Daily verse CRUD and activation
+- CacheService         - Singleton caching helper
+- NotificationService  - In-app notification management
+- EmailService         - Email sending via Resend
+- AuditService         - Activity logging
+- SupabaseStorageService - File storage on Supabase
+- FileUploadService    - File upload handling
+- StorageService       - Abstraction for storage operations
+- ChurchApplicationService - Church registration application handling
+- ChurchDeletionService - Church soft/hard delete with recovery
+- EventAnalyticsService - Event view tracking and analytics
+
+4.3 Repository Layer (11 repositories)
+---------------------------------------
+- UserRepository (in Modules/User)
+- QRInviteRepository
+- AttendanceRepository
+- PointRepository
+- StageRepository
+- ClasseRepository
+- EventRepository
+- FeedbackRepository
+- VerseRepository
+- MembershipRequestRepository
+- AttendanceContextRepository
+
+4.4 Controller Layer (22 controllers)
+--------------------------------------
+- AuthController          - Login, register, logout, email verification, password reset
+- UserController          - User CRUD, promotion, demotion, member listing (in Modules/User)
+- AttendanceController    - Record, lookup, history, stats, absent members, context analytics
+- PointController         - Balance, history, leaderboard, bonus points
+- QRInviteController      - Invite generation, validation, acceptance, revocation
+- EventController         - Event CRUD
+- EventAnalyticsController - Event view tracking and analytics
+- DashboardController     - Admin dashboard stats
+- PlatformController      - Platform admin dashboard, application approval/rejection
+- ChurchDeletionController - Church deletion, restoration, hard delete
+- StageController         - Stage CRUD
+- ClasseController        - Class CRUD, assignments, reordering
+- StructureController     - Unified structure (stages+classes), servant's classes
+- LeaderboardController   - Leaderboard endpoints
+- FeedbackController      - Feedback CRUD, reply, resolve
+- NotificationController  - In-app notification listing and read status
+- DailyVerseController    - Verse CRUD, activation
+- MembershipRequestController - Membership request management
+- PasswordResetRequestController - Admin-approved password reset
+- AttendanceContextController - Context CRUD, toggle active
+- PendingDashboardController - Pending application status
+- StorageController       - File uploads to Supabase
+
+4.5 Middleware
+--------------
+- PermissionMiddleware - Checks user permissions against required keys
+- RoleMiddleware (likely in Laravel) - Checks user role
+- ApprovedMiddleware (likely) - Checks application_status = 'approved'
+- Sanctum auth middleware - Token authentication
+- Throttle middleware - Rate limiting
+
+4.6 Events & Listeners
+----------------------
+Event: AttendanceRecorded
+  → Listener: AwardAttendancePoints (awards 10 points on attendance)
+  → Listener: InvalidateAttendanceCache (clears attendance caches)
+  → Listener: DispatchAnalyticsSync (syncs to Python analytics microservice)
+
+4.7 Jobs
+--------
+- SendEmailJob - Queue-based email sending
+- SyncAnalyticsToPython - Async analytics sync to microservice
+
+4.8 Observers
+-------------
+- UserObserver - Cleans up user data on delete
+- EventObserver - Cleans up event relations on delete
+- ChurchApplicationObserver - Creates church and admin user on approval
+- MembershipRequestObserver - Creates user on membership approval
+
+4.9 Notifications
+-----------------
+- ResetPasswordNotification
+- PasswordChangedNotification
+- VerifyEmailNotification
+- NewChurchApplicationNotification
+- ApplicationApprovedNotification
+- ApplicationRejectedNotification
+- PasswordResetRequestSubmittedNotification
+- PasswordResetRequestApprovedNotification
+- PasswordResetRequestRejectedNotification
+
+All notifications support bilingual content (English + Arabic).
+
+4.10 Policies
+-------------
+- UserPolicy               - manage_users, view_users
+- QRInvitePolicy           - manage_invites
+- AttendancePolicy         - record_attendance
+- EventPolicy              - manage_events
+- FeedbackPolicy           - submit_feedback, manage_feedback
+- DailyVersePolicy         - manage_verses
+- AttendanceContextPolicy  - manage_attendance_contexts
+- PasswordResetRequestPolicy - Password reset review management
+- ChurchDeletionPolicy     - Church deletion authorization
+
+================================================================================
+5. FRONTEND ARCHITECTURE
+================================================================================
+
+5.1 Component Architecture
+--------------------------
+The frontend uses a component-based architecture with lazy loading:
+
+- Each page is a lazy-loaded component (React.lazy + Suspense)
+- Shared components are organized by domain (common/, layout/, leaderboard/)
+- API layer is separated into per-resource modules
+- Contexts provide global state (Auth, Theme)
+- Custom hooks encapsulate reusable logic
+
+5.2 State Management
+--------------------
+- AuthContext - Manages user authentication, token, and user data
+- ThemeContext - Manages theme (light/dark) and language (en/ar)
+- No Redux or Zustand - state is managed via Context + useState/useReducer
+
+5.3 API Layer
+-------------
+- Centralized Axios instance (client.ts)
+- Request interceptor adds Bearer token from localStorage
+- Response interceptor handles 401 (auto-logout) and 429 (auto-retry with backoff)
+- Per-resource API modules export typed functions
+- Base URL: /api/v1 (proxied through Vite dev server)
+
+5.4 Routing
+-----------
+- react-router-dom v7 with nested routes
+- AppLayout component wraps authenticated routes with role-based access
+- Public routes: Landing, Join, Login, ForgotPassword, Invite, etc.
+- Authenticated routes grouped by role:
+  - /platform/* - Platform Admin
+  - /admin/* - Church Admin
+  - /assistant-admin/* - Assistant Admin
+  - /servant/* - Servant
+  - /member/* - Member
+
+5.5 Theme System
+----------------
+- TailwindCSS v4 with CSS custom properties
+- Light/Dark mode via :root.dark class toggle
+- Gold/Navy color palette with full dark mode inversion
+- Glassmorphism design with backdrop-blur
+- Custom utility classes: .btn-gold, .btn-primary, .card, .glass-card, etc.
+
+5.6 Internationalization
+------------------------
+- i18next + react-i18next
+- Bilingual: English (en.json) and Arabic (ar.json)
+- RTL support via dir attribute on <html>
+- Language detection from localStorage
+- Arabic font: Cairo/Tajawal in RTL mode
+
+5.7 Key UI Components
+--------------------
+- DataTable - Responsive table with card view on mobile, pagination
+- Modal - Portal-based modal with sizes (sm/md/lg/xl/full)
+- StatCard - Dashboard statistics card with icon and color variants
+- Badge - Status badge (success, warning, danger, info, gold)
+- LoadingSpinner - Full-page or inline loading indicator
+- ImageUpload - File upload with preview
+- ImageWithFallback - Image with fallback on error
+- CopyButton - One-click copy to clipboard
+- EventDetailModal - Detail modal for events
+- DailyVerseBanner - Verse of the day banner
+- MotionDiv - Animated wrapper with staggered entry
+- PodiumCard / LeaderboardRow - Leaderboard display components
+
+================================================================================
+6. DATABASE ANALYSIS
+================================================================================
+
+6.1 Database Provider
+---------------------
+Primary: PostgreSQL (via DATABASE_URL connection string)
+Fallback: SQLite (for local development)
+Also configured: MySQL, MariaDB, SQL Server (optional)
+
+6.2 Entity-Relationship Diagram (Textual)
+------------------------------------------
+
+Church ──1:N──> User
+Church ──1:N──> Stage ──1:N──> Classe
+Church ──1:N──> Event
+Church ──1:N──> Attendance
+Church ──1:N──> Point
+Church ──1:N──> QRInvite
+Church ──1:N──> Feedback
+Church ──1:N──> FeedbackReply
+Church ──1:N──> DailyVerse
+Church ──1:N──> AttendanceContext
+Church ──1:N──> Notification
+Church ──1:N──> AuditLog
+Church ──1:N──> EventView
+Church ──1:N──> EventTarget
+Church ──1:N──> MembershipRequest
+
+User ──1:N──> Attendance (as member)
+User ──1:N──> Attendance (as recorder)
+User ──1:N──> Point
+User ──1:N──> QRInvite (as creator)
+User ──1:N──> QRInvite (as used_by)
+User ──1:N──> Event (as creator)
+User ──1:N──> Feedback (as sender)
+User ──1:N──> FeedbackReply (as author)
+User ──1:N──> EventView
+User ──N:M──> Classe (via class_servant pivot)
+User ──*──> User (servant_id self-reference)
+User ──*──> User (created_by self-reference)
+
+Classe ──1:N──> User (as class_id)
+Classe ──1:N──> Attendance (as class_year_id)
+Classe ──1:N──> Event (as class_year_id)
+Classe ──1:N──> Feedback (as class_year_id)
+Classe ──1:N──> QRInvite (as class_year_id)
+
+Event ──1:N──> EventTarget
+Event ──1:N──> EventView
+Event ──1:N──> Attendance (optional)
+
+AttendanceContext ──1:N──> Attendance
+
+6.3 Main Tables & Purpose
+-------------------------
+users                    - All system users (platform_admins, admins, servants, members)
+churches                 - Registered churches (tenants)
+church_applications      - Platform registration applications
+stages                   - Educational stages (e.g. "Primary", "Secondary")
+classes                  - Individual classes within stages
+class_servant            - Pivot: servant-to-class assignments
+qr_invites               - QR-based invitation tokens
+attendances              - Attendance records
+points                   - Points earned (attendance, bonus, adjustment)
+events                   - Church events
+event_targets            - Target classes for events
+event_views              - Event view tracking
+feedback                 - Member feedback submissions
+feedback_replies         - Replies to feedback
+attendance_contexts      - Attendance contexts (Sunday School, Mass, Trip, etc.)
+daily_verses             - Daily scripture verses
+notifications            - In-app notifications
+audit_logs               - Activity audit trail
+password_reset_requests  - Admin-approved password reset requests
+password_reset_tokens    - Standard Laravel password reset tokens
+membership_requests      - Membership join requests
+personal_access_tokens   - Laravel Sanctum tokens
+cache                    - Cache table
+jobs                     - Queue jobs table
+sessions                 - Session storage
+
+6.4 Key Indexes & Constraints
+------------------------------
+- Unique: users.email (per church), users.attendance_qr_token, users.member_id
+- Unique: qr_invites.token
+- Unique: attendance_contexts.slug (per church)
+- Unique: event_views (user_id + event_id)
+- Foreign keys with CASCADE on most child tables
+- Composite unique indexes on attendances preventing duplicates
+- Performance indexes on created_at, church_id, role, class_id, etc.
+- Scalability indexes on frequently filtered/joined columns
+
+================================================================================
+7. AUTHENTICATION & AUTHORIZATION
+================================================================================
+
+7.1 Authentication
+-------------------
+- Laravel Sanctum token-based API authentication
+- Login returns a Bearer token stored in localStorage
+- Token has 24-hour expiration (configurable in config/sanctum.php)
+- Token payload includes user role as abilities
+- SPA-style stateful domains configured in SANCTUM_STATEFUL_DOMAINS
+- Platform Admin login uses a hidden path (platform admin login route)
+- Email verification via token sent on registration
+- Password reset via standard Laravel broker OR admin-approved flow
+
+7.2 Authorization System
+-------------------------
+Two-layer authorization:
+
+Layer 1: Role-based (via middleware `role:`)
+- Platform Admin: Full system access, manages all churches
+- Admin: Church-level administration
+- Assistant Admin: Same as Admin (slightly less permission)
+- Servant: Manages members, records attendance, creates invites
+- Member: Views own data, submits feedback
+
+Layer 2: Permission-based (via PermissionMiddleware)
+- Permissions are tied to roles via the Permission model
+- Permissions include:
+  manage_users, view_users, manage_invites, record_attendance,
+  manage_events, manage_verses, manage_feedback, submit_feedback,
+  manage_membership_requests, view_points, manage_attendance_contexts
+- Each permission maps to one or more roles statically defined
+- HasPermissions trait provides user-level permission checking
+
+7.3 Approved Middleware
+-----------------------
+- Ensures the authenticated user has application_status = 'approved'
+- Blocks pending/rejected users from accessing protected routes
+
+7.4 Rate Limiting
+-----------------
+28 named rate limiters covering:
+- API general: 300 req/min (authenticated), 60 req/min (guest)
+- Login: 5 attempts/min per IP/email
+- Register: 10 registrations/hour per IP
+- Sensitive operations: 10 req/min
+- File uploads: 10/min, imports: 5/hour
+- Invites: 20/hour generation, 10/hour validation
+- Attendance: 100/min record, 60/min read
+- All return standardized 429 responses with Retry-After header
+
+================================================================================
+8. BUSINESS MODULES
+================================================================================
+
+8.1 Church / Platform Module
+-----------------------------
+Manages the multi-tenant platform. Churches register via ChurchApplication,
+which is reviewed by platform admins. On approval, a Church record is created,
+default attendance contexts are auto-generated (Sunday School, Holiday, Tasbeha,
+Mass, Trip, Spiritual Day), and the applicant becomes the church admin.
+
+Platform admins can:
+- View all applications
+- Approve/reject applications
+- View all churches with member counts
+- Soft-delete, restore, and hard-delete churches
+- View church deletion summaries
+
+8.2 User & Roles Module
+-----------------------
+Five user roles:
+- platform_admin: Global system administration
+- admin: Full church-level administration
+- assistant_admin: Church co-administration
+- servant: Member management and attendance recording
+- member: Personal attendance, points, leaderboard
+
+User features:
+- Member ID auto-generation (MBR-XXXXXX format)
+- Unique attendance QR token auto-generation on creation
+- Birthday, age calculation, phone, address, member address
+- Profile avatar via Supabase storage
+- Self-referential servant_id for member assignment
+- Soft deletes for safe removal
+
+8.3 Stage & Class Module
+-------------------------
+Churches have stages (e.g., "Primary Stage", "Secondary Stage") which contain
+classes (e.g., "First Year", "Second Year"). Classes have display_order for
+sequencing.
+
+Key features:
+- Bulk create stages
+- Assign/remove servants to classes
+- Assign members to classes
+- Reorder classes within stages
+- Servant scope: servants only see their assigned classes' members
+
+8.4 QR Invite Module
+---------------------
+Three invite types:
+1. admin_to_servant_invite - Admin generates for new servants
+2. servant_to_member_invite - Servant generates for new members
+3. attendance_qr - For QR-based attendance scanning
+
+Invite rules:
+- Tokens are 64-char random strings (never raw IDs or passwords)
+- Configurable expiration (default 4 hours)
+- Single-use or multi-use (configurable max_uses)
+- Revokable
+- Tracks use count and used_by_users array
+- Optimistic locking on markAsUsed() prevents race conditions
+
+Frontend QR:
+- QR codes generated client-side using qrcode library
+- Scanned using html5-qrcode library with camera support
+
+8.5 Attendance Module
+---------------------
+Recording methods:
+- QR token scanning (servant scans member's QR)
+- Member ID lookup (servant enters member ID manually)
+
+Attendance flow:
+1. Servant selects attendance context (mandatory)
+2. Optionally selects event and class
+3. Scans QR or enters member ID
+4. System validates token, checks for duplicate (same day + context)
+5. Records attendance, auto-awards 10 points
+6. Dispatches AttendanceRecorded event
+7. Prevents duplicate attendance with lockForUpdate()
+
+Analytics:
+- Context-wise attendance summaries
+- Context detail with member breakdown
+- Absent members with consecutive absence tracking
+- Attendance percentage calculations
+- Filtered attendance views
+
+8.6 Points & Leaderboard Module
+--------------------------------
+Point types:
+- attendance (auto-awarded, 10 per session)
+- bonus (admin/servant awarded)
+- adjustment (admin correction)
+
+Leaderboards:
+- Global (top across all classes)
+- By class (within specific class)
+- By stage (stage-wide ranking)
+- Within servant's classes
+- Top 3 with podium display
+- Paginated results
+
+8.7 Event Module
+-----------------
+- Events have types: service, trip, meeting, other
+- Image upload support with Supabase
+- Target specific classes or all classes
+- Event view tracking for analytics
+- View count and viewer lists
+- CRUD by servants and admins
+
+8.8 Feedback Module
+-------------------
+- Members can submit feedback (complaint/suggestion/other)
+- Anonymous submission option
+- Servants and admins can view and reply
+- Resolve/unresolve status tracking
+- Admin can see sender identity even when anonymous
+- New reply indicators
+
+8.9 Daily Verse Module
+-----------------------
+- Bible verse management with text and reference
+- Activate/deactivate verses
+- Active verse displayed on member dashboard
+- Creator tracking
+
+8.10 Notification Module
+-------------------------
+- In-app notification system
+- Types: event-related, feedback-related, point-related
+- Read/unread tracking
+- Unread count badge
+- Mark as read / mark all as read
+
+8.11 Password Reset Request Module
+-----------------------------------
+Admin-approved password reset flow:
+1. User submits request with email and optional notes
+2. Admin receives notification
+3. Admin reviews identity externally (phone/WhatsApp)
+4. Admin approves/rejects with reason
+5. On approval, user receives email with reset link
+6. User completes password reset via secure token
+
+8.12 Dashboard Module
+----------------------
+- Admin dashboard: total members, active members, servant count,
+                    today's attendance, system overview, points leaderboard
+- Servant dashboard: attendance stats, member count, upcoming events
+- Member dashboard: points, attendance stats, QR code, recent attendance,
+                    upcoming events, class servant contacts
+- Platform dashboard: application stats, church listing
+
+8.13 Membership Request Module
+-------------------------------
+Public users can submit membership requests to existing churches.
+Admins can approve/reject with reason. On approval, creates a member user.
+
+8.14 Church Deletion Module
+-----------------------------
+Platform admins can:
+- Soft-delete churches (30-day recovery window)
+- Restore soft-deleted churches
+- Hard-delete churches (immediate permanent removal)
+- View deletion summary (all associated records count)
+- Recovery tracking with days_until_purge
+
+================================================================================
+9. FLOW ANALYSIS
+================================================================================
+
+9.1 User Registration Flow (via Invite)
+----------------------------------------
+1. Admin/Servant generates QR invite with specific role
+2. New user receives invite URL (via QR or link)
+3. User opens InviteLanding → validates token
+4. If valid & not expired & not used → shows registration form
+5. If authenticated (existing user) → shows accept invite button
+6. User fills registration form (name, email, password, class, etc.)
+7. AuthService::register() called
+8. Validates invite with lockForUpdate() (race condition prevention)
+9. Creates user with hashed password
+10. Generates email verification token
+11. Sends verification email
+12. Marks invite as used
+13. User redirected to login
+14. User must verify email before full access
+
+9.2 Login Flow
+---------------
+1. User submits email + password
+2. AuthService::login() checks credentials
+3. Blocks: platform_admin (must use special login), inactive users,
+           suspended church, deleted church
+4. Creates Sanctum token with role ability
+5. Returns user data + token
+6. Frontend: stores token in localStorage, stores user in localStorage
+7. AuthContext validates token by calling /auth/me
+8. User redirected to role-appropriate dashboard
+
+9.3 Attendance Recording Flow
+------------------------------
+1. Servant opens ScanQR page
+2. Selects attendance context (mandatory) + optional event + optional class filter
+3. Two methods:
+   a. QR Scan: Opens camera → scans member's QR token → handles decoded text
+   b. Manual: Enters QR token or member ID
+4. System calls lookupByToken/lookupByMemberId → validates
+5. Confirmation dialog shown with member info
+6. Servant confirms → AttendanceService::recordAttendance() called
+7. Validates: member active, context active, event exists
+8. lockForUpdate() on member row
+9. Checks hasAttendanceToday() → prevents duplicate same context
+10. Creates attendance record
+11. Auto-awards 10 points via PointService
+12. Dispatches AttendanceRecorded event
+13. Returns attendance + points earned
+
+9.4 Forgot Password Flow (Standard)
+-----------------------------------
+1. User submits email on ForgotPassword page
+2. AuthService::forgotPassword() calls Laravel Password broker
+3. Email sent with reset link (frontend URL)
+4. User clicks link → ResetPassword page
+5. Submits new password with token
+6. AuthService::resetPassword() validates and updates
+7. Invalidates all existing Sanctum tokens
+8. Sends PasswordChangedNotification
+
+9.5 Forgot Password Flow (Admin-Approved)
+------------------------------------------
+1. User submits email + optional notes on ForgotPassword page
+2. PasswordResetRequestService::submitRequest() creates pending request
+3. Admin receives email notification
+4. Admin reviews request detail (user info, phone, class, role)
+5. Admin contacts user externally (phone/WhatsApp) to verify identity
+6. Admin approves or rejects with reason
+7. On approval: email sent to user with secure reset URL (24-hour token)
+8. User clicks link → ResetPasswordFromRequest page
+9. User sets new password
+10. Token marked used, Sanctum tokens invalidated
+
+9.6 Event Creation Flow
+------------------------
+1. Servant/Admin opens Events page
+2. Clicks "Create Event" button
+3. Modal opens with form: name, type, description, date, location, image, target
+4. Target can be: all classes or specific classes
+5. Image uploaded via FileUploadService to Supabase
+6. Event created with creator tracking
+7. Event visible to targeted members
+
+9.7 Event Analytics Flow
+-------------------------
+1. Member views event → EventController::show() + trackView()
+2. trackView() creates/updates EventView record
+3. Admin/Servant views analytics:
+   - Summary: view count, target member count, view rate
+   - Viewed: list of members who viewed
+   - Not viewed: list of members who haven't viewed
+
+9.8 Feedback Flow
+------------------
+1. Member opens FeedbackSubmit page
+2. Selects category (complaint/suggestion/other) and optionally anonymous
+3. Submits message
+4. Servants/admins see feedback in FeedbackManagement
+5. Admin sees full sender identity; servant sees anonymous if flagged
+6. Admin/servant can reply
+7. Admin can mark as resolved/unresolved
+8. Member notified of new reply
+
+9.9 Church Application Flow
+----------------------------
+1. Church leader fills JoinNow form (church details, admin credentials, ID docs)
+2. Form submitted with front_id, back_id (or church permission document)
+3. Platform admin reviews in PlatformDashboard
+4. Admin checks docs, can approve/reject with reason
+5. On approval:
+   - ChurchApplicationObserver fires
+   - Creates Church record with default attendance contexts
+   - Creates admin user for the church
+   - Sends approval notification
+
+9.10 Points & Leaderboard Flow
+-------------------------------
+1. Attendance recorded → auto-award 10 points (type: attendance)
+2. Admin can award bonus points (type: bonus)
+3. LeaderboardService calculates rankings:
+   - Global: all members across all classes
+   - By class: members within a specific class
+   - By stage: members within a stage (across classes)
+   - Servant's classes: all classes assigned to servant
+4. Podium display: top 3 with gold/silver/bronze styling
+5. Points are summed; ties possible
+
+================================================================================
+10. API REFERENCE
+================================================================================
+
+10.1 Public Endpoints
+---------------------
+POST   /api/v1/auth/login                          - Login
+POST   /api/v1/auth/{hidden-path}                  - Platform Admin Login
+POST   /api/v1/auth/register                       - Register via invite
+POST   /api/v1/auth/forgot-password                 - Request password reset
+POST   /api/v1/auth/reset-password                  - Complete password reset
+POST   /api/v1/auth/verify-email                    - Verify email
+POST   /api/v1/auth/resend-verification              - Resend verification email
+POST   /api/v1/password-reset-requests              - Submit password reset request
+POST   /api/v1/password-reset-requests/reset        - Complete admin-approved reset
+GET    /api/v1/qr/validate/{token}                  - Validate QR invite token
+GET    /api/v1/invite/{token}                       - Get invite details
+GET    /api/v1/verses/active                        - Get active daily verse
+POST   /api/v1/church-applications                  - Submit church application
+GET    /api/v1/churches/active                      - List active churches
+POST   /api/v1/membership-requests                  - Submit membership request
+
+10.2 Authenticated Endpoints
+----------------------------
+POST   /api/v1/auth/logout                          - Logout
+GET    /api/v1/auth/me                              - Get current user
+
+... Storage endpoints
+... Dashboard, Points, Attendance (read), Stages, Classes, Events (read)
+... Notifications, Feedback, Attendance Contexts
+
+10.3 Servant+Admin Endpoints (permission: view_users)
+-----------------------------------------------------
+Full CRUD: Events, Verses, QR Invites, Attendance Contexts
+Attendance: Record, lookup, today, by-class, filtered, absent members
+Users: Members list, member detail, servants list
+Feedback: Index, show, resolve, reply
+
+10.4 Admin Endpoints (permission: manage_users)
+-----------------------------------------------
+Full CRUD: Users, Stages, Classes
+Password Reset Requests: Index, show, approve, reject
+User: Promote, demote, regenerate QR tokens
+Churches: List with counts
+
+10.5 Platform Admin Endpoints (role: platform_admin)
+-----------------------------------------------------
+GET    /api/v1/platform/dashboard                   - Platform stats
+GET    /api/v1/platform/churches                    - List all churches
+GET    /api/v1/platform/applications                - List applications
+GET    /api/v1/platform/applications/{id}           - Application detail
+POST   /api/v1/platform/applications/{id}/approve   - Approve application
+POST   /api/v1/platform/applications/{id}/reject    - Reject application
+GET    /api/v1/platform/churches/{id}/deletion-summary - Deletion summary
+POST   /api/v1/platform/churches/{id}/soft-delete   - Soft delete church
+POST   /api/v1/platform/churches/{id}/restore        - Restore church
+POST   /api/v1/platform/churches/{id}/hard-delete    - Hard delete church
+
+================================================================================
+11. DOCKER & DEPLOYMENT
+================================================================================
+
+11.1 Docker Services
+--------------------
+docker-compose.yml defines 5 services:
+
+1. app (church_app)
+   - PHP-FPM container for Laravel
+   - Build: backend/Dockerfile
+   - Health check: php-fpm process detection
+   - Limits: 512MB RAM, 1 CPU
+
+2. nginx (church_nginx)
+   - Nginx reverse proxy for PHP-FPM
+   - Ports: 8000 (HTTP), 8443 (HTTPS)
+   - Limits: 128MB RAM, 0.5 CPU
+
+3. worker (church_worker)
+   - Queue worker: php artisan queue:work
+   - Database driver, sleep=3, tries=3, backoff=60, timeout=90
+   - Limits: 256MB RAM, 0.5 CPU
+
+4. scheduler (church_scheduler)
+   - Scheduler: php artisan schedule:work
+   - Limits: 128MB RAM, 0.3 CPU
+
+5. frontend (church_frontend)
+   - Vite dev server for React
+   - Port: 3000 (mapped to 5173 internal)
+   - Environment: VITE_API_PROXY=http://nginx
+   - Limits: 512MB RAM, 0.5 CPU
+
+Network: church_network (bridge driver)
+
+11.2 Dockerfile (Backend)
+-------------------------
+Multi-stage build:
+- development: PHP-FPM with all dev dependencies
+- production: Optimized with Composer autoloader, no dev deps
+
+Includes:
+- PHP extensions: pdo_pgsql, pdo_mysql, bcmath, gd, zip, etc.
+- Composer installation
+- docker-entrypoint.sh for initialization
+
+11.3 Dockerfile (Frontend)
+--------------------------
+Multi-stage build:
+- development: Vite dev server with hot reload
+- production: Static build served by Nginx (nginx.conf included)
+
+11.4 Environment Configuration
+-----------------------------
+Key environment variables:
+- APP_ENV: development/production
+- APP_DEBUG: true/false
+- APP_URL: Backend URL
+- FRONTEND_URL: Frontend URL (for CORS/reset links)
+- DATABASE_URL: PostgreSQL connection string
+- DB_CONNECTION: pgsql/sqlite/mysql
+- RESEND_API_KEY: Email API key
+- MAIL_MAILER: log/resend/smtp
+- SANCTUM_STATEFUL_DOMAINS: CORS domains
+- PLATFORM_ADMIN_LOGIN_PATH: Hidden login path
+- VITE_API_PROXY: Backend proxy URL for Vite
+
+11.5 Deployment Architecture
+-----------------------------
+Development: Docker Compose with all services locally
+Production: Could deploy to:
+  - Laravel on Render/Railway/AWS
+  - Frontend on Vercel/Netlify
+  - Database on Supabase/RDS
+  - Files on Supabase Storage/S3
+  - Email via Resend
+
+================================================================================
+12. SECURITY ANALYSIS
+================================================================================
+
+12.1 Authentication
+-------------------
+- Sanctum token-based API authentication
+- Tokens expire after 24 hours
+- Token abilities scoped by user role
+- Hidden platform admin login path (security through obscurity + rate limiting)
+- Rate limiting on all auth endpoints
+- Email verification required after registration
+
+12.2 Authorization
+------------------
+- Role-based routing (frontend) + middleware (backend)
+- Permission-based access via dedicated Permission model
+- Policy classes for fine-grained authorization
+- Application status check (approved middleware) blocks pending/rejected users
+- Church suspension/deletion check on login
+
+12.3 Password Security
+-----------------------
+- Passwords hashed using bcrypt (via Laravel's built-in hashing)
+- Min 8 characters (frontend + backend validation)
+- Password reset invalidates all existing tokens
+- Password change notifications sent via email
+- Admin-approved reset flow prevents unauthorized resets
+
+12.4 QR Security
+-----------------
+- QR tokens are 64-char random strings (not raw IDs)
+- Tokens expire after configurable duration
+- Single-use or limited-use with race condition protection
+- Optimistic locking on markAsUsed() prevents concurrent use
+- Tokens never contain sensitive data (password, ID, etc.)
+
+12.5 API Security
+------------------
+- All authenticated routes require Sanctum token
+- 28 rate limiters prevent abuse
+- CORS configured via SANCTUM_STATEFUL_DOMAINS
+- CSRF protection for cookie-based routes
+- Validation on all inputs via Form Requests
+- SQL injection prevented by Eloquent ORM
+- XSS protection via React's default escaping
+
+12.6 File Upload Security
+--------------------------
+- Supabase Storage for production
+- MIME type restrictions
+- Rate limited (10 uploads/min)
+- File size limits (implied by upload limits)
+
+12.7 Data Protection
+---------------------
+- Passwords never returned in API responses
+- Soft deletes on users and churches for safety
+- Audit logging for sensitive operations
+- Church-level data isolation (BelongsToChurch trait)
+- Membership request rate limited (3/hour per IP/email)
+
+================================================================================
+13. PROJECT STRENGTHS
+================================================================================
+
+1. Clean Architecture
+   - Clear separation: Controller → Service → Repository → Model
+   - Interface-based contracts for loose coupling
+   - Dependency injection throughout
+
+2. Comprehensive TypeScript Types
+   - Every API response has a typed interface
+   - TypeScript strict mode with noUncheckedIndexedAccess
+   - JSON files for i18n typed via TypeScript
+
+3. Multi-Tenant by Design
+   - Church-level data isolation via BelongsToChurch trait
+   - Church scope on all relevant queries
+   - Platform admin can oversee all churches
+
+4. Robust Authentication
+   - Sanctum token auth with role-based abilities
+   - Two-factor: email verification + application approval
+   - Admin-approved password reset flow (extra security layer)
+
+5. Secure QR System
+   - Random tokens, not raw IDs
+   - Expiration, single-use, revokable
+   - Race condition prevention
+   - No sensitive data in QR codes
+
+6. Responsive UI
+   - TailwindCSS with mobile-first approach
+   - DataTable with card view on mobile
+   - All pages responsive (320px to 1920px+)
+   - Dark mode + light mode
+
+7. Internationalization
+   - Full English + Arabic support
+   - RTL layout support
+   - All notifications bilingual
+
+8. Comprehensive Testing
+   - Feature tests for core functionality
+   - Test factories for database seeding
+   - PHPUnit configuration
+
+9. Performance Considerations
+   - Batched queries in attendance analysis (avoid N+1)
+   - lockForUpdate() for concurrent safety
+   - Pagination on all list endpoints
+   - Rate limiting to prevent abuse
+   - Database indexes on frequently queried columns
+
+10. Developer Experience
+    - Docker Compose for local development
+    - Vite with HMR for frontend
+    - Comprehensive routes file
+    - Clear project structure
+
+================================================================================
+14. PROJECT WEAKNESSES
+================================================================================
+
+1. Missing Frontend Tests
+   - No Jest/Vitest or React Testing Library setup
+   - No component or integration tests for UI
+
+2. Missing Frontend TypeScript Compilation Check
+   - build uses `tsc -b && vite build` but no dedicated type-check script
+   - Some components have `any` type usage or unsafe casts
+
+3. Incomplete Python Microservice
+   - SyncAnalyticsToPython job exists but no actual Python service
+   - Analytics module frontend page exists but may be incomplete
+
+4. Potential API Inconsistencies
+   - Some endpoints return nested data differently
+   - Not all endpoints use API Resources consistently
+   - Some inline closures in routes file (api.php:91-99, 473-492)
+
+5. Missing Comprehensive Error Handling
+   - Some try/catch blocks silently fail or just log
+   - No global exception handler customization visible
+
+6. No Cache Invalidation Strategy
+   - CacheService exists but cache invalidation is ad-hoc
+   - No clear cache tagging or prefix strategy
+
+7. Missing Database Migration Strategy
+   - Some migrations have overlapping timestamps
+   - Fix migrations (e.g., 2026_06_22_000001_fix_batch2_failed_migrations)
+     suggest schema drift
+
+8. Large Frontend Components
+   - ScanQR.tsx is 475+ lines (too many responsibilities)
+   - Some pages mix data fetching, state, and rendering heavily
+
+9. No Frontend State Management Library
+   - Only React Context, which can cause unnecessary re-renders
+   - No global cache layer for API responses
+
+10. Incomplete Module Separation
+    - User module partially separated (app/Modules/User/)
+    - Other modules not following the same pattern
+
+11. Missing API Documentation
+    - No Swagger/OpenAPI specification
+    - No Postman collection
+
+12. Race Condition Risk
+    - markAsUsed() uses optimistic locking, but some operations don't
+      use transactions properly
+
+13. No CI/CD Configuration
+    - .github directory exists but no visible workflow files
+    - No automated testing pipeline
+
+14. Hardcoded Value for Points
+    - POINTS_PER_ATTENDANCE = 10 is a class constant, not configurable
+      via admin settings
+
+================================================================================
+15. RECOMMENDATIONS
+================================================================================
+
+15.1 Architecture Improvements
+------------------------------
+1. Extract remaining modules into app/Modules/ structure for consistency
+2. Implement a proper API versioning strategy if not already
+3. Add Swagger/OpenAPI documentation using laravel-ide-helper or dedicated package
+4. Consider using Laravel Data (spatie/laravel-data) for DTOs instead of custom classes
+
+15.2 Performance Improvements
+-----------------------------
+1. Add Redis for cache and queue (currently using database driver)
+2. Implement query result caching for leaderboards and analytics
+3. Add database read replicas for heavy report queries
+4. Consider Laravel Octane for high-traffic deployments
+5. Eager load relationships more aggressively on list endpoints
+
+15.3 Security Improvements
+---------------------------
+1. Add two-factor authentication (2FA) option
+2. Implement API key rotation policy
+3. Add login attempt tracking and account lockout
+4. Consider rate limiting by user ID + endpoint pattern (already mostly done)
+5. Add Content-Security-Policy headers
+
+15.4 Scalability Improvements
+-----------------------------
+1. Move queue to Redis or SQS for better throughput
+2. Implement horizontal scaling for queue workers
+3. Add CDN for static assets
+4. Consider database partitioning for attendances and points tables
+5. Implement cursor-based pagination for large datasets
+
+15.5 Developer Experience Improvements
+---------------------------------------
+1. Add Vitest + React Testing Library for frontend tests
+2. Add PHPStan or Larastan for static analysis
+3. Add GitHub Actions CI pipeline (lint, type-check, test)
+4. Create a comprehensive README with setup instructions
+5. Add docker-compose.override.yml for local development
+
+15.6 Testing Improvements
+--------------------------
+1. Add unit tests for services
+2. Add integration tests for API endpoints
+3. Add frontend component tests
+4. Add E2E tests with Playwright or Cypress
+
+15.7 Python Microservice
+-------------------------
+1. Complete the FastAPI analytics service
+2. Implement actual data synchronization
+3. Add analytics endpoints for:
+   - Attendance trends over time
+   - Servant performance metrics
+   - Member attendance rate tracking
+   - Weekly/monthly comparison reports
+
+15.8 Code Quality
+------------------
+1. Reduce large components (ScanQR.tsx) by extracting hooks and sub-components
+2. Add error boundaries at the route level
+3. Implement proper loading skeletons for all pages
+4. Add proper 404/403 error pages for API consumption
+5. Standardize API response format (already largely consistent)
+
+================================================================================
+16. PRESENTATION SUMMARY
+================================================================================
+
+Project Title: Church Management System (CMS)
+
+────────────────────────────────────────────────────────────────────────────
+16.1 Project Overview
+────────────────────────────────────────────────────────────────────────────
+
+The Church Management System is a comprehensive digital platform designed to
+streamline church operations, enhance member engagement, and provide powerful
+administrative tools for church leaders. It serves as a complete church
+management solution with QR-based attendance tracking, gamification through
+points and leaderboards, event management, feedback systems, and role-based
+access control.
+
+The system supports multiple churches on a single platform, with each church
+operating independently with its own administrators, servants, and members.
+This makes it ideal for denominations or church networks that want a unified
+system while maintaining church-level autonomy.
+
+────────────────────────────────────────────────────────────────────────────
+16.2 Problem Statement
+────────────────────────────────────────────────────────────────────────────
+
+Churches face several operational challenges:
+- Manual attendance tracking is time-consuming and error-prone
+- Member engagement is difficult to measure and encourage
+- Communication between servants and members is fragmented
+- Event planning lacks analytics to measure reach
+- Feedback collection and management is ad-hoc
+- No centralized system for managing multiple church groups
+
+Traditional solutions are either too generic (not church-specific), too
+expensive, or lack modern features like QR scanning, mobile responsiveness,
+and bilingual support.
+
+────────────────────────────────────────────────────────────────────────────
+16.3 Solution
+────────────────────────────────────────────────────────────────────────────
+
+The Church Management System provides:
+
+- QR-based attendance: Servants scan members' QR codes for instant check-in
+- Gamification: Points and leaderboards encourage regular attendance
+- Role-based access: Platform Admin → Church Admin → Servant → Member
+- Multi-tenant architecture: One platform, many churches
+- Event management: Create, target, track, and analyze events
+- Feedback system: Anonymous submissions with reply capability
+- Daily verses: Bible verse display for spiritual engagement
+- Bilingual: Full English and Arabic support
+- Modern UI: Responsive design with dark mode
+
+────────────────────────────────────────────────────────────────────────────
+16.4 System Architecture
+────────────────────────────────────────────────────────────────────────────
+
+The system follows a modern three-tier architecture:
+
+┌──────────────────────────────────────────────────────────────┐
+│                   Client Layer (React + Vite)                │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────────┐    │
+│  │ Admin UI │ │ Servant  │ │ Member   │ │ Platform     │    │
+│  │          │ │    UI    │ │    UI    │ │ Admin UI     │    │
+│  └──────────┘ └──────────┘ └──────────┘ └──────────────┘    │
+└──────────────────────────┬───────────────────────────────────┘
+                           │ HTTP/JSON (REST API)
+┌──────────────────────────┴───────────────────────────────────┐
+│                   API Layer (Laravel 12)                     │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────────┐    │
+│  │ Sanctum  │ │Services  │ │Repository│ │  Queue Jobs  │    │
+│  │   Auth   │ │  Layer   │ │  Layer   │ │  + Events    │    │
+│  └──────────┘ └──────────┘ └──────────┘ └──────────────┘    │
+└──────────────────────────┬───────────────────────────────────┘
+                           │ SQL / Storage
+┌──────────────────────────┴───────────────────────────────────┐
+│               Data Layer (PostgreSQL + Supabase)              │
+│  ┌─────────────────────┐  ┌────────────────────────────┐     │
+│  │   PostgreSQL DB     │  │   Supabase File Storage    │     │
+│  └─────────────────────┘  └────────────────────────────┘     │
+└──────────────────────────────────────────────────────────────┘
+
+Frontend communicates with Backend via REST API over HTTP.
+Authentication uses Laravel Sanctum token-based auth.
+File storage uses Supabase Storage (S3-compatible).
+Email delivery via Resend API.
+Queue jobs for async operations (email, analytics sync).
+
+────────────────────────────────────────────────────────────────────────────
+16.5 Technology Stack
+────────────────────────────────────────────────────────────────────────────
+
+Category        │ Technology
+────────────────┼────────────────────────────────────────────
+Backend         │ PHP 8.2, Laravel 12, Laravel Sanctum
+Frontend        │ React 19, TypeScript 6, Vite 8
+Database        │ PostgreSQL (primary), SQLite (dev)
+Styling         │ TailwindCSS 4, CSS Custom Properties
+Email           │ Resend API
+Storage         │ Supabase Storage (S3-compatible)
+Infrastructure  │ Docker, Docker Compose, Nginx
+Auth            │ Sanctum (token-based), Role/Permission system
+i18n            │ i18next, react-i18next (EN/AR)
+QR              │ html5-qrcode (scan), qrcode (generate)
+Icons           │ Lucide React
+Testing         │ PHPUnit, Mockery
+
+────────────────────────────────────────────────────────────────────────────
+16.6 Main Features
+────────────────────────────────────────────────────────────────────────────
+
+1. Multi-Tenant Church Management
+   - Platform admin oversees multiple churches
+   - Each church operates independently
+   - Church-level data isolation
+
+2. QR-Based Attendance System
+   - Secure 64-char token QR codes
+   - Camera scanning or manual token entry
+   - Duplicate prevention (same day + context)
+   - Context-aware (Sunday School, Mass, Trip, etc.)
+   - Automatic point awarding
+
+3. Points & Leaderboard Gamification
+   - Auto-points on attendance (10 points)
+   - Bonus points by admins
+   - Global, class, and stage leaderboards
+   - Podium display for top 3
+
+4. Role-Based Dashboards
+   - Platform Admin: Global oversight, application management
+   - Church Admin: Full church management
+   - Assistant Admin: Co-management
+   - Servant: Member management, attendance recording
+   - Member: Personal dashboard, QR code, leaderboard
+
+5. Event Management with Analytics
+   - Create events with images and targets
+   - Track member views
+   - View/not-viewed analytics
+   - Targeted to specific classes or all
+
+6. Feedback System
+   - Anonymous submission option
+   - Category-based (complaint/suggestion/other)
+   - Reply and resolution workflow
+   - Admin override on anonymity
+
+7. Bilingual Support
+   - Full English and Arabic interface
+   - RTL layout support
+   - Bilingual email notifications
+
+8. Secure Invite System
+   - Admin-to-servant and servant-to-member invites
+   - Configurable expiration
+   - Single or multi-use
+   - Revokable
+
+────────────────────────────────────────────────────────────────────────────
+16.7 System Workflow
+────────────────────────────────────────────────────────────────────────────
+
+Church Onboarding:
+  Church Leader → Submits Application → Platform Admin Reviews →
+  Approves/Rejects → Church Created with Default Contexts →
+  Church Admin Account Created → Church Active
+
+Member Onboarding:
+  Admin/Servant → Generates QR Invite → Shares with New User →
+  User Opens Invite Link → Registers with Details →
+  Email Verification → Login → Dashboard Access
+
+Daily Attendance:
+  Servant Opens Scan QR → Selects Context →
+  Scans Member QR or Enters Member ID →
+  System Validates → Records Attendance →
+  Awards Points → Updates Leaderboard
+
+Member Experience:
+  Login → Dashboard (Points, QR Code, Recent Attendance, Upcoming Events) →
+  View Attendance History → Check Leaderboard →
+  Submit Feedback → View Events → Scan Own QR
+
+────────────────────────────────────────────────────────────────────────────
+16.8 Database Overview
+────────────────────────────────────────────────────────────────────────────
+
+25+ database tables with the following core entities:
+
+- Users: 5 roles, church-scoped, self-referential (servant-member relationship)
+- Churches: Multi-tenant hierarchy, soft-deletable with recovery
+- Attendances: Context-aware, duplicate-prevented, auto-points
+- Points: Type-based (attendance/bonus/adjustment), church-scoped
+- QR Invites: Type-based with expiration, usage tracking, optimistic locking
+- Events: Targetable to classes, with view tracking analytics
+- Feedback: Anonymous option, reply workflow, resolved tracking
+- Classes/Stages: Educational hierarchy, servant assignments via pivot
+- Notifications: In-app system with read tracking
+
+PostgreSQL-specific features used: sequences (for member_id auto-generation),
+unique indexes, foreign key constraints with cascade.
+
+────────────────────────────────────────────────────────────────────────────
+16.9 Security
+────────────────────────────────────────────────────────────────────────────
+
+- Token-based authentication (Sanctum) with 24-hour expiry
+- Role-based and permission-based authorization
+- Rate limiting on all endpoints (28 limiters)
+- QR tokens are secure random strings (never raw IDs)
+- Race condition prevention (lockForUpdate, optimistic locking)
+- Hidden platform admin login path
+- Password hashing (bcrypt)
+- Email verification requirement
+- Church-level data isolation
+- Soft deletes for recovery
+- Audit logging
+
+────────────────────────────────────────────────────────────────────────────
+16.10 Deployment
+───────────────────────────────────────────────────────────────────────────
+
+The system is containerized with Docker Compose:
+
+Service       │ Container     │ Purpose
+──────────────┼───────────────┼─────────────────────────
+app           │ church_app    │ PHP-FPM (Laravel)
+nginx         │ church_nginx  │ Reverse proxy
+worker        │ church_worker │ Queue worker
+scheduler     │ church_schl   │ Cron scheduler
+frontend      │ church_front  │ React + Vite
+
+All services run on a shared Docker bridge network.
+Development: docker-compose up
+Production: Multi-stage Docker builds, Nginx serving frontend static files.
+
+Environment configuration via .env files with sensible defaults.
+Email via Resend API. File storage via Supabase. Database via PostgreSQL.
+
+────────────────────────────────────────────────────────────────────────────
+16.11 Future Enhancements
+────────────────────────────────────────────────────────────────────────────
+
+1. Mobile Application (React Native or Flutter)
+2. Real-time notifications (WebSockets / Laravel Reverb)
+3. Advanced analytics dashboard with charts (Python microservice)
+4. Automated report generation (PDF exports)
+5. SMS notifications integration
+6. Payment/tithe collection module
+7. Volunteer management and scheduling
+8. Sermon/teaching library with media upload
+9. Prayer request system
+10. Family/group linking between members
+11. Calendar integration (iCal/Google Calendar sync)
+12. Bulk import/export (CSV/Excel)
+13. WhatsApp Business API integration for notifications
+14. AI-powered attendance predictions and insights
+15. Multi-language expansion (French, Spanish, Coptic, etc.)
+
+================================================================================
+END OF DOCUMENT
+================================================================================

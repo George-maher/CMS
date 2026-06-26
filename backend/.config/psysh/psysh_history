@@ -1,0 +1,19 @@
+$user = App\Models\User::where('email','platform@churchplatform.local')->first();
+$user->password = bcrypt('password');
+$user->save();
+$user = App\Models\User::where('role', App\Enums\UserRole::PlatformAdmin)->first();
+$user->password = Hash::make('chknestyfou2*');
+$user->save();
+echo 'Done: ' . $user->email;
+"
+DB::table('migrations')->insert([
+    'migration' => '2026_06_17_000001_add_main_servant_name_and_phone_to_church_applications',
+    'batch' => DB::table('migrations')->max('batch') + 1,
+]);
+echo 'registered';
+"
+exit
+$user = App\Models\User::where('email', 'platform@churchplatform.local')->first();
+$user->password = bcrypt('chknestyfou2*');
+$user->save();
+exit
