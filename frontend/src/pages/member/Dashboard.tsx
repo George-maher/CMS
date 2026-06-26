@@ -135,7 +135,6 @@ export default function MemberDashboard() {
             <div className="relative">
               <p className="text-xs font-semibold uppercase tracking-wider gold-text">{t('users.class')}</p>
               <p className="mt-1 text-xl font-bold gold-text">{user.classe.name}</p>
-              {user.classe.description && <p className="mt-1 text-sm text-secondary">{user.classe.description}</p>}
             </div>
           </div>
         </MotionDiv>

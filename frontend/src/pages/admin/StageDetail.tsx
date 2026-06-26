@@ -7,7 +7,7 @@ import LoadingSpinner from '@/components/common/LoadingSpinner'
 import Modal from '@/components/common/Modal'
 import type { Stage, Classe } from '@/types'
 import { getStage, getStageClasses } from '@/api/stages'
-import { createClasse, updateClasse, deleteClasse, reorderClasses } from '@/api/classes'
+import { createClasse, updateClasse, deleteClasse } from '@/api/classes'
 
 export default function StageDetail() {
   const { t } = useTranslation()

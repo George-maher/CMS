@@ -5,13 +5,11 @@ import LoadingSpinner from '@/components/common/LoadingSpinner'
 import MotionDiv from '@/components/common/MotionDiv'
 import PodiumCard from '@/components/leaderboard/PodiumCard'
 import LeaderboardRow from '@/components/leaderboard/LeaderboardRow'
-import { useAuth } from '@/contexts/AuthContext'
 import { getMyClassLeaderboard, getGlobalLeaderboard } from '@/api/points'
 import type { LeaderboardEntry } from '@/types'
 
 export default function MemberLeaderboard() {
   const { t } = useTranslation()
-  const { user } = useAuth()
   const [classData, setClassData] = useState<{ class: { id: number; name: string } | null; stage: { id: number; name: string } | null; leaderboard: LeaderboardEntry[] } | null>(null)
   const [global, setGlobal] = useState<LeaderboardEntry[]>([])
   const [loading, setLoading] = useState(true)

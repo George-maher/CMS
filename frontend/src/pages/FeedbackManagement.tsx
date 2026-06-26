@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import toast from 'react-hot-toast'
-import { Reply, Eye, EyeOff, Phone, MessageCircle, MapPin } from 'lucide-react'
+import { Reply, Eye, EyeOff, Phone } from 'lucide-react'
 import Badge from '@/components/common/Badge'
 import DataTable from '@/components/common/DataTable'
 import Modal from '@/components/common/Modal'

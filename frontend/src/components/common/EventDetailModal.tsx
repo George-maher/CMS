@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { MapPin, Calendar, Users, Eye, EyeOff, BarChart3, Search, ImageOff } from 'lucide-react'
+import { MapPin, Calendar, Users, Eye, EyeOff, BarChart3, Search } from 'lucide-react'
 import Badge from './Badge'
 import LoadingSpinner from './LoadingSpinner'
 import type { Event, EventViewer } from '@/types'

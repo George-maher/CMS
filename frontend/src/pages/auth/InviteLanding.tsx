@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useTheme } from '@/contexts/ThemeContext'
 import { useTranslation } from 'react-i18next'
 import toast from 'react-hot-toast'
-import { Church, XCircle, CheckCircle, Loader2, Eye, EyeOff, Sun, Moon, Languages } from 'lucide-react'
+import { Church, XCircle, CheckCircle, Loader2, Eye, EyeOff, Sun, Moon } from 'lucide-react'
 import LoadingSpinner from '@/components/common/LoadingSpinner'
 import { roleTranslationKey } from '@/lib/roles'
 import type { UserRole } from '@/types'
@@ -87,7 +87,7 @@ export default function InviteLanding() {
     setSubmitting(true)
     setErrorMsg('')
     try {
-      const payload: Record<string, unknown> = {
+      const payload = {
         name: form.name, email: form.email, password: form.password,
         password_confirmation: form.password_confirmation, invite_token: token,
         ...(form.class_id ? { class_id: Number(form.class_id) } : {}),

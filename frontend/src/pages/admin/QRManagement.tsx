@@ -96,7 +96,7 @@ export default function AdminQRManagement() {
       },
     },
     { key: 'creator', header: t('qr.createdBy'), render: (q) => q.creator ? (
-      <button onClick={() => navigate(`/admin/users/${q.creator.id}`)} className="text-xs hover:text-primary-600 hover:underline transition-colors text-left">{q.creator.name}</button>
+      <button onClick={() => navigate(`/admin/users/${q.creator?.id}`)} className="text-xs hover:text-primary-600 hover:underline transition-colors text-left">{q.creator?.name}</button>
     ) : '-' },
     {
       key: 'usage',

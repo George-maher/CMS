@@ -26,7 +26,7 @@ export default function AdminUsers() {
   const [form, setForm] = useState<CreateUserPayload>({ name: '', email: '', role: 'member' })
   const [search, setSearch] = useState('')
   const [phoneError, setPhoneError] = useState('')
-  const searchTimeout = useRef<ReturnType<typeof setTimeout>>()
+  const searchTimeout = useRef<ReturnType<typeof setTimeout>>(undefined)
 
   const columns: Column<User>[] = [
     { key: 'member_id', header: t('users.memberIdLabel'), render: (u) => u.member_id ? (

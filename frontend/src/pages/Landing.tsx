@@ -35,7 +35,7 @@ const benefits = [
 ]
 
 export default function Landing() {
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
   const navigate = useNavigate()
 
   return (

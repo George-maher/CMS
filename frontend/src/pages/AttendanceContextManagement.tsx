@@ -131,7 +131,7 @@ export default function AttendanceContextManagement() {
                     <p className="mt-0.5 text-base font-semibold truncate">{ctx.name}</p>
                     {ctx.name_ar && <p className="text-sm text-secondary truncate">{ctx.name_ar}</p>}
                   </div>
-                  <Badge variant={ctx.is_active ? 'success' : 'secondary'}>
+                  <Badge variant={ctx.is_active ? 'success' : 'default'}>
                     {ctx.is_active ? t('common.active') : t('context.archived')}
                   </Badge>
                 </div>

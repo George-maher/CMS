@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Trophy, Star, Users, Sparkles } from 'lucide-react'
+import { Trophy, Star, Sparkles } from 'lucide-react'
 import DataTable from '@/components/common/DataTable'
 import StatCard from '@/components/common/StatCard'
 import LoadingSpinner from '@/components/common/LoadingSpinner'

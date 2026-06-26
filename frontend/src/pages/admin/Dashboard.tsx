@@ -40,8 +40,6 @@ export default function AdminDashboard() {
 
   if (loading) return <LoadingSpinner className="py-20" />
 
-  const statIconClass = 'p-2.5 rounded-xl gold-gradient shadow-md text-navy-900'
-
   return (
     <div className="space-y-6">
       <MotionDiv animation="fade-in-up">

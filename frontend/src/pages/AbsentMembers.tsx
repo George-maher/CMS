@@ -24,13 +24,14 @@ export default function AbsentMembers() {
     date: '',
     dateFrom: '',
     dateTo: '',
+    search: '',
   })
 
   const [myClasses, setMyClasses] = useState<{ id: number; name: string }[]>([])
 
   const effectiveClassId = useMemo(() => {
     if (!isServant) return filterValues.classId
-    return myClasses.length > 0 ? myClasses[0].id : ''
+    return myClasses.length > 0 ? myClasses[0]?.id : ''
   }, [isServant, myClasses, filterValues.classId])
 
   const fetchAbsentMembers = useCallback(async (classId?: number | string) => {
@@ -63,8 +64,8 @@ export default function AbsentMembers() {
       .then((classes) => {
         setMyClasses(classes ?? [])
         if (classes?.length > 0) {
-          const firstId = classes[0].id
-          setFilterValues((prev) => ({ ...prev, classId: firstId }))
+          const firstId = classes[0]?.id
+          setFilterValues((prev) => ({ ...prev, classId: firstId ?? '' }))
           fetchAbsentMembers(firstId)
         }
       })
@@ -96,7 +97,7 @@ export default function AbsentMembers() {
         <div>
           <h1 className="text-2xl font-bold">
             {t('absentMembers.title')}
-            {isServant && myClasses.length === 1 && <span> — {myClasses[0].name}</span>}
+            {isServant && myClasses.length === 1 && <span> — {myClasses[0]?.name}</span>}
           </h1>
           <p className="mt-1 text-sm text-secondary">{t('absentMembers.description')}</p>
         </div>

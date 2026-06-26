@@ -4,14 +4,12 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useTheme } from '@/contexts/ThemeContext'
 import { ctxName } from '@/lib/contextLabels'
 import { getFilteredAttendances } from '@/api/attendance'
-import { getActiveContexts } from '@/api/attendanceContexts'
 import { getMyClasses } from '@/api/structure'
 import AttendanceFilter from '@/components/common/AttendanceFilter'
 import type { AttendanceFilterValues } from '@/components/common/AttendanceFilter'
 import Badge from '@/components/common/Badge'
-import type { Attendance, AttendanceContext, PaginationMeta } from '@/types'
+import type { Attendance, PaginationMeta } from '@/types'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import toast from 'react-hot-toast'
 
 export default function AttendancePage() {
   const { t } = useTranslation()
@@ -19,7 +17,6 @@ export default function AttendancePage() {
   const { language } = useTheme()
   const isServant = user?.role === 'servant'
 
-  const [contexts, setContexts] = useState<AttendanceContext[]>([])
   const [classes, setClasses] = useState<{ id: number; name: string }[]>([])
   const [loading, setLoading] = useState(false)
 
@@ -40,19 +37,16 @@ export default function AttendancePage() {
   const titleSuffix = useMemo(() => {
     if (!isServant) return ''
     if (classes.length === 0) return ''
-    if (classes.length === 1) return ` - ${classes[0].name}`
+    if (classes.length === 1) return ` - ${classes[0]?.name}`
     return ` - ${t('attendance.myClasses')}`
   }, [isServant, classes, t])
 
   useEffect(() => {
-    getActiveContexts()
-      .then((ctxs) => setContexts(ctxs ?? []))
-      .catch(() => toast.error(t('common.failedToLoad')))
     getMyClasses()
       .then((c) => {
         setClasses(c ?? [])
         if (isServant && c?.length > 0) {
-          const firstId = c[0].id
+          const firstId = c[0]?.id ?? ''
           setFilters((prev) => ({ ...prev, classId: firstId }))
           setCommitted((prev) => ({ ...prev, classId: firstId }))
         }
@@ -93,7 +87,7 @@ export default function AttendancePage() {
   const handleReset = () => {
     const reset: AttendanceFilterValues = {
       contextId: '',
-      classId: isServant && classes.length > 0 ? classes[0].id : '',
+      classId: isServant && classes.length > 0 ? (classes[0]?.id ?? '') : '',
       date: '',
       dateFrom: '',
       dateTo: '',

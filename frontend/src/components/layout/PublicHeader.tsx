@@ -15,12 +15,6 @@ export default function PublicHeader() {
   const isHome = location.pathname === '/'
   const toggleLang = () => setLanguage(isRtl ? 'en' : 'ar')
 
-  const navLinks = [
-    { label: t('nav.home'), action: () => navigate('/') },
-    { label: t('landing.heroCta'), action: () => navigate('/join'), highlight: true },
-    { label: t('landing.heroLogin'), action: () => navigate('/login'), highlight: false },
-  ]
-
   return (
     <header className="sticky top-0 z-50 border-b border-glass-border bg-surface/80 backdrop-blur-xl">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">

@@ -38,7 +38,7 @@ export default function MemberAttendance() {
     <div className="space-y-4">
       <div className="grid gap-4 sm:grid-cols-2">
         <StatCard title={t('dashboard.myAttendances')} value={stats.total_attendances} color="info" />
-        <StatCard title={t('common.thisMonth')} value={stats.this_month} color="warning" />
+        <StatCard title={t('common.thisMonth')} value={stats.this_month} color="gold" />
       </div>
       <DataTable columns={columns} data={attendances} meta={meta} isLoading={loading} onPageChange={fetch} />
     </div>

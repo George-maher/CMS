@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Trophy, Star, Users, Crown, Sparkles, BookOpen } from 'lucide-react'
+import { Trophy, Star, Users, Sparkles, BookOpen } from 'lucide-react'
 import LoadingSpinner from '@/components/common/LoadingSpinner'
 import MotionDiv from '@/components/common/MotionDiv'
 import PodiumCard from '@/components/leaderboard/PodiumCard'

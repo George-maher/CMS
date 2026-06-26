@@ -5,13 +5,13 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useTheme } from '@/contexts/ThemeContext'
 import { useTranslation } from 'react-i18next'
 import toast from 'react-hot-toast'
-import { Church, Eye, EyeOff, Loader2, XCircle, CheckCircle, Sun, Moon, Languages } from 'lucide-react'
+import { Church, Eye, EyeOff, Loader2, XCircle, CheckCircle, Sun, Moon } from 'lucide-react'
 import LoadingSpinner from '@/components/common/LoadingSpinner'
 
 export default function InviteRegister() {
   const { register } = useAuth()
   const { t } = useTranslation()
-  const { theme, toggleTheme, language, setLanguage, dir } = useTheme()
+  const { theme, toggleTheme, language, setLanguage } = useTheme()
   const [searchParams] = useSearchParams()
   const token = searchParams.get('token')
   const navigate = useNavigate()

@@ -39,7 +39,7 @@ import { getUserBalance, addBonusPoints } from '@/api/points'
 import { roleBadgeVariant, roleTranslationKey } from '@/lib/roles'
 import QRCodeLib from 'qrcode'
 
-function InfoRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: string | null | undefined }) {
+function InfoRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: React.ReactNode | string | null | undefined }) {
   if (!value) return null
   return (
     <div className="flex items-start gap-3 py-2.5 border-b border-border last:border-b-0">
@@ -115,7 +115,6 @@ export default function AdminUserDetail() {
   if (!user) return <p className="py-12 text-center text-muted">{t('users.notFound')}</p>
 
   const isAdmin = user.role === 'admin' || user.role === 'platform_admin'
-  const currentUserRole = user.role
 
   const handleToggleActive = async () => {
     await updateUser(user.id, { is_active: !user.is_active })

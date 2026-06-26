@@ -4,8 +4,8 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useTheme } from '@/contexts/ThemeContext'
 import { useTranslation } from 'react-i18next'
 import {
-  LayoutDashboard, Users, BookOpen, Calendar, MessageSquare,
-  BarChart3, ClipboardList, QrCode,
+  LayoutDashboard, Users, Calendar, MessageSquare,
+  ClipboardList, QrCode,
   BookMarked, Camera, Star, Trophy,
   Church, Moon, Sun, Languages, X, UserX, Layers, Trash2,
 } from 'lucide-react'

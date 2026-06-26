@@ -4,6 +4,7 @@ import type { UserRole } from '../types'
 const roleHierarchy: Record<UserRole, number> = {
   platform_admin: 100,
   admin: 80,
+  assistant_admin: 70,
   servant: 50,
   member: 10,
 }
@@ -11,6 +12,7 @@ const roleHierarchy: Record<UserRole, number> = {
 const roleRedirects: Record<UserRole, string> = {
   platform_admin: '/platform',
   admin: '/admin',
+  assistant_admin: '/admin',
   servant: '/servant',
   member: '/member',
 }
