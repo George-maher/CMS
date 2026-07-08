@@ -1,0 +1,13 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+
+parameters:
+    paths:
+        - app/
+    level: max
+    checkMissingIterableValueType: false
+    checkGenericClassInNonGenericObjectType: false
+    excludePaths:
+        - app/Http/Controllers/Api/AttendanceContextController.php
+    databaseMigrationsPath:
+        - database/migrations
