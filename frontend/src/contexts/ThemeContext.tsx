@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { createContext, useEffect, useState, useCallback, type ReactNode } from 'react'
 import i18n from 'i18next'
 
