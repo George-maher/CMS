@@ -18,6 +18,7 @@ class PointService implements PointServiceInterface
         private readonly CacheService $cacheService,
     ) {}
 
+    /** @return array<string, mixed> */
     public function addPoints(int $userId, int $points, string $type, ?string $description = null, ?string $referenceType = null, ?int $referenceId = null): array
     {
         $point = $this->pointRepository->create([
@@ -39,6 +40,7 @@ class PointService implements PointServiceInterface
         ];
     }
 
+    /** @return array<string, mixed> */
     public function addBonusPoints(int $userId, int $points, int $addedBy, ?string $reason = null): array
     {
         $member = User::byChurch()->find($userId);
@@ -78,6 +80,7 @@ class PointService implements PointServiceInterface
         return $this->pointRepository->getTotalPointsByUser($userId);
     }
 
+    /** @return array<string, mixed> */
     public function getPointsHistory(int $userId, int $perPage = 15): array
     {
         $paginator = $this->pointRepository->paginate($perPage, ['user_id' => $userId]);
@@ -93,6 +96,7 @@ class PointService implements PointServiceInterface
         ];
     }
 
+    /** @return array<string, mixed> */
     public function getLeaderboard(int $limit = 10): array
     {
         $topUsers = User::byChurch()

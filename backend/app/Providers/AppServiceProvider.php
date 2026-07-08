@@ -183,7 +183,7 @@ class AppServiceProvider extends ServiceProvider
         // ──────────────────────────────────────────────
         // Set default mailer to resend (overrides log in dev)
         // ──────────────────────────────────────────────
-        if (config('mail.default') === 'log' && env('RESEND_API_KEY')) {
+        if (config('mail.default') === 'log' && config('services.resend.api_key')) {
             Mail::alwaysFrom(
                 config('mail.from.address'),
                 config('mail.from.name')

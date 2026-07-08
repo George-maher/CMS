@@ -8,7 +8,7 @@ use App\Enums\UserRole;
 interface QRInviteServiceInterface
 {
     public function createInvite(array $data, int $creatorId): array;
-    public function findById(int $id);
+    public function findById(int $id): ?\App\Models\QRInvite;
     public function validateToken(string $token): array;
     public function validateTokenForRegistration(string $token): array;
     public function getInviteDetails(string $token): array;

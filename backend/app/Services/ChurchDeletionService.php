@@ -22,7 +22,6 @@ use App\Models\QRInvite;
 use App\Models\Stage;
 use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class ChurchDeletionService
@@ -33,6 +32,7 @@ class ChurchDeletionService
         private readonly AuditService $auditService,
     ) {}
 
+    /** @return array<string, mixed> */
     public function getDeletionSummary(Church $church): array
     {
         $userIds = User::where('church_id', $church->id)->pluck('id');
@@ -71,7 +71,9 @@ class ChurchDeletionService
     public function softDelete(Church $church, User $admin): Church
     {
         if ($church->trashed()) {
-            abort(422, __('church_deletion.already_deleted'));
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'church' => [__('church_deletion.already_deleted')],
+            ]);
         }
 
         return DB::transaction(function () use ($church, $admin) {
@@ -117,11 +119,15 @@ class ChurchDeletionService
     public function restore(Church $church, User $admin): Church
     {
         if (!$church->trashed()) {
-            abort(422, __('church_deletion.not_deleted'));
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'church' => [__('church_deletion.not_deleted')],
+            ]);
         }
 
         if (!$church->isRecoverable()) {
-            abort(422, __('church_deletion.recovery_window_expired'));
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'church' => [__('church_deletion.recovery_window_expired')],
+            ]);
         }
 
         return DB::transaction(function () use ($church, $admin) {
@@ -152,13 +158,20 @@ class ChurchDeletionService
         });
     }
 
-    public function getDeletedChurches(Request $request): LengthAwarePaginator
-    {
+    public function getDeletedChurches(
+        ?string $search = null,
+        ?string $churchName = null,
+        ?string $priestName = null,
+        ?string $dateFrom = null,
+        ?string $dateTo = null,
+        int $perPage = 15,
+    ): LengthAwarePaginator {
+        $perPage = min($perPage, 100);
         $query = Church::onlyTrashed()
             ->with(['deletedBy' => fn($q) => $q->select('id', 'name', 'email')])
             ->withCount('users');
 
-        if ($search = $request->query('search')) {
+        if ($search) {
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
                   ->orWhere('priest_name', 'like', "%{$search}%")
@@ -167,23 +180,21 @@ class ChurchDeletionService
             });
         }
 
-        if ($churchName = $request->query('church_name')) {
+        if ($churchName) {
             $query->where('name', 'like', "%{$churchName}%");
         }
 
-        if ($priestName = $request->query('priest_name')) {
+        if ($priestName) {
             $query->where('priest_name', 'like', "%{$priestName}%");
         }
 
-        if ($dateFrom = $request->query('deleted_from')) {
+        if ($dateFrom) {
             $query->whereDate('deleted_at', '>=', $dateFrom);
         }
 
-        if ($dateTo = $request->query('deleted_to')) {
+        if ($dateTo) {
             $query->whereDate('deleted_at', '<=', $dateTo);
         }
-
-        $perPage = min((int) $request->query('per_page', 15), 100);
 
         return $query->orderBy('deleted_at', 'desc')->paginate($perPage);
     }

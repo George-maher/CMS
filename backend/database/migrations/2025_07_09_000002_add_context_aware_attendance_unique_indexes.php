@@ -12,6 +12,8 @@ return new class extends Migration
 
         DB::statement('DROP INDEX IF EXISTS attendances_user_date_unique');
         DB::statement('DROP INDEX IF EXISTS attendances_user_date_event_unique');
+        DB::statement('DROP INDEX IF EXISTS attendances_user_date_context_unique');
+        DB::statement('DROP INDEX IF EXISTS attendances_user_date_event_context_unique');
 
         DB::statement("
             CREATE UNIQUE INDEX attendances_user_context_date_unique

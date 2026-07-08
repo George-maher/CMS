@@ -9,6 +9,25 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+/**
+ * @property int $id
+ * @property int|null $church_id
+ * @property int|null $stage_id
+ * @property string $name
+ * @property string|null $description
+ * @property int|null $display_order
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \App\Models\Stage|null $stage
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\User> $allUsers
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\User> $servants
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Attendance> $attendances
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Event> $events
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Feedback> $feedback
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\QRInvite> $qrInvites
+ * @property-read int|null $member_count
+ * @property-read int|null $servant_count
+ */
 class Classe extends Model
 {
     use HasFactory, BelongsToChurch;

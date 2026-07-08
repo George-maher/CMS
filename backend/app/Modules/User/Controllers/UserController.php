@@ -187,7 +187,7 @@ class UserController extends Controller
         }
 
         return response()->json([
-            'data' => array_values($contacts),
+            'data' => $contacts,
         ]);
     }
 

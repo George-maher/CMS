@@ -18,6 +18,8 @@ class PasswordResetRequestService implements PasswordResetRequestServiceInterfac
 {
     private const TOKEN_EXPIRY_HOURS = 24;
 
+    /** @param array<string, mixed> $data */
+    /** @return array<string, mixed> */
     public function submitRequest(array $data): array
     {
         $user = User::where('email', $data['email'])->first();
@@ -78,6 +80,7 @@ class PasswordResetRequestService implements PasswordResetRequestServiceInterfac
         ];
     }
 
+    /** @return array<string, mixed> */
     public function approve(int $id, int $adminId): array
     {
         return DB::transaction(function () use ($id, $adminId) {
@@ -137,6 +140,7 @@ class PasswordResetRequestService implements PasswordResetRequestServiceInterfac
         });
     }
 
+    /** @return array<string, mixed> */
     public function reject(int $id, int $adminId, string $reason): array
     {
         return DB::transaction(function () use ($id, $adminId, $reason) {
@@ -188,6 +192,7 @@ class PasswordResetRequestService implements PasswordResetRequestServiceInterfac
         });
     }
 
+    /** @return array<string, mixed> */
     public function completeReset(string $token, string $password): array
     {
         return DB::transaction(function () use ($token, $password) {
@@ -233,6 +238,8 @@ class PasswordResetRequestService implements PasswordResetRequestServiceInterfac
         });
     }
 
+    /** @param array<string, mixed> $filters */
+    /** @return array<string, mixed> */
     public function listRequests(int $churchId, int $perPage = 15, array $filters = []): array
     {
         $query = PasswordResetRequest::with(['user.classe', 'reviewer'])

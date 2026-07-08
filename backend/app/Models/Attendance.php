@@ -6,6 +6,30 @@ use App\Traits\BelongsToChurch;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * @property int $id
+ * @property int $user_id
+ * @property int|null $recorded_by
+ * @property int|null $class_year_id
+ * @property int|null $qr_invite_id
+ * @property int|null $event_id
+ * @property int|null $attendance_context_id
+ * @property string|null $method
+ * @property \Illuminate\Support\Carbon $attended_at
+ * @property int $points_earned
+ * @property int|null $church_id
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \App\Models\User|null $user
+ * @property-read \App\Models\User|null $recorder
+ * @property-read \App\Models\Classe|null $classe
+ * @property-read \App\Models\QRInvite|null $qrInvite
+ * @property-read \App\Models\Event|null $event
+ * @property-read \App\Models\AttendanceContext|null $attendanceContext
+ * @property-read string|null $last_attended_at
+ * @property-read int $attended_days
+ * @property-read int $count
+ */
 class Attendance extends Model
 {
     use BelongsToChurch;
@@ -19,14 +43,27 @@ class Attendance extends Model
         'attendance_context_id',
         'method',
         'attended_at',
+        'attended_date',
         'points_earned',
         'church_id',
     ];
+
+    protected static function booted(): void
+    {
+        static::creating(function (Attendance $attendance) {
+            if ($attendance->attended_at && !$attendance->attended_date) {
+                $attendance->attended_date = $attendance->attended_at instanceof \Carbon\Carbon
+                    ? $attendance->attended_at->toDateString()
+                    : $attendance->attended_at;
+            }
+        });
+    }
 
     protected function casts(): array
     {
         return [
             'attended_at' => 'datetime',
+            'attended_date' => 'date:Y-m-d',
             'points_earned' => 'integer',
         ];
     }

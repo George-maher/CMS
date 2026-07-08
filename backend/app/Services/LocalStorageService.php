@@ -12,8 +12,10 @@ class LocalStorageService implements StorageServiceInterface
 {
     protected string $disk;
 
+    /** @var array<int, string> */
     protected array $allowedImageMimes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
 
+    /** @var array<int, string> */
     protected array $allowedDocumentMimes = [
         'application/pdf',
         'application/msword',
@@ -118,6 +120,7 @@ class LocalStorageService implements StorageServiceInterface
         return Storage::disk($this->disk)->exists($key);
     }
 
+    /** @return ?array<string, mixed> */
     public function getFileMetadata(string $key, string $bucket): ?array
     {
         try {

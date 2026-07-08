@@ -5,9 +5,12 @@ parameters:
     paths:
         - app/
     level: max
-    checkMissingIterableValueType: false
-    checkGenericClassInNonGenericObjectType: false
+    treatPhpDocTypesAsCertain: false
     excludePaths:
         - app/Http/Controllers/Api/AttendanceContextController.php
     databaseMigrationsPath:
         - database/migrations
+
+parametersSchema:
+    checkMissingIterableValueType: bool()
+    checkGenericClassInNonGenericObjectType: bool()

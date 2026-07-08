@@ -6,8 +6,10 @@ use App\Contracts\FileUploadServiceInterface;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
+/** @mixin \App\Models\User */
 class UserResource extends JsonResource
 {
+    /** @return array<string, mixed> */
     public function toArray(Request $request): array
     {
         $authUser = $request->user();
@@ -48,7 +50,7 @@ class UserResource extends JsonResource
             'email_verified_at' => $this->email_verified_at?->toISOString(),
             'attendance_qr_token' => $this->when($authUser?->id === $this->id, fn() => $this->attendance_qr_token),
             'total_points' => $this->total_points,
-            'created_by' => $this->when($this->createdBy, fn() => [
+            'created_by' => $this->when($this->createdBy !== null, fn() => [
                 'id' => $this->createdBy->id,
                 'name' => $this->createdBy->name,
             ]),

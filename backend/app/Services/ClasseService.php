@@ -17,6 +17,7 @@ class ClasseService implements ClasseServiceInterface
         private readonly ClasseRepositoryInterface $classeRepository,
     ) {}
 
+    /** @return array<string, mixed> */
     public function all(?string $search = null): array
     {
         $classes = $this->classeRepository->all($search);
@@ -26,6 +27,7 @@ class ClasseService implements ClasseServiceInterface
         ];
     }
 
+    /** @return ?array<string, mixed> */
     public function findById(int $id): ?array
     {
         $classe = $this->classeRepository->findById($id);
@@ -37,6 +39,7 @@ class ClasseService implements ClasseServiceInterface
         ];
     }
 
+    /** @param array<string, mixed> $data */
     public function create(array $data): array
     {
         $data['church_id'] = auth()->user()->church_id;
@@ -52,6 +55,7 @@ class ClasseService implements ClasseServiceInterface
         ];
     }
 
+    /** @param array<string, mixed> $data */
     public function update(int $id, array $data): bool
     {
         $classe = $this->classeRepository->findById($id);
@@ -76,6 +80,7 @@ class ClasseService implements ClasseServiceInterface
         return $this->classeRepository->delete($id);
     }
 
+    /** @return array<string, mixed> */
     public function getDetail(int $id): array
     {
         $classe = $this->classeRepository->findById($id);
@@ -105,6 +110,7 @@ class ClasseService implements ClasseServiceInterface
         ];
     }
 
+    /** @return array<string, mixed> */
     public function assignServant(int $classeId, int $servantId): array
     {
         $classe = $this->classeRepository->findById($classeId);
@@ -128,6 +134,7 @@ class ClasseService implements ClasseServiceInterface
         ];
     }
 
+    /** @return array<string, mixed> */
     public function removeServant(int $classeId, int $servantId): array
     {
         $classe = $this->classeRepository->findById($classeId);
@@ -142,11 +149,13 @@ class ClasseService implements ClasseServiceInterface
         return ['message' => 'Servant removed from class.'];
     }
 
+    /** @param array<int> $orderedIds */
     public function updateOrder(array $orderedIds): bool
     {
         return $this->classeRepository->updateOrder($orderedIds);
     }
 
+    /** @return array<string, mixed> */
     public function getMembers(int $classeId, int $perPage = 15): array
     {
         $classe = $this->classeRepository->findById($classeId);
@@ -173,6 +182,7 @@ class ClasseService implements ClasseServiceInterface
         ];
     }
 
+    /** @return array<string, mixed> */
     public function getServants(int $classeId, int $perPage = 15): array
     {
         $classe = $this->classeRepository->findById($classeId);

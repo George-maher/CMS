@@ -23,7 +23,7 @@ class QRInvitePolicy
     public function create(User $user, ?string $type = null): bool
     {
         if ($user->isAdmin()) return true;
-        if ($user->isServant() && $type === QRInviteType::MemberInvite->value) return true;
+        if ($user->isServant() && $type === QRInviteType::ServantToMemberInvite->value) return true;
         return false;
     }
 

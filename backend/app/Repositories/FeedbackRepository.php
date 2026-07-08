@@ -8,7 +8,7 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 class FeedbackRepository implements FeedbackRepositoryInterface
 {
-    public function create(array $data)
+    public function create(array $data): Feedback
     {
         return Feedback::create($data);
     }
@@ -47,7 +47,7 @@ class FeedbackRepository implements FeedbackRepositoryInterface
         return $query->latest()->paginate($perPage);
     }
 
-    public function findById(int $id)
+    public function findById(int $id): ?Feedback
     {
         return Feedback::with(['user', 'user.classe', 'user.classe.stage', 'replies.user'])->find($id);
     }

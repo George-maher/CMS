@@ -19,6 +19,8 @@ class MembershipRequestService implements MembershipRequestServiceInterface
         private readonly NotificationServiceInterface $notificationService,
     ) {}
 
+    /** @param array<string, mixed> $data */
+    /** @return array<string, mixed> */
     public function submit(array $data, int $churchId): array
     {
         $existing = $this->repository->findByEmailChurch($data['email'], $churchId);
@@ -63,6 +65,7 @@ class MembershipRequestService implements MembershipRequestServiceInterface
         ];
     }
 
+    /** @return array<string, mixed> */
     public function approve(int $id, int $adminId): array
     {
         $admin = User::find($adminId);
@@ -123,6 +126,7 @@ class MembershipRequestService implements MembershipRequestServiceInterface
         ];
     }
 
+    /** @return array<string, mixed> */
     public function reject(int $id, int $adminId, string $reason): array
     {
         $admin = User::find($adminId);
@@ -153,6 +157,8 @@ class MembershipRequestService implements MembershipRequestServiceInterface
         ];
     }
 
+    /** @param array<string, mixed> $filters */
+    /** @return array<string, mixed> */
     public function listRequests(int $churchId, int $perPage = 15, array $filters = []): array
     {
         $filters['church_id'] = $churchId;

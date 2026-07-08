@@ -23,6 +23,8 @@ class QRInviteService implements QRInviteServiceInterface
         private readonly QRInviteRepositoryInterface $qrInviteRepository,
     ) {}
 
+    /** @param array<string, mixed> $data */
+    /** @return array<string, mixed> */
     public function createInvite(array $data, int $creatorId): array
     {
         $type = QRInviteType::from($data['type']);
@@ -59,6 +61,7 @@ class QRInviteService implements QRInviteServiceInterface
         ];
     }
 
+    /** @return array<string, mixed> */
     public function validateToken(string $token): array
     {
         $invite = $this->qrInviteRepository->findByToken($token);
@@ -102,6 +105,7 @@ class QRInviteService implements QRInviteServiceInterface
         ];
     }
 
+    /** @return array<string, mixed> */
     public function validateTokenForRegistration(string $token): array
     {
         $validation = $this->validateToken($token);
@@ -122,6 +126,7 @@ class QRInviteService implements QRInviteServiceInterface
         ];
     }
 
+    /** @return array<string, mixed> */
     public function getInviteDetails(string $token): array
     {
         $invite = $this->qrInviteRepository->findByToken($token);
@@ -159,6 +164,7 @@ class QRInviteService implements QRInviteServiceInterface
         ];
     }
 
+    /** @return array<string, mixed> */
     public function acceptInvite(string $token, int $userId, ?int $classId = null): array
     {
         $validation = $this->validateToken($token);
@@ -243,7 +249,7 @@ class QRInviteService implements QRInviteServiceInterface
         });
     }
 
-    public function findById(int $id)
+    public function findById(int $id): ?\App\Models\QRInvite
     {
         return $this->qrInviteRepository->findById($id);
     }
@@ -258,6 +264,8 @@ class QRInviteService implements QRInviteServiceInterface
         return config('app.frontend_url') . '/invite/' . urlencode($token);
     }
 
+    /** @param array<string, mixed> $filters */
+    /** @return array<string, mixed> */
     public function listInvites(int $perPage = 15, array $filters = []): array
     {
         $paginator = $this->qrInviteRepository->paginate($perPage, $filters);

@@ -100,27 +100,42 @@ return new class extends Migration
         // 2026_06_18_000002 — backfill class_year_id + fix FKs
         // ============================================================
         if (Schema::hasTable('class_years')) {
-            DB::statement("
-                UPDATE attendances a
-                SET class_year_id = c.id
-                FROM class_years cy
-                INNER JOIN classes c ON c.church_id = cy.church_id AND c.name = cy.name
-                WHERE a.class_year_id = cy.id
-            ");
-            DB::statement("
-                UPDATE events e
-                SET class_year_id = c.id
-                FROM class_years cy
-                INNER JOIN classes c ON c.church_id = cy.church_id AND c.name = cy.name
-                WHERE e.class_year_id = cy.id
-            ");
-            DB::statement("
-                UPDATE qr_invites qi
-                SET class_year_id = c.id
-                FROM class_years cy
-                INNER JOIN classes c ON c.church_id = cy.church_id AND c.name = cy.name
-                WHERE qi.class_year_id = cy.id
-            ");
+            $driver = DB::connection()->getDriverName();
+            if ($driver === 'sqlite') {
+                foreach (['attendances', 'events', 'qr_invites'] as $tbl) {
+                    DB::statement("
+                        UPDATE {$tbl}
+                        SET class_year_id = (
+                            SELECT c.id FROM class_years cy
+                            INNER JOIN classes c ON c.church_id = cy.church_id AND c.name = cy.name
+                            WHERE {$tbl}.class_year_id = cy.id LIMIT 1
+                        )
+                        WHERE class_year_id IN (SELECT id FROM class_years)
+                    ");
+                }
+            } else {
+                DB::statement("
+                    UPDATE attendances a
+                    SET class_year_id = c.id
+                    FROM class_years cy
+                    INNER JOIN classes c ON c.church_id = cy.church_id AND c.name = cy.name
+                    WHERE a.class_year_id = cy.id
+                ");
+                DB::statement("
+                    UPDATE events e
+                    SET class_year_id = c.id
+                    FROM class_years cy
+                    INNER JOIN classes c ON c.church_id = cy.church_id AND c.name = cy.name
+                    WHERE e.class_year_id = cy.id
+                ");
+                DB::statement("
+                    UPDATE qr_invites qi
+                    SET class_year_id = c.id
+                    FROM class_years cy
+                    INNER JOIN classes c ON c.church_id = cy.church_id AND c.name = cy.name
+                    WHERE qi.class_year_id = cy.id
+                ");
+            }
         }
         $this->fixForeignKey('attendances', 'class_year_id', 'classes');
         $this->fixForeignKey('events', 'class_year_id', 'classes');

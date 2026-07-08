@@ -11,6 +11,7 @@ trait HasPermissions
         return Permission::userHasPermission($this, $permissionKey);
     }
 
+    /** @param string[] $permissionKeys */
     public function hasAnyPermission(array $permissionKeys): bool
     {
         foreach ($permissionKeys as $key) {
@@ -21,6 +22,7 @@ trait HasPermissions
         return false;
     }
 
+    /** @param string[] $permissionKeys */
     public function hasAllPermissions(array $permissionKeys): bool
     {
         foreach ($permissionKeys as $key) {

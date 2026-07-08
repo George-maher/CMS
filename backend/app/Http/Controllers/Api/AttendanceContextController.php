@@ -52,7 +52,7 @@ class AttendanceContextController extends Controller
 
     public function show(int $id): JsonResponse
     {
-        $context = AttendanceContext::withoutGlobalScope(ChurchScope::class)->findOrFail($id);
+        $context = AttendanceContext::findOrFail($id);
         $this->authorize('view', $context);
 
         $result = $this->contextService->findById($id);

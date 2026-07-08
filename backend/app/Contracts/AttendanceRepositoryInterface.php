@@ -7,8 +7,8 @@ use Illuminate\Support\Collection;
 
 interface AttendanceRepositoryInterface
 {
-    public function findById(int $id);
-    public function create(array $data);
+    public function findById(int $id): ?\App\Models\Attendance;
+    public function create(array $data): \App\Models\Attendance;
     public function update(int $id, array $data): bool;
     public function delete(int $id): bool;
     public function paginate(int $perPage = 15, array $filters = []): LengthAwarePaginator;

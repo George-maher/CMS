@@ -26,6 +26,7 @@ class AttendanceService implements AttendanceServiceInterface
         private readonly CacheService $cacheService,
     ) {}
 
+    /** @return array<string, mixed> */
     public function recordAttendanceByMemberId(string $memberId, int $recordedBy, int $contextId, ?int $eventId = null, string $method = 'id'): array
     {
         $member = User::byChurch()
@@ -41,6 +42,7 @@ class AttendanceService implements AttendanceServiceInterface
         return $this->processAttendance($member, $recordedBy, $contextId, $eventId, $method, 'member_id');
     }
 
+    /** @return array<string, mixed> */
     public function recordAttendance(string $qrToken, int $recordedBy, int $contextId, ?int $eventId = null, string $method = 'qr'): array
     {
         $member = User::byChurch()
@@ -56,6 +58,7 @@ class AttendanceService implements AttendanceServiceInterface
         return $this->processAttendance($member, $recordedBy, $contextId, $eventId, $method, 'token');
     }
 
+    /** @return array<string, mixed> */
     private function processAttendance(User $member, int $recordedBy, int $contextId, ?int $eventId, string $method, string $errorField): array
     {
         if (!$member->is_active) {
@@ -135,6 +138,7 @@ class AttendanceService implements AttendanceServiceInterface
         }
     }
 
+    /** @return array<string, mixed> */
     public function getAttendanceHistory(int $userId, int $perPage = 15): array
     {
         $paginator = $this->attendanceRepository->paginate($perPage, ['user_id' => $userId]);
@@ -150,6 +154,8 @@ class AttendanceService implements AttendanceServiceInterface
         ];
     }
 
+    /** @param array<int>|int|null $classYearIds */
+    /** @return array<string, mixed> */
     public function getTodayAttendance(array|int|null $classYearIds = null, int $perPage = 15): array
     {
         $churchId = auth()->user()?->church_id;
@@ -184,6 +190,7 @@ class AttendanceService implements AttendanceServiceInterface
         });
     }
 
+    /** @return array<string, mixed> */
     public function getAttendanceByClass(int $classYearId, ?string $dateFrom = null, ?string $dateTo = null, int $perPage = 15): array
     {
         $paginator = $this->attendanceRepository->paginateAttendanceByClassYear(
@@ -205,6 +212,8 @@ class AttendanceService implements AttendanceServiceInterface
         ];
     }
 
+    /** @param array<string, mixed> $filters */
+    /** @return array<string, mixed> */
     public function getFilteredAttendances(array $filters, int $perPage = 15): array
     {
         $paginator = $this->attendanceRepository->paginate($perPage, $filters);
@@ -220,6 +229,7 @@ class AttendanceService implements AttendanceServiceInterface
         ];
     }
 
+    /** @return array<string, mixed> */
     public function getAttendanceStats(int $userId = null): array
     {
         if (!$userId) {
@@ -242,6 +252,7 @@ class AttendanceService implements AttendanceServiceInterface
         });
     }
 
+    /** @return array<string, mixed> */
     public function getAbsentMembers(int $classYearId, ?int $eventId = null, ?int $contextId = null, ?string $date = null, ?string $dateFrom = null, ?string $dateTo = null): array
     {
         $members = $this->attendanceRepository->getMembersByClassYear($classYearId);
@@ -276,7 +287,8 @@ class AttendanceService implements AttendanceServiceInterface
             $consecutiveAbsences, $monthAbsences
         ) {
             $lastAttendanceDate = $lastAttendances->get($member->id)?->last_attended_at;
-            $attendanceCount = (int) ($attendanceCounts->get($member->id)?->count ?? 0);
+            $attendanceObj = $attendanceCounts->get($member->id);
+            $attendanceCount = (int) ($attendanceObj ? $attendanceObj->count : 0);
             $attendancePercentage = $totalSessions > 0
                 ? round(($attendanceCount / $totalSessions) * 100, 1)
                 : 0;
@@ -295,8 +307,8 @@ class AttendanceService implements AttendanceServiceInterface
                 'attendance_count' => $attendanceCount,
                 'total_sessions' => $totalSessions,
                 'attendance_percentage' => $attendancePercentage,
-                'consecutive_absences' => (int) ($consecutiveAbsences->get($member->id)?->consecutive_absences ?? 0),
-                'month_absences' => (int) ($monthAbsences->get($member->id)?->month_absences ?? 0),
+                'consecutive_absences' => (int) optional($consecutiveAbsences->get($member->id))->consecutive_absences,
+                'month_absences' => (int) optional($monthAbsences->get($member->id))->month_absences,
             ];
         });
 
@@ -313,6 +325,8 @@ class AttendanceService implements AttendanceServiceInterface
         ];
     }
 
+    /** @param array<int>|int|null $classYearIds */
+    /** @return array<string, mixed> */
     public function getContextSummary(?string $dateFrom = null, ?string $dateTo = null, array|int|null $classYearIds = null): array
     {
         $churchId = auth()->user()?->church_id;
@@ -321,6 +335,7 @@ class AttendanceService implements AttendanceServiceInterface
         return $this->cacheService->rememberContextSummary($churchId, $dateFrom, $dateTo, $classYearId, function () use ($dateFrom, $dateTo, $classYearIds) {
             $rows = $this->attendanceRepository->getContextSummary($dateFrom, $dateTo, $classYearIds);
 
+            /** @var \Illuminate\Support\Collection<(int|string), array{context: array{id: mixed, name: mixed, slug: mixed}|null, total_attendances: int, unique_members: int}> $summary */
             $summary = $rows->map(fn($row) => [
                 'context' => $row->attendanceContext ? [
                     'id' => $row->attendanceContext->id,
@@ -337,6 +352,8 @@ class AttendanceService implements AttendanceServiceInterface
         });
     }
 
+    /** @param array<int>|int|null $classYearId */
+    /** @return array<string, mixed> */
     public function getContextAnalytics(int $contextId, array|int|null $classYearId = null, ?int $servantId = null, ?string $dateFrom = null, ?string $dateTo = null, int $perPage = 15): array
     {
         $paginator = $this->attendanceRepository->paginateContextAnalytics(
@@ -352,7 +369,7 @@ class AttendanceService implements AttendanceServiceInterface
         $uniqueMemberIds = collect($records)->pluck('user_id')->unique();
         $classCounts = collect($records)->groupBy('class_year_id')->map(fn($group) => [
             'class_year_id' => $group->first()->classe?->id,
-            'class_name' => $group->first()->classe?->name ?? 'Unknown',
+            'class_name' => optional($group->first()->classe)->name ?? 'Unknown',
             'count' => $group->count(),
         ])->values();
 

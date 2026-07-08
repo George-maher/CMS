@@ -8,6 +8,22 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+/**
+ * @property int $id
+ * @property string $message
+ * @property \App\Enums\FeedbackCategory|null $category
+ * @property int|null $class_year_id
+ * @property int|null $user_id
+ * @property bool $is_anonymous
+ * @property bool $is_resolved
+ * @property bool $has_new_reply
+ * @property int|null $church_id
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \App\Models\Classe|null $classe
+ * @property-read \App\Models\User|null $user
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\FeedbackReply> $replies
+ */
 class Feedback extends Model
 {
     use BelongsToChurch;

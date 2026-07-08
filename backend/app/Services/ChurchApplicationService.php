@@ -29,6 +29,7 @@ class ChurchApplicationService implements ChurchApplicationServiceInterface
         return ChurchApplication::where('contact_email', $email)->first();
     }
 
+    /** @param array<string, mixed> $data */
     public function submit(array $data, ?UploadedFile $frontId, ?UploadedFile $backId, string $email, string $password, ?UploadedFile $churchPermissionDoc = null): array
     {
         $existing = $this->findByEmail($email);
@@ -40,6 +41,7 @@ class ChurchApplicationService implements ChurchApplicationServiceInterface
         return $this->createNew($data, $frontId, $backId, $email, $password, $churchPermissionDoc);
     }
 
+    /** @param array<string, mixed> $data */
     private function createNew(array $data, ?UploadedFile $frontId, ?UploadedFile $backId, string $email, string $password, ?UploadedFile $churchPermissionDoc = null): array
     {
         return DB::transaction(function () use ($data, $frontId, $backId, $email, $password, $churchPermissionDoc) {
@@ -84,6 +86,7 @@ class ChurchApplicationService implements ChurchApplicationServiceInterface
         });
     }
 
+    /** @param array<string, mixed> $data */
     private function updateExisting(ChurchApplication $application, array $data, ?UploadedFile $frontId, ?UploadedFile $backId, ?UploadedFile $churchPermissionDoc = null): array
     {
         return DB::transaction(function () use ($application, $data, $frontId, $backId, $churchPermissionDoc) {
@@ -133,6 +136,7 @@ class ChurchApplicationService implements ChurchApplicationServiceInterface
         });
     }
 
+    /** @param array<string, mixed> $data */
     private function uploadApplicationFiles(ChurchApplication $application, array $data, ?UploadedFile $frontId, ?UploadedFile $backId, ?UploadedFile $churchPermissionDoc = null): void
     {
         $idType = $data['id_type'] ?? 'national_id';
@@ -309,7 +313,8 @@ class ChurchApplicationService implements ChurchApplicationServiceInterface
         });
     }
 
-    public function listApplications(?string $status = null, int $perPage = 15)
+    /** @return \Illuminate\Contracts\Pagination\LengthAwarePaginator<\App\Models\ChurchApplication> */
+    public function listApplications(?string $status = null, int $perPage = 15): \Illuminate\Contracts\Pagination\LengthAwarePaginator
     {
         $query = ChurchApplication::query();
 

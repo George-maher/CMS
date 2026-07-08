@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Collection;
 
 class StageRepository implements StageRepositoryInterface
 {
+    /** @return Collection<int, \App\Models\Stage> */
     public function all(?string $search = null): Collection
     {
         $query = Stage::withCount(['classes']);
@@ -21,6 +22,7 @@ class StageRepository implements StageRepositoryInterface
         return $query->orderBy('display_order')->get();
     }
 
+    /** @return Collection<int, \App\Models\Stage> */
     public function structure(?string $search = null): Collection
     {
         $query = Stage::with(['classes' => function ($q) {
@@ -37,12 +39,12 @@ class StageRepository implements StageRepositoryInterface
         return $query->orderBy('display_order')->get();
     }
 
-    public function findById(int $id)
+    public function findById(int $id): ?Stage
     {
         return Stage::withCount(['classes'])->find($id);
     }
 
-    public function create(array $data)
+    public function create(array $data): Stage
     {
         return Stage::create($data);
     }

@@ -8,6 +8,7 @@ use Illuminate\Http\UploadedFile;
 
 class FileUploadService implements FileUploadServiceInterface
 {
+    /** @var array<string, string> */
     protected array $bucketMap = [
         'uploads/events' => 'events',
         'uploads/profiles' => 'profiles',

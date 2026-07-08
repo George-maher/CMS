@@ -14,7 +14,9 @@ return new class extends Migration
             $table->index('member_id');
         });
 
-        DB::statement('CREATE SEQUENCE IF NOT EXISTS users_member_id_seq START 1');
+        if (DB::connection()->getDriverName() === 'pgsql') {
+            DB::statement('CREATE SEQUENCE IF NOT EXISTS users_member_id_seq START 1');
+        }
     }
 
     public function down(): void
@@ -24,6 +26,8 @@ return new class extends Migration
             $table->dropColumn('member_id');
         });
 
-        DB::statement('DROP SEQUENCE IF EXISTS users_member_id_seq');
+        if (DB::connection()->getDriverName() === 'pgsql') {
+            DB::statement('DROP SEQUENCE IF EXISTS users_member_id_seq');
+        }
     }
 };

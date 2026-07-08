@@ -22,12 +22,6 @@ class NotPlaceholder implements ValidationRule
         'MBR-123456',
     ];
 
-    private const PLACEHOLDER_INDICATORS = [
-        'placeholder',
-        'optional',
-        'اختياري',
-    ];
-
     private array $extraForbidden;
 
     public function __construct(array $extraForbidden = [])

@@ -8,19 +8,19 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 class QRInviteRepository implements QRInviteRepositoryInterface
 {
-    public function findById(int $id)
+    public function findById(int $id): ?QRInvite
     {
         return QRInvite::with(['classe.stage'])->find($id);
     }
 
-    public function findByToken(string $token)
+    public function findByToken(string $token): ?QRInvite
     {
         return QRInvite::withoutGlobalScope(\App\Models\Scopes\ChurchScope::class)
             ->where('token', $token)
             ->first();
     }
 
-    public function create(array $data)
+    public function create(array $data): QRInvite
     {
         return QRInvite::create($data);
     }

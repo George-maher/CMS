@@ -6,6 +6,7 @@ use Illuminate\Http\JsonResponse;
 
 trait ApiResponseTrait
 {
+    /** @param array<string, mixed>|null $meta */
     protected function success(mixed $data = null, string $message = 'Success.', int $status = 200, array $meta = null): JsonResponse
     {
         $response = [
@@ -64,6 +65,7 @@ trait ApiResponseTrait
         return $this->error($message, 422, $errors, 'VALIDATION_ERROR');
     }
 
+    /** @param array<string, mixed> $meta */
     protected function paginated(mixed $data, array $meta, string $message = 'Success.'): JsonResponse
     {
         return response()->json([
@@ -74,6 +76,7 @@ trait ApiResponseTrait
         ]);
     }
 
+    /** @param array<string, mixed>|null $meta */
     protected function respondWithResource(mixed $resource, string $message = 'Success.', int $status = 200, array $meta = null): JsonResponse
     {
         $response = [
@@ -89,6 +92,7 @@ trait ApiResponseTrait
         return response()->json($response, $status);
     }
 
+    /** @param array<string, mixed> $meta */
     protected function respondWithCollection(mixed $collection, array $meta, string $message = 'Success.'): JsonResponse
     {
         return response()->json([

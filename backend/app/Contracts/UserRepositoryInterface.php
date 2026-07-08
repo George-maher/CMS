@@ -8,13 +8,13 @@ use Illuminate\Database\Eloquent\Collection;
 
 interface UserRepositoryInterface
 {
-    public function findById(int $id);
-    public function findByEmail(string $email);
-    public function findByEmailByChurch(string $email);
-    public function create(array $data);
+    public function findById(int $id): ?\App\Models\User;
+    public function findByEmail(string $email): ?\App\Models\User;
+    public function findByEmailByChurch(string $email): ?\App\Models\User;
+    public function create(array $data): \App\Models\User;
     public function update(int $id, array $data): bool;
     public function delete(int $id): bool;
-    public function paginate(int $perPage = 15, array $filters = []): LengthAwarePaginator;
+    public function paginate(int $perPage = 15, array $filters = []): \Illuminate\Contracts\Pagination\LengthAwarePaginator;
     public function paginateMembersByClassYear(int $classYearId, int $perPage = 15): LengthAwarePaginator;
     public function findServantsByAdmin(int $adminId): Collection;
     public function findMembersByServant(int $servantId): Collection;

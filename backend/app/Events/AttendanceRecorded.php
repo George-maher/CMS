@@ -12,7 +12,7 @@ class AttendanceRecorded
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
     public Attendance $attendance;
-    public int $churchId;
+    public ?int $churchId;
 
     public function __construct(Attendance $attendance)
     {

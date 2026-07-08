@@ -37,12 +37,18 @@ trait BelongsToChurch
         });
     }
 
+    /** @return BelongsTo<\App\Models\Church, $this> */
     public function church(): BelongsTo
     {
         return $this->belongsTo(Church::class);
     }
 
-    public function scopeByChurch($query, ?int $churchId = null)
+    /**
+     * @template TModel of \Illuminate\Database\Eloquent\Model
+     * @param \Illuminate\Database\Eloquent\Builder<TModel> $query
+     * @return \Illuminate\Database\Eloquent\Builder<TModel>
+     */
+    public function scopeByChurch($query, ?int $churchId = null): \Illuminate\Database\Eloquent\Builder
     {
         $churchId = $churchId ?? auth()->user()?->church_id;
         if ($churchId) {

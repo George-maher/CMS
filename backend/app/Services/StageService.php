@@ -16,6 +16,7 @@ class StageService implements StageServiceInterface
         private readonly StageRepositoryInterface $stageRepository,
     ) {}
 
+    /** @return array<string, mixed> */
     public function all(?string $search = null): array
     {
         $stages = $this->stageRepository->all($search);
@@ -25,6 +26,7 @@ class StageService implements StageServiceInterface
         ];
     }
 
+    /** @return array<string, mixed> */
     public function structure(?string $search = null): array
     {
         $stages = $this->stageRepository->structure($search);
@@ -40,6 +42,7 @@ class StageService implements StageServiceInterface
         ];
     }
 
+    /** @return array<int, array<string, mixed>> */
     public function stagesWithClasses(?string $search = null): array
     {
         $stages = $this->stageRepository->structure($search);
@@ -47,13 +50,14 @@ class StageService implements StageServiceInterface
         return $stages->map(fn(Stage $stage) => [
             'stage_id' => $stage->id,
             'stage_name' => $stage->name,
-            'classes' => $stage->classes->map(fn(Classe $classe) => [
+            'classes' => $stage->classes->map(fn(\App\Models\Classe $classe) => [
                 'id' => $classe->id,
                 'name' => $classe->name,
             ])->values()->all(),
         ])->values()->all();
     }
 
+    /** @return ?array<string, mixed> */
     public function findById(int $id): ?array
     {
         $stage = $this->stageRepository->findById($id);
@@ -65,6 +69,8 @@ class StageService implements StageServiceInterface
         ];
     }
 
+    /** @param array<string, mixed> $data */
+    /** @return array<string, mixed> */
     public function create(array $data): array
     {
         $data['church_id'] = auth()->user()->church_id;
@@ -78,6 +84,7 @@ class StageService implements StageServiceInterface
         ];
     }
 
+    /** @return array<string, mixed> */
     public function createBulk(int $churchId, int $count): array
     {
         $maxOrder = Stage::byChurch($churchId)->max('display_order') ?? 0;
@@ -97,6 +104,7 @@ class StageService implements StageServiceInterface
         ];
     }
 
+    /** @param array<string, mixed> $data */
     public function update(int $id, array $data): bool
     {
         $stage = $this->stageRepository->findById($id);
@@ -121,6 +129,7 @@ class StageService implements StageServiceInterface
         return $this->stageRepository->delete($id);
     }
 
+    /** @return array<string, mixed> */
     public function getClasses(int $stageId, ?string $search = null): array
     {
         $stage = $this->stageRepository->findById($stageId);

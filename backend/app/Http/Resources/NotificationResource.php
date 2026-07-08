@@ -5,8 +5,10 @@ namespace App\Http\Resources;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
+/** @mixin \App\Models\Notification */
 class NotificationResource extends JsonResource
 {
+    /** @return array<string, mixed> */
     public function toArray(Request $request): array
     {
         return [
@@ -33,7 +35,7 @@ class NotificationResource extends JsonResource
                     ? $this->feedback->replies->map(fn($r) => [
                         'id' => $r->id,
                         'message' => $r->message,
-                        'user' => ['id' => $r->user_id, 'name' => $r->user?->name ?? 'Unknown'],
+                        'user' => ['id' => $r->user_id, 'name' => $r->user->name ?? 'Unknown'],
                         'created_at' => $r->created_at,
                     ])
                     : [],

@@ -8,12 +8,12 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 class VerseRepository implements VerseRepositoryInterface
 {
-    public function findById(int $id)
+    public function findById(int $id): ?DailyVerse
     {
         return DailyVerse::with('creator')->find($id);
     }
 
-    public function create(array $data)
+    public function create(array $data): DailyVerse
     {
         return DailyVerse::create($data);
     }
@@ -39,7 +39,7 @@ class VerseRepository implements VerseRepositoryInterface
             ->paginate($perPage);
     }
 
-    public function getActive()
+    public function getActive(): ?DailyVerse
     {
         return DailyVerse::withoutGlobalScope(\App\Models\Scopes\ChurchScope::class)
             ->with('creator')

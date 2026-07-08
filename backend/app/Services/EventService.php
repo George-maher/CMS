@@ -20,6 +20,8 @@ class EventService implements EventServiceInterface
         private readonly CacheService $cacheService,
     ) {}
 
+    /** @param array<string, mixed> $filters */
+    /** @return array<string, mixed> */
     public function list(int $perPage = 15, array $filters = [], ?int $userId = null, ?string $userRole = null): array
     {
         $queryFilters = $filters;
@@ -68,6 +70,7 @@ class EventService implements EventServiceInterface
         );
     }
 
+    /** @return ?array<string, mixed> */
     public function findById(int $id, ?int $userId = null, ?string $userRole = null): ?array
     {
         $event = $this->eventRepository->findById($id);
@@ -88,6 +91,8 @@ class EventService implements EventServiceInterface
         ];
     }
 
+    /** @param array<string, mixed> $data */
+    /** @return array<string, mixed> */
     public function create(array $data, int $creatorId, ?string $creatorRole = null, ?int $creatorClassYearId = null): array
     {
         if (!isset($data['type'])) {
@@ -148,6 +153,8 @@ class EventService implements EventServiceInterface
         );
     }
 
+    /** @param array<string, mixed> $data */
+    /** @return array<string, mixed> */
     public function update(int $id, array $data): array
     {
         $updated = $this->eventRepository->update($id, $data);
@@ -181,6 +188,8 @@ class EventService implements EventServiceInterface
         $this->cacheService->invalidateEvents($event->church_id);
     }
 
+    /** @param array<int>|int|null $servantClassIds */
+    /** @return array<string, mixed> */
     public function viewSummary(int $eventId, array|int|null $servantClassIds = null): array
     {
         $event = $this->eventRepository->findById($eventId);
@@ -217,6 +226,9 @@ class EventService implements EventServiceInterface
         ];
     }
 
+    /** @param array<string, mixed> $filters */
+    /** @param array<int>|int|null $servantClassIds */
+    /** @return Collection<int, \App\Models\User> */
     public function viewedUsers(int $eventId, array $filters = [], array|int|null $servantClassIds = null): Collection
     {
         $event = $this->eventRepository->findById($eventId);
@@ -266,6 +278,9 @@ class EventService implements EventServiceInterface
         return $users;
     }
 
+    /** @param array<string, mixed> $filters */
+    /** @param array<int>|int|null $servantClassIds */
+    /** @return \Illuminate\Database\Eloquent\Collection<int, \App\Models\User> */
     public function notViewedUsers(int $eventId, ?int $churchId = null, array $filters = [], array|int|null $servantClassIds = null): Collection
     {
         $event = $this->eventRepository->findById($eventId);
@@ -292,14 +307,18 @@ class EventService implements EventServiceInterface
 
         if (!empty($filters['search'])) {
             $search = $filters['search'];
-            $query = $query->filter(function ($user) use ($search) {
+            /** @var \Illuminate\Database\Eloquent\Collection<int, User> $query */
+            $query = $query->filter(function (User $user) use ($search) {
                 return stripos($user->name, $search) !== false;
             });
         }
 
         $query->loadMissing('classe');
 
-        return $query->values();
+        /** @var Collection<int, User> $result */
+        $result = $query->values();
+
+        return $result;
     }
 
     public function trackView(int $eventId, int $userId, ?string $ipAddress = null, ?string $userAgent = null): void
@@ -315,6 +334,7 @@ class EventService implements EventServiceInterface
         $event->trackView($userId, $ipAddress, $userAgent);
     }
 
+    /** @return \Illuminate\Database\Eloquent\Collection<int, \App\Models\User> */
     private function targetUsers(Event $event): Collection
     {
         $query = User::query()->byChurch()->byRole(UserRole::Member)->active();

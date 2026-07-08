@@ -6,6 +6,8 @@ use App\Contracts\EventRepositoryInterface;
 use App\Contracts\EventServiceInterface;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
+use App\Models\User;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -33,10 +35,11 @@ class EventAnalyticsController extends Controller
         if ($servantClassIds !== null) {
             unset($filters['class_year_id']);
         }
+        /** @var Collection<int, User> $users */
         $users = $this->eventService->viewedUsers($id, $filters, $servantClassIds);
 
         return response()->json([
-            'data' => $users->map(fn($u) => [
+            'data' => $users->map(fn(User $u) => [
                 'id' => $u->id,
                 'name' => $u->name,
                 'email' => $u->email,
@@ -58,10 +61,12 @@ class EventAnalyticsController extends Controller
         if ($servantClassIds !== null) {
             unset($filters['class_year_id']);
         }
+
+        /** @var Collection<int, User> $users */
         $users = $this->eventService->notViewedUsers($id, $user->church_id, $filters, $servantClassIds);
 
         return response()->json([
-            'data' => $users->map(fn($u) => [
+            'data' => $users->map(fn(User $u) => [
                 'id' => $u->id,
                 'name' => $u->name,
                 'email' => $u->email,

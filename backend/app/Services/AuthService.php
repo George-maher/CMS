@@ -6,6 +6,7 @@ use App\Contracts\AuthServiceInterface;
 use App\Contracts\QRInviteServiceInterface;
 use App\Contracts\UserRepositoryInterface;
 use App\Enums\UserRole;
+use App\Models\Church;
 use App\Models\Classe;
 use App\Models\QRInvite;
 use App\Notifications\VerifyEmailNotification;
@@ -23,6 +24,7 @@ class AuthService implements AuthServiceInterface
         private readonly QRInviteServiceInterface $qrInviteService,
     ) {}
 
+    /** @param array<string, mixed> $credentials */
     public function login(array $credentials): array
     {
         $user = $this->userRepository->findByEmail($credentials['email']);
@@ -46,7 +48,7 @@ class AuthService implements AuthServiceInterface
         }
 
         if ($user->church_id) {
-            $church = $user->church()->withTrashed()->first();
+            $church = Church::withTrashed()->where('id', $user->church_id)->first();
             if ($church && $church->is_suspended) {
                 throw ValidationException::withMessages([
                     'email' => [__('auth.suspended')],
@@ -69,6 +71,7 @@ class AuthService implements AuthServiceInterface
         ];
     }
 
+    /** @param array<string, mixed> $credentials */
     public function platformLogin(array $credentials): array
     {
         $user = $this->userRepository->findByEmail($credentials['email']);
@@ -112,11 +115,12 @@ class AuthService implements AuthServiceInterface
         ];
     }
 
-    public function logout($user): void
+    public function logout(\App\Models\User $user): void
     {
         $user->currentAccessToken()->delete();
     }
 
+    /** @param array<string, mixed> $data */
     public function register(array $data): array
     {
         $inviteToken = $data['invite_token'] ?? null;
@@ -202,13 +206,15 @@ class AuthService implements AuthServiceInterface
         });
     }
 
-    public function getAuthenticatedUser($user): array
+    /** @return array<string, mixed> */
+    public function getAuthenticatedUser(\App\Models\User $user): array
     {
         return [
             'user' => $user->load(['classe', 'createdBy', 'invite', 'servant']),
         ];
     }
 
+    /** @param array<string, mixed> $data */
     public function forgotPassword(array $data): array
     {
         Password::sendResetLink(
@@ -220,6 +226,7 @@ class AuthService implements AuthServiceInterface
         ];
     }
 
+    /** @param array<string, mixed> $data */
     public function resetPassword(array $data): array
     {
         $status = Password::reset(

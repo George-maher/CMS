@@ -11,6 +11,43 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
+/**
+ * @property int $id
+ * @property string $name
+ * @property string $slug
+ * @property string|null $service_name
+ * @property string|null $priest_name
+ * @property string|null $main_servant_name
+ * @property string|null $priest_phone
+ * @property string|null $phone
+ * @property string|null $address
+ * @property string|null $contact_email
+ * @property string|null $description
+ * @property bool $is_active
+ * @property bool $is_suspended
+ * @property int|null $deleted_by
+ * @property string|null $deletion_type
+ * @property \Illuminate\Support\Carbon|null $recoverable_until
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @property-read \App\Models\User|null $deletedBy
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\User> $users
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Event> $events
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Attendance> $attendances
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Point> $points
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\QRInvite> $qrInvites
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Feedback> $feedback
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\DailyVerse> $dailyVerses
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\AttendanceContext> $attendanceContexts
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Stage> $stages
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Classe> $classes
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\MembershipRequest> $membershipRequests
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Notification> $notifications
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\EventView> $eventViews
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\EventTarget> $eventTargets
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\AuditLog> $auditLogs
+ */
 class Church extends Model
 {
     /** @use HasFactory<ChurchFactory> */
@@ -90,7 +127,7 @@ class Church extends Model
         if (!$this->recoverable_until) {
             return null;
         }
-        return now()->diffInDays($this->recoverable_until, false);
+        return (int) now()->diffInDays($this->recoverable_until, false);
     }
 
     public function deletedBy(): BelongsTo

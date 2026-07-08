@@ -9,6 +9,28 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
+/**
+ * @property int $id
+ * @property int $church_id
+ * @property string $name
+ * @property string $email
+ * @property string|null $phone
+ * @property \Illuminate\Support\Carbon|null $birthday
+ * @property string|null $address
+ * @property string|null $preferred_role
+ * @property string $status
+ * @property string|null $notes
+ * @property string|null $rejection_reason
+ * @property string|null $file_url
+ * @property int|null $reviewed_by
+ * @property \Illuminate\Support\Carbon|null $reviewed_at
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \App\Models\Church|null $church
+ * @property-read \App\Models\User|null $reviewer
+ * @method static \Illuminate\Database\Eloquent\Builder|\App\Models\MembershipRequest pending()
+ * @method static \Illuminate\Database\Eloquent\Builder|\App\Models\MembershipRequest forChurch(int $churchId)
+ */
 class MembershipRequest extends Model
 {
     use BelongsToChurch;
@@ -47,12 +69,20 @@ class MembershipRequest extends Model
         return $this->belongsTo(User::class, 'reviewed_by');
     }
 
-    public function scopePending($query)
+    /**
+     * @param \Illuminate\Database\Eloquent\Builder<\App\Models\MembershipRequest> $query
+     * @return \Illuminate\Database\Eloquent\Builder<\App\Models\MembershipRequest>
+     */
+    public function scopePending($query): \Illuminate\Database\Eloquent\Builder
     {
         return $query->where('status', 'pending');
     }
 
-    public function scopeForChurch($query, int $churchId)
+    /**
+     * @param \Illuminate\Database\Eloquent\Builder<\App\Models\MembershipRequest> $query
+     * @return \Illuminate\Database\Eloquent\Builder<\App\Models\MembershipRequest>
+     */
+    public function scopeForChurch($query, int $churchId): \Illuminate\Database\Eloquent\Builder
     {
         return $query->where('church_id', $churchId);
     }

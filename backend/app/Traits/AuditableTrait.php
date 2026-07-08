@@ -27,6 +27,11 @@ trait AuditableTrait
         });
     }
 
+    /**
+     * @param object $model
+     * @param array<string, mixed>|null $oldValues
+     * @param array<string, mixed>|null $newValues
+     */
     protected static function logAction(string $action, $model, ?array $oldValues, ?array $newValues): void
     {
         $service = app(AuditServiceInterface::class);

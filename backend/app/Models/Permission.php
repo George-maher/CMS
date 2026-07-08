@@ -6,6 +6,15 @@ use App\Enums\UserRole;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Cache;
 
+/**
+ * @property int $id
+ * @property string $key
+ * @property string $name
+ * @property string|null $group
+ * @property string|null $description
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ */
 class Permission extends Model
 {
     protected $fillable = [
@@ -24,7 +33,7 @@ class Permission extends Model
     public static function getPermissionsForRole(string $roleName): array
     {
         return Cache::remember("permissions_role_{$roleName}", self::CACHE_TTL, function () use ($roleName) {
-            return self::from('role_permission as rp')
+            return \Illuminate\Support\Facades\DB::table('role_permission as rp')
                 ->join('permissions as p', 'rp.permission_key', '=', 'p.key')
                 ->where('rp.role_name', $roleName)
                 ->pluck('p.key')

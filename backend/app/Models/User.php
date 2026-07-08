@@ -16,6 +16,61 @@ use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Str;
 use Laravel\Sanctum\HasApiTokens;
 
+/**
+ * @property int|null $id
+ * @property string|null $member_id
+ * @property int|null $church_id
+ * @property int|null $church_application_id
+ * @property string $application_status
+ * @property string $name
+ * @property string $email
+ * @property \Illuminate\Support\Carbon|null $birthday
+ * @property string $password
+ * @property string $remember_token
+ * @property \App\Enums\UserRole $role
+ * @property int|null $class_year_id
+ * @property int|null $class_id
+ * @property int|null $invite_id
+ * @property int|null $servant_id
+ * @property string|null $phone
+ * @property string|null $avatar
+ * @property string|null $address
+ * @property string|null $member_address
+ * @property bool $is_active
+ * @property int|null $created_by
+ * @property string|null $attendance_qr_token
+ * @property string|null $email_verification_token
+ * @property \Illuminate\Support\Carbon|null $email_verified_at
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @property-read \App\Models\Church|null $church
+ * @property-read \App\Models\ChurchApplication|null $churchApplication
+ * @property-read \App\Models\Classe|null $classe
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Classe> $classes
+ * @property-read \App\Models\QRInvite|null $invite
+ * @property-read \App\Models\User|null $createdBy
+ * @property-read \App\Models\User|null $servant
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\User> $assignedMembers
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\User> $servants
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Attendance> $attendances
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Attendance> $recordedAttendances
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Point> $points
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\QRInvite> $createdQrInvites
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\QRInvite> $usedQrInvites
+ * @property-read int $total_points
+ * @property-read int|null $age
+ * @property \Illuminate\Support\Carbon|null $viewed_at
+ * @property int $assigned_members_count
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \Laravel\Sanctum\PersonalAccessToken> $tokens
+ * @method static \Illuminate\Database\Eloquent\Builder|\App\Models\User byRole(\App\Enums\UserRole $role)
+ * @method static \Illuminate\Database\Eloquent\Builder|\App\Models\User active()
+ * @method static \Illuminate\Database\Eloquent\Builder|\App\Models\User byAttendanceQrToken(string $token)
+ * @method static \Illuminate\Database\Eloquent\Builder|\App\Models\User byMemberId(string $memberId)
+ * @method static \Illuminate\Database\Eloquent\Builder|\App\Models\User search(string $term)
+ * @method static \Illuminate\Database\Eloquent\Builder|\App\Models\User byChurch(?int $churchId = null)
+ * @method static \Illuminate\Database\Eloquent\Builder|\App\Models\User approved()
+ */
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
@@ -187,27 +242,47 @@ class User extends Authenticatable
         return $this->birthday->age;
     }
 
-    public function scopeByRole($query, UserRole $role)
+    /**
+     * @param \Illuminate\Database\Eloquent\Builder<\App\Models\User> $query
+     * @return \Illuminate\Database\Eloquent\Builder<\App\Models\User>
+     */
+    public function scopeByRole($query, UserRole $role): \Illuminate\Database\Eloquent\Builder
     {
         return $query->where('role', $role->value);
     }
 
-    public function scopeActive($query)
+    /**
+     * @param \Illuminate\Database\Eloquent\Builder<\App\Models\User> $query
+     * @return \Illuminate\Database\Eloquent\Builder<\App\Models\User>
+     */
+    public function scopeActive($query): \Illuminate\Database\Eloquent\Builder
     {
         return $query->where('is_active', true);
     }
 
-    public function scopeByAttendanceQrToken($query, string $token)
+    /**
+     * @param \Illuminate\Database\Eloquent\Builder<\App\Models\User> $query
+     * @return \Illuminate\Database\Eloquent\Builder<\App\Models\User>
+     */
+    public function scopeByAttendanceQrToken($query, string $token): \Illuminate\Database\Eloquent\Builder
     {
         return $query->where('attendance_qr_token', $token);
     }
 
-    public function scopeByMemberId($query, string $memberId)
+    /**
+     * @param \Illuminate\Database\Eloquent\Builder<\App\Models\User> $query
+     * @return \Illuminate\Database\Eloquent\Builder<\App\Models\User>
+     */
+    public function scopeByMemberId($query, string $memberId): \Illuminate\Database\Eloquent\Builder
     {
         return $query->where('member_id', $memberId);
     }
 
-    public function scopeSearch($query, string $term)
+    /**
+     * @param \Illuminate\Database\Eloquent\Builder<\App\Models\User> $query
+     * @return \Illuminate\Database\Eloquent\Builder<\App\Models\User>
+     */
+    public function scopeSearch($query, string $term): \Illuminate\Database\Eloquent\Builder
     {
         return $query->where(function ($q) use ($term) {
             $q->where('name', 'like', "%{$term}%")
@@ -217,7 +292,11 @@ class User extends Authenticatable
         });
     }
 
-    public function scopeByChurch($query, ?int $churchId = null)
+    /**
+     * @param \Illuminate\Database\Eloquent\Builder<\App\Models\User> $query
+     * @return \Illuminate\Database\Eloquent\Builder<\App\Models\User>
+     */
+    public function scopeByChurch($query, ?int $churchId = null): \Illuminate\Database\Eloquent\Builder
     {
         $churchId = $churchId ?? auth()->user()?->church_id;
         if ($churchId) {
@@ -226,7 +305,11 @@ class User extends Authenticatable
         return $query;
     }
 
-    public function scopeApproved($query)
+    /**
+     * @param \Illuminate\Database\Eloquent\Builder<\App\Models\User> $query
+     * @return \Illuminate\Database\Eloquent\Builder<\App\Models\User>
+     */
+    public function scopeApproved($query): \Illuminate\Database\Eloquent\Builder
     {
         return $query->where('application_status', 'approved');
     }
@@ -251,6 +334,11 @@ class User extends Authenticatable
         $this->notify(new \App\Notifications\ResetPasswordNotification($token));
     }
 
+    public function preferredLocale(): string
+    {
+        return 'en';
+    }
+
     protected static function booted(): void
     {
         static::creating(function (User $user) {
@@ -261,7 +349,7 @@ class User extends Authenticatable
 
         static::created(function (User $user) {
             if ($user->role === UserRole::Member && empty($user->member_id)) {
-                $num = str_pad((int) $user->id, 6, '0', STR_PAD_LEFT);
+                $num = str_pad((string) $user->id, 6, '0', STR_PAD_LEFT);
                 $memberId = 'MBR-' . $num;
                 $user->forceFill(['member_id' => $memberId])->saveQuietly();
             }

@@ -6,14 +6,16 @@ use App\Http\Resources\AttendanceContextResource;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
+/** @mixin \App\Models\Attendance */
 class AttendanceResource extends JsonResource
 {
+    /** @return array<string, mixed> */
     public function toArray(Request $request): array
     {
         return [
             'id' => $this->id,
             'user' => new UserResource($this->whenLoaded('user')),
-            'recorder' => $this->when($this->recorder, fn() => [
+            'recorder' => $this->when($this->recorder !== null, fn() => [
                 'id' => $this->recorder->id,
                 'name' => $this->recorder->name,
             ]),

@@ -5,8 +5,10 @@ namespace App\Http\Resources;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
+/** @mixin \App\Models\AttendanceContext */
 class AttendanceContextResource extends JsonResource
 {
+    /** @return array<string, mixed> */
     public function toArray(Request $request): array
     {
         return [
@@ -17,7 +19,7 @@ class AttendanceContextResource extends JsonResource
             'description' => $this->description,
             'is_active' => $this->is_active,
             'created_by' => $this->created_by,
-            'creator_name' => $this->when($this->creator, fn() => $this->creator->name),
+            'creator_name' => $this->when($this->creator !== null, fn() => $this->creator->name),
             'updated_by' => $this->updated_by,
             'updater_name' => $this->updater?->name,
             'created_at' => $this->created_at,

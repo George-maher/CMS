@@ -14,7 +14,7 @@ class PasswordResetRequestSubmittedNotification extends Notification implements 
     use Queueable;
 
     public function __construct(
-        private readonly PasswordResetRequest $request,
+        PasswordResetRequest $request,
         private readonly User $requester,
     ) {}
 

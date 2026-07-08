@@ -15,8 +15,10 @@ class SupabaseStorageService implements StorageServiceInterface
     private string $serviceRoleKey;
     private string $baseUrl;
 
+    /** @var array<int, string> */
     protected array $allowedImageMimes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
 
+    /** @var array<int, string> */
     protected array $allowedDocumentMimes = [
         'application/pdf',
         'application/msword',
@@ -165,6 +167,7 @@ class SupabaseStorageService implements StorageServiceInterface
         }
     }
 
+    /** @return ?array<string, mixed> */
     public function getFileMetadata(string $key, string $bucket): ?array
     {
         try {

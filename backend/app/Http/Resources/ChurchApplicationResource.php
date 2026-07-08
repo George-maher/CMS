@@ -6,8 +6,10 @@ use App\Contracts\FileUploadServiceInterface;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
+/** @mixin \App\Models\ChurchApplication */
 class ChurchApplicationResource extends JsonResource
 {
+    /** @return array<string, mixed> */
     public function toArray(Request $request): array
     {
         $fileUploadService = app(FileUploadServiceInterface::class);

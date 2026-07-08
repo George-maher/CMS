@@ -9,12 +9,12 @@ use Illuminate\Support\Collection;
 
 class AttendanceRepository implements AttendanceRepositoryInterface
 {
-    public function findById(int $id)
+    public function findById(int $id): ?Attendance
     {
         return Attendance::find($id);
     }
 
-    public function create(array $data)
+    public function create(array $data): Attendance
     {
         return Attendance::create($data);
     }
@@ -409,7 +409,7 @@ class AttendanceRepository implements AttendanceRepositoryInterface
 
         foreach ($userIds as $uid) {
             $last = $lastAttendances->get($uid);
-            if (!$last || !$last->last_attended_at) {
+            if (!$last || !($last->last_attended_at ?? false)) {
                 $results->put($uid, (object) ['user_id' => $uid, 'consecutive_absences' => $totalSessionCount]);
                 continue;
             }
@@ -455,7 +455,7 @@ class AttendanceRepository implements AttendanceRepositoryInterface
 
         $results = collect();
         foreach ($userIds as $uid) {
-            $count = (int) ($userCounts->get($uid)?->attended_days ?? 0);
+            $count = (int) ($userCounts->get($uid)->attended_days ?? 0);
             $results->put($uid, (object) [
                 'user_id' => $uid,
                 'month_absences' => max(0, $totalSessions - $count),

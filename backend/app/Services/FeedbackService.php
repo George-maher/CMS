@@ -19,6 +19,8 @@ class FeedbackService implements FeedbackServiceInterface
         private readonly NotificationServiceInterface $notificationService,
     ) {}
 
+    /** @param array<string, mixed> $data */
+    /** @return array<string, mixed> */
     public function submit(array $data, ?int $userId = null, array|int|null $classYearId = null): array
     {
         // Resolve single class from array if needed
@@ -42,6 +44,8 @@ class FeedbackService implements FeedbackServiceInterface
         ];
     }
 
+    /** @param array<string, mixed> $filters */
+    /** @return array<string, mixed> */
     public function list(int $perPage = 15, array $filters = [], array|int|null $classYearIds = null): array
     {
         if ($classYearIds !== null) {
@@ -66,6 +70,7 @@ class FeedbackService implements FeedbackServiceInterface
         ];
     }
 
+    /** @return array<string, mixed> */
     public function markAsResolved(int $id): array
     {
         $updated = $this->feedbackRepository->markAsResolved($id);
@@ -81,6 +86,7 @@ class FeedbackService implements FeedbackServiceInterface
         ];
     }
 
+    /** @return array<string, mixed> */
     public function reply(int $feedbackId, int $userId, string $message): array
     {
         $feedback = $this->feedbackRepository->findById($feedbackId);
@@ -119,6 +125,7 @@ class FeedbackService implements FeedbackServiceInterface
         ];
     }
 
+    /** @return array<string, mixed> */
     public function markAsSeen(int $feedbackId, int $userId): array
     {
         $feedback = $this->feedbackRepository->findById($feedbackId);

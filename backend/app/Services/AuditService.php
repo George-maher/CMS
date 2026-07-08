@@ -7,7 +7,7 @@ use App\Models\AuditLog;
 
 class AuditService implements AuditServiceInterface
 {
-    private const array PII_FIELDS = [
+    private const PII_FIELDS = [
         'password',
         'email',
         'phone',
@@ -18,6 +18,8 @@ class AuditService implements AuditServiceInterface
         'remember_token',
     ];
 
+    /** @param array<string, mixed>|null $oldValues */
+    /** @param array<string, mixed>|null $newValues */
     public function log(
         string $action,
         string $resourceType,
@@ -47,6 +49,8 @@ class AuditService implements AuditServiceInterface
         ]);
     }
 
+    /** @param array<string, mixed>|null $oldValues */
+    /** @param array<string, mixed>|null $newValues */
     public function logModelAction(
         string $action,
         object $model,
@@ -68,6 +72,8 @@ class AuditService implements AuditServiceInterface
         );
     }
 
+    /** @param array<string, mixed>|null $values */
+    /** @return array<string, mixed>|null */
     private function maskPii(?array $values): ?array
     {
         if ($values === null) {

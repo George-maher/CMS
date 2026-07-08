@@ -14,6 +14,7 @@ class AttendanceContextService implements AttendanceContextServiceInterface
         private readonly AttendanceContextRepositoryInterface $contextRepository,
     ) {}
 
+    /** @return array<string, mixed> */
     public function list(int $perPage = 15): array
     {
         $filters = [];
@@ -35,6 +36,7 @@ class AttendanceContextService implements AttendanceContextServiceInterface
         ];
     }
 
+    /** @return array<string, mixed> */
     public function listActive(): array
     {
         $churchId = auth()->user()?->church_id;
@@ -54,6 +56,7 @@ class AttendanceContextService implements AttendanceContextServiceInterface
         ];
     }
 
+    /** @return array<string, mixed> */
     public function listActiveForChurch(int $churchId): array
     {
         $contexts = $this->contextRepository->getActiveForChurch($churchId);
@@ -63,6 +66,7 @@ class AttendanceContextService implements AttendanceContextServiceInterface
         ];
     }
 
+    /** @return ?array<string, mixed> */
     public function findById(int $id): ?array
     {
         $context = $this->contextRepository->findById($id);
@@ -73,6 +77,7 @@ class AttendanceContextService implements AttendanceContextServiceInterface
         ];
     }
 
+    /** @param array<string, mixed> $data */
     public function create(array $data, int $creatorId): array
     {
         $churchId = auth()->user()?->church_id;
@@ -91,6 +96,7 @@ class AttendanceContextService implements AttendanceContextServiceInterface
         ];
     }
 
+    /** @param array<string, mixed> $data */
     public function update(int $id, array $data, ?int $updaterId = null): array
     {
         $context = $this->contextRepository->findById($id);

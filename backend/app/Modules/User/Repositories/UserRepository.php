@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Collection;
 
 class UserRepository implements UserRepositoryInterface
 {
-    public function findById(int $id)
+    public function findById(int $id): ?User
     {
         $query = User::query();
 
@@ -21,7 +21,7 @@ class UserRepository implements UserRepositoryInterface
         return $query->find($id);
     }
 
-    public function findByEmail(string $email)
+    public function findByEmail(string $email): ?User
     {
         return User::where('email', $email)->first();
     }
@@ -31,7 +31,7 @@ class UserRepository implements UserRepositoryInterface
         return User::byChurch()->where('email', $email)->first();
     }
 
-    public function create(array $data)
+    public function create(array $data): User
     {
         return User::create($data);
     }
@@ -95,7 +95,7 @@ class UserRepository implements UserRepositoryInterface
     public function findMembersByServant(int $servantId): Collection
     {
         $servant = $this->findById($servantId);
-        if (!$servant) return collect();
+        if (!$servant) return new Collection();
 
         $classIds = $servant->classes()->pluck('classes.id');
 
@@ -111,7 +111,7 @@ class UserRepository implements UserRepositoryInterface
                     ->active()
                     ->get();
             }
-            return collect();
+            return new Collection();
         }
 
         return User::byChurch()

@@ -19,13 +19,9 @@ class RoleMiddleware
 
         $allowedRoles = [];
         foreach ($roles as $role) {
-            if ($role instanceof UserRole) {
-                $allowedRoles[] = $role->value;
-            } else {
-                // Support comma-separated roles passed as single string: "admin,servant"
-                foreach (explode(',', $role) as $r) {
-                    $allowedRoles[] = trim($r);
-                }
+            // Support comma-separated roles passed as single string: "admin,servant"
+            foreach (explode(',', $role) as $r) {
+                $allowedRoles[] = trim($r);
             }
         }
 

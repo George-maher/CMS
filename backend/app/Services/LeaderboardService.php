@@ -15,6 +15,7 @@ class LeaderboardService implements LeaderboardServiceInterface
         private readonly CacheService $cacheService,
     ) {}
 
+    /** @return array<string, mixed> */
     public function classLeaderboard(int $classId, int $limit = 3): array
     {
         return $this->cacheService->rememberLeaderboard(
@@ -44,6 +45,7 @@ class LeaderboardService implements LeaderboardServiceInterface
         );
     }
 
+    /** @return array<string, mixed> */
     public function globalLeaderboard(int $limit = 5): array
     {
         return $this->cacheService->rememberLeaderboard(
@@ -62,6 +64,7 @@ class LeaderboardService implements LeaderboardServiceInterface
         );
     }
 
+    /** @return array<int, array<string, mixed>> */
     public function stagesLeaderboards(): array
     {
         return $this->cacheService->rememberStagesLeaderboards(
@@ -104,6 +107,7 @@ class LeaderboardService implements LeaderboardServiceInterface
         );
     }
 
+    /** @return array<string, mixed> */
     public function memberClassLeaderboard(int $userId, int $limit = 3): array
     {
         $user = User::byChurch()->findOrFail($userId);
@@ -119,7 +123,7 @@ class LeaderboardService implements LeaderboardServiceInterface
         return $this->classLeaderboard($user->class_id, $limit);
     }
 
-    private function baseLeaderboardQuery()
+    private function baseLeaderboardQuery(): \Illuminate\Database\Eloquent\Builder
     {
         $churchId = auth()->user()->church_id;
 
@@ -141,7 +145,8 @@ class LeaderboardService implements LeaderboardServiceInterface
             ->orderBy('users.created_at');
     }
 
-    private function formatLeaderboard($members): array
+    /** @return array<int, array<string, mixed>> */
+    private function formatLeaderboard(\Illuminate\Database\Eloquent\Collection|\Illuminate\Support\Collection $members): array
     {
         $entries = [];
         $rank = 1;

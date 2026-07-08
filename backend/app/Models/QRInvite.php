@@ -8,6 +8,32 @@ use App\Traits\BelongsToChurch;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * @property int $id
+ * @property \App\Enums\QRInviteType $type
+ * @property string $token
+ * @property int|null $created_by
+ * @property int|null $class_id
+ * @property int|null $class_year_id
+ * @property int|null $attendance_context_id
+ * @property int|null $used_by
+ * @property \Illuminate\Support\Carbon $expires_at
+ * @property \Illuminate\Support\Carbon|null $used_at
+ * @property bool $is_revoked
+ * @property bool $is_single_use
+ * @property int|null $max_uses
+ * @property int $use_count
+ * @property array|null $used_by_users
+ * @property int|null $church_id
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \App\Models\User|null $creator
+ * @property-read \App\Models\User|null $usedBy
+ * @property-read \App\Models\Classe|null $classe
+ * @property-read \App\Models\Classe|null $classeYear
+ * @property-read \App\Models\AttendanceContext|null $attendanceContext
+ * @method static \Illuminate\Database\Eloquent\Builder|\App\Models\QRInvite valid()
+ */
 class QRInvite extends Model
 {
     use BelongsToChurch, AuditableTrait;
@@ -100,7 +126,7 @@ class QRInvite extends Model
 
         $userEntry = [
             'id' => $userId,
-            'name' => $user?->name ?? 'Unknown',
+            'name' => $user->name ?? 'Unknown',
             'role' => $user?->role?->value,
             'phone' => $user?->phone,
             'member_id' => $user?->member_id,
@@ -143,7 +169,11 @@ class QRInvite extends Model
         return $affected > 0;
     }
 
-    public function scopeValid($query)
+    /**
+     * @param \Illuminate\Database\Eloquent\Builder<\App\Models\QRInvite> $query
+     * @return \Illuminate\Database\Eloquent\Builder<\App\Models\QRInvite>
+     */
+    public function scopeValid($query): \Illuminate\Database\Eloquent\Builder
     {
         return $query
             ->where('is_revoked', false)

@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\DB;
 
 class NotificationService implements NotificationServiceInterface
 {
+    /** @return array<string, mixed> */
     public function listForUser(int $userId, int $perPage = 15): array
     {
         $paginator = Notification::forUser($userId)
@@ -54,6 +55,7 @@ class NotificationService implements NotificationServiceInterface
             ]);
     }
 
+    /** @param array<int> $targetUserIds */
     public function createForEvent(array $targetUserIds, int $eventId, int $churchId, string $title, string $body): void
     {
         if (empty($targetUserIds)) {

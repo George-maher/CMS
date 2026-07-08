@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Collection;
 
 class ClasseRepository implements ClasseRepositoryInterface
 {
+    /** @return Collection<int, \App\Models\Classe> */
     public function all(?string $search = null): Collection
     {
         $query = Classe::with(['stage'])
@@ -26,7 +27,7 @@ class ClasseRepository implements ClasseRepositoryInterface
         return $query->orderBy('display_order')->get();
     }
 
-    public function findById(int $id)
+    public function findById(int $id): ?Classe
     {
         return Classe::with(['stage'])
             ->withCount([
@@ -36,7 +37,7 @@ class ClasseRepository implements ClasseRepositoryInterface
             ->find($id);
     }
 
-    public function create(array $data)
+    public function create(array $data): Classe
     {
         return Classe::create($data);
     }
@@ -55,6 +56,7 @@ class ClasseRepository implements ClasseRepositoryInterface
         return $classe->delete();
     }
 
+    /** @return Collection<int, \App\Models\Classe> */
     public function findByStage(int $stageId, ?string $search = null): Collection
     {
         $query = Classe::where('stage_id', $stageId)

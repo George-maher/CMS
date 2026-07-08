@@ -8,12 +8,12 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 class PointRepository implements PointRepositoryInterface
 {
-    public function findById(int $id)
+    public function findById(int $id): ?Point
     {
         return Point::find($id);
     }
 
-    public function create(array $data)
+    public function create(array $data): Point
     {
         return Point::create($data);
     }

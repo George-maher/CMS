@@ -12,4 +12,5 @@ interface StageServiceInterface
     public function delete(int $id): bool;
     public function createBulk(int $churchId, int $count): array;
     public function getClasses(int $stageId, ?string $search = null): array;
+    public function stagesWithClasses(?string $search = null): array;
 }

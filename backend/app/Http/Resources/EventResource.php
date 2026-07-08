@@ -7,10 +7,12 @@ use App\Enums\UserRole;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
+/** @mixin \App\Models\Event */
 class EventResource extends JsonResource
 {
     public bool $isDetailView = false;
 
+    /** @return array<string, mixed> */
     public function toArray(Request $request): array
     {
         $user = $request->user();
@@ -56,14 +58,14 @@ class EventResource extends JsonResource
             ]),
             'class_id' => $this->class_year_id ?? ($targetClasses && $targetClasses->isNotEmpty() ? $targetClasses->first()['id'] : null),
             'class_year_id' => $this->class_year_id,
-            'creator' => $this->when($this->creator, fn() => [
+            'creator' => $this->when($this->creator !== null, fn() => [
                 'id' => $this->creator->id,
                 'name' => $this->creator->name,
             ]),
             'view_count' => $this->when($isAdminOrServant, fn() => $this->viewCount()),
             'views' => $this->when($isAdminOrServant && $this->relationLoaded('views'), fn() =>
                 $this->views->map(fn($v) => [
-                    'user' => ['id' => $v->user_id, 'name' => $v->user?->name ?? 'Unknown'],
+                    'user' => ['id' => $v->user_id, 'name' => $v->user->name ?? 'Unknown'],
                     'viewed_at' => $v->viewed_at,
                 ])
             ),

@@ -8,12 +8,12 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 class MembershipRequestRepository implements MembershipRequestRepositoryInterface
 {
-    public function create(array $data)
+    public function create(array $data): MembershipRequest
     {
         return MembershipRequest::create($data);
     }
 
-    public function findById(int $id)
+    public function findById(int $id): ?MembershipRequest
     {
         return MembershipRequest::with(['reviewer'])->find($id);
     }
@@ -40,7 +40,7 @@ class MembershipRequestRepository implements MembershipRequestRepositoryInterfac
         return $request->update($data);
     }
 
-    public function findByEmailChurch(string $email, int $churchId)
+    public function findByEmailChurch(string $email, int $churchId): ?MembershipRequest
     {
         return MembershipRequest::where('email', $email)
             ->where('church_id', $churchId)

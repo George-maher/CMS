@@ -7,6 +7,30 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * @property int $id
+ * @property string $church_name
+ * @property string|null $service_name
+ * @property string|null $priest_name
+ * @property string|null $main_servant_name
+ * @property string|null $priest_phone
+ * @property string|null $phone
+ * @property string|null $address
+ * @property string $contact_email
+ * @property string|null $description
+ * @property string|null $front_id_path
+ * @property string|null $back_id_path
+ * @property string|null $church_permission_doc_path
+ * @property string $status
+ * @property int|null $reviewed_by
+ * @property \Illuminate\Support\Carbon|null $reviewed_at
+ * @property \Illuminate\Support\Carbon|null $rejected_at
+ * @property string|null $admin_notes
+ * @property string|null $rejection_reason
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \App\Models\User|null $reviewer
+ */
 class ChurchApplication extends Model
 {
     /** @use HasFactory<ChurchApplicationFactory> */

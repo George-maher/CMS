@@ -17,7 +17,7 @@ class SystemMail extends Mailable
         public User $user,
         public string $subjectText,
         public string $viewName,
-        public array $viewData = [],
+        public $viewData = [],
     ) {}
 
     public function envelope(): Envelope

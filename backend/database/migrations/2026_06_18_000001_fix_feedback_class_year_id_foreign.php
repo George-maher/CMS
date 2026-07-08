@@ -14,11 +14,19 @@ return new class extends Migration
         // Map by church_id + name (one Classe per ClassYear per church).
         if (Schema::hasTable('class_years')) {
             DB::statement("
-                UPDATE feedback f
-                SET class_year_id = c.id
-                FROM class_years cy
-                INNER JOIN classes c ON c.church_id = cy.church_id AND c.name = cy.name
-                WHERE f.class_year_id = cy.id
+                UPDATE feedback
+                SET class_year_id = (
+                    SELECT c.id
+                    FROM class_years cy
+                    INNER JOIN classes c ON c.church_id = cy.church_id AND c.name = cy.name
+                    WHERE cy.id = feedback.class_year_id
+                )
+                WHERE EXISTS (
+                    SELECT 1
+                    FROM class_years cy
+                    INNER JOIN classes c ON c.church_id = cy.church_id AND c.name = cy.name
+                    WHERE cy.id = feedback.class_year_id
+                )
             ");
         }
 

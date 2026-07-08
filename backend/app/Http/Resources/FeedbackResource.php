@@ -6,8 +6,10 @@ use App\Enums\UserRole;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
+/** @mixin \App\Models\Feedback */
 class FeedbackResource extends JsonResource
 {
+    /** @return array<string, mixed> */
     public function toArray(Request $request): array
     {
         $authUser = $request->user();
@@ -41,7 +43,7 @@ class FeedbackResource extends JsonResource
                     'phone' => $isAdmin ? $this->user->phone : null,
                     'class_id' => $this->user->class_id,
                     'class_name' => $this->user->classe?->name,
-                    'stage_name' => $this->user->stage?->name ?? $this->user->classe?->stage?->name,
+                    'stage_name' => $this->user->stage->name ?? $this->user->classe->stage->name,
                 ]
                 : [
                     'id' => null,
@@ -61,7 +63,7 @@ class FeedbackResource extends JsonResource
                     'message' => $reply->message,
                     'user' => [
                         'id' => $reply->user_id,
-                        'name' => $reply->user?->name ?? 'Unknown',
+                        'name' => $reply->user->name ?? 'Unknown',
                     ],
                     'created_at' => $reply->created_at,
                 ])

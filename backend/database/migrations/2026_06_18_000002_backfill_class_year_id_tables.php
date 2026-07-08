@@ -16,29 +16,53 @@ return new class extends Migration
 
         // --- Backfill attendances.class_year_id ---
         DB::statement("
-            UPDATE attendances a
-            SET class_year_id = c.id
-            FROM class_years cy
-            INNER JOIN classes c ON c.church_id = cy.church_id AND c.name = cy.name
-            WHERE a.class_year_id = cy.id
+            UPDATE attendances
+            SET class_year_id = (
+                SELECT c.id
+                FROM class_years cy
+                INNER JOIN classes c ON c.church_id = cy.church_id AND c.name = cy.name
+                WHERE cy.id = attendances.class_year_id
+            )
+            WHERE EXISTS (
+                SELECT 1
+                FROM class_years cy
+                INNER JOIN classes c ON c.church_id = cy.church_id AND c.name = cy.name
+                WHERE cy.id = attendances.class_year_id
+            )
         ");
 
         // --- Backfill events.class_year_id ---
         DB::statement("
-            UPDATE events e
-            SET class_year_id = c.id
-            FROM class_years cy
-            INNER JOIN classes c ON c.church_id = cy.church_id AND c.name = cy.name
-            WHERE e.class_year_id = cy.id
+            UPDATE events
+            SET class_year_id = (
+                SELECT c.id
+                FROM class_years cy
+                INNER JOIN classes c ON c.church_id = cy.church_id AND c.name = cy.name
+                WHERE cy.id = events.class_year_id
+            )
+            WHERE EXISTS (
+                SELECT 1
+                FROM class_years cy
+                INNER JOIN classes c ON c.church_id = cy.church_id AND c.name = cy.name
+                WHERE cy.id = events.class_year_id
+            )
         ");
 
         // --- Backfill qr_invites.class_year_id ---
         DB::statement("
-            UPDATE qr_invites qi
-            SET class_year_id = c.id
-            FROM class_years cy
-            INNER JOIN classes c ON c.church_id = cy.church_id AND c.name = cy.name
-            WHERE qi.class_year_id = cy.id
+            UPDATE qr_invites
+            SET class_year_id = (
+                SELECT c.id
+                FROM class_years cy
+                INNER JOIN classes c ON c.church_id = cy.church_id AND c.name = cy.name
+                WHERE cy.id = qr_invites.class_year_id
+            )
+            WHERE EXISTS (
+                SELECT 1
+                FROM class_years cy
+                INNER JOIN classes c ON c.church_id = cy.church_id AND c.name = cy.name
+                WHERE cy.id = qr_invites.class_year_id
+            )
         ");
 
         fix_fks:

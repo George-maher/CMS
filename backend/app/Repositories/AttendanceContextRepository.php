@@ -10,17 +10,17 @@ use Illuminate\Support\Facades\Schema;
 
 class AttendanceContextRepository implements AttendanceContextRepositoryInterface
 {
-    public function findById(int $id)
+    public function findById(int $id): ?AttendanceContext
     {
         return AttendanceContext::withoutGlobalScope(ChurchScope::class)->find($id);
     }
 
-    public function findBySlug(string $slug)
+    public function findBySlug(string $slug): ?AttendanceContext
     {
         return AttendanceContext::withoutGlobalScope(ChurchScope::class)->where('slug', $slug)->first();
     }
 
-    public function create(array $data)
+    public function create(array $data): AttendanceContext
     {
         return AttendanceContext::create($data);
     }
@@ -60,7 +60,7 @@ class AttendanceContextRepository implements AttendanceContextRepositoryInterfac
         return $query->paginate($perPage);
     }
 
-    public function getActive()
+    public function getActive(): \Illuminate\Database\Eloquent\Collection
     {
         $churchId = auth()->user()?->church_id;
         $query = AttendanceContext::withoutGlobalScope(ChurchScope::class)
@@ -77,7 +77,7 @@ class AttendanceContextRepository implements AttendanceContextRepositoryInterfac
         return $query->get();
     }
 
-    public function getDefault()
+    public function getDefault(): ?AttendanceContext
     {
         return null;
     }
@@ -87,7 +87,7 @@ class AttendanceContextRepository implements AttendanceContextRepositoryInterfac
         return 0;
     }
 
-    public function getActiveForChurch(int $churchId)
+    public function getActiveForChurch(int $churchId): \Illuminate\Database\Eloquent\Collection
     {
         return AttendanceContext::withoutGlobalScope(ChurchScope::class)
             ->where(function ($q) use ($churchId) {

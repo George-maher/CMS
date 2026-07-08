@@ -9,6 +9,22 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Str;
 
+/**
+ * @property int $id
+ * @property int|null $church_id
+ * @property string $name
+ * @property string|null $name_ar
+ * @property string $slug
+ * @property string|null $description
+ * @property bool $is_active
+ * @property int|null $created_by
+ * @property int|null $updated_by
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \App\Models\User|null $creator
+ * @property-read \App\Models\User|null $updater
+ * @method static \Illuminate\Database\Eloquent\Builder|\App\Models\AttendanceContext active()
+ */
 class AttendanceContext extends Model
 {
     /** @use HasFactory<AttendanceContextFactory> */
@@ -51,7 +67,11 @@ class AttendanceContext extends Model
         return $this->belongsTo(User::class, 'updated_by');
     }
 
-    public function scopeActive($query)
+    /**
+     * @param \Illuminate\Database\Eloquent\Builder<\App\Models\AttendanceContext> $query
+     * @return \Illuminate\Database\Eloquent\Builder<\App\Models\AttendanceContext>
+     */
+    public function scopeActive($query): \Illuminate\Database\Eloquent\Builder
     {
         return $query->where('is_active', true);
     }

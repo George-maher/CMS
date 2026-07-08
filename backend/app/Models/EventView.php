@@ -6,6 +6,18 @@ use App\Traits\BelongsToChurch;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * @property int $id
+ * @property int|null $church_id
+ * @property int $event_id
+ * @property int $user_id
+ * @property \Illuminate\Support\Carbon|null $viewed_at
+ * @property string|null $ip_address
+ * @property string|null $user_agent
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property-read \App\Models\Event|null $event
+ * @property-read \App\Models\User|null $user
+ */
 class EventView extends Model
 {
     use BelongsToChurch;

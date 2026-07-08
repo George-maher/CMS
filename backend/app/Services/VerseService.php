@@ -14,6 +14,7 @@ class VerseService implements VerseServiceInterface
         private readonly CacheService $cacheService,
     ) {}
 
+    /** @return array<string, mixed> */
     public function list(int $perPage = 15): array
     {
         $paginator = $this->verseRepository->paginate($perPage);
@@ -29,6 +30,7 @@ class VerseService implements VerseServiceInterface
         ];
     }
 
+    /** @return ?array<string, mixed> */
     public function findById(int $id): ?array
     {
         $verse = $this->verseRepository->findById($id);
@@ -39,6 +41,8 @@ class VerseService implements VerseServiceInterface
         ];
     }
 
+    /** @param array<string, mixed> $data */
+    /** @return array<string, mixed> */
     public function create(array $data, int $creatorId): array
     {
         $verse = $this->verseRepository->create([
@@ -60,6 +64,8 @@ class VerseService implements VerseServiceInterface
         ];
     }
 
+    /** @param array<string, mixed> $data */
+    /** @return array<string, mixed> */
     public function update(int $id, array $data): array
     {
         $verse = $this->verseRepository->findById($id);
@@ -94,6 +100,7 @@ class VerseService implements VerseServiceInterface
         $this->verseRepository->delete($id);
     }
 
+    /** @return array<string, mixed> */
     public function activate(int $id): array
     {
         $verse = $this->verseRepository->findById($id);
@@ -113,6 +120,7 @@ class VerseService implements VerseServiceInterface
         ];
     }
 
+    /** @return ?array<string, mixed> */
     public function getActive(): ?array
     {
         return $this->cacheService->rememberActiveVerse(0, function () {

@@ -9,6 +9,27 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+/**
+ * @property int $id
+ * @property string $name
+ * @property \App\Enums\EventType $type
+ * @property string|null $image
+ * @property string|null $description
+ * @property \Illuminate\Support\Carbon|null $event_date
+ * @property string|null $location
+ * @property int|null $created_by
+ * @property bool $is_active
+ * @property bool $is_all_classes
+ * @property int|null $class_year_id
+ * @property int|null $church_id
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \App\Models\User|null $creator
+ * @property-read \App\Models\Classe|null $classe
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\EventTarget> $targets
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\EventView> $views
+ * @property-read int|null $views_count
+ */
 class Event extends Model
 {
     use BelongsToChurch, AuditableTrait;
@@ -52,6 +73,7 @@ class Event extends Model
         return $this->hasMany(EventTarget::class);
     }
 
+    /** @return HasMany<\App\Models\EventView> */
     public function views(): HasMany
     {
         return $this->hasMany(EventView::class);

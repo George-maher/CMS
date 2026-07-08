@@ -23,7 +23,7 @@ class DateHelper
 
     public static function daysUntil(?Carbon $date): ?int
     {
-        return $date ? now()->startOfDay()->diffInDays($date->startOfDay(), false) : null;
+        return $date ? (int) now()->startOfDay()->diffInDays($date->startOfDay(), false) : null;
     }
 
     public static function age(?Carbon $birthDate): ?int

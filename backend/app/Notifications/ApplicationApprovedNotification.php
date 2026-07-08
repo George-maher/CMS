@@ -14,7 +14,7 @@ class ApplicationApprovedNotification extends Notification implements ShouldQueu
     use Queueable;
 
     public function __construct(
-        private readonly ChurchApplication $application,
+        ChurchApplication $application,
         private readonly User $applicant,
         private readonly string $churchName,
     ) {}

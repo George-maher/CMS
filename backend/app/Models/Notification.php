@@ -6,6 +6,27 @@ use App\Traits\BelongsToChurch;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * @property int $id
+ * @property int|null $church_id
+ * @property int $user_id
+ * @property int|null $event_id
+ * @property int|null $feedback_id
+ * @property int|null $points_id
+ * @property string $title
+ * @property string|null $body
+ * @property string $type
+ * @property bool $is_read
+ * @property \Illuminate\Support\Carbon|null $read_at
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \App\Models\User|null $user
+ * @property-read \App\Models\Event|null $event
+ * @property-read \App\Models\Feedback|null $feedback
+ * @property-read \App\Models\Point|null $point
+ * @method static \Illuminate\Database\Eloquent\Builder|\App\Models\Notification unread()
+ * @method static \Illuminate\Database\Eloquent\Builder|\App\Models\Notification forUser(int $userId)
+ */
 class Notification extends Model
 {
     use BelongsToChurch;
@@ -51,12 +72,20 @@ class Notification extends Model
         return $this->belongsTo(Point::class, 'points_id');
     }
 
-    public function scopeUnread($query)
+    /**
+     * @param \Illuminate\Database\Eloquent\Builder<\App\Models\Notification> $query
+     * @return \Illuminate\Database\Eloquent\Builder<\App\Models\Notification>
+     */
+    public function scopeUnread($query): \Illuminate\Database\Eloquent\Builder
     {
         return $query->where('is_read', false);
     }
 
-    public function scopeForUser($query, int $userId)
+    /**
+     * @param \Illuminate\Database\Eloquent\Builder<\App\Models\Notification> $query
+     * @return \Illuminate\Database\Eloquent\Builder<\App\Models\Notification>
+     */
+    public function scopeForUser($query, int $userId): \Illuminate\Database\Eloquent\Builder
     {
         return $query->where('user_id', $userId);
     }

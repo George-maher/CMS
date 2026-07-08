@@ -7,6 +7,23 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Str;
 
+/**
+ * @property int $id
+ * @property int $user_id
+ * @property string $email
+ * @property string|null $notes
+ * @property \App\Enums\PasswordResetRequestStatus $status
+ * @property string|null $token
+ * @property string|null $rejection_reason
+ * @property int|null $reviewed_by
+ * @property \Illuminate\Support\Carbon|null $reviewed_at
+ * @property \Illuminate\Support\Carbon|null $token_expires_at
+ * @property \Illuminate\Support\Carbon|null $used_at
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \App\Models\User|null $user
+ * @property-read \App\Models\User|null $reviewer
+ */
 class PasswordResetRequest extends Model
 {
     protected $fillable = [

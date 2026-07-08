@@ -39,6 +39,10 @@ class CacheService
         Cache::put($this->versionKey($namespace, $churchId), $version, self::VERSION_TTL);
     }
 
+    /**
+     * @param callable $callback
+     * @return mixed
+     */
     public function rememberAttendanceToday(?int $churchId, ?int $classYearId, callable $callback): mixed
     {
         if ($churchId === null) {
@@ -48,6 +52,10 @@ class CacheService
         return Cache::remember($key, self::DEFAULT_TTL, $callback);
     }
 
+    /**
+     * @param callable $callback
+     * @return mixed
+     */
     public function rememberAttendanceStats(?int $churchId, int $userId, callable $callback): mixed
     {
         if ($churchId === null) {
@@ -57,6 +65,10 @@ class CacheService
         return Cache::remember($key, self::DEFAULT_TTL, $callback);
     }
 
+    /**
+     * @param callable $callback
+     * @return mixed
+     */
     public function rememberLeaderboard(?int $churchId, ?int $classYearId, int $limit, callable $callback): mixed
     {
         if ($churchId === null) {
@@ -66,6 +78,10 @@ class CacheService
         return Cache::remember($key, self::LONG_TTL, $callback);
     }
 
+    /**
+     * @param callable $callback
+     * @return mixed
+     */
     public function rememberPointsBalance(?int $churchId, int $userId, callable $callback): mixed
     {
         if ($churchId === null) {
@@ -75,6 +91,10 @@ class CacheService
         return Cache::remember($key, self::DEFAULT_TTL, $callback);
     }
 
+    /**
+     * @param callable $callback
+     * @return mixed
+     */
     public function rememberDashboardStats(?int $churchId, callable $callback): mixed
     {
         if ($churchId === null) {
@@ -84,6 +104,10 @@ class CacheService
         return Cache::remember($key, self::LONG_TTL, $callback);
     }
 
+    /**
+     * @param callable $callback
+     * @return mixed
+     */
     public function rememberStagesLeaderboards(?int $churchId, callable $callback): mixed
     {
         if ($churchId === null) {
@@ -93,6 +117,10 @@ class CacheService
         return Cache::remember($key, self::LONG_TTL, $callback);
     }
 
+    /**
+     * @param callable $callback
+     * @return mixed
+     */
     public function rememberActiveVerse(?int $churchId, callable $callback): mixed
     {
         if ($churchId === null) {
@@ -102,6 +130,10 @@ class CacheService
         return Cache::remember($key, self::DAY_TTL, $callback);
     }
 
+    /**
+     * @param callable $callback
+     * @return mixed
+     */
     public function rememberEventList(?int $churchId, string $filterHash, callable $callback): mixed
     {
         if ($churchId === null) {
@@ -111,6 +143,10 @@ class CacheService
         return Cache::remember($key, self::LONG_TTL, $callback);
     }
 
+    /**
+     * @param callable $callback
+     * @return mixed
+     */
     public function rememberContextSummary(?int $churchId, ?string $dateFrom, ?string $dateTo, ?int $classYearId, callable $callback): mixed
     {
         if ($churchId === null) {
