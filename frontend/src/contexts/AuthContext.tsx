@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
+import { createContext, useEffect, useRef, useState, type ReactNode } from 'react'
 import type { LoginPayload, RegisterPayload, User } from '@/types'
 import * as authApi from '@/api/auth'
 import { logCatch } from '@/lib/debug'
@@ -15,7 +15,7 @@ interface AuthContextType {
   refreshUser: () => Promise<void>
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined)
+export const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 function decodeUser(): User | null {
   try {
@@ -54,7 +54,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .finally(() => setIsLoading(false))
     } else {
       validatedRef.current = true
-      setIsLoading(false)
+      Promise.resolve().then(() => setIsLoading(false))
     }
   }, [token])
 
@@ -117,8 +117,4 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   )
 }
 
-export function useAuth() {
-  const context = useContext(AuthContext)
-  if (!context) throw new Error('useAuth must be used within AuthProvider')
-  return context
-}
+

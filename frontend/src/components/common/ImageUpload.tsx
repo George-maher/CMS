@@ -21,20 +21,20 @@ export default function ImageUpload({ value, onChange }: Props) {
       }
       const url = URL.createObjectURL(value)
       objectUrlRef.current = url
-      setObjectUrl(url)
+      Promise.resolve().then(() => setObjectUrl(url))
       return () => {
         if (objectUrlRef.current) {
           URL.revokeObjectURL(objectUrlRef.current)
           objectUrlRef.current = null
         }
-        setObjectUrl(null)
+        Promise.resolve().then(() => setObjectUrl(null))
       }
     } else {
       if (objectUrlRef.current) {
         URL.revokeObjectURL(objectUrlRef.current)
         objectUrlRef.current = null
       }
-      setObjectUrl(null)
+      Promise.resolve().then(() => setObjectUrl(null))
     }
   }, [value])
 

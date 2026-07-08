@@ -1,7 +1,7 @@
-import { useEffect, useState, useCallback, useMemo } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useAuth } from '@/contexts/AuthContext'
-import { useTheme } from '@/contexts/ThemeContext'
+import { useAuth } from '@/hooks/useAuth'
+import { useTheme } from '@/hooks/useTheme'
 import { ctxName } from '@/lib/contextLabels'
 import { getFilteredAttendances } from '@/api/attendance'
 import { getMyClasses } from '@/api/structure'
@@ -18,7 +18,7 @@ export default function AttendancePage() {
   const isServant = user?.role === 'servant'
 
   const [classes, setClasses] = useState<{ id: number; name: string }[]>([])
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
 
   const [filters, setFilters] = useState<AttendanceFilterValues>({
     contextId: '',
@@ -54,30 +54,16 @@ export default function AttendancePage() {
       .catch(() => {})
   }, [])
 
-  const fetchData = useCallback(async (p: number, filtersToUse: AttendanceFilterValues) => {
-    setLoading(true)
-    try {
-      const params: Record<string, string | number> = { per_page: 15, page: p }
-      if (!isServant && filtersToUse.classId !== '') params.class_id = filtersToUse.classId
-      if (filtersToUse.contextId !== '') params.attendance_context_id = filtersToUse.contextId
-      if (filtersToUse.dateFrom) params.date_from = filtersToUse.dateFrom
-      if (filtersToUse.dateTo) params.date_to = filtersToUse.dateTo
-      if (filtersToUse.date) params.date_from = filtersToUse.date
-      if (filtersToUse.search.trim()) params.search = filtersToUse.search.trim()
-      const res = await getFilteredAttendances(params)
-      setData(res.data)
-      setMeta(res.meta)
-    } catch {
-      setData([])
-      setMeta(null)
-    } finally {
-      setLoading(false)
-    }
-  }, [isServant])
-
   useEffect(() => {
-    fetchData(page, committed)
-  }, [page, committed, fetchData])
+    const params: Record<string, string | number> = { per_page: 15, page }
+    if (!isServant && committed.classId !== '') params.class_id = committed.classId
+    if (committed.contextId !== '') params.attendance_context_id = committed.contextId
+    if (committed.dateFrom) params.date_from = committed.dateFrom
+    if (committed.dateTo) params.date_to = committed.dateTo
+    if (committed.date) params.date_from = committed.date
+    if (committed.search.trim()) params.search = committed.search.trim()
+    getFilteredAttendances(params).then(res => { setData(res.data); setMeta(res.meta) }).catch(() => { setData([]); setMeta(null) }).finally(() => setLoading(false))
+  }, [page, committed, isServant])
 
   const handleApply = () => {
     setCommitted(filters)

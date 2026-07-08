@@ -24,8 +24,8 @@ declare module 'html5-qrcode' {
     start(
       cameraIdOrConfig: string | { facingMode: string },
       config: Html5QrcodeFullConfig | undefined,
-      onSuccess: (decodedText: string, decodedResult: any) => void,
-      onError?: (errorMessage: string, error: any) => void,
+      onSuccess: (decodedText: string, decodedResult: Record<string, unknown>) => void,
+      onError?: (errorMessage: string, error: unknown) => void,
     ): Promise<void>
     stop(): Promise<void>
     clear(): void

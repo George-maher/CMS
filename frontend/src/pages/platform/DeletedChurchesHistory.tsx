@@ -46,7 +46,17 @@ export default function DeletedChurchesHistory() {
     }
   }, [search, churchName, priestName, deletedFrom, deletedTo])
 
-  useEffect(() => { fetchChurches() }, [fetchChurches])
+  useEffect(() => {
+    const params: Record<string, string | number | undefined> = {
+      page: 1, per_page: 15,
+      search: search || undefined,
+      church_name: churchName || undefined,
+      priest_name: priestName || undefined,
+      deleted_from: deletedFrom || undefined,
+      deleted_to: deletedTo || undefined,
+    }
+    getDeletedChurches(params).then(res => { setChurches(res.data); setMeta(res.meta) }).catch(() => setChurches([])).finally(() => setLoading(false))
+  }, [search, churchName, priestName, deletedFrom, deletedTo])
 
   const clearFilters = () => {
     setSearch('')

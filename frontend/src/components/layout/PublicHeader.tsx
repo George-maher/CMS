@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { useTheme } from '@/contexts/ThemeContext'
+import { useTheme } from '@/hooks/useTheme'
 import { useTranslation } from 'react-i18next'
 import { Church, Menu, X, Sun, Moon, Languages, LogIn, Home } from 'lucide-react'
 

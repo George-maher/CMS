@@ -54,7 +54,10 @@ export default function PlatformDashboard() {
     finally { setLoading(false) }
   }, [filter])
 
-  useEffect(() => { fetchData() }, [fetchData])
+  useEffect(() => {
+    getPlatformDashboard().then(s => setStats(s))
+    listApplications(filter || undefined, 1, 15).then(a => { setApps(a.data); setMeta(a.meta); setCounts(a.counts) }).finally(() => setLoading(false))
+  }, [filter])
 
   const tabs = [
     { key: '', label: t('common.all'), count: counts.total, variant: 'default' as const },

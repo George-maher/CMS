@@ -5,7 +5,7 @@ import { Reply, Eye, EyeOff, Phone } from 'lucide-react'
 import Badge from '@/components/common/Badge'
 import DataTable from '@/components/common/DataTable'
 import Modal from '@/components/common/Modal'
-import { useAuth } from '@/contexts/AuthContext'
+import { useAuth } from '@/hooks/useAuth'
 import type { Column } from '@/components/common/DataTable'
 import type { Feedback } from '@/types'
 import { listFeedback, resolveFeedback, replyToFeedback, getFeedback } from '@/api/feedback'
@@ -24,7 +24,7 @@ export default function FeedbackManagement() {
   const [replyText, setReplyText] = useState('')
   const [replying, setReplying] = useState(false)
 
-  const fetch = async (page = 1) => {
+  const fetchData = async (page = 1) => {
     setLoading(true)
     try {
       const params: Record<string, string | number | boolean> = { page, per_page: 15 }
@@ -35,10 +35,14 @@ export default function FeedbackManagement() {
     } finally { setLoading(false) }
   }
 
-  useEffect(() => { fetch() }, [filter])
+  useEffect(() => {
+    if (filter === 'unresolved') { listFeedback({ page: 1, per_page: 15, unresolved: true }).then(res => { setFeedback(res.data); setMeta(res.meta); setUnresolvedCount(res.unresolved_count) }).finally(() => setLoading(false)) }
+    else if (filter === 'resolved') { listFeedback({ page: 1, per_page: 15, is_resolved: true }).then(res => { setFeedback(res.data); setMeta(res.meta); setUnresolvedCount(res.unresolved_count) }).finally(() => setLoading(false)) }
+    else { listFeedback({ page: 1, per_page: 15 }).then(res => { setFeedback(res.data); setMeta(res.meta); setUnresolvedCount(res.unresolved_count) }).finally(() => setLoading(false)) }
+  }, [filter])
 
   const handleResolve = async (id: number) => {
-    try { await resolveFeedback(id); fetch(); toast.success(t('feedback.markedResolved')) }
+    try { await resolveFeedback(id); fetchData(); toast.success(t('feedback.markedResolved')) }
     catch (e) { logCatch('FeedbackManagement.resolve', e); toast.error(t('common.saving')) }
   }
 
@@ -61,7 +65,7 @@ export default function FeedbackManagement() {
       setReplyText('')
       const updated = await getFeedback(selectedFeedback.id)
       setSelectedFeedback(updated)
-      fetch()
+      fetchData()
     } catch (e) {
       logCatch('FeedbackManagement.reply', e)
       toast.error(t('common.saving'))
@@ -104,7 +108,7 @@ export default function FeedbackManagement() {
           {!f.is_resolved && <button onClick={() => handleResolve(f.id)} className="btn-ghost btn-sm">{t('feedback.markResolved')}</button>}
         </div>
       )}]}
-        data={feedback} meta={meta} isLoading={loading} onPageChange={fetch} emptyMessage={t('common.noDataYet')} />
+        data={feedback} meta={meta} isLoading={loading} onPageChange={fetchData} emptyMessage={t('common.noDataYet')} />
 
       <Modal isOpen={!!selectedFeedback} onClose={() => { setSelectedFeedback(null); setReplyText('') }} title={t('feedback.feedback')} size="lg">
         {selectedFeedback && (

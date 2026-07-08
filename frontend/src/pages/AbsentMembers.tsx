@@ -4,7 +4,7 @@ import { Phone, Copy, MessageCircle, MessageSquare, Users, UserCheck, UserX, Ale
 import toast from 'react-hot-toast'
 import { getAbsentMembers, type AbsentMembersResponse } from '@/api/attendance'
 import { getMyClasses } from '@/api/structure'
-import { useAuth } from '@/contexts/AuthContext'
+import { useAuth } from '@/hooks/useAuth'
 import LoadingSpinner from '@/components/common/LoadingSpinner'
 import Badge from '@/components/common/Badge'
 import StatCard from '@/components/common/StatCard'

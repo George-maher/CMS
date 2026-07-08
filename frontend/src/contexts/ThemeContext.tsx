@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from 'react'
+import { createContext, useEffect, useState, useCallback, type ReactNode } from 'react'
 import i18n from 'i18next'
 
 type Theme = 'light' | 'dark'
@@ -12,7 +12,7 @@ interface ThemeContextType {
   dir: 'ltr' | 'rtl'
 }
 
-const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
+export const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
 
 function getInitialTheme(): Theme {
   const stored = localStorage.getItem('theme')
@@ -43,7 +43,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     root.setAttribute('dir', d)
     root.setAttribute('lang', language)
     i18n.changeLanguage(language)
-    setDir(d)
+    Promise.resolve().then(() => setDir(d))
   }, [language])
 
   const toggleTheme = useCallback(() => {
@@ -62,8 +62,4 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   )
 }
 
-export function useTheme() {
-  const context = useContext(ThemeContext)
-  if (!context) throw new Error('useTheme must be used within ThemeProvider')
-  return context
-}
+

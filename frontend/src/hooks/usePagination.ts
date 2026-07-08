@@ -26,7 +26,30 @@ interface UsePaginationReturn<T> extends PaginationState<T> {
   reset: () => void
 }
 
-export function usePagination<T = any>(
+function extractData<T>(responseData: unknown, dataKey?: string): T[] {
+  const data = responseData as Record<string, unknown> | null
+  if (dataKey && data) {
+    const nested = data[dataKey]
+    if (Array.isArray(nested)) return nested as T[]
+    if (nested && typeof nested === 'object' && 'data' in (nested as Record<string, unknown>)) {
+      const nestedData = (nested as Record<string, unknown>).data
+      if (Array.isArray(nestedData)) return nestedData as T[]
+    }
+    return []
+  }
+  if (data?.data && Array.isArray(data.data)) return data.data as T[]
+  if (Array.isArray(responseData)) return responseData as T[]
+  return []
+}
+
+function extractMeta(responseData: unknown): PaginationMeta | null {
+  const data = responseData as Record<string, unknown> | null
+  if (data?.meta) return data.meta as PaginationMeta
+  if (data?.pagination) return data.pagination as PaginationMeta
+  return null
+}
+
+export function usePagination<T = unknown>(
   configOrUrl: AxiosRequestConfig | string,
   options?: { perPage?: number; dataKey?: string; immediate?: boolean },
 ): UsePaginationReturn<T> {
@@ -43,24 +66,6 @@ export function usePagination<T = any>(
 
   const currentPageRef = useRef(1)
   const loadingRef = useRef(false)
-
-  const extractData = (responseData: any): T[] => {
-    if (dataKey) {
-      const nested = responseData[dataKey]
-      if (Array.isArray(nested)) return nested
-      if (nested?.data && Array.isArray(nested.data)) return nested.data
-      return []
-    }
-    if (responseData?.data && Array.isArray(responseData.data)) return responseData.data
-    if (Array.isArray(responseData)) return responseData
-    return []
-  }
-
-  const extractMeta = (responseData: any): PaginationMeta | null => {
-    if (responseData?.meta) return responseData.meta as PaginationMeta
-    if (responseData?.pagination) return responseData.pagination as PaginationMeta
-    return null
-  }
 
   const fetchPage = useCallback(async (page: number, append: boolean) => {
     if (loadingRef.current) return
@@ -80,9 +85,9 @@ export function usePagination<T = any>(
       config.params = { ...config.params, page, per_page: perPage }
 
       const response = await client.request<T>(config)
-      const responseData = response.data as any
+      const responseData = response.data as unknown
 
-      const extractedItems = extractData(responseData)
+      const extractedItems = extractData<T>(responseData, dataKey)
       const meta = extractMeta(responseData)
 
       setState(prev => ({

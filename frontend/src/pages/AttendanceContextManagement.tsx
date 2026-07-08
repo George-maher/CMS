@@ -41,7 +41,10 @@ export default function AttendanceContextManagement() {
     }
   }, [t])
 
-  useEffect(() => { fetchContexts() }, [fetchContexts])
+  useEffect(() => {
+    const params: Record<string, string | number> = { page: 1, per_page: 100 }
+    getContextsForManagement(params).then((res: { data: AttendanceContext[]; meta: PaginationMeta }) => { setContexts(res.data); setMeta(res.meta) }).catch((e: unknown) => { logCatch('AttendanceContextManagement.fetch', e); toast.error(t('common.failedToLoad')) }).finally(() => setLoading(false))
+  }, [t])
 
   const openCreate = () => {
     setEditingContext(null)

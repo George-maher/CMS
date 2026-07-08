@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
-import { useAuth } from '@/contexts/AuthContext'
+import { useAuth } from '@/hooks/useAuth'
 import Sidebar from './Sidebar'
 import Header from './Header'
 import LoadingSpinner from '@/components/common/LoadingSpinner'
@@ -13,6 +13,7 @@ export default function AppLayout({ allowedRoles }: Props) {
   const { user, isAuthenticated, isLoading } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const location = useLocation()
+  const closeSidebar = useCallback(() => setSidebarOpen(false), [])
 
   if (isLoading) return (
     <div className="flex h-screen items-center justify-center bg-surface-secondary">
@@ -31,7 +32,7 @@ export default function AppLayout({ allowedRoles }: Props) {
 
   return (
     <div className="flex h-screen overflow-hidden bg-surface-secondary" key={location.pathname}>
-      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <Sidebar isOpen={sidebarOpen} onClose={closeSidebar} />
       <div className="flex flex-1 flex-col overflow-hidden min-w-0">
         <Header onMenuClick={() => setSidebarOpen(true)} />
         <main className="flex-1 overflow-y-auto overflow-x-hidden">

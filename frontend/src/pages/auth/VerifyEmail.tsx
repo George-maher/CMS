@@ -7,18 +7,13 @@ export default function VerifyEmail() {
   const { t } = useTranslation()
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
-  const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading')
-  const [message, setMessage] = useState('')
+  const token = searchParams.get('token')
+  const email = searchParams.get('email')
+  const [status, setStatus] = useState<'loading' | 'success' | 'error'>(() => !token || !email ? 'error' : 'loading')
+  const [message, setMessage] = useState(() => !token || !email ? t('auth.invalidVerificationLink') : '')
 
   useEffect(() => {
-    const token = searchParams.get('token')
-    const email = searchParams.get('email')
-
-    if (!token || !email) {
-      setMessage(t('auth.invalidVerificationLink'))
-      setStatus('error')
-      return
-    }
+    if (!token || !email) return
 
     client.post('/auth/verify-email', { token, email })
       .then(() => {
@@ -31,7 +26,7 @@ export default function VerifyEmail() {
         setMessage(axiosErr?.response?.data?.message || t('auth.verificationFailed'))
         setStatus('error')
       })
-  }, [searchParams, navigate])
+  }, [token, email, navigate])
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-surface-secondary p-4">

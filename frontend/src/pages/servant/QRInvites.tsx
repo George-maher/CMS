@@ -120,7 +120,11 @@ export default function ServantQRInvites() {
     } finally { setLoading(false) }
   }
 
-  useEffect(() => { fetch() }, [filters])
+  useEffect(() => {
+    const params: Record<string, string | number> = { page: 1, per_page: 15, ...filters }
+    if (params.search === '') delete params.search
+    listQRInvites(params).then(res => { setInvites(res.data); setMeta(res.meta) }).finally(() => setLoading(false))
+  }, [filters])
   useEffect(() => {
     getMyClasses()
       .then(setMyClasses)

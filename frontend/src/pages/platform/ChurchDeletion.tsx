@@ -74,7 +74,20 @@ export default function ChurchDeletion() {
     finally { setLoading(false) }
   }
 
-  useEffect(() => { fetchChurches() }, [])
+  useEffect(() => {
+    client.get('/platform/churches', { params: { _t: Date.now() } }).then(({ data }) => {
+      const items = data.data || []
+      setChurches(items.filter((c: ChurchItem) => !c.is_deleted))
+      setDeletedChurches(items.filter((c: ChurchItem) => c.is_deleted).map((c: ChurchItem) => ({
+        id: c.id,
+        name: c.name,
+        deleted_at: c.deleted_at,
+        is_recoverable: c.is_recoverable,
+        days_until_purge: c.days_until_purge,
+        recoverable_until: c.recoverable_until,
+      } as DeletedChurchInfo)))
+    }).finally(() => setLoading(false))
+  }, [])
 
   const openModal = async (churchId: number, mode: ModalMode) => {
     setSelectedId(churchId)
@@ -113,8 +126,9 @@ export default function ChurchDeletion() {
       }
       closeModal()
       await fetchChurches()
-    } catch (err: any) {
-      const msg = err?.response?.data?.message || t('common.failedToSave')
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { data?: { message?: string } } } | undefined
+      const msg = axiosErr?.response?.data?.message || t('common.failedToSave')
       toast.error(msg)
     } finally {
       setActionLoading(false)

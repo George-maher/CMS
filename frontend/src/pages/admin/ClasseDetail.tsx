@@ -10,6 +10,7 @@ import type { Column } from '@/components/common/DataTable'
 import type { Classe, User } from '@/types'
 import { getClasseDetail, assignServantToClasse, removeServantFromClasse, assignMemberToClasse } from '@/api/classes'
 import { listUsers } from '@/api/users'
+import { logCatch } from '@/lib/debug'
 
 interface ClassDetail {
   class: Classe
@@ -33,23 +34,23 @@ export default function ClasseDetail() {
 
   const fetchDetail = async () => {
     if (!id) return
-    setLoading(true)
     try {
       const res = await getClasseDetail(Number(id))
       setDetail(res)
-    } finally {
-      setLoading(false)
-    }
+    } catch (e) { logCatch('ClasseDetail.fetchDetail', e) }
   }
 
-  useEffect(() => { fetchDetail() }, [id])
+  useEffect(() => {
+    if (!id) return
+    getClasseDetail(Number(id)).then(setDetail).finally(() => setLoading(false))
+  }, [id])
 
   const openAssignServant = async () => {
     try {
       const users = await listUsers({ role: 'servant', per_page: 100 })
       setAvailableServants(users.data)
       setShowAssignServant(true)
-    } catch {}
+    } catch (e) { logCatch('ClasseDetail.openAssignServant', e) }
   }
 
   const openAssignMember = async () => {
@@ -57,7 +58,7 @@ export default function ClasseDetail() {
       const users = await listUsers({ role: 'member', per_page: 100 })
       setAvailableMembers(users.data.filter((u) => u.class_id !== Number(id)))
       setShowAssignMember(true)
-    } catch {}
+    } catch (e) { logCatch('ClasseDetail.openAssignMember', e) }
   }
 
   const handleAssignServant = async (userId: number) => {

@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { useAuth } from '@/contexts/AuthContext'
+import { useAuth } from '@/hooks/useAuth'
 import toast from 'react-hot-toast'
 import { Church, Upload, ArrowLeft, Loader2, Eye, EyeOff, FileText, AlertTriangle, Clock, XCircle, CheckCircle, Info } from 'lucide-react'
 import { submitChurchApplication, lookupApplicationByEmail } from '@/api/churchApplications'
@@ -113,8 +113,32 @@ export default function JoinNow() {
     const urlEmail = searchParams.get('email')
     const email = urlEmail || authUser?.email
     if (email) {
-      setForm((prev) => ({ ...prev, email }))
-      lookupEmail(email)
+      queueMicrotask(() => setForm((prev) => ({ ...prev, email })))
+      const trimmed = email.trim()
+      if (trimmed && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+        queueMicrotask(() => setIsLookingUp(true))
+        lookupApplicationByEmail(trimmed).then((result) => {
+          if (result.application) {
+            setExistingApp(result.application)
+            setLookupMessage(result.message || '')
+            setForm({
+              church_name: result.application.church_name || '',
+              service_name: result.application.service_name || '',
+              priest_name: result.application.priest_name || '',
+              main_servant_name: result.application.main_servant_name || '',
+              phone: result.application.priest_phone?.replace(/[^0-9]/g, '').slice(0, 11) || result.application.phone?.replace(/[^0-9]/g, '').slice(0, 11) || '',
+              address: result.application.address || '',
+              email: result.application.contact_email || trimmed,
+              password: '',
+              password_confirmation: '',
+            })
+            setIdType(result.application.id_type === 'church_permission' ? 'church_permission' : 'national_id')
+          } else {
+            setExistingApp(null)
+            setLookupMessage('')
+          }
+        }).catch(() => {}).finally(() => setIsLookingUp(false))
+      }
     }
   }, [])
 

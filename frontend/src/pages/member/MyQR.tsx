@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import toast from 'react-hot-toast'
-import { useAuth } from '@/contexts/AuthContext'
+import { useAuth } from '@/hooks/useAuth'
 import { regenerateOwnQrToken } from '@/api/users'
 import QRCodeLib from 'qrcode'
 import LoadingSpinner from '@/components/common/LoadingSpinner'
@@ -21,7 +21,7 @@ export default function MemberMyQR() {
     if (user?.attendance_qr_token) {
       QRCodeLib.toDataURL(user.attendance_qr_token, { width: 400, margin: 2, color: { dark: '#1e1e2e', light: '#ffffff' } })
         .then(setQrDataUrl).catch(() => {}).finally(() => setLoading(false))
-    } else { setLoading(false) }
+    } else { Promise.resolve().then(() => setLoading(false)) }
   }, [user])
 
   const handleCopy = () => {

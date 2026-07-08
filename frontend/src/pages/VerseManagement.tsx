@@ -30,13 +30,17 @@ export default function VerseManagement() {
   const [form, setForm] = useState({ verse_text: '', reference: '', is_active: false })
   const [activating, setActivating] = useState<number | null>(null)
 
+  useEffect(() => {
+    listVerses({ page: 1, per_page: 15 })
+      .then((res) => { setVerses(res.data); setMeta(res.meta) })
+      .finally(() => setLoading(false))
+  }, [])
+
   const fetch = useCallback(async (page = 1) => {
     setLoading(true)
     try { const res = await listVerses({ page, per_page: 15 }); setVerses(res.data); setMeta(res.meta) }
     finally { setLoading(false) }
   }, [])
-
-  useEffect(() => { fetch() }, [fetch])
 
   const openCreate = () => { setEditing(null); setForm({ verse_text: '', reference: '', is_active: false }); setSaveError(''); setShowModal(true) }
   const openEdit = (verse: DailyVerse) => { setEditing(verse); setForm({ verse_text: verse.verse_text, reference: verse.reference, is_active: verse.is_active }); setSaveError(''); setShowModal(true) }

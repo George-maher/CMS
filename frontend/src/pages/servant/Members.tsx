@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import Badge from '@/components/common/Badge'
@@ -13,7 +13,7 @@ import { MessageCircle, Search } from 'lucide-react'
 
 function getWhatsAppUrl(phone: string | null): string | null {
   if (!phone) return null
-  const cleaned = phone.replace(/[\s\-\+\(\)]/g, '')
+  const cleaned = phone.replace(/[\s\-+()]/g, '')
   const digits = cleaned.replace(/\D/g, '')
   if (digits.length < 7) return null
   return `https://wa.me/${digits}`
@@ -23,34 +23,28 @@ export default function ServantMembers() {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const [members, setMembers] = useState<User[]>([])
-  const [filtered, setFiltered] = useState<User[]>([])
   const [todayAttended, setTodayAttended] = useState<Set<number>>(new Set())
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
 
   useEffect(() => {
     getMembers()
-      .then((m) => { setMembers(m); setFiltered(m) })
-      .catch(() => { setMembers([]); setFiltered([]) })
+      .then(setMembers)
+      .catch(() => setMembers([]))
     getTodayAttendance()
       .then((today) => setTodayAttended(new Set(today.data.map((a) => a.user.id))))
       .catch(() => setTodayAttended(new Set()))
       .finally(() => setLoading(false))
   }, [])
 
-  useEffect(() => {
+  const filtered = useMemo(() => {
     const term = search.toLowerCase().trim()
-    if (!term) {
-      setFiltered(members)
-      return
-    }
-    setFiltered(
-      members.filter(
-        (m) =>
-          m.name.toLowerCase().includes(term) ||
-          (m.member_id?.toLowerCase() ?? '').includes(term) ||
-          (m.phone ?? '').includes(term),
-      ),
+    if (!term) return members
+    return members.filter(
+      (m) =>
+        m.name.toLowerCase().includes(term) ||
+        (m.member_id?.toLowerCase() ?? '').includes(term) ||
+        (m.phone ?? '').includes(term),
     )
   }, [search, members])
 

@@ -133,7 +133,11 @@ export default function AdminQRManagement() {
     } finally { setLoading(false) }
   }, [filters])
 
-  useEffect(() => { fetch() }, [fetch])
+  useEffect(() => {
+    const params: Record<string, string | number> = { page: 1, per_page: 15, ...filters }
+    if (params.search === '') delete params.search
+    listQRInvites(params).then(res => { setInvites(res.data); setMeta(res.meta) }).finally(() => setLoading(false))
+  }, [filters])
 
   useEffect(() => {
     listStructureClasses()

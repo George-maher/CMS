@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
-import { useAuth } from '@/contexts/AuthContext'
+import { useAuth } from '@/hooks/useAuth'
 import { useTranslation } from 'react-i18next'
 import toast from 'react-hot-toast'
 import { Church, Eye, EyeOff, Loader2 } from 'lucide-react'
@@ -55,7 +55,7 @@ export default function Login() {
       if (!msg) msg = t('auth.loginFailed')
 
       if (msg.toLowerCase().includes('verify')) {
-        toast((_: { id: string }) => (
+        toast(() => (
           <div className="flex flex-col gap-2">
             <span>{msg}</span>
             <button onClick={() => { client.post('/auth/resend-verification', { email }).then(() => toast.success(t('auth.verificationSent'))).catch(() => toast.error(t('auth.verificationFailed'))) }} className="btn-primary btn-xs w-full">

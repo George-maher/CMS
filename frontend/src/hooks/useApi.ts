@@ -11,11 +11,11 @@ interface ApiState<T> {
 }
 
 interface UseApiReturn<T> extends ApiState<T> {
-  execute: (...args: any[]) => Promise<T | null>
+  execute: (...args: unknown[]) => Promise<T | null>
   reset: () => void
 }
 
-export function useApi<T = any>(
+export function useApi<T = unknown>(
   configOrUrl: AxiosRequestConfig | string,
   options?: { immediate?: boolean; onSuccess?: (data: T) => void; onError?: (error: string) => void },
 ): UseApiReturn<T> {
@@ -29,29 +29,32 @@ export function useApi<T = any>(
   const optionsRef = useRef(options)
   optionsRef.current = options
 
-  const execute = useCallback(async (...args: any[]): Promise<T | null> => {
+  const execute = useCallback(async (...args: unknown[]): Promise<T | null> => {
     setState(prev => ({ ...prev, loading: true, error: null }))
 
     try {
       const config: AxiosRequestConfig =
         typeof configOrUrl === 'string' ? { url: configOrUrl, method: 'get' } : { ...configOrUrl }
 
-      if (args.length > 0 && typeof args[0] === 'object') {
-        config.params = { ...config.params, ...args[0] }
+      if (args.length > 0) {
+        const queryParams = args[0]
+        if (typeof queryParams === 'object' && queryParams !== null) {
+          ;(config.params as Record<string, unknown>) = { ...config.params, ...(queryParams as Record<string, unknown>) }
+        }
       }
 
       const response = await client.request<T>(config)
-      const data = response.data
+      const responseData = response.data
 
       setState({
-        data: data,
+        data: responseData,
         loading: false,
         error: null,
         statusCode: response.status,
       })
 
-      optionsRef.current?.onSuccess?.(data)
-      return data
+      optionsRef.current?.onSuccess?.(responseData)
+      return responseData
     } catch (err) {
       logCatch('useApi.execute', err)
       const axiosError = err as AxiosError<{ message?: string }>

@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import type { PaginationMeta } from '@/types'
 import LoadingSpinner from './LoadingSpinner'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { useTheme } from '@/contexts/ThemeContext'
+import { useTheme } from '@/hooks/useTheme'
 
 export interface Column<T> {
   key: string

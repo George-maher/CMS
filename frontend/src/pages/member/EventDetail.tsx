@@ -18,8 +18,6 @@ export default function MemberEventDetail() {
 
   useEffect(() => {
     if (!id) return
-    setLoading(true)
-    setError(false)
     getEvent(Number(id))
       .then((ev) => {
         setEvent(ev)

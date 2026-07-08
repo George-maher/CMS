@@ -45,7 +45,9 @@ export default function StructureManagement() {
     }
   }, [])
 
-  useEffect(() => { fetch() }, [fetch])
+  useEffect(() => {
+    listStages().then(setStages).finally(() => setLoading(false))
+  }, [])
   useEffect(() => {
     const timer = setTimeout(() => fetch(search || undefined), 300)
     return () => clearTimeout(timer)

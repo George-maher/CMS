@@ -31,7 +31,6 @@ export default function PlatformApplicationDetail() {
 
   useEffect(() => {
     if (!id) return
-    setLoading(true)
     getApplication(Number(id)).then(setApp).finally(() => setLoading(false))
   }, [id])
 

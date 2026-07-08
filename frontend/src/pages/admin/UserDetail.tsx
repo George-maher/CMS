@@ -31,7 +31,7 @@ import ImageWithFallback from '@/components/common/ImageWithFallback'
 import LoadingSpinner from '@/components/common/LoadingSpinner'
 import Modal from '@/components/common/Modal'
 import StatCard from '@/components/common/StatCard'
-import { useTheme } from '@/contexts/ThemeContext'
+import { useTheme } from '@/hooks/useTheme'
 import type { User } from '@/types'
 import { getUser, updateUser, deleteUser, promoteToAdmin, demoteFromAdmin } from '@/api/users'
 import { getAttendanceStats } from '@/api/attendance'
@@ -95,7 +95,6 @@ export default function AdminUserDetail() {
   useEffect(() => {
     if (!id) return
     const userId = Number(id)
-    setLoading(true)
     Promise.all([
       getUser(userId).catch((e) => { logCatch('UserDetail.getUser', e); return null }),
       getAttendanceStats(userId).catch((e) => { logCatch('UserDetail.getAttendanceStats', e); return ({ total_attendances: 0, this_month: 0 }) }),

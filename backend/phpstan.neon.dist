@@ -11,6 +11,4 @@ parameters:
     databaseMigrationsPath:
         - database/migrations
 
-parametersSchema:
-    checkMissingIterableValueType: bool()
-    checkGenericClassInNonGenericObjectType: bool()
+

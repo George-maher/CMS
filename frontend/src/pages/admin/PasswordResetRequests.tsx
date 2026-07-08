@@ -50,8 +50,10 @@ export default function AdminPasswordResetRequests() {
   }
 
   useEffect(() => {
-    setPage(1)
-    fetch(1)
+    Promise.resolve().then(() => setPage(1))
+    const params: Record<string, string | number> = { page: 1, per_page: 15 }
+    if (statusFilter) params.status = statusFilter
+    listPasswordResetRequests(params).then(res => { setRequests(res.data); setMeta(res.meta) }).catch(() => setRequests([])).finally(() => setLoading(false))
   }, [statusFilter])
 
   const handlePageChange = (newPage: number) => {

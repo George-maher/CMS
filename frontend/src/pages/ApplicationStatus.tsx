@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { useAuth } from '@/contexts/AuthContext'
+import { useAuth } from '@/hooks/useAuth'
 import { getApplicationStatus } from '@/api/churchApplications'
 import toast from 'react-hot-toast'
 import {
@@ -9,7 +9,7 @@ import {
   Calendar, Phone, MapPin, ChevronRight, Headphones, Edit3, RefreshCw, Church,
   Sun, Moon,
 } from 'lucide-react'
-import { useTheme } from '@/contexts/ThemeContext'
+import { useTheme } from '@/hooks/useTheme'
 import type { ChurchApplication } from '@/types'
 
 export default function ApplicationStatus() {
@@ -35,7 +35,15 @@ export default function ApplicationStatus() {
       navigate('/login', { replace: true })
       return
     }
-    fetchStatus()
+    getApplicationStatus().then(data => {
+      setApplication(data.application)
+      setUserInfo(data.user)
+      setStatus(data.application_status as 'pending' | 'approved' | 'rejected')
+    }).catch(() => {
+      toast.error(t('common.failedToLoad'))
+    }).finally(() => {
+      setLoading(false)
+    })
   }, [])
 
   useEffect(() => {
@@ -43,20 +51,7 @@ export default function ApplicationStatus() {
       const target = roleRedirect[authUser.role] || '/login'
       navigate(target, { replace: true })
     }
-  }, [loading, status])
-
-  const fetchStatus = async () => {
-    try {
-      const data = await getApplicationStatus()
-      setApplication(data.application)
-      setUserInfo(data.user)
-      setStatus(data.application_status as 'pending' | 'approved' | 'rejected')
-    } catch {
-      toast.error(t('common.failedToLoad'))
-    } finally {
-      setLoading(false)
-    }
-  }
+  }, [loading, status, authUser, navigate])
 
   const handleLogout = async () => {
     await logout()

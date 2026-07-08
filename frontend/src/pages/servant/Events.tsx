@@ -55,7 +55,10 @@ export default function ServantEvents() {
     finally { setLoading(false) }
   }
 
-  useEffect(() => { fetch(); getMyClasses().then(setClasses).catch((e) => logCatch('ServantEvents.getMyClasses', e)) }, [])
+  useEffect(() => {
+    listEvents({ page: 1, per_page: 15 }).then(res => { setEvents(res.data); setMeta(res.meta) }).finally(() => setLoading(false))
+    getMyClasses().then(setClasses).catch((e) => logCatch('ServantEvents.getMyClasses', e))
+  }, [])
 
   const openCreate = () => {
     setEditing(null)

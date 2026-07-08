@@ -28,7 +28,10 @@ export default function ServantPoints() {
     } finally { setLoading(false) }
   }
 
-  useEffect(() => { fetch() }, [])
+  useEffect(() => {
+    getBalance().then(setBalance)
+    getPointsHistory({ page: 1, per_page: 15 }).then(res => { setPoints(res.data); setMeta(res.meta) }).finally(() => setLoading(false))
+  }, [])
 
   return (
     <div className="space-y-4">

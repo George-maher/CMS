@@ -52,13 +52,18 @@ export default function AdminEvents() {
     finally { setViewLoading(false) }
   }
 
+  useEffect(() => {
+    listEvents({ page: 1, per_page: 15, upcoming: false })
+      .then((res) => { setEvents(res.data); setMeta(res.meta) })
+      .finally(() => setLoading(false))
+    listAllClasses().then(setClasses).catch((e) => logCatch('AdminEvents.listAllClasses', e))
+  }, [])
+
   const fetch = async (page = 1) => {
     setLoading(true)
     try { const res = await listEvents({ page, per_page: 15, upcoming: false }); setEvents(res.data); setMeta(res.meta) }
     finally { setLoading(false) }
   }
-
-  useEffect(() => { fetch(); listAllClasses().then(setClasses).catch((e) => logCatch('AdminEvents.listAllClasses', e)) }, [])
 
   const openCreate = () => {
     setEditing(null)

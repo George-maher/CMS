@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import DataTable from '@/components/common/DataTable'
 import StatCard from '@/components/common/StatCard'
-import { useTheme } from '@/contexts/ThemeContext'
+import { useTheme } from '@/hooks/useTheme'
 import { ctxName } from '@/lib/contextLabels'
 import type { Column } from '@/components/common/DataTable'
 import type { Attendance } from '@/types'
@@ -24,7 +24,7 @@ export default function MemberAttendance() {
   const [stats, setStats] = useState({ total_attendances: 0, this_month: 0 })
   const [loading, setLoading] = useState(true)
 
-  const fetch = async (page = 1) => {
+  const fetchData = async (page = 1) => {
     setLoading(true)
     try {
       const [s, res] = await Promise.all([getAttendanceStats(), getAttendanceHistory(undefined, { page, per_page: 15 })])
@@ -32,7 +32,10 @@ export default function MemberAttendance() {
     } finally { setLoading(false) }
   }
 
-  useEffect(() => { fetch() }, [])
+  useEffect(() => {
+    getAttendanceStats().then(s => setStats(s))
+    getAttendanceHistory(undefined, { page: 1, per_page: 15 }).then(res => { setAttendances(res.data); setMeta(res.meta) }).finally(() => setLoading(false))
+  }, [])
 
   return (
     <div className="space-y-4">
@@ -40,7 +43,7 @@ export default function MemberAttendance() {
         <StatCard title={t('dashboard.myAttendances')} value={stats.total_attendances} color="info" />
         <StatCard title={t('common.thisMonth')} value={stats.this_month} color="gold" />
       </div>
-      <DataTable columns={columns} data={attendances} meta={meta} isLoading={loading} onPageChange={fetch} />
+      <DataTable columns={columns} data={attendances} meta={meta} isLoading={loading} onPageChange={fetchData} />
     </div>
   )
 }

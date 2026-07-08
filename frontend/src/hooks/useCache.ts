@@ -7,9 +7,9 @@ interface CacheEntry<T> {
 
 const DEFAULT_TTL = 5 * 60 * 1000
 
-const globalStore = new Map<string, CacheEntry<any>>()
+const globalStore = new Map<string, CacheEntry<unknown>>()
 
-export function useCache<T = any>(options?: { ttl?: number; key?: string; global?: boolean }) {
+export function useCache<T = unknown>(options?: { ttl?: number; key?: string; global?: boolean }) {
   const ttl = options?.ttl ?? DEFAULT_TTL
   const global = options?.global ?? true
   const prefix = options?.key ?? 'default'
@@ -26,7 +26,7 @@ export function useCache<T = any>(options?: { ttl?: number; key?: string; global
         store.delete(`${prefix}:${key}`)
         return null
       }
-      return entry.data
+      return entry.data as T
     },
     [getStore, prefix],
   )
@@ -64,7 +64,7 @@ export function useCache<T = any>(options?: { ttl?: number; key?: string; global
   return { get, set: setState, invalidate, clearAll }
 }
 
-export function useCacheState<T = any>(initialValue: T, key: string, options?: { ttl?: number; global?: boolean }) {
+export function useCacheState<T = unknown>(initialValue: T, key: string, options?: { ttl?: number; global?: boolean }) {
   const cache = useCache<T>({ ...options, key })
   const [state, setState] = useState<T>(() => {
     const cached = cache.get(key)

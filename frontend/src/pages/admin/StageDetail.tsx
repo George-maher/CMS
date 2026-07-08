@@ -37,7 +37,13 @@ export default function StageDetail() {
     }
   }, [id, search])
 
-  useEffect(() => { fetch() }, [fetch])
+  useEffect(() => {
+    if (!id) return
+    Promise.all([
+      getStage(Number(id)),
+      getStageClasses(Number(id), ''),
+    ]).then(([stageData, classesData]) => { setStage(stageData); setClasses(classesData) }).finally(() => setLoading(false))
+  }, [id])
   useEffect(() => {
     const timer = setTimeout(() => fetch(search), 300)
     return () => clearTimeout(timer)

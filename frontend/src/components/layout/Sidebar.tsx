@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
-import { useAuth } from '@/contexts/AuthContext'
-import { useTheme } from '@/contexts/ThemeContext'
+import { useAuth } from '@/hooks/useAuth'
+import { useTheme } from '@/hooks/useTheme'
 import { useTranslation } from 'react-i18next'
 import {
   LayoutDashboard, Users, Calendar, MessageSquare,
@@ -84,7 +84,7 @@ export default function Sidebar({ isOpen, onClose }: Props) {
     : user?.role === 'servant' ? servantNav
     : memberNav
 
-  useEffect(() => { onClose() }, [location.pathname])
+  useEffect(() => { onClose() }, [location.pathname, onClose])
 
   const toggleLang = () => setLanguage(language === 'en' ? 'ar' : 'en')
 

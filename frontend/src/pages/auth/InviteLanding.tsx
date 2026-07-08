@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { getInviteDetails, acceptInvite } from '@/api/qr'
-import { useAuth } from '@/contexts/AuthContext'
-import { useTheme } from '@/contexts/ThemeContext'
+import { useAuth } from '@/hooks/useAuth'
+import { useTheme } from '@/hooks/useTheme'
 import { useTranslation } from 'react-i18next'
 import toast from 'react-hot-toast'
 import { Church, XCircle, CheckCircle, Loader2, Eye, EyeOff, Sun, Moon } from 'lucide-react'
@@ -21,9 +21,9 @@ export default function InviteLanding() {
   const { t } = useTranslation()
   const { theme, toggleTheme, language, setLanguage, dir } = useTheme()
 
-  const [state, setState] = useState<PageState>('loading')
+  const [state, setState] = useState<PageState>(() => token ? 'loading' : 'invalid')
   const [details, setDetails] = useState<Awaited<ReturnType<typeof getInviteDetails>> | null>(null)
-  const [errorMsg, setErrorMsg] = useState('')
+  const [errorMsg, setErrorMsg] = useState(() => token ? '' : t('auth.noTokenProvided'))
   const [submitting, setSubmitting] = useState(false)
   const [classes, setClasses] = useState<{ id: number; name: string }[]>([])
   const [form, setForm] = useState({
@@ -38,11 +38,7 @@ export default function InviteLanding() {
   const [phoneError, setPhoneError] = useState('')
 
   useEffect(() => {
-    if (!token) {
-      setErrorMsg(t('auth.noTokenProvided'))
-      setState('invalid')
-      return
-    }
+    if (!token) return
     getInviteDetails(token).then((res) => {
       if (res.valid) {
         setDetails(res)
@@ -53,7 +49,7 @@ export default function InviteLanding() {
       else if (res.is_revoked) { setErrorMsg(t('auth.inviteRevoked')); setState('invalid') }
       else { setErrorMsg(t('auth.inviteInvalid')); setState('invalid') }
     }).catch((e) => { logCatch('InviteLanding.getDetails', e); setErrorMsg(t('auth.invalidToken')); setState('invalid') })
-  }, [token, isAuthenticated])
+  }, [token, isAuthenticated, t])
 
   const validateForm = (): boolean => {
     let valid = true
@@ -111,26 +107,24 @@ export default function InviteLanding() {
 
   const toggleLang = () => setLanguage(language === 'en' ? 'ar' : 'en')
 
-  function TopBar() {
-    return (
-      <div className="mb-4 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary-600">
-            <Church className="h-5 w-5 text-white" />
-          </div>
-          <span className="text-sm font-bold">{t('app.name')}</span>
+  const topBar = (
+    <div className="mb-4 flex items-center justify-between">
+      <div className="flex items-center gap-2">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary-600">
+          <Church className="h-5 w-5 text-white" />
         </div>
-        <div className="flex items-center gap-2">
-          <button onClick={toggleTheme} className="btn-ghost btn-icon rounded-lg" aria-label={t('theme.toggleTheme')}>
-            {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-          </button>
-          <button onClick={toggleLang} className="btn-ghost btn-sm border min-w-[40px]">
-            {language === 'en' ? 'AR' : 'EN'}
-          </button>
-        </div>
+        <span className="text-sm font-bold">{t('app.name')}</span>
       </div>
-    )
-  }
+      <div className="flex items-center gap-2">
+        <button onClick={toggleTheme} className="btn-ghost btn-icon rounded-lg" aria-label={t('theme.toggleTheme')}>
+          {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+        </button>
+        <button onClick={toggleLang} className="btn-ghost btn-sm border min-w-[40px]">
+          {language === 'en' ? 'AR' : 'EN'}
+        </button>
+      </div>
+    </div>
+  )
 
   if (state === 'loading') {
     return (
@@ -144,7 +138,7 @@ export default function InviteLanding() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-surface-secondary p-4">
         <div className="w-full max-w-md">
-          <TopBar />
+          {topBar}
           <div className="card p-8 text-center">
             <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-danger-light">
               <XCircle className="h-8 w-8 text-danger" />
@@ -164,7 +158,7 @@ export default function InviteLanding() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-surface-secondary p-4">
         <div className="w-full max-w-md">
-          <TopBar />
+          {topBar}
           <div className="card p-8 text-center">
             <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-success-light">
               <CheckCircle className="h-8 w-8 text-success" />
@@ -181,7 +175,7 @@ export default function InviteLanding() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-surface-secondary p-4">
       <div className="w-full max-w-md">
-        <TopBar />
+        {topBar}
         <div className="card p-8">
           <div className="mb-6 text-center">
             <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-primary-100 dark:bg-primary-900/50">

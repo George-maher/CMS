@@ -36,7 +36,8 @@ export default function MemberPoints() {
   }
 
   useEffect(() => {
-    fetch()
+    getBalance().then(b => setBalance(b))
+    getPointsHistory({ page: 1, per_page: 15 }).then(res => { setPoints(res.data); setMeta(res.meta) }).finally(() => setLoading(false))
     Promise.all([
       getMyClassLeaderboard().catch(() => null),
       getGlobalLeaderboard().catch(() => []),

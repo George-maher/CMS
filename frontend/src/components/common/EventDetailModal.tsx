@@ -5,7 +5,7 @@ import Badge from './Badge'
 import LoadingSpinner from './LoadingSpinner'
 import type { Event, EventViewer } from '@/types'
 import Modal from './Modal'
-import { useAuth } from '@/contexts/AuthContext'
+import { useAuth } from '@/hooks/useAuth'
 import { getEventViewSummary, getEventViewedUsers, getEventNotViewedUsers } from '@/api/events'
 import { listAllClasses, getMyClasses } from '@/api/structure'
 
@@ -34,49 +34,61 @@ export default function EventDetailModal({ event, isOpen, onClose }: Props) {
   useEffect(() => {
     if (isOpen && event) {
       if (isAdminOrServant) {
-        setTab('overview')
-        setSummary(null)
-        setViewedUsers([])
-        setNotViewedUsers([])
-        setSearchQuery('')
-        setClassFilter('')
+        Promise.resolve().then(() => {
+          setTab('overview')
+          setSummary(null)
+          setViewedUsers([])
+          setNotViewedUsers([])
+          setSearchQuery('')
+          setClassFilter('')
+        })
         ;(user?.role === 'servant' ? getMyClasses() : listAllClasses()).then(setClasses).catch(() => {})
       }
     }
-  }, [isOpen, event?.id])
-
-  const loadAnalytics = () => {
-    if (!event) return
-    setAnalyticsLoading(true)
-    const params: { class_id?: number; search?: string } = {}
-    if (classFilter) params.class_id = Number(classFilter)
-    if (searchQuery.trim()) params.search = searchQuery.trim()
-
-    Promise.all([
-      getEventViewSummary(event.id),
-      getEventViewedUsers(event.id, params),
-      getEventNotViewedUsers(event.id, params),
-    ])
-      .then(([s, v, nv]) => {
-        setSummary(s)
-        setViewedUsers(v)
-        setNotViewedUsers(nv)
-      })
-      .catch(() => {})
-      .finally(() => setAnalyticsLoading(false))
-  }
+  }, [isOpen, event, isAdminOrServant, user?.role])
 
   useEffect(() => {
     if (isOpen && event && isAdminOrServant && tab === 'analytics') {
-      loadAnalytics()
+      queueMicrotask(() => setAnalyticsLoading(true))
+      const params: { class_id?: number; search?: string } = {}
+      if (classFilter) params.class_id = Number(classFilter)
+      if (searchQuery.trim()) params.search = searchQuery.trim()
+      Promise.all([
+        getEventViewSummary(event.id),
+        getEventViewedUsers(event.id, params),
+        getEventNotViewedUsers(event.id, params),
+      ])
+        .then(([s, v, nv]) => {
+          setSummary(s)
+          setViewedUsers(v)
+          setNotViewedUsers(nv)
+        })
+        .catch(() => {})
+        .finally(() => setAnalyticsLoading(false))
     }
-  }, [isOpen, event?.id, tab])
+  }, [isOpen, event, isAdminOrServant, tab, classFilter, searchQuery])
 
   useEffect(() => {
     if (tab === 'analytics') {
-      loadAnalytics()
+      if (!event) return
+      queueMicrotask(() => setAnalyticsLoading(true))
+      const params: { class_id?: number; search?: string } = {}
+      if (classFilter) params.class_id = Number(classFilter)
+      if (searchQuery.trim()) params.search = searchQuery.trim()
+      Promise.all([
+        getEventViewSummary(event.id),
+        getEventViewedUsers(event.id, params),
+        getEventNotViewedUsers(event.id, params),
+      ])
+        .then(([s, v, nv]) => {
+          setSummary(s)
+          setViewedUsers(v)
+          setNotViewedUsers(nv)
+        })
+        .catch(() => {})
+        .finally(() => setAnalyticsLoading(false))
     }
-  }, [searchQuery, classFilter])
+  }, [searchQuery, classFilter, tab, event])
 
   if (!event) return null
 

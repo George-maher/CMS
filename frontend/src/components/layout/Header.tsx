@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { useAuth } from '@/contexts/AuthContext'
-import { useTheme } from '@/contexts/ThemeContext'
+import { useAuth } from '@/hooks/useAuth'
+import { useTheme } from '@/hooks/useTheme'
 import { useTranslation } from 'react-i18next'
 import { Menu, Moon, Sun, Languages, LogOut, Home, Bell, BellRing, Eye, Calendar, Church } from 'lucide-react'
 import { getUnreadCount, listNotifications, markAsRead, markAllAsRead } from '@/api/notifications'
@@ -85,29 +85,15 @@ export default function Header({ onMenuClick }: Props) {
     return n.body
   }
 
-  const fetchUnreadCount = useCallback(async () => {
-    try {
-      const count = await getUnreadCount()
-      setUnreadCount(count)
-    } catch (e) { logCatch('Header.fetchUnreadCount', e) }
-  }, [])
-
-  const fetchNotifications = useCallback(async () => {
-    try {
-      const res = await listNotifications({ per_page: 10 })
-      setNotifications(res.data ?? [])
-    } catch (e) { logCatch('Header.fetchNotifications', e) }
-  }, [])
-
   useEffect(() => {
-    fetchUnreadCount()
-    const interval = setInterval(fetchUnreadCount, 15000)
+    getUnreadCount().then(c => setUnreadCount(c)).catch(e => logCatch('Header.fetchUnreadCount', e))
+    const interval = setInterval(() => getUnreadCount().then(c => setUnreadCount(c)).catch(e => logCatch('Header.fetchUnreadCount', e)), 15000)
     return () => clearInterval(interval)
-  }, [fetchUnreadCount])
+  }, [])
 
   useEffect(() => {
-    if (showPanel) fetchNotifications()
-  }, [showPanel, fetchNotifications])
+    if (showPanel) listNotifications({ per_page: 10 }).then(res => setNotifications(res.data ?? [])).catch(e => logCatch('Header.fetchNotifications', e))
+  }, [showPanel])
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {

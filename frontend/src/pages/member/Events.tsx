@@ -56,7 +56,6 @@ export default function MemberEvents() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    setLoading(true)
     listEvents({ per_page: 50 }).then((res) => setEvents(res.data)).catch(() => setEvents([])).finally(() => setLoading(false))
   }, [])
 

@@ -22,7 +22,7 @@ import CopyButton from '@/components/common/CopyButton'
 import ImageWithFallback from '@/components/common/ImageWithFallback'
 import LoadingSpinner from '@/components/common/LoadingSpinner'
 import StatCard from '@/components/common/StatCard'
-import { useTheme } from '@/contexts/ThemeContext'
+import { useTheme } from '@/hooks/useTheme'
 import type { User } from '@/types'
 import { getMemberDetail } from '@/api/users'
 import { getAttendanceStats } from '@/api/attendance'
@@ -74,7 +74,6 @@ export default function ServantMemberDetail() {
   useEffect(() => {
     if (!id) return
     const userId = Number(id)
-    setLoading(true)
     Promise.all([
       getMemberDetail(userId).catch((e) => { logCatch('MemberDetail.getMember', e); return null }),
       getAttendanceStats(userId).catch((e) => { logCatch('MemberDetail.getStats', e); return ({ total_attendances: 0, this_month: 0 }) }),
