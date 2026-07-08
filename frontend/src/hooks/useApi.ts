@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import client from '../api/client'
+import { logCatch } from '@/lib/debug'
 import type { AxiosRequestConfig, AxiosError } from 'axios'
 
 interface ApiState<T> {
@@ -52,6 +53,7 @@ export function useApi<T = any>(
       optionsRef.current?.onSuccess?.(data)
       return data
     } catch (err) {
+      logCatch('useApi.execute', err)
       const axiosError = err as AxiosError<{ message?: string }>
       const message = axiosError.response?.data?.message || axiosError.message || 'An unexpected error occurred'
 

@@ -44,11 +44,11 @@ return [
         ],
         'documents' => [
             'name' => 'documents',
-            'public' => false,
+            'public' => true,
         ],
         'ids' => [
             'name' => 'ids',
-            'public' => false,
+            'public' => true,
         ],
         'attachments' => [
             'name' => 'attachments',

@@ -85,7 +85,7 @@ return [
 
         'pgsql' => [
             'driver' => 'pgsql',
-            'url' => env('DATABASE_URL'),
+            'url' => env('DATABASE_URL') ?: null,
             'host' => env('DB_HOST', '127.0.0.1'),
             'port' => env('DB_PORT', '5432'),
             'database' => env('DB_DATABASE', 'church_management'),
@@ -95,10 +95,12 @@ return [
             'prefix' => '',
             'prefix_indexes' => true,
             'search_path' => 'public',
-            'sslmode' => env('DB_SSLMODE', 'prefer'),
-            'options' => extension_loaded('pdo_pgsql') ? [
+            'sslmode' => env('DB_SSLMODE', 'require'),
+            // Supabase pooler compatibility: set sslmode=require + DATABASE_URL for transaction pooler
+            'options' => extension_loaded('pdo_pgsql') ? array_filter([
                 PDO::PGSQL_ATTR_DISABLE_PREPARES => true,
-            ] : [],
+                PDO::ATTR_EMULATE_PREPARES => env('DB_EMULATE_PREPARES', false) ? true : null,
+            ]) : [],
         ],
 
         'sqlsrv' => [

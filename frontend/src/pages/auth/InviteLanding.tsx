@@ -8,6 +8,8 @@ import toast from 'react-hot-toast'
 import { Church, XCircle, CheckCircle, Loader2, Eye, EyeOff, Sun, Moon } from 'lucide-react'
 import LoadingSpinner from '@/components/common/LoadingSpinner'
 import { roleTranslationKey } from '@/lib/roles'
+import { validatePhone as validatePhoneUtil, filterPhoneInput } from '@/lib/phoneValidation'
+import { logCatch } from '@/lib/debug'
 import type { UserRole } from '@/types'
 
 type PageState = 'loading' | 'invalid' | 'details' | 'form' | 'success' | 'error'
@@ -33,6 +35,7 @@ export default function InviteLanding() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [passwordError, setPasswordError] = useState('')
   const [classError, setClassError] = useState('')
+  const [phoneError, setPhoneError] = useState('')
 
   useEffect(() => {
     if (!token) {
@@ -49,7 +52,7 @@ export default function InviteLanding() {
       else if (res.is_used) { setErrorMsg(t('auth.inviteUsed')); setState('invalid') }
       else if (res.is_revoked) { setErrorMsg(t('auth.inviteRevoked')); setState('invalid') }
       else { setErrorMsg(t('auth.inviteInvalid')); setState('invalid') }
-    }).catch(() => { setErrorMsg(t('auth.invalidToken')); setState('invalid') })
+    }).catch((e) => { logCatch('InviteLanding.getDetails', e); setErrorMsg(t('auth.invalidToken')); setState('invalid') })
   }, [token, isAuthenticated])
 
   const validateForm = (): boolean => {
@@ -240,7 +243,8 @@ export default function InviteLanding() {
                 </div>
                 <div>
                   <label className="label">{t('auth.phone')}</label>
-                  <input type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="input-field" placeholder={t('auth.phonePlaceholder')} />
+                  <input type="tel" inputMode="numeric" value={form.phone} onChange={(e) => { const digits = filterPhoneInput(e.target.value); setForm({ ...form, phone: digits }); setPhoneError(validatePhoneUtil(digits, t)) }} onBlur={() => setPhoneError(validatePhoneUtil(form.phone, t))} className={`input-field ${phoneError ? 'error' : ''}`} placeholder={t('auth.phonePlaceholder')} autoComplete="tel" />
+                  {phoneError && <p className="form-error flex items-center gap-1 mt-1"><span className="text-danger">⚠</span> {phoneError}</p>}
                 </div>
               </div>
               <div>

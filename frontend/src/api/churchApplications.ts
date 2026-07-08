@@ -1,19 +1,31 @@
-import type { ApiResponse, ChurchApplication, PlatformDashboardStats } from '@/types'
+import type { ApiResponse, ChurchApplication, ApplicationCounts, PlatformDashboardStats } from '@/types'
 import client from './client'
 
-export async function submitChurchApplication(formData: FormData): Promise<{ application: ChurchApplication; user: { id: number; email: string } }> {
+export async function submitChurchApplication(formData: FormData): Promise<{
+  application: ChurchApplication
+  user: { id: number; email: string }
+  is_update: boolean
+}> {
   const { data } = await client.post('/church-applications', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   })
-  return { application: data.data, user: data.user }
+  return { application: data.data, user: data.user, is_update: data.is_update ?? false }
 }
 
-export async function getPendingStatus(): Promise<{
+export async function lookupApplicationByEmail(email: string): Promise<{
+  application: ChurchApplication | null
+  message?: string
+}> {
+  const { data } = await client.post('/church-applications/lookup', { email })
+  return { application: data.data ?? null, message: data.message }
+}
+
+export async function getApplicationStatus(): Promise<{
   application_status: string
   application: ChurchApplication | null
   user: { id: number; name: string; email: string }
 }> {
-  const { data } = await client.get('/pending/status')
+  const { data } = await client.get('/application/status')
   return data.data
 }
 
@@ -22,7 +34,7 @@ export async function getPlatformDashboard(): Promise<PlatformDashboardStats> {
   return data.data
 }
 
-export async function listApplications(status?: string, page = 1, perPage = 15): Promise<{ data: ChurchApplication[]; meta: { current_page: number; last_page: number; per_page: number; total: number } }> {
+export async function listApplications(status?: string, page = 1, perPage = 15): Promise<{ data: ChurchApplication[]; meta: { current_page: number; last_page: number; per_page: number; total: number }; counts: ApplicationCounts }> {
   const params: Record<string, string | number> = { page, per_page: perPage }
   if (status) params.status = status
   const { data } = await client.get('/platform/applications', { params })

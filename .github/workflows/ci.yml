@@ -21,55 +21,38 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: "8.3"
-          extensions: pgsql, mbstring, bcmath
+          extensions: pgsql, mbstring, bcmath, fileinfo
 
       - name: Install dependencies
         run: composer install --no-interaction --prefer-dist --no-progress
 
+      - name: Bootstrap Laravel
+        run: |
+          cp .env.example .env
+          php artisan key:generate --force
+          mkdir -p storage/framework/cache/data
+          mkdir -p storage/framework/sessions
+          mkdir -p storage/framework/views
+          mkdir -p storage/framework/testing
+          mkdir -p storage/logs
+          mkdir -p storage/app/private
+          mkdir -p storage/app/public
+          mkdir -p bootstrap/cache
+          php artisan optimize:clear
+
       - name: Run PHPStan
-        run: vendor/bin/phpstan analyse app --level=max || true
+        run: vendor/bin/phpstan analyse app --level=max
 
       - name: Check code style
-        run: vendor/bin/pint --test || true
+        run: vendor/bin/pint --test
 
   backend-tests:
     name: Backend Tests
     needs: backend-lint
     runs-on: ubuntu-latest
-
     defaults:
       run:
         working-directory: backend
-
-    services:
-      postgres:
-        image: postgres:15-alpine
-        env:
-          POSTGRES_DB: church_test
-          POSTGRES_USER: church_user
-          POSTGRES_PASSWORD: secret
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd="pg_isready -U church_user -d church_test"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=5
-
-    env:
-      APP_ENV: testing
-      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
-      DB_CONNECTION: pgsql
-      DB_HOST: 127.0.0.1
-      DB_PORT: 5432
-      DB_DATABASE: church_test
-      DB_USERNAME: church_user
-      DB_PASSWORD: secret
-      DB_SSLMODE: disable
-      CACHE_DRIVER: array
-      SESSION_DRIVER: array
-      QUEUE_CONNECTION: sync
-      MAIL_MAILER: array
 
     steps:
       - uses: actions/checkout@v4
@@ -78,24 +61,24 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: "8.3"
-          extensions: pgsql, mbstring, bcmath
+          extensions: pgsql, mbstring, bcmath, fileinfo, sqlite3
 
       - name: Install dependencies
         run: composer install --no-interaction --prefer-dist --no-progress
 
-      - name: Create Environment
+      - name: Bootstrap Laravel
         run: |
           cp .env.example .env
-          php artisan key:generate
-
-      - name: Wait for PostgreSQL
-        run: |
-          until pg_isready -h 127.0.0.1 -p 5432 -U church_user; do
-            sleep 2
-          done
-
-      - name: Run Migrations
-        run: php artisan migrate --force
+          php artisan key:generate --force
+          mkdir -p storage/framework/cache/data
+          mkdir -p storage/framework/sessions
+          mkdir -p storage/framework/views
+          mkdir -p storage/framework/testing
+          mkdir -p storage/logs
+          mkdir -p storage/app/private
+          mkdir -p storage/app/public
+          mkdir -p bootstrap/cache
+          php artisan optimize:clear
 
       - name: Run Tests
         run: php artisan test
@@ -103,7 +86,6 @@ jobs:
   frontend-lint:
     name: Frontend Lint & Type Check
     runs-on: ubuntu-latest
-
     defaults:
       run:
         working-directory: frontend
@@ -122,16 +104,15 @@ jobs:
         run: npm ci
 
       - name: Lint
-        run: npm run lint || true
+        run: npm run lint
 
       - name: Type Check
-        run: npx tsc --noEmit || true
+        run: npx tsc --noEmit
 
   frontend-build:
     name: Frontend Build
     needs: frontend-lint
     runs-on: ubuntu-latest
-
     defaults:
       run:
         working-directory: frontend
@@ -161,4 +142,3 @@ jobs:
 
       - name: Build Docker Images
         run: docker compose build
-

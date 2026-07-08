@@ -28,6 +28,7 @@ class ChurchApplication extends Model
         'status',
         'reviewed_by',
         'reviewed_at',
+        'rejected_at',
         'admin_notes',
         'rejection_reason',
     ];
@@ -36,6 +37,7 @@ class ChurchApplication extends Model
     {
         return [
             'reviewed_at' => 'datetime',
+            'rejected_at' => 'datetime',
         ];
     }
 

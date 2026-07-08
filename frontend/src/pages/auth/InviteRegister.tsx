@@ -7,6 +7,8 @@ import { useTranslation } from 'react-i18next'
 import toast from 'react-hot-toast'
 import { Church, Eye, EyeOff, Loader2, XCircle, CheckCircle, Sun, Moon } from 'lucide-react'
 import LoadingSpinner from '@/components/common/LoadingSpinner'
+import { validatePhone as validatePhoneUtil, filterPhoneInput } from '@/lib/phoneValidation'
+import { logCatch } from '@/lib/debug'
 
 export default function InviteRegister() {
   const { register } = useAuth()
@@ -48,6 +50,7 @@ export default function InviteRegister() {
         setError(t('auth.inviteExpired'))
       }
     }).catch((err: unknown) => {
+      logCatch('InviteRegister.validateToken', err)
       const axiosErr = err as { response?: { data?: { message?: string } } }
       setError(axiosErr?.response?.data?.message || t('auth.inviteExpired'))
     }).finally(() => setValidating(false))
@@ -55,13 +58,11 @@ export default function InviteRegister() {
 
   const validatePhone = (phone: string): string => {
     if (!phone) return ''
-    if (!/^[0-9]+$/.test(phone)) return t('validation.phoneOnlyNumbers')
-    if (phone.length !== 11) return t('validation.phoneExact11')
-    return ''
+    return validatePhoneUtil(phone, t)
   }
 
   const handlePhoneChange = (value: string) => {
-    const digits = value.replace(/[^0-9]/g, '')
+    const digits = filterPhoneInput(value)
     setForm({ ...form, phone: digits })
     setPhoneError(validatePhone(digits))
   }
@@ -99,6 +100,7 @@ export default function InviteRegister() {
       setSubmitted(true)
       setTimeout(() => navigate('/login'), 2000)
     } catch (err: unknown) {
+      logCatch('InviteRegister.submit', err)
       const msg = (err as { response?: { data?: { errors?: Record<string, string[]>; message?: string } } })?.response?.data
       const errText = msg?.errors ? Object.values(msg.errors).flat().join(', ') : msg?.message || t('auth.registerFailed')
       setError(errText)
@@ -210,7 +212,7 @@ export default function InviteRegister() {
                 </div>
                 <div>
                   <label className="label">{t('auth.phone')}</label>
-                  <input type="tel" value={form.phone} onChange={(e) => handlePhoneChange(e.target.value)} onBlur={() => setPhoneError(validatePhone(form.phone))} className={`input-field ${phoneError ? 'error' : ''}`} placeholder={t('auth.phonePlaceholder')} autoComplete="tel" />
+                  <input type="tel" inputMode="numeric" value={form.phone} onChange={(e) => handlePhoneChange(e.target.value)} onBlur={() => setPhoneError(validatePhone(form.phone))} className={`input-field ${phoneError ? 'error' : ''}`} placeholder={t('auth.phonePlaceholder')} autoComplete="tel" />
                   {phoneError && <p className="form-error flex items-center gap-1 mt-1"><span className="text-danger">⚠</span> {phoneError}</p>}
                 </div>
               </div>
@@ -243,7 +245,7 @@ export default function InviteRegister() {
                 <div className="relative">
                   <input type={showPassword ? 'text' : 'password'} value={form.password}
                     onChange={(e) => { setForm({ ...form, password: e.target.value }); setPasswordError('') }} required minLength={8}
-                    className="input-field pr-10" />
+                    className="input-field pr-10" placeholder={t('auth.passwordPlaceholder')} autoComplete="new-password" />
                   <button type="button" onClick={() => setShowPassword(!showPassword)}
                     className="absolute inset-y-0 right-0 flex items-center pr-3 text-muted hover:text-gold-400" tabIndex={-1}>
                     {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
@@ -256,7 +258,7 @@ export default function InviteRegister() {
                 <div className="relative">
                   <input type={showConfirmPassword ? 'text' : 'password'} value={form.password_confirmation}
                     onChange={(e) => { setForm({ ...form, password_confirmation: e.target.value }); setPasswordError('') }} required minLength={8}
-                    className="input-field pr-10" />
+                    className="input-field pr-10" placeholder={t('auth.confirmPasswordPlaceholder')} autoComplete="new-password" />
                   <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                     className="absolute inset-y-0 right-0 flex items-center pr-3 text-muted hover:text-gold-400" tabIndex={-1}>
                     {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}

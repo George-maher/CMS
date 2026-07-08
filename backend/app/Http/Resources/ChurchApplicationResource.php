@@ -15,6 +15,7 @@ class ChurchApplicationResource extends JsonResource
         return [
             'id' => $this->id,
             'church_name' => $this->church_name,
+            'service_name' => $this->service_name,
             'priest_name' => $this->priest_name,
             'main_servant_name' => $this->main_servant_name,
             'priest_phone' => $this->priest_phone,
@@ -39,6 +40,7 @@ class ChurchApplicationResource extends JsonResource
                 'name' => $this->reviewer->name,
             ]),
             'reviewed_at' => $this->reviewed_at?->toISOString(),
+            'rejected_at' => $this->rejected_at?->toISOString(),
             'created_at' => $this->created_at->toISOString(),
             'updated_at' => $this->updated_at->toISOString(),
         ];

@@ -4,6 +4,7 @@ namespace App\Modules\User\Requests;
 
 use App\Enums\UserRole;
 use App\Rules\NotPlaceholder;
+use App\Rules\PhoneRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -25,7 +26,7 @@ class UpdateUserRequest extends FormRequest
             'role' => ['sometimes', Rule::in($allowedRoles)],
             'class_year_id' => ['nullable', 'integer', 'exists:class_years,id'],
             'class_id' => ['nullable', 'integer', 'exists:classes,id'],
-            'phone' => ['nullable', 'digits:11', 'regex:/^[0-9]{11}$/', new NotPlaceholder],
+            'phone' => ['nullable', new PhoneRule, new NotPlaceholder],
             'address' => ['nullable', 'string', 'max:500', new NotPlaceholder],
             'is_active' => ['sometimes', 'boolean'],
         ];

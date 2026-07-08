@@ -2,6 +2,17 @@
 
 return [
 
+    /*
+    |--------------------------------------------------------------------------
+    | Default Filesystem Disk
+    |--------------------------------------------------------------------------
+    |
+    | When using Supabase Storage (SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY set),
+    | the actual storage is handled by SupabaseStorageService via REST API.
+    | This disk setting only applies to Laravel's filesystem operations.
+    |
+    */
+
     'default' => env('FILESYSTEM_DISK', 'local'),
 
     'disks' => [
@@ -23,16 +34,23 @@ return [
             'report' => false,
         ],
 
-        'supabase' => [
-            'driver' => 'supabase',
-            'project_url' => env('SUPABASE_URL'),
-            'service_role_key' => env('SUPABASE_SERVICE_ROLE_KEY'),
-            'base_url' => env('SUPABASE_STORAGE_URL'),
-        ],
+        /*
+        |--------------------------------------------------------------------------
+        | Local Fallback for Supabase Storage
+        |--------------------------------------------------------------------------
+        |
+        | When Supabase is not configured, uploaded files are stored here
+        | and served via the public/storage symlink.
+        |
+        */
 
-        'profiles' => [
+        'local_uploads' => [
             'driver' => 'local',
-            'root' => storage_path('app/profiles'),
+            'root' => storage_path('app/public/uploads'),
+            'url' => rtrim(env('APP_URL', 'http://localhost'), '/') . '/storage/uploads',
+            'visibility' => 'public',
+            'throw' => false,
+            'report' => false,
         ],
 
     ],

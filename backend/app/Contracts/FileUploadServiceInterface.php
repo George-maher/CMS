@@ -6,11 +6,11 @@ use Illuminate\Http\UploadedFile;
 
 interface FileUploadServiceInterface
 {
-    public function upload(UploadedFile $file, string $path, ?string $disk = null): string;
+    public function upload(UploadedFile $file, string $path): string;
 
-    public function delete(?string $path, ?string $disk = null): bool;
+    public function delete(?string $path): bool;
 
-    public function url(string $path, ?string $disk = null): ?string;
+    public function url(string $path): ?string;
 
     public function uploadProfileImage(UploadedFile $file): string;
 

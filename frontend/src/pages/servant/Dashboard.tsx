@@ -8,6 +8,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { getAttendanceStats } from '@/api/attendance'
 import { getMembers } from '@/api/users'
 import { listEvents } from '@/api/events'
+import { logCatch } from '@/lib/debug'
 
 interface MemberCountUser { id: number; name: string }
 
@@ -21,11 +22,11 @@ export default function ServantDashboard() {
 
   useEffect(() => {
     getAttendanceStats()
-      .then(setStats).catch(() => {})
+      .then(setStats).catch((e) => logCatch('ServantDashboard.getStats', e))
     getMembers()
-      .then(setMembers).catch(() => setMembers([]))
+      .then(setMembers).catch((e) => { logCatch('ServantDashboard.getMembers', e); setMembers([]) })
     listEvents({ upcoming: true, per_page: 3 })
-      .then((ev) => setUpcomingEvents(ev.data)).catch(() => setUpcomingEvents([]))
+      .then((ev) => setUpcomingEvents(ev.data)).catch((e) => { logCatch('ServantDashboard.listEvents', e); setUpcomingEvents([]) })
       .finally(() => setLoading(false))
   }, [])
 

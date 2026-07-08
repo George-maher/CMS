@@ -17,7 +17,8 @@ class ChurchApplicationFactory extends Factory
         return [
             'church_name' => fake()->company() . ' Church',
             'priest_name' => fake()->name(),
-            'priest_phone' => fake()->phoneNumber(),
+            'priest_phone' => '01' . fake()->numerify('#########'),
+            'phone' => '01' . fake()->numerify('#########'),
             'contact_email' => fake()->safeEmail(),
             'status' => 'pending',
         ];

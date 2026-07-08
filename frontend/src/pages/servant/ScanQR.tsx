@@ -11,6 +11,7 @@ import { getActiveContexts } from '@/api/attendanceContexts'
 import { getMembers } from '@/api/users'
 import { listAllClasses } from '@/api/structure'
 import type { AttendanceContext, Event, User } from '@/types'
+import { logCatch } from '@/lib/debug'
 
 export default function ServantScanQR() {
   const { t } = useTranslation()
@@ -45,26 +46,26 @@ export default function ServantScanQR() {
   useEffect(() => {
     listEvents({ upcoming: true, active_only: true, per_page: 50 })
       .then((ev) => setEvents(ev.data ?? []))
-      .catch(() => {})
+      .catch((e) => logCatch('ScanQR.listEvents', e))
 
     getActiveContexts()
       .then((ctxs) => { setContexts(ctxs ?? []); setContextsLoading(false) })
-      .catch(() => { setContextsLoading(false); toast.error(t('common.failedToLoad')) })
+      .catch((e) => { logCatch('ScanQR.getActiveContexts', e); setContextsLoading(false); toast.error(t('common.failedToLoad')) })
 
     getMembers()
       .then((m) => setMembers(m ?? []))
-      .catch(() => {})
+      .catch((e) => logCatch('ScanQR.getMembers', e))
 
     getTodayAttendance()
       .then((today) => setTodayAttended(new Set(today.data?.map((a) => a.user?.id).filter(Boolean) ?? [])))
-      .catch(() => {})
+      .catch((e) => logCatch('ScanQR.getTodayAttendance', e))
 
     listAllClasses()
       .then(setStructureClasses)
-      .catch(() => {})
+      .catch((e) => logCatch('ScanQR.listAllClasses', e))
 
     return () => {
-      if (html5QrCodeRef.current) { try { html5QrCodeRef.current.stop() } catch {}; html5QrCodeRef.current = null }
+      if (html5QrCodeRef.current) { try { html5QrCodeRef.current.stop() } catch (e) { logCatch('ScanQR.stopScanner(cleanup)', e) }; html5QrCodeRef.current = null }
     }
   }, [])
 
@@ -103,7 +104,7 @@ export default function ServantScanQR() {
       toast.success(`${t('attendance.attendanceRecorded')}! +${res.points_earned} ${t('common.points')}`)
       getTodayAttendance().then(today => {
         setTodayAttended(new Set(today.data.map((a) => a.user?.id).filter(Boolean)))
-      }).catch(() => {})
+      }).catch((e) => logCatch('ScanQR.refreshTodayAttended', e))
     } catch (err: unknown) {
       const axiosErr = err as { response?: { data?: { message?: string; errors?: Record<string, string[]> } } }
       let msg = axiosErr?.response?.data?.message || t('attendance.failedToRecord')
@@ -199,7 +200,7 @@ export default function ServantScanQR() {
             const front = cameras.find((c: { id: string; label: string }) => c.label.toLowerCase().includes('front') || c.label.toLowerCase().includes('user'))
             cameraId = back?.id || front?.id || cameras[0]!.id
           }
-        } catch {}
+        } catch (e) { logCatch('ScanQR.getCameras', e) }
         if (cancelled) return
         const scanner = new Html5Qrcode(elementId)
         html5QrCodeRef.current = scanner
@@ -208,7 +209,7 @@ export default function ServantScanQR() {
           { fps: 5, qrbox: (viewfinderWidth: number, viewfinderHeight: number) => { const minDim = Math.min(viewfinderWidth, viewfinderHeight); const size = Math.max(180, Math.min(minDim * 0.75, 300)); return { width: size, height: size } } },
           async (decodedText: string) => {
             if (cancelled || !cameraActiveRef.current) return
-            try { await scanner.stop() } catch {}
+            try { await scanner.stop() } catch (e) { logCatch('ScanQR.scannerStop(onDecode)', e) }
             html5QrCodeRef.current = null
             setCameraActive(false)
             handleLookupAndConfirm(decodedText)
@@ -227,7 +228,7 @@ export default function ServantScanQR() {
       }
     }
     initScanner()
-    return () => { cancelled = true; if (html5QrCodeRef.current) { try { html5QrCodeRef.current.stop() } catch {}; html5QrCodeRef.current = null } }
+    return () => { cancelled = true; if (html5QrCodeRef.current) { try { html5QrCodeRef.current.stop() } catch (e) { logCatch('ScanQR.scannerCleanup', e) }; html5QrCodeRef.current = null } }
   }, [cameraActive])
 
   const startScanner = async () => {
@@ -240,6 +241,7 @@ export default function ServantScanQR() {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true })
       stream.getTracks().forEach(t => t.stop())
     } catch (err: unknown) {
+      logCatch('ScanQR.startScanner.getUserMedia', err)
       const errName = (err as DOMException)?.name ?? ''
       if (errName === 'NotAllowedError') { setResult({ success: false, message: t('common.cameraPermissionDenied') }); return }
     }
@@ -247,7 +249,7 @@ export default function ServantScanQR() {
   }
 
   const stopScanner = async () => {
-    if (html5QrCodeRef.current) { try { await html5QrCodeRef.current.stop() } catch {}; html5QrCodeRef.current = null }
+    if (html5QrCodeRef.current) { try { await html5QrCodeRef.current.stop() } catch (e) { logCatch('ScanQR.stopScanner', e) }; html5QrCodeRef.current = null }
     setCameraActive(false)
   }
 

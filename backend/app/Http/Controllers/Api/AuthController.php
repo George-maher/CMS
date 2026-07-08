@@ -24,7 +24,7 @@ class AuthController extends Controller
         $result = $this->authService->login($request->validated());
 
         return response()->json([
-            'message' => 'Login successful.',
+            'message' => __('auth.login_success'),
             'data' => [
                 'user' => new UserResource($result['user']),
                 'token' => $result['token'],

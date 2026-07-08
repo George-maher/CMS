@@ -48,18 +48,18 @@ class NotPlaceholder implements ValidationRule
         }
 
         if (in_array($trimmed, self::EXACT_MATCHES, true)) {
-            $fail("The {$attribute} field contains a placeholder or example value and is not allowed.");
+            $fail(__('validation.placeholder', ['attribute' => $attribute]));
             return;
         }
 
         if (in_array($trimmed, $this->extraForbidden, true)) {
-            $fail("The {$attribute} field contains a placeholder or example value and is not allowed.");
+            $fail(__('validation.placeholder', ['attribute' => $attribute]));
             return;
         }
 
         foreach (self::PATTERNS as $pattern) {
             if (preg_match($pattern, $trimmed)) {
-                $fail("The {$attribute} field contains a placeholder or example value and is not allowed.");
+                $fail(__('validation.placeholder', ['attribute' => $attribute]));
                 return;
             }
         }
@@ -67,7 +67,7 @@ class NotPlaceholder implements ValidationRule
         if (filter_var($trimmed, FILTER_VALIDATE_EMAIL)) {
             $localPart = explode('@', $trimmed)[0] ?? '';
             if (in_array(strtolower($localPart), ['example', 'user', 'your', 'test', 'placeholder', 'name'], true)) {
-                $fail("The {$attribute} field appears to be a placeholder email and is not allowed.");
+                $fail(__('validation.placeholder_email', ['attribute' => $attribute]));
                 return;
             }
         }

@@ -312,6 +312,7 @@ export type ApplicationStatus = 'pending' | 'approved' | 'rejected'
 export interface ChurchApplication {
   id: number
   church_name: string
+  service_name: string | null
   priest_name: string
   main_servant_name: string | null
   priest_phone: string
@@ -325,6 +326,7 @@ export interface ChurchApplication {
   status: ApplicationStatus
   admin_notes: string | null
   rejection_reason: string | null
+  rejected_at: string | null
   reviewed_by: { id: number; name: string } | null
   reviewed_at: string | null
   created_at: string
@@ -340,6 +342,13 @@ export interface PlatformDashboardStats {
   suspended_churches: number
   total_users: number
   recent_applications: { id: number; church_name: string; priest_name: string; created_at: string }[]
+}
+
+export interface ApplicationCounts {
+  pending: number
+  approved: number
+  rejected: number
+  total: number
 }
 
 export interface ForgotPasswordPayload {

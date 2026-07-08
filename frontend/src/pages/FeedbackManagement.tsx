@@ -9,6 +9,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import type { Column } from '@/components/common/DataTable'
 import type { Feedback } from '@/types'
 import { listFeedback, resolveFeedback, replyToFeedback, getFeedback } from '@/api/feedback'
+import { logCatch } from '@/lib/debug'
 
 export default function FeedbackManagement() {
   const { t } = useTranslation()
@@ -37,14 +38,16 @@ export default function FeedbackManagement() {
   useEffect(() => { fetch() }, [filter])
 
   const handleResolve = async (id: number) => {
-    await resolveFeedback(id); fetch(); toast.success(t('feedback.markedResolved'))
+    try { await resolveFeedback(id); fetch(); toast.success(t('feedback.markedResolved')) }
+    catch (e) { logCatch('FeedbackManagement.resolve', e); toast.error(t('common.saving')) }
   }
 
   const handleViewFeedback = async (id: number) => {
     try {
       const fb = await getFeedback(id)
       setSelectedFeedback(fb)
-    } catch {
+    } catch (e) {
+      logCatch('FeedbackManagement.getFeedback', e)
       toast.error(t('common.saving'))
     }
   }
@@ -59,7 +62,8 @@ export default function FeedbackManagement() {
       const updated = await getFeedback(selectedFeedback.id)
       setSelectedFeedback(updated)
       fetch()
-    } catch {
+    } catch (e) {
+      logCatch('FeedbackManagement.reply', e)
       toast.error(t('common.saving'))
     } finally { setReplying(false) }
   }

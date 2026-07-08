@@ -27,6 +27,7 @@ import type { User } from '@/types'
 import { getMemberDetail } from '@/api/users'
 import { getAttendanceStats } from '@/api/attendance'
 import { getUserBalance } from '@/api/points'
+import { logCatch } from '@/lib/debug'
 import QRCodeLib from 'qrcode'
 
 function InfoRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: React.ReactNode }) {
@@ -75,9 +76,9 @@ export default function ServantMemberDetail() {
     const userId = Number(id)
     setLoading(true)
     Promise.all([
-      getMemberDetail(userId).catch(() => null),
-      getAttendanceStats(userId).catch(() => ({ total_attendances: 0, this_month: 0 })),
-      getUserBalance(userId).catch(() => 0),
+      getMemberDetail(userId).catch((e) => { logCatch('MemberDetail.getMember', e); return null }),
+      getAttendanceStats(userId).catch((e) => { logCatch('MemberDetail.getStats', e); return ({ total_attendances: 0, this_month: 0 }) }),
+      getUserBalance(userId).catch((e) => { logCatch('MemberDetail.getBalance', e); return 0 }),
     ])
       .then(([m, s, b]) => {
         if (m) {
@@ -85,7 +86,7 @@ export default function ServantMemberDetail() {
           if (m.attendance_qr_token) {
             QRCodeLib.toDataURL(m.attendance_qr_token, { width: 300, margin: 2 })
               .then(setQrDataUrl)
-              .catch(() => {})
+              .catch((e) => logCatch('MemberDetail.qrCode', e))
           }
         }
         setStats(s)

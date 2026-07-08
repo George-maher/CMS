@@ -6,6 +6,7 @@ import toast from 'react-hot-toast'
 import { Church, Eye, EyeOff, Loader2 } from 'lucide-react'
 import PublicLayout from '@/components/layout/PublicLayout'
 import client from '@/api/client'
+import { logCatch } from '@/lib/debug'
 
 export default function Login() {
   const { login, isAuthenticated, user } = useAuth()
@@ -25,8 +26,7 @@ export default function Login() {
   }
 
   if (isAuthenticated && user) {
-    if (user.application_status === 'pending') return <Navigate to="/pending" replace />
-    if (user.application_status === 'rejected') return <Navigate to="/rejected" replace />
+    if (user.application_status === 'pending' || user.application_status === 'rejected') return <Navigate to="/application-status" replace />
     return <Navigate to={roleRedirect[user.role] || '/login'} replace />
   }
 
@@ -35,16 +35,26 @@ export default function Login() {
     setLoading(true)
     try {
       const loggedInUser = await login({ email, password })
-      if (loggedInUser.application_status === 'pending') { toast.success(t('auth.loginPendingInfo')); navigate('/pending'); return }
-      if (loggedInUser.application_status === 'rejected') { navigate('/rejected'); return }
+      if (loggedInUser.application_status === 'pending' || loggedInUser.application_status === 'rejected') { navigate('/application-status'); return }
       navigate(roleRedirect[loggedInUser.role] || '/login')
     } catch (err: unknown) {
-      const axiosErr = err as { response?: { data?: { message?: string; errors?: Record<string, string[]> } } }
-      const msg = axiosErr?.response?.data?.errors
-        ? Object.values(axiosErr.response.data.errors).flat().join('. ')
-        : axiosErr?.response?.data?.message || t('auth.loginFailed')
+      logCatch('Login.login', err)
+      const axiosErr = err as { response?: { data?: { message?: string; errors?: Record<string, string[] | string> } } }
+      const responseData = axiosErr?.response?.data
+      const errors = responseData?.errors
 
-      if (msg?.toLowerCase().includes('verify')) {
+      let msg: string
+      if (errors && typeof errors === 'object' && Object.keys(errors).length > 0) {
+        msg = Object.values(errors).flat().filter(Boolean).join('. ')
+      } else if (responseData?.message) {
+        msg = responseData.message
+      } else {
+        msg = t('auth.loginFailed')
+      }
+
+      if (!msg) msg = t('auth.loginFailed')
+
+      if (msg.toLowerCase().includes('verify')) {
         toast((_: { id: string }) => (
           <div className="flex flex-col gap-2">
             <span>{msg}</span>

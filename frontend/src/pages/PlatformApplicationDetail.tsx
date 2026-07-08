@@ -8,6 +8,7 @@ import ImageWithFallback from '@/components/common/ImageWithFallback'
 import LoadingSpinner from '@/components/common/LoadingSpinner'
 import Modal from '@/components/common/Modal'
 import { getApplication, approveApplication, rejectApplication } from '@/api/churchApplications'
+import { logCatch } from '@/lib/debug'
 import type { ChurchApplication } from '@/types'
 
 const statusBadge: Record<string, 'warning' | 'success' | 'danger'> = {
@@ -41,7 +42,7 @@ export default function PlatformApplicationDetail() {
       await approveApplication(Number(id))
       toast.success(t('platform.approveSuccess'))
       navigate('/platform')
-    } catch { toast.error(t('common.saving')) }
+    } catch (e) { logCatch('PlatformDetail.approve', e); toast.error(t('common.saving')) }
     finally { setActionLoading(false) }
   }
 
@@ -53,7 +54,7 @@ export default function PlatformApplicationDetail() {
       toast.success(t('platform.rejectSuccess'))
       setShowRejectModal(false)
       navigate('/platform')
-    } catch { toast.error(t('common.saving')) }
+    } catch (e) { logCatch('PlatformDetail.reject', e); toast.error(t('common.saving')) }
     finally { setActionLoading(false) }
   }
 

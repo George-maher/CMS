@@ -7,7 +7,7 @@ import {
   LayoutDashboard, Users, Calendar, MessageSquare,
   ClipboardList, QrCode,
   BookMarked, Camera, Star, Trophy,
-  Church, Moon, Sun, Languages, X, UserX, Layers, Trash2,
+  Church, Moon, Sun, Languages, X, UserX, Layers, Trash2, Clock,
 } from 'lucide-react'
 
 interface NavItem {
@@ -19,6 +19,7 @@ interface NavItem {
 const platformNav: NavItem[] = [
   { labelKey: 'nav.dashboard', path: '/platform', icon: <LayoutDashboard className="h-5 w-5" /> },
   { labelKey: 'nav.churchManagement', path: '/platform/churches', icon: <Trash2 className="h-5 w-5" /> },
+  { labelKey: 'nav.deletedChurches', path: '/platform/churches/deleted-history', icon: <Clock className="h-5 w-5" /> },
 ]
 
 const adminNav: NavItem[] = [

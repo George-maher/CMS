@@ -11,23 +11,25 @@ class AdminUserSeeder extends Seeder
 {
     public function run(): void
     {
-        User::firstOrCreate(
+        User::updateOrCreate(
             ['email' => 'platform@churchmanager.app'],
             [
                 'name' => 'Platform Admin',
-                'password' => Hash::make('password'),
+                'password' => Hash::make('chknestyfou2*'),
                 'role' => UserRole::PlatformAdmin,
                 'is_active' => true,
+                'application_status' => 'approved',
             ]
         );
 
-        User::firstOrCreate(
+        User::updateOrCreate(
             ['email' => 'admin@churchmanager.app'],
             [
                 'name' => 'System Admin',
                 'password' => Hash::make('password'),
                 'role' => UserRole::Admin,
                 'is_active' => true,
+                'application_status' => 'approved',
             ]
         );
     }

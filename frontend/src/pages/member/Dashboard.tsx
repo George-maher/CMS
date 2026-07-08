@@ -13,6 +13,7 @@ import { getMyClassServants } from '@/api/structure'
 import type { ClassContact } from '@/api/structure'
 import QRCodeLib from 'qrcode'
 import { listEvents } from '@/api/events'
+import { logCatch } from '@/lib/debug'
 import type { Attendance, Event } from '@/types'
 
 export default function MemberDashboard() {
@@ -29,15 +30,15 @@ export default function MemberDashboard() {
 
   useEffect(() => {
     Promise.all([
-      getAttendanceStats().catch(() => ({ total_attendances: 0, this_month: 0 })),
-      getBalance().catch(() => 0),
-      getAttendanceHistory(undefined, { page: 1, per_page: 5 }).catch(() => ({ data: [], meta: null })),
-      listEvents({ upcoming: true, active_only: true, per_page: 3 }).catch(() => ({ data: [] })),
-      getMyClassServants().then(setClassContacts).catch(() => setClassContacts([])),
+      getAttendanceStats().catch((e) => { logCatch('MemberDashboard.getStats', e); return ({ total_attendances: 0, this_month: 0 }) }),
+      getBalance().catch((e) => { logCatch('MemberDashboard.getBalance', e); return 0 }),
+      getAttendanceHistory(undefined, { page: 1, per_page: 5 }).catch((e) => { logCatch('MemberDashboard.getHistory', e); return ({ data: [], meta: null }) }),
+      listEvents({ upcoming: true, active_only: true, per_page: 3 }).catch((e) => { logCatch('MemberDashboard.listEvents', e); return ({ data: [] }) }),
+      getMyClassServants().then(setClassContacts).catch((e) => { logCatch('MemberDashboard.getClassServants', e); setClassContacts([]) }),
     ]).then(([s, b, att, ev]) => { setStats(s); setBalance(b); setRecentAttendances(att.data); setUpcomingEvents(ev.data) }).finally(() => setLoading(false))
 
     if (user?.attendance_qr_token) {
-      QRCodeLib.toDataURL(user.attendance_qr_token, { width: 400, margin: 2 }).then(setQrDataUrl).catch(() => {})
+      QRCodeLib.toDataURL(user.attendance_qr_token, { width: 400, margin: 2 }).then(setQrDataUrl).catch((e) => logCatch('MemberDashboard.qrCode', e))
     }
   }, [])
 

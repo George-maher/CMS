@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import toast from 'react-hot-toast'
 import { Church, Eye, EyeOff, Loader2, ArrowLeft, AlertCircle } from 'lucide-react'
 import * as authApi from '@/api/auth'
+import { logCatch } from '@/lib/debug'
 
 export default function ResetPassword() {
   const { t } = useTranslation()
@@ -72,6 +73,7 @@ export default function ResetPassword() {
       toast.success(t('auth.resetPasswordSuccess'))
       setTimeout(() => navigate('/login'), 3000)
     } catch (err: unknown) {
+      logCatch('ResetPassword.submit', err)
       const axiosErr = err as { response?: { data?: { errors?: Record<string, string[]>; message?: string } } }
       const msg = axiosErr?.response?.data?.errors
         ? Object.values(axiosErr.response.data.errors).flat().join(', ')
@@ -139,6 +141,7 @@ export default function ResetPassword() {
                     minLength={8}
                     className={`input-field pr-10${passwordError ? ' border-red-500 focus:border-red-500 focus:ring-red-500/30' : ''}`}
                     placeholder={t('auth.passwordPlaceholder')}
+                    autoComplete="new-password"
                   />
                   <button
                     type="button"
@@ -168,6 +171,7 @@ export default function ResetPassword() {
                     minLength={8}
                     className={`input-field pr-10${confirmError ? ' border-red-500 focus:border-red-500 focus:ring-red-500/30' : ''}`}
                     placeholder={t('auth.confirmPasswordPlaceholder')}
+                    autoComplete="new-password"
                   />
                   <button
                     type="button"

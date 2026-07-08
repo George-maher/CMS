@@ -26,7 +26,10 @@ export default function PlatformLogin() {
       await platformLogin({ email, password })
       navigate('/platform')
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || t('auth.loginFailed')
+      const axiosErr = err as { response?: { data?: { message?: string; errors?: Record<string, string[]> } } }
+      const msg = axiosErr?.response?.data?.errors
+        ? Object.values(axiosErr.response.data.errors).flat().join('. ')
+        : axiosErr?.response?.data?.message || t('auth.loginFailed')
       toast.error(msg)
     } finally {
       setLoading(false)

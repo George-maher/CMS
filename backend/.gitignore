@@ -3,7 +3,7 @@
 .env
 .env.backup
 .env.production
-.env.docker
+# .env.docker is NOT ignored — docker-entrypoint.sh needs it at runtime
 .phpactor.json
 .phpunit.result.cache
 /.fleet
@@ -31,3 +31,4 @@ storage/framework/cache/data/
 storage/framework/sessions/
 storage/framework/views/
 storage/logs/*.log
+/storage/.seed-flag

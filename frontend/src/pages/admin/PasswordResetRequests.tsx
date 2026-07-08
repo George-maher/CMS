@@ -10,6 +10,7 @@ import {
   approvePasswordResetRequest,
   rejectPasswordResetRequest,
 } from '@/api/passwordResetRequests'
+import { logCatch } from '@/lib/debug'
 import toast from 'react-hot-toast'
 
 export default function AdminPasswordResetRequests() {
@@ -40,7 +41,8 @@ export default function AdminPasswordResetRequests() {
       const res = await listPasswordResetRequests(params)
       setRequests(res.data)
       setMeta(res.meta)
-    } catch {
+    } catch (e) {
+      logCatch('PasswordResetRequests.fetch', e)
       setRequests([])
     } finally {
       setLoading(false)

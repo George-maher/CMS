@@ -3,7 +3,7 @@ interface Props {
   value: string | number
   subtitle?: string
   icon?: React.ReactNode
-  color?: 'primary' | 'gold' | 'navy' | 'success' | 'info'
+  color?: 'primary' | 'gold' | 'navy' | 'success' | 'info' | 'warning' | 'danger'
   delay?: number
 }
 
@@ -13,6 +13,8 @@ const iconBg: Record<string, string> = {
   navy: 'bg-navy-100 text-navy-600 dark:bg-navy-900/30 dark:text-navy-400',
   success: 'bg-success-light text-success dark:bg-success-dark/30 dark:text-success',
   info: 'bg-info-light text-info dark:bg-info-dark/30 dark:text-info',
+  warning: 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400',
+  danger: 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400',
 }
 
 export default function StatCard({ title, value, subtitle, icon, color = 'primary', delay = 0 }: Props) {

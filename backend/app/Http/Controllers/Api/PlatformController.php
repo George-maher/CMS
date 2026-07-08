@@ -4,43 +4,44 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\ChurchApplicationResource;
+use App\Contracts\ChurchApplicationServiceInterface;
 use App\Http\Resources\ChurchResource;
 use App\Models\Church;
 use App\Models\ChurchApplication;
 use App\Models\User;
-use App\Services\ChurchApplicationService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Http\Request;
 
 class PlatformController extends Controller
 {
     public function __construct(
-        private readonly ChurchApplicationService $churchApplicationService,
+        private readonly ChurchApplicationServiceInterface $churchApplicationService,
     ) {}
 
     public function dashboard(): JsonResponse
     {
-        $pendingCount = ChurchApplication::where('status', 'pending')->count();
-        $approvedCount = ChurchApplication::where('status', 'approved')->count();
-        $rejectedCount = ChurchApplication::where('status', 'rejected')->count();
-        $churchCount = Church::count();
-        $totalUsers = User::whereNotNull('church_id')->count();
-        $activeChurches = Church::where('is_active', true)->count();
-        $suspendedChurches = Church::where('is_suspended', true)->count();
+        $data = Cache::remember('platform:dashboard', 300, function () {
+            $pendingCount = ChurchApplication::where('status', 'pending')->count();
+            $approvedCount = ChurchApplication::where('status', 'approved')->count();
+            $rejectedCount = ChurchApplication::where('status', 'rejected')->count();
+            $churchCount = Church::count();
+            $totalUsers = User::whereNotNull('church_id')->count();
+            $activeChurches = Church::where('is_active', true)->count();
+            $suspendedChurches = Church::where('is_suspended', true)->count();
 
-        $recentApplications = ChurchApplication::where('status', 'pending')
-            ->latest()
-            ->take(10)
-            ->get()
-            ->map(fn($app) => [
-                'id' => $app->id,
-                'church_name' => $app->church_name,
-                'priest_name' => $app->priest_name,
-                'created_at' => $app->created_at->toISOString(),
-            ]);
+            $recentApplications = ChurchApplication::where('status', 'pending')
+                ->latest()
+                ->take(10)
+                ->get()
+                ->map(fn($app) => [
+                    'id' => $app->id,
+                    'church_name' => $app->church_name,
+                    'priest_name' => $app->priest_name,
+                    'created_at' => $app->created_at->toISOString(),
+                ]);
 
-        return response()->json([
-            'data' => [
+            return [
                 'pending_applications' => $pendingCount,
                 'approved_applications' => $approvedCount,
                 'rejected_applications' => $rejectedCount,
@@ -49,7 +50,11 @@ class PlatformController extends Controller
                 'suspended_churches' => $suspendedChurches,
                 'total_users' => $totalUsers,
                 'recent_applications' => $recentApplications,
-            ],
+            ];
+        });
+
+        return response()->json([
+            'data' => $data,
         ]);
     }
 
@@ -65,6 +70,12 @@ class PlatformController extends Controller
                 'last_page' => $applications->lastPage(),
                 'per_page' => $applications->perPage(),
                 'total' => $applications->total(),
+            ],
+            'counts' => [
+                'pending' => ChurchApplication::where('status', 'pending')->count(),
+                'approved' => ChurchApplication::where('status', 'approved')->count(),
+                'rejected' => ChurchApplication::where('status', 'rejected')->count(),
+                'total' => ChurchApplication::count(),
             ],
         ]);
     }
@@ -92,6 +103,8 @@ class PlatformController extends Controller
             $request->input('notes'),
         );
 
+        Cache::forget('platform:dashboard');
+
         return response()->json([
             'message' => 'Application approved. Church admin account created.',
             'data' => [
@@ -116,6 +129,8 @@ class PlatformController extends Controller
             $request->user(),
             $request->input('rejection_reason'),
         );
+
+        Cache::forget('platform:dashboard');
 
         return response()->json([
             'message' => 'Application rejected.',

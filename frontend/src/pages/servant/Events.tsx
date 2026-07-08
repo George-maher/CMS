@@ -12,6 +12,7 @@ import type { Column } from '@/components/common/DataTable'
 import type { Event } from '@/types'
 import { listEvents, getEvent, createEvent, updateEvent, deleteEvent } from '@/api/events'
 import { getMyClasses } from '@/api/structure'
+import { logCatch } from '@/lib/debug'
 
 interface EventForm { name: string; type: string; image: string | File; description: string; event_date: string; location: string; class_id: string; is_all_classes: boolean; target_class_ids: number[] }
 const emptyForm: EventForm = { name: '', type: 'service', image: '', description: '', event_date: '', location: '', class_id: '', is_all_classes: false, target_class_ids: [] }
@@ -44,7 +45,7 @@ export default function ServantEvents() {
   const handleView = async (id: number) => {
     setViewLoading(true)
     try { setViewing(await getEvent(id)) }
-    catch { toast.error(t('common.loading')) }
+    catch (e) { logCatch('ServantEvents.getEvent', e); toast.error(t('common.loading')) }
     finally { setViewLoading(false) }
   }
 
@@ -54,7 +55,7 @@ export default function ServantEvents() {
     finally { setLoading(false) }
   }
 
-  useEffect(() => { fetch(); getMyClasses().then(setClasses).catch(() => {}) }, [])
+  useEffect(() => { fetch(); getMyClasses().then(setClasses).catch((e) => logCatch('ServantEvents.getMyClasses', e)) }, [])
 
   const openCreate = () => {
     setEditing(null)
@@ -89,7 +90,10 @@ export default function ServantEvents() {
   }
 
   const handleDelete = async (id: number) => {
-    if (window.confirm(t('events.deleteConfirm'))) { await deleteEvent(id); fetch(); toast.success(t('common.delete')) }
+    if (window.confirm(t('events.deleteConfirm'))) {
+      try { await deleteEvent(id); fetch(); toast.success(t('common.delete')) }
+      catch (e) { logCatch('ServantEvents.deleteEvent', e); toast.error(t('common.saving')) }
+    }
   }
 
   return (

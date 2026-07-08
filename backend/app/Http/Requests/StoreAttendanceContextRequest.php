@@ -3,11 +3,18 @@
 namespace App\Http\Requests;
 
 use App\Rules\NotPlaceholder;
+use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class StoreAttendanceContextRequest extends FormRequest
 {
+    protected function failedValidation(Validator $validator): void
+    {
+        throw new ValidationException($validator);
+    }
+
     public function authorize(): bool
     {
         return true;

@@ -425,7 +425,7 @@ Build a complete production-grade Church Management Platform with:
 # 📌 ANCHORED SUMMARY
 
 ## Goal
-Complete production readiness audit: remove live credentials, fix Docker compose (add PostgreSQL), create CORS/Supabase configs, fix frontend API URL for Vercel/Render deployment, add production docs, clean dead code.
+Fix all backend test failures so `php artisan test` passes completely. (32 failed / 18 passed → 0 failed / 50 passed)
 
 ## Constraints & Preferences
 - Must look excellent on all screen sizes (320px to 1920px+).
@@ -437,7 +437,15 @@ Complete production readiness audit: remove live credentials, fix Docker compose
 
 ## Progress
 
-### Done
+### Done (2026-06-30 — Comprehensive End-to-End Audit)
+1. **User model PostgreSQL `nextval` removed** — `backend/app/Models/User.php`: replaced PostgreSQL-specific `nextval('users_member_id_seq')` with database-agnostic `$user->id`. Fixes SQLite test compatibility.
+2. **Docker Compose hardened** — `docker-compose.yml`: replaced hardcoded DB password with `${DB_PASSWORD:-postgres}` env var; added healthchecks to worker, scheduler, and frontend; fixed all `depends_on` to use `condition: service_healthy`.
+3. **Dockerfile production safety** — `backend/Dockerfile`: removed `php artisan key:generate` from production stage (was invalidating all tokens on every build).
+4. **Entrypoint script hardened** — `backend/docker-entrypoint.sh`: replaced `rm -rf public/storage` with safe symlink check; added DB readiness loop before migrations; added .env existence validation before grep.
+5. `.env.docker` **fixed** — Changed `DB_PASSWORD=${DB_PASSWORD:-postgres}` to literal `DB_PASSWORD=postgres` (prevents literal string usage outside Docker).
+6. **CI pipeline cleaned** — `.github/workflows/ci.yml`: removed wasted PostgreSQL service (phpunit.xml overrides to sqlite); removed `|| true` from lint commands (was masking failures).
+
+### Done (Previous)
 1. **Attendance duplicate prevention** — `lockForUpdate()` + `hasAttendanceToday()` in `AttendanceService.php`.
 2. **AttendanceFilter onApply fix** — Fixed `class_id=[object Object]` bug.
 3. **QR Invite usage limit** — Atomic `markAsUsed()` with `DB::raw('uses + 1')`.
@@ -545,9 +553,43 @@ Complete production readiness audit: remove live credentials, fix Docker compose
 12. **Fixed phone input** — slice to 11 digits in frontend.
 13. **Added better 422 error messages** — email uniqueness hint.
 
-### Blocked
-- Shell/terminal tools are unavailable — cannot run Docker, PHP, or npm commands to verify fixes or clear OPCache.
-- EventController 500 error requires Docker restart + `php artisan optimize:clear` to confirm fix.
+### Done (Backend Test Failures Fix — 2026-06-26)
+
+**Factory & Migration Fixes:**
+1. **Created 4 missing factories** — `StageFactory`, `ClasseFactory`, `AttendanceContextFactory`, `QRInviteFactory`.
+2. **Updated `UserFactory`** — defaults `application_status: 'approved'` and `is_active: true`.
+3. **Added `HasFactory` to `Church` model** (`app/Models/Church.php:13`) — fixes `BadMethodCallException: Call to undefined method Church::factory()`
+4. **Fixed 3 PostgreSQL-specific migrations** for SQLite test compatibility using `$driver = DB::connection()->getDriverName()`:
+   - `2025_06_10_000001`: replaced `(attended_at::date)` with `$dateExpr` (`date(attended_at)` on SQLite)
+   - `2025_07_02_000001`: replaced `pg_class` index check → `sqlite_master`, `DROP CONSTRAINT` → `DROP INDEX`, `(attended_at::date)` → `$dateExpr`
+   - `2025_07_09_000002`: replaced `(attended_at::date)` with `$dateExpr` in both `up()` and `down()`
+5. **Added `APP_KEY` to `phpunit.xml`** — fixes `MissingAppKeyException` on `ExampleTest`.
+
+**Test File Fixes:**
+6. **`AuthTest.php`** — Changed login email from `test@test.com` → `login@test.com` (local part `test` blocked by `NotPlaceholder` rule).
+7. **`AttendanceTest.php`** — Added `PermissionSeeder` in `setUp()`, changed `class_year_id` → `class_id` in request body, added `attendance_context_id`.
+8. **`AttendanceContextTest.php`** — Added `PermissionSeeder` in `setUp()`, changed servant `class_year_id` → `class_id`.
+9. **`QRInviteTest.php`** — Added `PermissionSeeder` in `setUp()`, replaced `Church::create()` with `Church::factory()->create()`.
+10. **`AuthTest.php`, `QRInviteTest.php`** — Replaced all `Church::create([...])` with `Church::factory()->create()`.
+
+**Business Logic Fix:**
+11. **`AuthService.php:login()`** — Added `application_status` checks: rejected users are blocked with 422, pending users are blocked with 422. Fixes `test_rejected_user_cannot_login`.
+
+### Done (Second Round — 2026-06-26)
+1. **`AttendanceContext` model** — Added `HasFactory` trait (`app/Models/AttendanceContext.php:13`).
+2. **`AttendanceContextPolicy.php`** — Removed `servant` from `delete()` and `toggleActive()` (only admin/assistantAdmin allowed). Fixes 2 test failures.
+3. **`AttendanceContextController`** — Removed `withoutGlobalScope()` from `show()`, `update()`, `destroy()`, `toggleActive()`. The global `ChurchScope` now handles filtering naturally, so cross-church access returns 404.
+4. **`AttendanceContextTest.php`** — All context names changed to unique values that don't clash with the 6 auto-created defaults (sunday-school, holiday, tasbeha, mass, trip, spiritual-day). `test_active_contexts_appear_in_dropdown` assertion changed to check count=8 and `assertContains`/`assertNotContains` instead of rigid `data.0`/`data.1`.
+5. **`QRInviteResource.php`** — Replaced `token` field with `url` field (uses `frontend_url` config). Token is no longer exposed in list responses.
+6. **`QRInviteTest.php`** — Fixed `test_servant_can_create_member_invite` and `test_admin_can_create_servant_invite` to assert `data.invite` has `id`, `type`, `url` AND `data.url` exists.
+
+### Done (2026-06-30 — Comprehensive End-to-End Audit Round 2)
+All issues from the audit have been addressed. See `AUDIT_CHANGES.md` for full details.
+
+### Remaining
+- Shell/terminal tools remain unavailable — cannot run Docker, PHP, or npm commands.
+- Cannot run `php artisan test` to confirm fixes.
+- Cannot run `tsc --noEmit` to confirm zero TypeScript errors.
 
 ## Key Decisions
 - Supabase config moved from `services.php` to dedicated `supabase-storage.php` because `SupabaseStorageService` reads from `config('supabase-storage.*')`
@@ -559,18 +601,31 @@ Complete production readiness audit: remove live credentials, fix Docker compose
 - `SyncAnalyticsCache` stubbed to safe version because `Cache::tags()` fails with file/database cache driver (requires Redis/Memcached)
 - PostgreSQL added to docker-compose.yml for local parity with Supabase production (local postgres on port 5433)
 
-## Key Decisions
+## Key Decisions (password_reset_requests)
 - Separate `password_reset_requests` table keeps admin-approved flow independent from the existing `password_reset_tokens` (Laravel broker).
 - Service uses `DB::transaction()` + `lockForUpdate()` for approve/reject/completeReset — prevents race conditions.
-- Token stored hashed... actually stored as-is (64-char random string, one-use, `unique` index) — never exposed to admins.
+- Token stored as-is (64-char random string, one-use, `unique` index) — never exposed to admins, only sent via email link.
 - Admin gets notified on each new request via email.
 - `ForgotPassword.tsx` modified to submit requests; kept existing Laravel broker flow for future admin self-reset.
 - Reset URL uses `frontend_url` config pointing to SPA, never backend.
 
+## Key Decisions (Test Fixes)
+- Use `Church::factory()->create()` instead of `Church::create([...])` in all tests to ensure all required columns are populated.
+- For `users.class_year_id` FK mismatch (refs `class_years.id` but tests store `classes.id`), use `class_id` in tests to avoid FK violation.
+- Make PostgreSQL-specific migrations database-driver-aware with `$driver = DB::connection()->getDriverName()` branch.
+- Use `date(attended_at)` on SQLite vs `(attended_at::date)` on PostgreSQL for expression-based unique indexes.
+- Repeated `test` in email local part blocked by `NotPlaceholder` rule — use `login@test.com` instead.
+
 ## Next Steps
-(waiting for user direction — suggest: verify production audit changes, test `php artisan migrate` with new defaults, or build the next feature)
+(waiting for user direction — suggest: run `php artisan test` to verify all fixes, test the migrated EventController fix, or build next feature)
 
 ## Critical Context
+- Backend uses SQLite in-memory for testing (`phpunit.xml`: `DB_CONNECTION=sqlite`, `DB_DATABASE=:memory:`), with `foreign_key_constraints: true`.
+- `BelongsToChurch::creating` callback silently allows `church_id` to remain null when no auth user exists; `ChurchScope` returns null (no filtering) when running in console (tests).
+- `class_year_id` FK on `users` still points to `class_years.id` (not `classes.id`) — pre-existing schema gap not fixed by later migrations.
+- 3 migrations now dynamically adapt their SQL to the current driver (`sqlite` vs. `pgsql`).
+- `NotPlaceholder` rule blocks common test emails like `test@test.com` from login.
+- Church model's `created` callback auto-creates 6 default `AttendanceContext` records with hardcoded slugs.
 - CacheService remember* methods were dead code — now integrated into 5 services.
 - Cache default store: `file` (not `database`; use `redis` in production).
 - Queue default: `sync` (use `database` or `redis` for async jobs).
@@ -581,6 +636,21 @@ Complete production readiness audit: remove live credentials, fix Docker compose
 - All cache invalidation is per-church via versioned namespaces (generation-based).
 
 ## Relevant Files
+- `backend/app/Models/Church.php` — Added `HasFactory` trait
+- `backend/database/migrations/2025_06_10_000001_fix_attendance_unique_and_event_date.php` — SQLite-compatible `$dateExpr`
+- `backend/database/migrations/2025_07_02_000001_prevent_duplicate_attendance_points.php` — SQLite-compatible index check/constraint drop/`$dateExpr`
+- `backend/database/migrations/2025_07_09_000002_add_context_aware_attendance_unique_indexes.php` — `$dateExpr` per driver
+- `backend/tests/Feature/AuthTest.php` — Fixed email `test@test.com` → `login@test.com`; all tests use `Church::factory()`
+- `backend/tests/Feature/AttendanceTest.php` — Added `PermissionSeeder`, `class_id` fix, `attendance_context_id`
+- `backend/tests/Feature/AttendanceContextTest.php` — Added `PermissionSeeder`, `class_id` fix
+- `backend/tests/Feature/QRInviteTest.php` — Added `PermissionSeeder`, `Church::factory()`
+- `backend/app/Services/AuthService.php` — Added `application_status` login check (rejected/pending blocked)
+- `backend/phpunit.xml` — Added `APP_KEY`
+- `backend/database/factories/ClasseFactory.php`, `StageFactory.php`, `AttendanceContextFactory.php`, `QRInviteFactory.php` — 4 new factories
+- `backend/app/Models/AttendanceContext.php` — Added HasFactory
+- `backend/app/Policies/AttendanceContextPolicy.php` — Removed servant from delete/toggleActive
+- `backend/app/Http/Controllers/Api/AttendanceContextController.php` — Removed withoutGlobalScope from show/update/destroy/toggleActive
+- `backend/app/Http/Resources/QRInviteResource.php` — Replaced token with url field
 - `backend/database/migrations/2026_06_22_000002_create_password_reset_requests_table.php` — new table
 - `backend/app/Models/PasswordResetRequest.php` — model with token/status logic
 - `backend/app/Enums/PasswordResetRequestStatus.php` — pending/approved/rejected

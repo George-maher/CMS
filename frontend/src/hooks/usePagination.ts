@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef } from 'react'
 import client from '../api/client'
+import { logCatch } from '@/lib/debug'
 import type { AxiosRequestConfig, AxiosError } from 'axios'
 
 interface PaginationMeta {
@@ -94,6 +95,7 @@ export function usePagination<T = any>(
 
       currentPageRef.current = page
     } catch (err) {
+      logCatch('usePagination.fetchPage', err)
       const axiosError = err as AxiosError<{ message?: string }>
       const message = axiosError.response?.data?.message || axiosError.message || 'Failed to load data'
 

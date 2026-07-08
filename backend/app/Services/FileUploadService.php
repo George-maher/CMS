@@ -21,7 +21,7 @@ class FileUploadService implements FileUploadServiceInterface
         private readonly StorageServiceInterface $storageService,
     ) {}
 
-    public function upload(UploadedFile $file, string $path, ?string $disk = null): string
+    public function upload(UploadedFile $file, string $path): string
     {
         $bucket = $this->resolveBucket($path);
 
@@ -32,12 +32,12 @@ class FileUploadService implements FileUploadServiceInterface
         return $this->storageService->uploadDocument($file, $bucket, $path);
     }
 
-    public function delete(?string $path, ?string $disk = null): bool
+    public function delete(?string $path): bool
     {
         return $this->storageService->deleteFile($path ?? '');
     }
 
-    public function url(string $path, ?string $disk = null): ?string
+    public function url(string $path): ?string
     {
         if (!$path) {
             return null;
@@ -54,12 +54,12 @@ class FileUploadService implements FileUploadServiceInterface
 
     public function publicDisk(): string
     {
-        return 'supabase';
+        return config('filesystems.default');
     }
 
     public function uploadsDisk(): string
     {
-        return 'supabase';
+        return config('filesystems.default');
     }
 
     public function uploadProfileImage(UploadedFile $file): string

@@ -7,6 +7,7 @@ import Modal from '@/components/common/Modal'
 import type { Stage } from '@/types'
 import { listStructureClasses } from '@/api/structure'
 import { listStages, createStage, updateStage, deleteStage, bulkCreateStages } from '@/api/stages'
+import { logCatch } from '@/lib/debug'
 
 export default function StructureManagement() {
   const { t } = useTranslation()
@@ -70,7 +71,8 @@ export default function StructureManagement() {
       }
       setShowModal(false)
       fetch()
-    } catch {
+    } catch (e) {
+      logCatch('StructureManagement.save', e)
       toast.error(t('common.failedToSave'))
     }
   }
@@ -82,7 +84,8 @@ export default function StructureManagement() {
       await deleteStage(id)
       toast.success(t('structure.stageDeleted'))
       fetch()
-    } catch {
+    } catch (e) {
+      logCatch('StructureManagement.delete', e)
       toast.error(t('common.failedToSave'))
     }
   }

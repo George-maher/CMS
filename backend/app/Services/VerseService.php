@@ -53,7 +53,7 @@ class VerseService implements VerseServiceInterface
             $verse->update(['is_active' => true]);
         }
 
-        $this->cacheService->invalidateVerse($verse->church_id);
+        $this->cacheService->invalidateVerse(0);
 
         return [
             'data' => new DailyVerseResource($verse->load('creator')),
@@ -76,7 +76,7 @@ class VerseService implements VerseServiceInterface
             $verse->update(['is_active' => true]);
         }
 
-        $this->cacheService->invalidateVerse($verse->church_id);
+        $this->cacheService->invalidateVerse(0);
 
         return [
             'data' => new DailyVerseResource($verse->fresh()->load('creator')),
@@ -106,6 +106,8 @@ class VerseService implements VerseServiceInterface
         $this->verseRepository->deactivateAll();
         $verse->update(['is_active' => true]);
 
+        $this->cacheService->invalidateVerse(0);
+
         return [
             'data' => new DailyVerseResource($verse->fresh()->load('creator')),
         ];
@@ -113,9 +115,7 @@ class VerseService implements VerseServiceInterface
 
     public function getActive(): ?array
     {
-        $churchId = auth()->user()->church_id;
-
-        return $this->cacheService->rememberActiveVerse($churchId, function () {
+        return $this->cacheService->rememberActiveVerse(0, function () {
             $verse = $this->verseRepository->getActive();
             if (!$verse) return null;
 

@@ -3,9 +3,11 @@
 use App\Http\Middleware\ForceJsonResponse;
 use App\Http\Middleware\RequireReauth;
 use App\Http\Middleware\RoleMiddleware;
+use App\Http\Middleware\SetLocale;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Middleware\TrustProxies;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
@@ -27,7 +29,16 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->api(prepend: [
             ForceJsonResponse::class,
+            SetLocale::class,
             'track.activity',
+        ]);
+
+        // TrustProxies — required for correct IP/host behind nginx reverse proxy
+        $middleware->web(append: [
+            TrustProxies::class,
+        ]);
+        $middleware->api(append: [
+            TrustProxies::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
@@ -42,7 +53,7 @@ return Application::configure(basePath: dirname(__DIR__))
         });
 
         $exceptions->render(function (\Illuminate\Validation\ValidationException $e, Request $request) {
-            if ($request->is('api/*')) {
+            if ($request->is('api/*') || str_starts_with($request->path(), 'api/')) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Validation failed.',
@@ -91,6 +102,39 @@ return Application::configure(basePath: dirname(__DIR__))
                     'retry_after' => (int) $retryAfter,
                     'code' => 'RATE_LIMITED',
                 ], 429, ['Retry-After' => $retryAfter]);
+            }
+        });
+
+        $exceptions->render(function (\Throwable $e, Request $request) {
+            if ($request->is('api/*')) {
+                \Illuminate\Support\Facades\Log::error('Unhandled API exception', [
+                    'message' => $e->getMessage(),
+                    'file' => $e->getFile(),
+                    'line' => $e->getLine(),
+                    'code' => $e->getCode(),
+                    'url' => $request->fullUrl(),
+                    'method' => $request->method(),
+                    'ip' => $request->ip(),
+                    'user_id' => $request->user()?->id,
+                ]);
+
+                $statusCode = method_exists($e, 'getStatusCode') ? $e->getStatusCode() : 500;
+
+                $response = [
+                    'success' => false,
+                    'message' => 'Internal server error.',
+                    'code' => 'INTERNAL_ERROR',
+                ];
+
+                if (config('app.debug') && app()->isLocal()) {
+                    $response['message'] = $e->getMessage();
+                    $response['code'] = class_basename($e);
+                    $response['file'] = $e->getFile();
+                    $response['line'] = $e->getLine();
+                    $response['trace'] = explode("\n", $e->getTraceAsString());
+                }
+
+                return response()->json($response, $statusCode);
             }
         });
     })->create();

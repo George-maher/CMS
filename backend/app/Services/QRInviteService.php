@@ -65,19 +65,19 @@ class QRInviteService implements QRInviteServiceInterface
 
         if (!$invite) {
             throw ValidationException::withMessages([
-                'token' => ['Invalid QR token.'],
+                'token' => [__('invite.invalid_token')],
             ]);
         }
 
         if (!$invite->isValid()) {
             if ($invite->isExpired()) {
                 throw ValidationException::withMessages([
-                    'token' => ['This QR code has expired.'],
+                    'token' => [__('invite.expired')],
                 ]);
             }
             if ($invite->is_revoked) {
                 throw ValidationException::withMessages([
-                    'token' => ['This QR code has been revoked.'],
+                    'token' => [__('invite.revoked')],
                 ]);
             }
             if ($invite->max_uses !== null && $invite->use_count >= $invite->max_uses) {
@@ -87,11 +87,11 @@ class QRInviteService implements QRInviteServiceInterface
             }
             if ($invite->isUsed()) {
                 throw ValidationException::withMessages([
-                    'token' => ['This QR code has already been used.'],
+                    'token' => [__('invite.already_used')],
                 ]);
             }
             throw ValidationException::withMessages([
-                'token' => ['This QR code is no longer valid.'],
+                'token' => [__('invite.not_found')],
             ]);
         }
 
@@ -110,7 +110,7 @@ class QRInviteService implements QRInviteServiceInterface
         $role = $invite->type->targetRole();
         if (!$role) {
             throw ValidationException::withMessages([
-                'token' => ['This QR code cannot be used for registration.'],
+                'token' => [__('invite.role_mismatch')],
             ]);
         }
 
@@ -128,7 +128,7 @@ class QRInviteService implements QRInviteServiceInterface
 
         if (!$invite) {
             throw ValidationException::withMessages([
-                'token' => ['Invalid invite token.'],
+                'token' => [__('invite.not_found')],
             ]);
         }
 
@@ -167,7 +167,7 @@ class QRInviteService implements QRInviteServiceInterface
 
         if (!$role) {
             throw ValidationException::withMessages([
-                'invite' => ['This invite type cannot be used for role assignment.'],
+                'invite' => [__('invite.role_mismatch')],
             ]);
         }
 

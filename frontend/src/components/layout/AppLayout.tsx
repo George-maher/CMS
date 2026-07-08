@@ -22,8 +22,7 @@ export default function AppLayout({ allowedRoles }: Props) {
 
   if (!isAuthenticated) return <Navigate to="/login" replace />
 
-  if (user?.application_status === 'pending') return <Navigate to="/pending" replace />
-  if (user?.application_status === 'rejected') return <Navigate to="/rejected" replace />
+  if (user?.application_status === 'pending' || user?.application_status === 'rejected') return <Navigate to="/application-status" replace />
 
   if (user && !allowedRoles.includes(user.role)) {
     const redirectMap: Record<string, string> = { platform_admin: '/platform', admin: '/admin', assistant_admin: '/assistant-admin', servant: '/servant', member: '/member' }

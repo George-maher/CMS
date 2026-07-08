@@ -12,6 +12,7 @@ import type { Column } from '@/components/common/DataTable'
 import type { Event } from '@/types'
 import { listEvents, getEvent, createEvent, updateEvent, deleteEvent } from '@/api/events'
 import { listAllClasses } from '@/api/structure'
+import { logCatch } from '@/lib/debug'
 
 interface EventForm { name: string; type: string; image: string | File; description: string; event_date: string; location: string; class_id: string; is_active: boolean; is_all_classes: boolean; target_class_ids: number[] }
 
@@ -47,7 +48,7 @@ export default function AdminEvents() {
   const handleView = async (id: number) => {
     setViewLoading(true)
     try { setViewing(await getEvent(id)) }
-    catch { toast.error(t('common.loading')) }
+    catch (e) { logCatch('AdminEvents.getEvent', e); toast.error(t('common.loading')) }
     finally { setViewLoading(false) }
   }
 
@@ -57,7 +58,7 @@ export default function AdminEvents() {
     finally { setLoading(false) }
   }
 
-  useEffect(() => { fetch(); listAllClasses().then(setClasses).catch(() => {}) }, [])
+  useEffect(() => { fetch(); listAllClasses().then(setClasses).catch((e) => logCatch('AdminEvents.listAllClasses', e)) }, [])
 
   const openCreate = () => {
     setEditing(null)
@@ -92,7 +93,10 @@ export default function AdminEvents() {
   }
 
   const handleDelete = async (id: number) => {
-    if (window.confirm(t('events.deleteConfirm'))) { await deleteEvent(id); fetch(); toast.success(t('common.delete')) }
+    if (window.confirm(t('events.deleteConfirm'))) {
+      try { await deleteEvent(id); fetch(); toast.success(t('common.delete')) }
+      catch (e) { logCatch('AdminEvents.deleteEvent', e); toast.error(t('common.saving')) }
+    }
   }
 
   return (

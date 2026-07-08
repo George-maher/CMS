@@ -8,6 +8,7 @@ import Modal from '@/components/common/Modal'
 import type { Column } from '@/components/common/DataTable'
 import type { DailyVerse } from '@/types'
 import { listVerses, createVerse, updateVerse, deleteVerse, activateVerse } from '@/api/dailyverse'
+import { logCatch } from '@/lib/debug'
 
 export default function VerseManagement() {
   const { t } = useTranslation()
@@ -54,13 +55,14 @@ export default function VerseManagement() {
 
   const handleDelete = async (id: number) => {
     if (!window.confirm(t('verse.deleteConfirm'))) return
-    await deleteVerse(id); fetch(); toast.success(t('verse.deleted'))
+    try { await deleteVerse(id); fetch(); toast.success(t('verse.deleted')) }
+    catch (e) { logCatch('VerseManagement.delete', e); toast.error(t('common.saving')) }
   }
 
   const handleActivate = async (id: number) => {
     setActivating(id)
     try { await activateVerse(id); fetch(); toast.success(t('verse.activated')) }
-    catch { setSaveError(t('verse.failedActivate')) }
+    catch (e) { logCatch('VerseManagement.activate', e); setSaveError(t('verse.failedActivate')) }
     finally { setActivating(null) }
   }
 

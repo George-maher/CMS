@@ -46,7 +46,7 @@ class SupabaseStorageService implements StorageServiceInterface
 
         $this->uploadRaw($key, $file);
 
-        return $this->generatePublicUrl($key, $bucket);
+        return $key;
     }
 
     public function uploadDocument(UploadedFile $file, string $bucket, ?string $path = null): string
@@ -57,7 +57,7 @@ class SupabaseStorageService implements StorageServiceInterface
 
         $this->uploadRaw($key, $file);
 
-        return $this->generatePublicUrl($key, $bucket);
+        return $key;
     }
 
     public function deleteFile(string $url): bool
@@ -130,7 +130,7 @@ class SupabaseStorageService implements StorageServiceInterface
     public function generatePublicUrl(string $key, string $bucket): string
     {
         if ($this->baseUrl) {
-            return $this->baseUrl . '/' . $bucket . '/' . ltrim($key, '/');
+            return $this->baseUrl . '/' . $bucket . '/' . $this->stripBucketFromKey($key, $bucket);
         }
 
         return "{$this->projectUrl}/storage/v1/object/public/{$bucket}/{$this->stripBucketFromKey($key, $bucket)}";

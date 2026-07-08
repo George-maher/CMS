@@ -8,6 +8,7 @@ import { getUnreadCount, listNotifications, markAsRead, markAllAsRead } from '@/
 import type { NotificationItem } from '@/types'
 import { getEvent } from '@/api/events'
 import Modal from '@/components/common/Modal'
+import { logCatch } from '@/lib/debug'
 
 interface Props {
   onMenuClick: () => void
@@ -88,14 +89,14 @@ export default function Header({ onMenuClick }: Props) {
     try {
       const count = await getUnreadCount()
       setUnreadCount(count)
-    } catch {}
+    } catch (e) { logCatch('Header.fetchUnreadCount', e) }
   }, [])
 
   const fetchNotifications = useCallback(async () => {
     try {
       const res = await listNotifications({ per_page: 10 })
       setNotifications(res.data ?? [])
-    } catch {}
+    } catch (e) { logCatch('Header.fetchNotifications', e) }
   }, [])
 
   useEffect(() => {
@@ -126,7 +127,7 @@ export default function Header({ onMenuClick }: Props) {
         setNotifications((prev) =>
           prev.map((n) => (n.id === notif.id ? { ...n, is_read: true, read_at: new Date().toISOString() } : n)),
         )
-      } catch {}
+      } catch (e) { logCatch('Header.markAsRead', e) }
     }
     setShowPanel(false)
 
@@ -146,7 +147,7 @@ export default function Header({ onMenuClick }: Props) {
           const event = await getEvent(notif.event_id)
           setViewingEvent({ id: event.id, name: event.name, description: event.description, event_date: event.event_date, location: event.location })
           setEventModalOpen(true)
-        } catch {}
+        } catch (e) { logCatch('Header.getEvent', e) }
       }
     }
   }
@@ -156,7 +157,7 @@ export default function Header({ onMenuClick }: Props) {
       await markAllAsRead()
       setUnreadCount(0)
       setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true, read_at: new Date().toISOString() })))
-    } catch {}
+    } catch (e) { logCatch('Header.markAllAsRead', e) }
   }
 
   const getHomePath = () => {

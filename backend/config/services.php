@@ -2,6 +2,12 @@
 
 return [
 
+    /*
+    |--------------------------------------------------------------------------
+    | Third Party Services
+    |--------------------------------------------------------------------------
+    */
+
     'postmark' => [
         'key' => env('POSTMARK_API_KEY'),
     ],
@@ -17,23 +23,33 @@ return [
         ],
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Platform Admin
+    |--------------------------------------------------------------------------
+    */
+
     'platform_admin_login_path' => env('PLATFORM_ADMIN_LOGIN_PATH', 'platform-secure-admin-login'),
 
     /*
     |--------------------------------------------------------------------------
-    | Supabase
+    | Support Contact
+    |--------------------------------------------------------------------------
+    */
+
+    'support_phone' => env('SUPPORT_PHONE', '+201234567890'),
+    'support_email' => env('SUPPORT_EMAIL', 'support@churchmanager.app'),
+
+    /*
+    |--------------------------------------------------------------------------
+    | CORS Allowed Origins
     |--------------------------------------------------------------------------
     |
-    | Native Supabase Storage API configuration.
-    | Uses REST API directly — no S3-compatible layer.
+    | Comma-separated list of origins allowed to access the API.
+    | Used by config/cors.php.
     |
     */
 
-    'supabase' => [
-        'url' => env('SUPABASE_URL'),
-        'anon_key' => env('SUPABASE_ANON_KEY'),
-        'service_role_key' => env('SUPABASE_SERVICE_ROLE_KEY'),
-        'storage_url' => env('SUPABASE_STORAGE_URL'),
-    ],
+    'cors_allowed_origins' => env('CORS_ALLOWED_ORIGINS', env('FRONTEND_URL', 'http://localhost:3000')),
 
 ];

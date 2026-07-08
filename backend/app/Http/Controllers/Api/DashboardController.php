@@ -7,53 +7,54 @@ use App\Http\Controllers\Controller;
 use App\Models\Attendance;
 use App\Models\Point;
 use App\Models\User;
+use App\Services\CacheService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
+    public function __construct(
+        private readonly CacheService $cacheService,
+    ) {}
+
     public function stats(Request $request): JsonResponse
     {
         $user = $request->user();
         $churchId = $user->church_id;
 
-        $query = User::query();
-        if ($churchId) {
-            $query->where('church_id', $churchId);
-        }
+        $data = $this->cacheService->rememberDashboardStats($churchId ?: 0, function () use ($churchId) {
+            $query = User::query();
+            if ($churchId) {
+                $query->where('church_id', $churchId);
+            }
 
-        $totalMembers = (clone $query)->where('role', UserRole::Member)->count();
-        $activeMembers = (clone $query)->where('role', UserRole::Member)
-            ->where('is_active', true)
-            ->count();
-        $totalServants = (clone $query)->whereIn('role', [UserRole::Servant])
-            ->count();
+            $memberQuery = (clone $query)->where('role', UserRole::Member);
+            $totalMembers = (clone $memberQuery)->count();
+            $activeMembers = (clone $memberQuery)->where('is_active', true)->count();
+            $totalMembersManaged = (clone $memberQuery)->whereNotNull('servant_id')->count();
 
-        $totalAttendances = Attendance::whereHas('user', function ($q) use ($churchId) {
-            if ($churchId) $q->where('church_id', $churchId);
-        })->count();
+            $totalServants = (clone $query)->where('role', UserRole::Servant)->count();
 
-        $totalPoints = Point::whereHas('user', function ($q) use ($churchId) {
-            if ($churchId) $q->where('church_id', $churchId);
-        })->sum('points');
-
-        $totalMembersManaged = User::where('role', UserRole::Member)
-            ->where(function ($q) use ($churchId) {
+            $totalAttendances = Attendance::whereHas('user', function ($q) use ($churchId) {
                 if ($churchId) $q->where('church_id', $churchId);
-            })
-            ->whereNotNull('servant_id')
-            ->count();
+            })->count();
 
-        return response()->json([
-            'data' => [
+            $totalPoints = Point::whereHas('user', function ($q) use ($churchId) {
+                if ($churchId) $q->where('church_id', $churchId);
+            })->sum('points');
+
+            return [
                 'total_members' => $totalMembers,
                 'active_members' => $activeMembers,
+                'total_servants' => $totalServants,
                 'total_attendances' => $totalAttendances,
                 'total_points' => $totalPoints,
-                'total_servants' => $totalServants,
                 'total_members_managed' => $totalMembersManaged,
-            ],
+            ];
+        });
+
+        return response()->json([
+            'data' => $data,
         ]);
     }
 }

@@ -9,6 +9,7 @@ import LoadingSpinner from '@/components/common/LoadingSpinner'
 import Badge from '@/components/common/Badge'
 import StatCard from '@/components/common/StatCard'
 import AttendanceFilter, { type AttendanceFilterValues } from '@/components/common/AttendanceFilter'
+import { logCatch } from '@/lib/debug'
 
 export default function AbsentMembers() {
   const { t } = useTranslation()
@@ -50,7 +51,8 @@ export default function AbsentMembers() {
         date_to: filterValues.dateTo || undefined,
       })
       setResult(res)
-    } catch {
+    } catch (e) {
+      logCatch('AbsentMembers.fetch', e)
       toast.error(t('absentMembers.fetchFailed'))
     } finally {
       setLoading(false)

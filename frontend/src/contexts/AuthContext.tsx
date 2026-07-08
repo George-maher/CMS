@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
 import type { LoginPayload, RegisterPayload, User } from '@/types'
 import * as authApi from '@/api/auth'
+import { logCatch } from '@/lib/debug'
 
 interface AuthContextType {
   user: User | null
@@ -20,7 +21,8 @@ function decodeUser(): User | null {
   try {
     const raw = localStorage.getItem('auth_user')
     return raw ? (JSON.parse(raw) as User) : null
-  } catch {
+  } catch (e) {
+    logCatch('AuthContext.decodeUser', e)
     return null
   }
 }
@@ -41,7 +43,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUser(u)
           localStorage.setItem('auth_user', JSON.stringify(u))
         })
-        .catch(() => {
+        .catch((e) => {
+          logCatch('AuthContext.getMe', e)
           validatedRef.current = true
           setToken(null)
           setUser(null)
@@ -80,8 +83,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = async () => {
     try {
       await authApi.logout()
-    } catch {
-      // Ignore logout errors
+    } catch (e) {
+      logCatch('AuthContext.logout', e)
     }
     setToken(null)
     setUser(null)

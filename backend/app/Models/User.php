@@ -7,7 +7,6 @@ use App\Traits\AuditableTrait;
 use App\Traits\HasPermissions;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -262,8 +261,7 @@ class User extends Authenticatable
 
         static::created(function (User $user) {
             if ($user->role === UserRole::Member && empty($user->member_id)) {
-                $seq = DB::select("SELECT nextval('users_member_id_seq') AS seq");
-                $num = str_pad((int) ($seq[0]->seq ?? $user->id), 6, '0', STR_PAD_LEFT);
+                $num = str_pad((int) $user->id, 6, '0', STR_PAD_LEFT);
                 $memberId = 'MBR-' . $num;
                 $user->forceFill(['member_id' => $memberId])->saveQuietly();
             }

@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Contracts\ChurchApplicationServiceInterface;
 use App\Contracts\FileUploadServiceInterface;
 use App\Enums\UserRole;
 use App\Models\Church;
@@ -16,19 +17,37 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
-class ChurchApplicationService
+class ChurchApplicationService implements ChurchApplicationServiceInterface
 {
     public function __construct(
         private readonly FileUploadServiceInterface $fileUploadService,
         private readonly AuditService $auditService,
     ) {}
 
+    public function findByEmail(string $email): ?ChurchApplication
+    {
+        return ChurchApplication::where('contact_email', $email)->first();
+    }
+
     public function submit(array $data, ?UploadedFile $frontId, ?UploadedFile $backId, string $email, string $password, ?UploadedFile $churchPermissionDoc = null): array
+    {
+        $existing = $this->findByEmail($email);
+
+        if ($existing) {
+            return $this->updateExisting($existing, $data, $frontId, $backId, $churchPermissionDoc);
+        }
+
+        return $this->createNew($data, $frontId, $backId, $email, $password, $churchPermissionDoc);
+    }
+
+    private function createNew(array $data, ?UploadedFile $frontId, ?UploadedFile $backId, string $email, string $password, ?UploadedFile $churchPermissionDoc = null): array
     {
         return DB::transaction(function () use ($data, $frontId, $backId, $email, $password, $churchPermissionDoc) {
             $application = ChurchApplication::create([
                 'church_name' => $data['church_name'],
+                'service_name' => $data['service_name'] ?? null,
                 'priest_name' => $data['priest_name'],
+                'priest_phone' => $data['phone'] ?? null,
                 'main_servant_name' => $data['main_servant_name'] ?? null,
                 'phone' => $data['phone'] ?? null,
                 'address' => $data['address'],
@@ -36,22 +55,7 @@ class ChurchApplicationService
                 'status' => 'pending',
             ]);
 
-            $idType = $data['id_type'] ?? 'national_id';
-
-            if ($idType === 'national_id') {
-                if ($frontId) {
-                    $path = $this->fileUploadService->uploadIdImage($frontId, (string) $application->id);
-                    $application->update(['front_id_path' => $path]);
-                }
-
-                if ($backId) {
-                    $path = $this->fileUploadService->uploadIdImage($backId, (string) $application->id);
-                    $application->update(['back_id_path' => $path]);
-                }
-            } elseif ($idType === 'church_permission' && $churchPermissionDoc) {
-                $path = $this->fileUploadService->uploadDocumentFile($churchPermissionDoc, (string) $application->id);
-                $application->update(['church_permission_doc_path' => $path]);
-            }
+            $this->uploadApplicationFiles($application, $data, $frontId, $backId, $churchPermissionDoc);
 
             $user = User::create([
                 'church_application_id' => $application->id,
@@ -70,28 +74,117 @@ class ChurchApplicationService
                 newValues: ['church_name' => $data['church_name'], 'status' => 'pending'],
             );
 
-            try {
-                $platformAdmins = User::where('role', UserRole::PlatformAdmin)->get();
-                foreach ($platformAdmins as $admin) {
-                    $admin->notify(new NewChurchApplicationNotification($application));
-                }
-            } catch (\Exception $e) {
-                \Illuminate\Support\Facades\Log::warning('Failed to notify platform admins', [
-                    'application_id' => $application->id,
-                    'error' => $e->getMessage(),
-                ]);
-            }
+            $this->notifyPlatformAdmins($application);
 
             return [
                 'application' => $application,
                 'user' => $user,
+                'is_update' => false,
             ];
         });
+    }
+
+    private function updateExisting(ChurchApplication $application, array $data, ?UploadedFile $frontId, ?UploadedFile $backId, ?UploadedFile $churchPermissionDoc = null): array
+    {
+        return DB::transaction(function () use ($application, $data, $frontId, $backId, $churchPermissionDoc) {
+            $oldValues = $application->toArray();
+
+            $application->update([
+                'church_name' => $data['church_name'],
+                'service_name' => $data['service_name'] ?? $application->service_name,
+                'priest_name' => $data['priest_name'],
+                'priest_phone' => $data['phone'] ?? $application->priest_phone,
+                'main_servant_name' => $data['main_servant_name'] ?? $application->main_servant_name,
+                'phone' => $data['phone'] ?? $application->phone,
+                'address' => $data['address'],
+            ]);
+
+            if ($application->status === 'rejected') {
+                $application->update([
+                    'status' => 'pending',
+                    'rejection_reason' => null,
+                    'rejected_at' => null,
+                    'reviewed_by' => null,
+                    'reviewed_at' => null,
+                ]);
+
+                User::where('church_application_id', $application->id)->update([
+                    'application_status' => 'pending',
+                ]);
+            }
+
+            $this->uploadApplicationFiles($application, $data, $frontId, $backId, $churchPermissionDoc);
+
+            $this->auditService->log(
+                action: 'church_application_updated',
+                resourceType: 'church_application',
+                resourceId: $application->id,
+                oldValues: $oldValues,
+                newValues: ['church_name' => $data['church_name'], 'status' => $application->status],
+            );
+
+            $user = User::where('church_application_id', $application->id)->first();
+
+            return [
+                'application' => $application->fresh(),
+                'user' => $user,
+                'is_update' => true,
+            ];
+        });
+    }
+
+    private function uploadApplicationFiles(ChurchApplication $application, array $data, ?UploadedFile $frontId, ?UploadedFile $backId, ?UploadedFile $churchPermissionDoc = null): void
+    {
+        $idType = $data['id_type'] ?? 'national_id';
+        $previousIdType = $application->church_permission_doc_path ? 'church_permission' : ($application->front_id_path ? 'national_id' : null);
+
+        if ($idType === 'national_id') {
+            if ($frontId) {
+                if ($application->front_id_path) {
+                    $this->fileUploadService->delete($application->front_id_path);
+                }
+                $path = $this->fileUploadService->uploadIdImage($frontId, (string) $application->id);
+                $application->update(['front_id_path' => $path]);
+            }
+
+            if ($backId) {
+                if ($application->back_id_path) {
+                    $this->fileUploadService->delete($application->back_id_path);
+                }
+                $path = $this->fileUploadService->uploadIdImage($backId, (string) $application->id);
+                $application->update(['back_id_path' => $path]);
+            }
+
+            if ($previousIdType === 'church_permission' && $application->church_permission_doc_path) {
+                $this->fileUploadService->delete($application->church_permission_doc_path);
+                $application->update(['church_permission_doc_path' => null]);
+            }
+        } elseif ($idType === 'church_permission' && $churchPermissionDoc) {
+            if ($application->church_permission_doc_path) {
+                $this->fileUploadService->delete($application->church_permission_doc_path);
+            }
+            $path = $this->fileUploadService->uploadDocumentFile($churchPermissionDoc, (string) $application->id);
+            $application->update(['church_permission_doc_path' => $path]);
+
+            if ($previousIdType === 'national_id') {
+                if ($application->front_id_path) {
+                    $this->fileUploadService->delete($application->front_id_path);
+                    $application->update(['front_id_path' => null]);
+                }
+                if ($application->back_id_path) {
+                    $this->fileUploadService->delete($application->back_id_path);
+                    $application->update(['back_id_path' => null]);
+                }
+            }
+        }
     }
 
     public function uploadIdImage(ChurchApplication $application, string $side, UploadedFile $image): ChurchApplication
     {
         $field = $side === 'front' ? 'front_id_path' : 'back_id_path';
+        if ($application->$field) {
+            $this->fileUploadService->delete($application->$field);
+        }
         $path = $this->fileUploadService->uploadIdImage($image, (string) $application->id);
         $application->update([$field => $path]);
         return $application->fresh();
@@ -101,7 +194,7 @@ class ChurchApplicationService
     {
         if ($application->status !== 'pending') {
             throw ValidationException::withMessages([
-                'application' => ['This application has already been ' . $application->status . '.'],
+                'application' => [__('church_application.already_processed', ['status' => $application->status])],
             ]);
         }
 
@@ -171,7 +264,7 @@ class ChurchApplicationService
     {
         if ($application->status !== 'pending') {
             throw ValidationException::withMessages([
-                'application' => ['This application has already been ' . $application->status . '.'],
+                'application' => [__('church_application.already_processed', ['status' => $application->status])],
             ]);
         }
 
@@ -182,6 +275,7 @@ class ChurchApplicationService
                 'status' => 'rejected',
                 'reviewed_by' => $platformAdmin->id,
                 'reviewed_at' => now(),
+                'rejected_at' => now(),
                 'rejection_reason' => $reason,
             ]);
 
@@ -224,5 +318,20 @@ class ChurchApplicationService
         }
 
         return $query->orderBy('created_at', 'desc')->paginate($perPage);
+    }
+
+    private function notifyPlatformAdmins(ChurchApplication $application): void
+    {
+        try {
+            $platformAdmins = User::where('role', UserRole::PlatformAdmin)->get();
+            foreach ($platformAdmins as $admin) {
+                $admin->notify(new NewChurchApplicationNotification($application));
+            }
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::warning('Failed to notify platform admins', [
+                'application_id' => $application->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 }

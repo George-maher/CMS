@@ -14,7 +14,7 @@ class PendingDashboardController extends Controller
     {
         $user = $request->user();
 
-        $application = ChurchApplication::find($user->church_application_id);
+        $application = ChurchApplication::with('reviewer')->find($user->church_application_id);
 
         return response()->json([
             'data' => [

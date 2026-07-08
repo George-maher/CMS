@@ -37,6 +37,7 @@ import { getUser, updateUser, deleteUser, promoteToAdmin, demoteFromAdmin } from
 import { getAttendanceStats } from '@/api/attendance'
 import { getUserBalance, addBonusPoints } from '@/api/points'
 import { roleBadgeVariant, roleTranslationKey } from '@/lib/roles'
+import { logCatch } from '@/lib/debug'
 import QRCodeLib from 'qrcode'
 
 function InfoRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: React.ReactNode | string | null | undefined }) {
@@ -96,14 +97,14 @@ export default function AdminUserDetail() {
     const userId = Number(id)
     setLoading(true)
     Promise.all([
-      getUser(userId).catch(() => null),
-      getAttendanceStats(userId).catch(() => ({ total_attendances: 0, this_month: 0 })),
-      getUserBalance(userId).catch(() => 0),
+      getUser(userId).catch((e) => { logCatch('UserDetail.getUser', e); return null }),
+      getAttendanceStats(userId).catch((e) => { logCatch('UserDetail.getAttendanceStats', e); return ({ total_attendances: 0, this_month: 0 }) }),
+      getUserBalance(userId).catch((e) => { logCatch('UserDetail.getUserBalance', e); return 0 }),
     ]).then(([u, s, b]) => {
       if (u) {
         setUser(u)
         if (u.attendance_qr_token) {
-          QRCodeLib.toDataURL(u.attendance_qr_token, { width: 300, margin: 2 }).then(setQrDataUrl).catch(() => {})
+          QRCodeLib.toDataURL(u.attendance_qr_token, { width: 300, margin: 2 }).then(setQrDataUrl).catch((e) => logCatch('UserDetail.qrCode', e))
         }
       }
       if (s) setStats(s)
@@ -117,16 +118,20 @@ export default function AdminUserDetail() {
   const isAdmin = user.role === 'admin' || user.role === 'platform_admin'
 
   const handleToggleActive = async () => {
-    await updateUser(user.id, { is_active: !user.is_active })
-    setUser({ ...user, is_active: !user.is_active })
-    toast.success(user.is_active ? t('users.deactivated') : t('users.activated'))
+    try {
+      await updateUser(user.id, { is_active: !user.is_active })
+      setUser({ ...user, is_active: !user.is_active })
+      toast.success(user.is_active ? t('users.deactivated') : t('users.activated'))
+    } catch (e) { logCatch('UserDetail.toggleActive', e); toast.error(t('common.saving')) }
   }
 
   const handleDelete = async () => {
     if (window.confirm(t('users.deleteConfirm', { name: user.name }))) {
-      await deleteUser(user.id)
-      toast.success(t('users.deleted'))
-      navigate('/admin/users')
+      try {
+        await deleteUser(user.id)
+        toast.success(t('users.deleted'))
+        navigate('/admin/users')
+      } catch (e) { logCatch('UserDetail.delete', e); toast.error(t('common.saving')) }
     }
   }
 

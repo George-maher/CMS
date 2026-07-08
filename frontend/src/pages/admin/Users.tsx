@@ -13,6 +13,8 @@ import type { CreateUserPayload, User, UserRole } from '@/types'
 import { listUsers, createUser } from '@/api/users'
 import { listAllClasses } from '@/api/structure'
 import { roleBadgeVariant, roleTranslationKey } from '@/lib/roles'
+import { validatePhone as validatePhoneUtil, filterPhoneInput } from '@/lib/phoneValidation'
+import { logCatch } from '@/lib/debug'
 
 export default function AdminUsers() {
   const { t } = useTranslation()
@@ -72,17 +74,15 @@ export default function AdminUsers() {
     return () => { if (searchTimeout.current) clearTimeout(searchTimeout.current) }
   }, [search, fetchUsers])
 
-  useEffect(() => { listAllClasses().then(setClasses).catch(() => {}) }, [])
+  useEffect(() => { listAllClasses().then(setClasses).catch((e) => logCatch('AdminUsers.listAllClasses', e)) }, [])
 
   const validatePhone = (phone: string | null | undefined): string => {
     if (!phone) return ''
-    if (!/^[0-9]+$/.test(phone)) return t('validation.phoneOnlyNumbers')
-    if (phone.length !== 11) return t('validation.phoneExact11')
-    return ''
+    return validatePhoneUtil(phone, t)
   }
 
   const handlePhoneChange = (value: string) => {
-    const digits = value.replace(/[^0-9]/g, '')
+    const digits = filterPhoneInput(value)
     setForm({ ...form, phone: digits })
     if (digits && validatePhone(digits)) {
       setPhoneError(validatePhone(digits))
@@ -179,7 +179,7 @@ export default function AdminUsers() {
           </div>
           <div>
             <label className="label">{t('auth.phone')}</label>
-            <input placeholder={t('users.phonePlaceholder')} value={form.phone ?? ''} onChange={(e) => handlePhoneChange(e.target.value)} onBlur={() => setPhoneError(validatePhone(form.phone))}
+            <input type="tel" inputMode="numeric" placeholder={t('users.phonePlaceholder')} value={form.phone ?? ''} onChange={(e) => handlePhoneChange(e.target.value)} onBlur={() => setPhoneError(validatePhone(form.phone))}
               className={`input-field w-full ${phoneError ? 'error' : ''}`} autoComplete="tel" />
             {phoneError && <p className="form-error flex items-center gap-1 mt-1"><span className="text-danger">⚠</span> {phoneError}</p>}
           </div>

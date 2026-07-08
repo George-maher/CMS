@@ -3,9 +3,9 @@ import { useTranslation } from 'react-i18next'
 import toast from 'react-hot-toast'
 import {
   Trash2, AlertTriangle, Building2, Users, Calendar, ClipboardList,
-  MessageSquare, Target, Eye, Bell, BookOpen, UserPlus, Shield,
-  Trophy, Layers, QrCode, FileText, Clock, RotateCcw, RefreshCw,
-  Key, User, ShieldAlert,
+  MessageSquare, Target, Eye, EyeOff, Bell, BookOpen, UserPlus, Shield,
+  Trophy, Layers, QrCode, FileText, Clock,
+  Key, User,
 } from 'lucide-react'
 import LoadingSpinner from '@/components/common/LoadingSpinner'
 import Modal from '@/components/common/Modal'
@@ -13,7 +13,7 @@ import Badge from '@/components/common/Badge'
 import type { ChurchDeletionSummary } from '@/types'
 import client from '@/api/client'
 import {
-  getDeletionSummary, softDeleteChurch, hardDeleteChurch, restoreChurch,
+  getDeletionSummary, softDeleteChurch,
 } from '@/api/churches'
 
 interface ChurchItem {
@@ -39,7 +39,7 @@ interface DeletedChurchInfo {
   recoverable_until?: string | null
 }
 
-type ModalMode = 'soft-delete' | 'hard-delete' | 'restore' | null
+type ModalMode = 'soft-delete' | null
 
 export default function ChurchDeletion() {
   const { t } = useTranslation()
@@ -48,10 +48,10 @@ export default function ChurchDeletion() {
   const [loading, setLoading] = useState(true)
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const [summary, setSummary] = useState<ChurchDeletionSummary | null>(null)
-  const [deletedInfo, setDeletedInfo] = useState<DeletedChurchInfo | null>(null)
   const [summaryLoading, setSummaryLoading] = useState(false)
   const [confirmation, setConfirmation] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [actionLoading, setActionLoading] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
   const [modalMode, setModalMode] = useState<ModalMode>(null)
@@ -69,7 +69,7 @@ export default function ChurchDeletion() {
         is_recoverable: c.is_recoverable,
         days_until_purge: c.days_until_purge,
         recoverable_until: c.recoverable_until,
-      })))
+      } as DeletedChurchInfo)))
     } catch { /* ignore */ }
     finally { setLoading(false) }
   }
@@ -86,18 +86,6 @@ export default function ChurchDeletion() {
     try {
       const data = await getDeletionSummary(churchId)
       setSummary(data)
-      if (data.already_deleted) {
-        setDeletedInfo({
-          id: data.church_id,
-          name: data.church_name,
-          deleted_at: data.deleted_at,
-          is_recoverable: data.is_recoverable,
-          days_until_purge: data.days_until_purge,
-          recoverable_until: data.recoverable_until,
-        })
-      } else {
-        setDeletedInfo(null)
-      }
     } catch {
       toast.error(t('common.failedToLoad'))
       setModalOpen(false)
@@ -113,7 +101,6 @@ export default function ChurchDeletion() {
     setSelectedId(null)
     setModalMode(null)
     setSummary(null)
-    setDeletedInfo(null)
   }
 
   const handleAction = async () => {
@@ -123,12 +110,6 @@ export default function ChurchDeletion() {
       if (modalMode === 'soft-delete') {
         await softDeleteChurch(selectedId, confirmation, password)
         toast.success(t('churchDeletion.softDeleted'))
-      } else if (modalMode === 'hard-delete') {
-        await hardDeleteChurch(selectedId, confirmation, password)
-        toast.success(t('churchDeletion.hardDeleted'))
-      } else if (modalMode === 'restore') {
-        await restoreChurch(selectedId, confirmation, password)
-        toast.success(t('churchDeletion.restored'))
       }
       closeModal()
       await fetchChurches()
@@ -141,21 +122,13 @@ export default function ChurchDeletion() {
   }
 
   const getModalTitle = () => {
-    switch (modalMode) {
-      case 'soft-delete': return t('churchDeletion.softDeleteTitle')
-      case 'hard-delete': return t('churchDeletion.hardDeleteTitle')
-      case 'restore': return t('churchDeletion.restoreTitle')
-      default: return ''
-    }
+    if (modalMode === 'soft-delete') return t('churchDeletion.softDeleteTitle')
+    return ''
   }
 
   const getModalButtonLabel = () => {
-    switch (modalMode) {
-      case 'soft-delete': return t('churchDeletion.confirmSoftDelete')
-      case 'hard-delete': return t('churchDeletion.confirmHardDelete')
-      case 'restore': return t('churchDeletion.confirmRestore')
-      default: return ''
-    }
+    if (modalMode === 'soft-delete') return t('churchDeletion.confirmSoftDelete')
+    return ''
   }
 
   const summaryItem = (icon: React.ReactNode, label: string, count: number | undefined) => (
@@ -225,23 +198,12 @@ export default function ChurchDeletion() {
                   <p className="font-medium text-muted line-through">{church.name}</p>
                   <div className="flex items-center gap-2 mt-1">
                     <Badge variant="danger">{t('churchDeletion.deleted')}</Badge>
+                    {church.deleted_at && (
+                      <span className="text-xs text-muted">
+                        {new Date(church.deleted_at).toLocaleDateString()}
+                      </span>
+                    )}
                   </div>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <button
-                    onClick={() => openModal(church.id, 'restore')}
-                    className="btn-primary btn-sm"
-                  >
-                    <RefreshCw className="h-4 w-4" />
-                    {t('churchDeletion.restore')}
-                  </button>
-                  <button
-                    onClick={() => openModal(church.id, 'hard-delete')}
-                    className="btn-ghost btn-sm text-danger"
-                  >
-                    <RotateCcw className="h-4 w-4" />
-                    {t('churchDeletion.permanentPurge')}
-                  </button>
                 </div>
               </div>
             ))}
@@ -269,7 +231,7 @@ export default function ChurchDeletion() {
             <button
               onClick={handleAction}
               disabled={actionLoading || confirmation !== 'DELETE CHURCH' || !password.trim()}
-              className={`flex-1 btn-md ${modalMode === 'restore' ? 'btn-primary' : 'btn-danger'}`}
+              className="flex-1 btn-md btn-danger"
             >
               {actionLoading ? t('common.saving') : getModalButtonLabel()}
             </button>
@@ -280,47 +242,13 @@ export default function ChurchDeletion() {
           <LoadingSpinner className="py-10" />
         ) : summary ? (
           <div className="space-y-4">
-            {modalMode === 'soft-delete' && (
-              <div className="flex items-center gap-3 rounded-lg border border-danger/20 bg-danger-light/50 p-4">
-                <AlertTriangle className="h-6 w-6 text-danger shrink-0" />
-                <div>
-                  <p className="font-semibold text-danger">{t('churchDeletion.warningTitle')}</p>
-                  <p className="text-sm text-danger-dark">{t('churchDeletion.warningDescription')}</p>
-                </div>
+            <div className="flex items-center gap-3 rounded-lg border border-danger/20 bg-danger-light/50 p-4">
+              <AlertTriangle className="h-6 w-6 text-danger shrink-0" />
+              <div>
+                <p className="font-semibold text-danger">{t('churchDeletion.warningTitle')}</p>
+                <p className="text-sm text-danger-dark">{t('churchDeletion.warningDescription')}</p>
               </div>
-            )}
-
-            {modalMode === 'hard-delete' && (
-              <div className="flex items-center gap-3 rounded-lg border border-danger/20 bg-danger-light/50 p-4">
-                <ShieldAlert className="h-6 w-6 text-danger shrink-0" />
-                <div>
-                  <p className="font-semibold text-danger">{t('churchDeletion.hardWarningTitle')}</p>
-                  <p className="text-sm text-danger-dark">{t('churchDeletion.hardWarningDescription')}</p>
-                </div>
-              </div>
-            )}
-
-            {modalMode === 'restore' && deletedInfo?.is_recoverable && (
-              <div className="flex items-center gap-3 rounded-lg border border-success/20 bg-success-light/50 p-4">
-                <RefreshCw className="h-6 w-6 text-success shrink-0" />
-                <div>
-                  <p className="font-semibold text-success">{t('churchDeletion.restoreInfo')}</p>
-                  <p className="text-sm text-success-dark">
-                    {t('churchDeletion.recoveryExpires')}: {deletedInfo.days_until_purge != null ? t('churchDeletion.daysRemaining', { count: deletedInfo.days_until_purge }) : '-'}
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {modalMode === 'restore' && deletedInfo && !deletedInfo.is_recoverable && (
-              <div className="flex items-center gap-3 rounded-lg border border-danger/20 bg-danger-light/50 p-4">
-                <Clock className="h-6 w-6 text-danger shrink-0" />
-                <div>
-                  <p className="font-semibold text-danger">{t('churchDeletion.recoveryExpired')}</p>
-                  <p className="text-sm text-danger-dark">{t('churchDeletion.recoveryExpiredDescription')}</p>
-                </div>
-              </div>
-            )}
+            </div>
 
             <div className="rounded-lg border border-border p-4">
               <h3 className="flex items-center gap-2 font-semibold text-lg mb-3">
@@ -358,28 +286,31 @@ export default function ChurchDeletion() {
               </div>
             </div>
 
-            {deletedInfo?.recoverable_until && (
-              <div className="rounded-lg bg-surface-secondary px-4 py-3 flex items-center justify-between">
-                <span className="text-sm text-muted">{t('churchDeletion.recoverableUntil')}</span>
-                <span className="text-sm font-medium">{new Date(deletedInfo.recoverable_until).toLocaleDateString()}</span>
-              </div>
-            )}
-
             <div className="rounded-lg border border-border p-4 space-y-4">
               <div>
                 <label className="text-sm font-medium text-danger flex items-center gap-2">
                   <Key className="h-4 w-4" />
                   {t('churchDeletion.confirmPassword')} <span className="text-danger">*</span>
                 </label>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder={t('churchDeletion.passwordPlaceholder')}
-                  className="input-field mt-1"
-                  autoComplete="off"
-                  autoFocus
-                />
+                <div className="relative mt-1">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder={t('churchDeletion.passwordPlaceholder')}
+                    className="input-field w-full pr-10"
+                    autoComplete="off"
+                    autoFocus
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute inset-y-0 right-0 flex items-center pr-3 text-muted hover:text-secondary"
+                    tabIndex={-1}
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
               </div>
               <div>
                 <label className="text-sm font-medium text-danger">

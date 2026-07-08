@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import toast from 'react-hot-toast'
 import { Church, Eye, EyeOff, Loader2, ArrowLeft, AlertCircle } from 'lucide-react'
 import { completePasswordReset } from '@/api/passwordResetRequests'
+import { logCatch } from '@/lib/debug'
 
 export default function ResetPasswordFromRequest() {
   const { t } = useTranslation()
@@ -79,6 +80,7 @@ export default function ResetPasswordFromRequest() {
       toast.success(t('auth.resetPasswordSuccess'))
       setTimeout(() => navigate('/login'), 3000)
     } catch (err: unknown) {
+      logCatch('ResetPasswordFromRequest.submit', err)
       const axiosErr = err as { response?: { data?: { errors?: Record<string, string[]>; message?: string } } }
       const msg = axiosErr?.response?.data?.errors
         ? Object.values(axiosErr.response.data.errors).flat().join(', ')
@@ -151,7 +153,7 @@ export default function ResetPasswordFromRequest() {
                     onChange={(e) => handlePasswordChange(e.target.value)}
                     onBlur={() => setPasswordError(validatePassword(password))}
                     required
-                    className={`input-field${passwordError ? ' border-red-500 focus:border-red-500 focus:ring-red-500/30' : ''}`}
+                    className={`input-field pr-10${passwordError ? ' border-red-500 focus:border-red-500 focus:ring-red-500/30' : ''}`}
                     placeholder={t('auth.passwordPlaceholder')}
                     autoComplete="new-password"
                   />
@@ -180,7 +182,7 @@ export default function ResetPasswordFromRequest() {
                     onChange={(e) => handleConfirmChange(e.target.value)}
                     onBlur={() => setConfirmError(validateConfirm(confirmPassword, password))}
                     required
-                    className={`input-field${confirmError ? ' border-red-500 focus:border-red-500 focus:ring-red-500/30' : ''}`}
+                    className={`input-field pr-10${confirmError ? ' border-red-500 focus:border-red-500 focus:ring-red-500/30' : ''}`}
                     placeholder={t('auth.confirmPasswordPlaceholder')}
                     autoComplete="new-password"
                   />

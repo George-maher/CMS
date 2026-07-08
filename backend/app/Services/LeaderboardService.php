@@ -64,7 +64,7 @@ class LeaderboardService implements LeaderboardServiceInterface
 
     public function stagesLeaderboards(): array
     {
-        return $this->cacheService->rememberDashboardStats(
+        return $this->cacheService->rememberStagesLeaderboards(
             auth()->user()->church_id,
             function () {
                 $stages = Stage::byChurch()

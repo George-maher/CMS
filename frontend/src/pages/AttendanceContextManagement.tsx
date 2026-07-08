@@ -10,6 +10,7 @@ import {
   deleteContext,
   type AttendanceContextFormData,
 } from '@/api/attendanceContexts'
+import { logCatch } from '@/lib/debug'
 import LoadingSpinner from '@/components/common/LoadingSpinner'
 import Modal from '@/components/common/Modal'
 import Badge from '@/components/common/Badge'
@@ -32,7 +33,8 @@ export default function AttendanceContextManagement() {
       const res = await getContextsForManagement({ page, per_page: 20 })
       setContexts(res.data)
       setMeta(res.meta)
-    } catch {
+    } catch (e) {
+      logCatch('AttendanceContextManagement.fetch', e)
       toast.error(t('common.failedToLoad'))
     } finally {
       setLoading(false)
@@ -83,7 +85,8 @@ export default function AttendanceContextManagement() {
       await toggleContextActive(ctx.id)
       toast.success(ctx.is_active ? t('context.archived') : t('context.activated'))
       fetchContexts(meta.current_page)
-    } catch {
+    } catch (e) {
+      logCatch('AttendanceContextManagement.toggleActive', e)
       toast.error(t('common.failedToSave'))
     }
   }
@@ -94,7 +97,8 @@ export default function AttendanceContextManagement() {
       await deleteContext(ctx.id)
       toast.success(t('context.deleted'))
       fetchContexts(meta.current_page)
-    } catch {
+    } catch (e) {
+      logCatch('AttendanceContextManagement.delete', e)
       toast.error(t('common.failedToSave'))
     }
   }

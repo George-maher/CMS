@@ -18,8 +18,8 @@ const InviteLanding = lazy(() => import('@/pages/auth/InviteLanding'))
 const PlatformDashboard = lazy(() => import('@/pages/PlatformDashboard'))
 const PlatformApplicationDetail = lazy(() => import('@/pages/PlatformApplicationDetail'))
 const ChurchDeletion = lazy(() => import('@/pages/platform/ChurchDeletion'))
-const PendingDashboard = lazy(() => import('@/pages/PendingDashboard'))
-const RejectedDashboard = lazy(() => import('@/pages/RejectedDashboard'))
+const DeletedChurchesHistory = lazy(() => import('@/pages/platform/DeletedChurchesHistory'))
+const ApplicationStatus = lazy(() => import('@/pages/ApplicationStatus'))
 const NotFound = lazy(() => import('@/pages/NotFound'))
 const Forbidden = lazy(() => import('@/pages/Forbidden'))
 const ServerError = lazy(() => import('@/pages/ServerError'))
@@ -81,13 +81,15 @@ export default function App() {
               <Route path="/reset-password-request" element={<ResetPasswordFromRequest />} />
               <Route path="/verify-email" element={<VerifyEmail />} />
               <Route path="/chconfirmation777" element={<PlatformLogin />} />
-              <Route path="/pending" element={<PendingDashboard />} />
-              <Route path="/rejected" element={<RejectedDashboard />} />
+              <Route path="/application-status" element={<ApplicationStatus />} />
+              <Route path="/pending" element={<ApplicationStatus />} />
+              <Route path="/rejected" element={<ApplicationStatus />} />
 
               <Route element={<AppLayout allowedRoles={['platform_admin']} />}>
                 <Route path="/platform" element={<PlatformDashboard />} />
                 <Route path="/platform/applications/:id" element={<PlatformApplicationDetail />} />
                 <Route path="/platform/churches" element={<ChurchDeletion />} />
+                <Route path="/platform/churches/deleted-history" element={<DeletedChurchesHistory />} />
               </Route>
 
               <Route element={<AppLayout allowedRoles={['admin', 'assistant_admin']} />}>

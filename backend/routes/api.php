@@ -84,6 +84,8 @@ Route::prefix('v1')->group(function () {
     */
     Route::post('/church-applications', [ChurchApplicationController::class, 'store'])
         ->middleware('throttle:register');
+    Route::post('/church-applications/lookup', [ChurchApplicationController::class, 'lookup'])
+        ->middleware('throttle:register');
 
     /*
     | Active churches — public listing for join request form
@@ -131,8 +133,9 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:api'])->group(functio
         ->middleware('throttle:storage-upload');
 
     /*
-    | Pending Dashboard — any authenticated user
+    | Application Status — any authenticated user
     */
+    Route::get('/application/status', [PendingDashboardController::class, 'status']);
     Route::get('/pending/status', [PendingDashboardController::class, 'status']);
 
     /*
@@ -556,6 +559,9 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'role:' . UserRole::PlatformAdm
     /*
     | Churches — platform admin listing for deletion
     */
+    Route::get('/platform/churches/deleted-history', [ChurchDeletionController::class, 'deletedHistory']);
+    Route::get('/platform/churches/{id}/deleted-detail', [ChurchDeletionController::class, 'deletedDetail']);
+
     Route::get('/platform/churches', function () {
         $churches = \App\Models\Church::withTrashed()->withCount('users')->get();
 

@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import toast from 'react-hot-toast'
 import { Church, Loader2, ArrowLeft, Mail, AlertCircle, MessageSquare } from 'lucide-react'
 import { submitPasswordResetRequest } from '@/api/passwordResetRequests'
+import { logCatch } from '@/lib/debug'
 
 export default function ForgotPassword() {
   const { t } = useTranslation()
@@ -39,6 +40,7 @@ export default function ForgotPassword() {
       setSent(true)
       toast.success(t('auth.forgotPasswordSent'))
     } catch (err: unknown) {
+      logCatch('ForgotPassword.submit', err)
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || t('auth.forgotPasswordFailed')
       toast.error(msg)
     } finally {

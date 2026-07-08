@@ -295,34 +295,41 @@ class AttendanceController extends Controller
 
     public function absentMembers(Request $request): JsonResponse
     {
-        $validated = $request->validate([
-            'class_id' => ['required', 'integer', 'exists:classes,id'],
-            'event_id' => ['sometimes', 'integer', 'exists:events,id'],
-            'context_id' => ['sometimes', 'integer', 'exists:attendance_contexts,id'],
-            'date' => ['sometimes', 'date'],
-            'date_from' => ['sometimes', 'date'],
-            'date_to' => ['sometimes', 'date'],
-        ]);
+        if (!$request->has('class_id')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed.',
+                'errors' => ['class_id' => ['The class id field is required.']],
+                'code' => 'VALIDATION_ERROR',
+            ], 422);
+        }
+
+        $classYearId = (int) $request->input('class_id');
+        $eventId = $request->has('event_id') ? (int) $request->input('event_id') : null;
+        $contextId = $request->has('context_id') ? (int) $request->input('context_id') : null;
+        $date = $request->input('date');
+        $dateFrom = $request->input('date_from');
+        $dateTo = $request->input('date_to');
 
         $user = $request->user();
 
         // Servants: silently override to their assigned class — never error, always enforce
         if ($user->role === UserRole::Servant) {
             $servantClassIds = $user->getServantClassIds();
-            if (!empty($servantClassIds) && (empty($validated['class_id']) || !in_array((int) $validated['class_id'], $servantClassIds))) {
-                $validated['class_id'] = $servantClassIds[0];
+            if (!empty($servantClassIds) && (empty($classYearId) || !in_array($classYearId, $servantClassIds))) {
+                $classYearId = $servantClassIds[0];
             } elseif (empty($servantClassIds)) {
                 return response()->json(['data' => ['summary' => ['total_members' => 0, 'present_count' => 0, 'absent_count' => 0], 'absent_members' => []]]);
             }
         }
 
         $result = $this->attendanceService->getAbsentMembers(
-            classYearId: (int) $validated['class_id'],
-            eventId: isset($validated['event_id']) ? (int) $validated['event_id'] : null,
-            contextId: isset($validated['context_id']) ? (int) $validated['context_id'] : null,
-            date: $validated['date'] ?? null,
-            dateFrom: $validated['date_from'] ?? null,
-            dateTo: $validated['date_to'] ?? null,
+            classYearId: $classYearId,
+            eventId: $eventId,
+            contextId: $contextId,
+            date: $date,
+            dateFrom: $dateFrom,
+            dateTo: $dateTo,
         );
 
         return response()->json(['data' => $result]);

@@ -20,7 +20,8 @@ class ChurchFactory extends Factory
             'name' => $name,
             'slug' => Str::slug($name) . '-' . Str::random(6),
             'priest_name' => fake()->name(),
-            'priest_phone' => fake()->phoneNumber(),
+            'priest_phone' => '01' . fake()->numerify('#########'),
+            'phone' => '01' . fake()->numerify('#########'),
             'is_active' => true,
             'is_suspended' => false,
         ];

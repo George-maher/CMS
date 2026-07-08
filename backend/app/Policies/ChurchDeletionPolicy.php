@@ -32,4 +32,14 @@ class ChurchDeletionPolicy
     {
         return $user->role === UserRole::PlatformAdmin;
     }
+
+    public function viewDeletedHistory(User $user): bool
+    {
+        return $user->role === UserRole::PlatformAdmin;
+    }
+
+    public function viewDeletedDetail(User $user): bool
+    {
+        return $user->role === UserRole::PlatformAdmin;
+    }
 }

@@ -30,7 +30,8 @@
     "membershipRequests": "Join Requests",
     "passwordResetRequests": "Password Reset Requests",
     "leaderboard": "Leaderboard",
-    "churchManagement": "Church Management"
+    "churchManagement": "Church Management",
+    "deletedChurches": "Deleted Churches"
   },
   "common": {
     "overview": "Overview",
@@ -90,7 +91,8 @@
     "address": "Address",
     "whatsapp": "WhatsApp",
     "optional": "optional",
-    "remove": "Remove"
+    "remove": "Remove",
+    "clear": "Clear"
   },
   "auth": {
     "signIn": "Sign In",
@@ -107,6 +109,12 @@
     "noAccount": "Don't have an account?",
     "hasAccount": "Already have an account?",
     "loginFailed": "Login failed.",
+    "incorrectCredentials": "Incorrect email or password.",
+    "accountInactive": "Your account is currently inactive.",
+    "applicationPending": "Your application is currently under review.",
+    "applicationRejected": "Your application has been rejected.",
+    "accountSuspended": "Your account is temporarily unavailable. Please contact support.",
+    "churchDeleted": "This church has been removed from the platform.",
     "registerFailed": "Registration failed.",
     "inviteExpired": "This invite has expired or is invalid.",
     "inviteUsed": "This invite has already been used.",
@@ -671,6 +679,8 @@
     "churchNamePlaceholder": "Example: St. Mary Coptic Orthodox Church",
     "priestName": "Priest Name",
     "priestNamePlaceholder": "Example: Fr. George Michael",
+    "serviceName": "Service Name",
+    "serviceNamePlaceholder": "Example: Sunday School Service",
     "mainServantName": "Main Servant Name",
     "mainServantNamePlaceholder": "Example: Michael Nabil",
     "phone": "Phone Number",
@@ -680,8 +690,8 @@
     "adminEmail": "Admin Email (for login)",
     "adminEmailPlaceholder": "Example: george@church.com",
     "adminEmailHelp": "This will be your login email to access the system.",
-    "passwordPlaceholder": "Example: ••••••••",
-    "confirmPasswordPlaceholder": "Example: ••••••••",
+    "passwordPlaceholder": "••••••••",
+    "confirmPasswordPlaceholder": "••••••••",
     "verificationMethod": "Identity Verification Method",
     "nationalIdOption": "National ID Card (Front + Back)",
     "churchPermissionOption": "Church Permission Document",
@@ -702,13 +712,23 @@
     "backToHome": "Back to Home",
     "goToLogin": "Go to Login",
     "alreadyRegistered": "Already have an account?",
-    "signIn": "Sign In"
+    "signIn": "Sign In",
+    "editTitle": "Edit Application",
+    "editSubtitle": "Update your church registration details below.",
+    "passwordPreserved": "Your existing password will be preserved. Only fill in a new password if you want to change it.",
+    "updateApplication": "Update Application",
+    "updatedSuccess": "Application updated successfully!",
+    "fileExists": "File exists (unchanged)",
+    "churchAddress": "Church Address",
+    "churchAddressPlaceholder": "Example: Al Manyal, Cairo"
   },
   "platform": {
     "title": "Platform Admin Dashboard",
     "pending": "Pending Applications",
     "approved": "Approved",
     "rejected": "Rejected",
+    "activeChurches": "Active Churches",
+    "suspendedChurches": "Suspended",
     "totalChurches": "Total Churches",
     "totalUsers": "Total Users",
     "applications": "Applications",
@@ -752,7 +772,11 @@
     "reviewedBy": "Reviewed by",
     "rejectionMinLength": "Reason must be at least 5 characters.",
     "approveNotification": "Your church registration has been approved",
-    "rejectNotification": "Your church registration has been rejected"
+    "rejectNotification": "Your church registration has been rejected",
+    "noPendingApplications": "No pending applications.",
+    "noApprovedApplications": "No approved applications.",
+    "noRejectedApplications": "No rejected applications.",
+    "emptyFilterHint": "Try adjusting the filter or check back later."
   },
   "notifications": {
     "title": "Notifications",
@@ -788,6 +812,27 @@
     "selectFilterPrompt": "Select a class to view absent members",
     "selectFilterDescription": "Choose a class and optional filters, then click Apply to see the report.",
     "fetchFailed": "Failed to fetch absent members."
+  },
+  "applicationStatus": {
+    "pendingTitle": "Application Under Review",
+    "pendingSubtitle": "Your church registration is being reviewed by the platform administrator.",
+    "pendingBadge": "Pending Review",
+    "rejectedTitle": "Application Not Approved",
+    "rejectedSubtitle": "Your church registration could not be approved at this time.",
+    "rejectedBadge": "Rejected",
+    "approvedBadge": "Approved",
+    "applicationDetails": "Application Details",
+    "submissionDate": "Submission Date",
+    "rejectionDate": "Rejection Date",
+    "rejectionReason": "Reason for Rejection",
+    "noRejectionReason": "No specific reason was provided. Please contact support for more information.",
+    "pendingMessage": "Your church application has been received successfully and is currently under review by the Platform Administrator. You will gain access to your dashboard once your application has been approved.",
+    "estimatedReview": "Estimated review time: 1–2 business days.",
+    "rejectedMessage": "If you believe this was a mistake or would like more information, please contact support. You may submit a new application with updated information at any time.",
+    "contactSupport": "Contact Support",
+    "editApplication": "Edit Application",
+    "resubmitApplication": "Resubmit Application",
+    "footer": "Church Manager — Church Management Platform"
   },
   "pendingDashboard": {
     "title": "Application Pending Review",
@@ -882,6 +927,45 @@
     "noMembers": "No members yet",
     "noData": "No leaderboard data available"
   },
+  "deletedChurches": {
+    "title": "Deleted Churches History",
+    "description": "View all churches that have been deleted from the platform. This information is for auditing and troubleshooting purposes only.",
+    "totalDeleted": "{{count}} deleted churches",
+    "searchPlaceholder": "Search by name, priest, email, slug...",
+    "churchName": "Church Name",
+    "churchNamePlaceholder": "Filter by church name",
+    "priestName": "Priest Name",
+    "priestNamePlaceholder": "Filter by priest name",
+    "deletedFrom": "Deleted From",
+    "deletedTo": "Deleted To",
+    "slug": "Slug",
+    "email": "Email",
+    "createdDate": "Created",
+    "deletedDate": "Deleted",
+    "deletedBy": "Deleted By",
+    "deleted": "Deleted",
+    "noDeletedChurches": "No deleted churches found.",
+    "churchDetails": "Deleted Church Details",
+    "deletedStatus": "This church has been permanently removed from the platform.",
+    "deletedOn": "Deleted on",
+    "by": "by",
+    "churchInfo": "Church Information",
+    "serviceName": "Service Name",
+    "description": "Description",
+    "contactInfo": "Contact Information",
+    "mainServant": "Main Servant",
+    "priestPhone": "Priest Phone",
+    "churchPhone": "Church Phone",
+    "address": "Address",
+    "deletionInfo": "Deletion Information",
+    "deletedAt": "Deleted At",
+    "deletionType": "Deletion Type",
+    "recoverableUntil": "Recoverable Until",
+    "timestamps": "Timestamps",
+    "createdAt": "Created At",
+    "updatedAt": "Updated At",
+    "memberCount": "Members at Deletion"
+  },
   "churchDeletion": {
     "title": "Church Management",
     "description": "Manage and delete churches. Deleting a church will remove all associated data and revoke all user access.",
@@ -936,5 +1020,9 @@
     "softDeleted": "Church has been soft-deleted. All users have been deactivated. Recovery available for 30 days.",
     "hardDeleted": "Church has been permanently deleted.",
     "restored": "Church has been restored successfully. All users have been reactivated."
+  },
+  "validation": {
+    "phoneOnlyNumbers": "Phone number must contain only digits.",
+    "phoneExact11": "Phone number must be exactly 11 digits."
   }
 }

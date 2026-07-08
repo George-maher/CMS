@@ -44,7 +44,7 @@ class EventController extends Controller
         $data = $request->validated();
 
         if ($request->hasFile('image')) {
-            $data['image'] = $this->fileUploadService->upload($request->file('image'), 'uploads/events', $this->fileUploadService->publicDisk());
+            $data['image'] = $this->fileUploadService->upload($request->file('image'), 'uploads/events');
         } else {
             unset($data['image']);
         }
@@ -120,12 +120,12 @@ class EventController extends Controller
 
         if ($request->hasFile('image')) {
             if ($eventModel->image ?? null) {
-                $this->fileUploadService->delete($eventModel->image, $this->fileUploadService->publicDisk());
+                $this->fileUploadService->delete($eventModel->image);
             }
-            $data['image'] = $this->fileUploadService->upload($request->file('image'), 'uploads/events', $this->fileUploadService->publicDisk());
+            $data['image'] = $this->fileUploadService->upload($request->file('image'), 'uploads/events');
         } elseif ($request->boolean('remove_image')) {
             if ($eventModel->image ?? null) {
-                $this->fileUploadService->delete($eventModel->image, $this->fileUploadService->publicDisk());
+                $this->fileUploadService->delete($eventModel->image);
             }
             $data['image'] = null;
         }
@@ -153,10 +153,6 @@ class EventController extends Controller
 
         if ($this->servantCannotAccessEvent($user, $eventModel)) {
             return response()->json(['message' => 'Forbidden.'], 403);
-        }
-
-        if ($eventModel->image ?? null) {
-            $this->fileUploadService->delete($eventModel->image, $this->fileUploadService->publicDisk());
         }
 
         $this->eventService->delete($id);

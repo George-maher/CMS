@@ -8,6 +8,7 @@ import DailyVerseBanner from '@/components/common/DailyVerseBanner'
 import { getDashboardStats } from '@/api/dashboard'
 import { getLeaderboard } from '@/api/points'
 import { getTodayAttendance } from '@/api/attendance'
+import { logCatch } from '@/lib/debug'
 
 export default function AdminDashboard() {
   const { t } = useTranslation()
@@ -30,11 +31,11 @@ export default function AdminDashboard() {
           total_servants: stats.total_servants,
           total_members_managed: stats.total_members_managed,
         })
-      }).catch(() => {})
+      }).catch((e) => logCatch('AdminDashboard.getDashboardStats', e))
     getTodayAttendance()
-      .then((td) => setTodayCount(td.count)).catch(() => {})
+      .then((td) => setTodayCount(td.count)).catch((e) => logCatch('AdminDashboard.getTodayAttendance', e))
     getLeaderboard(5)
-      .then((lb) => setLeaderboard(lb.data)).catch(() => setLeaderboard([]))
+      .then((lb) => setLeaderboard(lb.data)).catch((e) => { logCatch('AdminDashboard.getLeaderboard', e); setLeaderboard([]) })
       .finally(() => setLoading(false))
   }, [])
 

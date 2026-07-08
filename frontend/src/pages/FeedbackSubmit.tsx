@@ -8,6 +8,7 @@ import Modal from '@/components/common/Modal'
 import { useAuth } from '@/contexts/AuthContext'
 import { submitFeedback, getMyFeedback, markFeedbackSeen, getFeedback } from '@/api/feedback'
 import { getMyClassServants } from '@/api/structure'
+import { logCatch } from '@/lib/debug'
 import type { ClassContact } from '@/api/structure'
 import type { Feedback } from '@/types'
 
@@ -36,7 +37,7 @@ export default function FeedbackSubmit() {
       const fb = await getFeedback(id)
       setSelectedFeedback(fb)
       setTab('history')
-    } catch { /* ignore */ }
+    } catch (e) { logCatch('FeedbackSubmit.openFeedbackById', e) }
   }, [])
 
   useEffect(() => {
@@ -52,11 +53,11 @@ export default function FeedbackSubmit() {
         }
         setSearchParams({}, { replace: true })
       }
-    }).catch(() => setMyFeedback([])).finally(() => setHistoryLoading(false))
+    }).catch((e) => { logCatch('FeedbackSubmit.getMyFeedback', e); setMyFeedback([]) }).finally(() => setHistoryLoading(false))
     if (isMember) {
       getMyClassServants()
         .then(setServants)
-        .catch(() => setServants([]))
+        .catch((e) => { logCatch('FeedbackSubmit.getMyClassServants', e); setServants([]) })
         .finally(() => setServantsLoading(false))
     }
   }, [submitted, feedbackIdParam, openFeedbackById, setSearchParams, isMember])
@@ -82,7 +83,7 @@ export default function FeedbackSubmit() {
         const updated = await markFeedbackSeen(fb.id)
         setSelectedFeedback(updated)
         setMyFeedback((prev) => prev.map((f) => (f.id === updated.id ? updated : f)))
-      } catch { /* ignore */ }
+      } catch (e) { logCatch('FeedbackSubmit.markFeedbackSeen', e) }
     }
   }
 

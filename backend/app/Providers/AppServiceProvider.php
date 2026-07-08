@@ -8,12 +8,14 @@ use App\Contracts\AttendanceRepositoryInterface;
 use App\Contracts\AttendanceServiceInterface;
 use App\Contracts\AuditServiceInterface;
 use App\Contracts\AuthServiceInterface;
+use App\Contracts\ChurchApplicationServiceInterface;
 use App\Contracts\ClasseRepositoryInterface;
 use App\Contracts\ClasseServiceInterface;
 use App\Contracts\EmailServiceInterface;
 use App\Contracts\FileUploadServiceInterface;
 use App\Contracts\LeaderboardServiceInterface;
 use App\Contracts\StorageServiceInterface;
+use App\Services\LocalStorageService;
 use App\Contracts\StageRepositoryInterface;
 use App\Contracts\StageServiceInterface;
 use App\Contracts\EventRepositoryInterface;
@@ -85,6 +87,7 @@ use App\Services\QRInviteService;
 use App\Services\SupabaseStorageService;
 use App\Services\VerseService;
 use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Mail;
@@ -131,11 +134,18 @@ class AppServiceProvider extends ServiceProvider
 
         $this->app->singleton(CacheService::class, fn() => new CacheService());
 
+        $this->app->bind(ChurchApplicationServiceInterface::class, \App\Services\ChurchApplicationService::class);
         $this->app->bind(AuditServiceInterface::class, \App\Services\AuditService::class);
-
         $this->app->bind(FileUploadServiceInterface::class, \App\Services\FileUploadService::class);
 
-        $this->app->bind(StorageServiceInterface::class, SupabaseStorageService::class);
+        $this->app->bind(StorageServiceInterface::class, function () {
+            $url = config('supabase-storage.project_url', '');
+            $key = config('supabase-storage.service_role_key', '');
+            if ($url && $key) {
+                return new SupabaseStorageService();
+            }
+            return new LocalStorageService();
+        });
 
         $this->app->register(\Resend\Laravel\ResendServiceProvider::class);
 
@@ -189,12 +199,14 @@ class AppServiceProvider extends ServiceProvider
         );
 
         // Ensure storage symlink exists for public file access
-        if (! file_exists(public_path('storage'))) {
+        // Required for any file upload (church applications, events, profiles) to be accessible
+        $linkPath = public_path('storage');
+        $targetPath = storage_path('app/public');
+        if (!file_exists($linkPath) && is_dir($targetPath)) {
             try {
-                symlink(storage_path('app/public'), public_path('storage'));
+                symlink($targetPath, $linkPath);
             } catch (\Exception $e) {
-                // Symlink creation failed - admin may need to run 'php artisan storage:link' manually
-                // This is non-critical for functionality
+                // Symlink creation failed - 'php artisan storage:link' must be run manually
             }
         }
 
@@ -465,6 +477,15 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(10)
                 ->by($request->user()?->id ?: $request->ip())
                 ->response(fn() => self::rateLimitResponse());
+        });
+
+        // Fix: FormRequest's failedValidation() calls getRedirectUrl() which needs
+        // the redirector. This is null in test environments, causing a 500 instead of
+        // a proper 422 validation error response. Inject it when the FormRequest is resolved.
+        $this->app->resolving(FormRequest::class, function (FormRequest $request, $app) {
+            if ($app->has('redirect')) {
+                $request->setRedirector($app['redirect']);
+            }
         });
     }
 

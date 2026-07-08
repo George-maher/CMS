@@ -29,31 +29,19 @@ class AuthService implements AuthServiceInterface
 
         if (!$user || !Hash::check($credentials['password'], $user->password)) {
             throw ValidationException::withMessages([
-                'email' => ['The provided credentials are incorrect.'],
+                'email' => [__('auth.failed')],
             ]);
         }
 
         if ($user->isPlatformAdmin()) {
             throw ValidationException::withMessages([
-                'email' => ['The provided credentials are incorrect.'],
+                'email' => [__('auth.failed')],
             ]);
         }
 
-        if (!$user->is_active) {
+        if ($user->is_active === false && $user->isApproved()) {
             throw ValidationException::withMessages([
-                'email' => ['The provided credentials are incorrect.'],
-            ]);
-        }
-
-        if ($user->application_status === 'rejected') {
-            throw ValidationException::withMessages([
-                'email' => ['Your account has been rejected and cannot log in.'],
-            ]);
-        }
-
-        if ($user->application_status !== 'approved') {
-            throw ValidationException::withMessages([
-                'email' => ['Your account is pending approval.'],
+                'email' => [__('auth.inactive')],
             ]);
         }
 
@@ -61,12 +49,12 @@ class AuthService implements AuthServiceInterface
             $church = $user->church()->withTrashed()->first();
             if ($church && $church->is_suspended) {
                 throw ValidationException::withMessages([
-                    'email' => ['Your account is temporarily unavailable. Please contact support.'],
+                    'email' => [__('auth.suspended')],
                 ]);
             }
             if ($church && $church->trashed()) {
                 throw ValidationException::withMessages([
-                    'email' => [__('church_deletion.church_not_found')],
+                    'email' => [__('auth.church_deleted')],
                 ]);
             }
         }
@@ -87,19 +75,31 @@ class AuthService implements AuthServiceInterface
 
         if (!$user || !Hash::check($credentials['password'], $user->password)) {
             throw ValidationException::withMessages([
-                'email' => ['The provided credentials are incorrect.'],
+                'email' => [__('auth.failed')],
             ]);
         }
 
         if (!$user->isPlatformAdmin()) {
             throw ValidationException::withMessages([
-                'email' => ['The provided credentials are incorrect.'],
+                'email' => [__('auth.failed')],
             ]);
         }
 
         if (!$user->is_active) {
             throw ValidationException::withMessages([
-                'email' => ['The provided credentials are incorrect.'],
+                'email' => [__('auth.inactive')],
+            ]);
+        }
+
+        if ($user->application_status === 'pending') {
+            throw ValidationException::withMessages([
+                'email' => [__('auth.pending')],
+            ]);
+        }
+
+        if ($user->application_status === 'rejected') {
+            throw ValidationException::withMessages([
+                'email' => [__('auth.rejected')],
             ]);
         }
 
@@ -122,7 +122,7 @@ class AuthService implements AuthServiceInterface
         $inviteToken = $data['invite_token'] ?? null;
         if (!$inviteToken) {
             throw ValidationException::withMessages([
-                'invite_token' => ['A valid invitation token is required to register.'],
+                'invite_token' => [__('invite.not_found')],
             ]);
         }
 
@@ -161,7 +161,7 @@ class AuthService implements AuthServiceInterface
                     ->first();
                 if (!$classe) {
                     throw ValidationException::withMessages([
-                        'class_id' => ['The selected class is invalid for this invitation.'],
+                        'class_id' => [__('invite.class_not_found')],
                     ]);
                 }
             }

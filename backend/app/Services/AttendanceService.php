@@ -34,7 +34,7 @@ class AttendanceService implements AttendanceServiceInterface
 
         if (!$member) {
             throw ValidationException::withMessages([
-                'member_id' => ['Member not found.'],
+                'member_id' => [__('attendance.member_not_found')],
             ]);
         }
 
@@ -49,7 +49,7 @@ class AttendanceService implements AttendanceServiceInterface
 
         if (!$member) {
             throw ValidationException::withMessages([
-                'token' => ['Invalid or unrecognized attendance token.'],
+                'token' => [__('attendance.invalid_token')],
             ]);
         }
 
@@ -60,7 +60,7 @@ class AttendanceService implements AttendanceServiceInterface
     {
         if (!$member->is_active) {
             throw ValidationException::withMessages([
-                $errorField => ['This member account is inactive.'],
+                $errorField => [__('attendance.member_inactive')],
             ]);
         }
 
@@ -71,7 +71,7 @@ class AttendanceService implements AttendanceServiceInterface
 
         if (!$context) {
             throw ValidationException::withMessages([
-                'attendance_context_id' => ['Invalid or inactive attendance context.'],
+                'attendance_context_id' => [__('attendance.invalid_context')],
             ]);
         }
 
@@ -79,7 +79,7 @@ class AttendanceService implements AttendanceServiceInterface
             $event = Event::find($eventId);
             if (!$event) {
                 throw ValidationException::withMessages([
-                    'event_id' => ['Event not found.'],
+                    'event_id' => [__('attendance.event_not_found')],
                 ]);
             }
         }

@@ -152,12 +152,13 @@ class AuthTest extends TestCase
         $response->assertStatus(422);
     }
 
-    public function test_rejected_user_cannot_login(): void
+    public function test_rejected_user_can_login(): void
     {
         User::factory()->create([
             'email' => 'rejected@test.com',
             'password' => bcrypt('Test@1234'),
             'application_status' => 'rejected',
+            'is_active' => true,
         ]);
 
         $response = $this->postJson('/api/v1/auth/login', [
@@ -165,7 +166,30 @@ class AuthTest extends TestCase
             'password' => 'Test@1234',
         ]);
 
-        $response->assertStatus(422);
+        $response->assertStatus(200)
+            ->assertJsonStructure([
+                'data' => ['user', 'token', 'token_type'],
+            ]);
+    }
+
+    public function test_pending_user_can_login(): void
+    {
+        User::factory()->create([
+            'email' => 'pending@test.com',
+            'password' => bcrypt('Test@1234'),
+            'application_status' => 'pending',
+            'is_active' => true,
+        ]);
+
+        $response = $this->postJson('/api/v1/auth/login', [
+            'email' => 'pending@test.com',
+            'password' => 'Test@1234',
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJsonStructure([
+                'data' => ['user', 'token', 'token_type'],
+            ]);
     }
 
     public function test_authenticated_user_can_access_protected_route(): void

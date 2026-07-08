@@ -2,16 +2,17 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Contracts\ChurchApplicationServiceInterface;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ChurchApplicationRequest;
 use App\Http\Resources\ChurchApplicationResource;
-use App\Services\ChurchApplicationService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class ChurchApplicationController extends Controller
 {
     public function __construct(
-        private readonly ChurchApplicationService $churchApplicationService,
+        private readonly ChurchApplicationServiceInterface $churchApplicationService,
     ) {}
 
     public function store(ChurchApplicationRequest $request): JsonResponse
@@ -21,17 +22,39 @@ class ChurchApplicationController extends Controller
             $request->file('front_id'),
             $request->file('back_id'),
             $request->input('email'),
-            $request->input('password'),
+            $request->input('password', ''),
             $request->file('church_permission_doc'),
         );
 
+        $statusCode = $result['is_update'] ? 200 : 201;
+        $message = $result['is_update']
+            ? 'Application updated successfully.'
+            : 'Application submitted successfully. You can now login to track your application status.';
+
         return response()->json([
-            'message' => 'Application submitted successfully. You can now login to track your application status.',
+            'message' => $message,
             'data' => new ChurchApplicationResource($result['application']),
             'user' => [
                 'id' => $result['user']->id,
                 'email' => $result['user']->email,
             ],
-        ], 201);
+            'is_update' => $result['is_update'],
+        ], $statusCode);
+    }
+
+    public function lookup(Request $request): JsonResponse
+    {
+        $request->validate(['email' => 'required|email']);
+
+        $application = $this->churchApplicationService->findByEmail($request->input('email'));
+
+        if (!$application) {
+            return response()->json(['data' => null]);
+        }
+
+        return response()->json([
+            'data' => new ChurchApplicationResource($application),
+            'message' => 'We found an existing application associated with this email. Your previously submitted information has been loaded.',
+        ]);
     }
 }

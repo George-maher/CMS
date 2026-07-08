@@ -21,6 +21,8 @@ use App\Models\Point;
 use App\Models\QRInvite;
 use App\Models\Stage;
 use App\Models\User;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class ChurchDeletionService
@@ -148,6 +150,54 @@ class ChurchDeletionService
 
             return $church->fresh();
         });
+    }
+
+    public function getDeletedChurches(Request $request): LengthAwarePaginator
+    {
+        $query = Church::onlyTrashed()
+            ->with(['deletedBy' => fn($q) => $q->select('id', 'name', 'email')])
+            ->withCount('users');
+
+        if ($search = $request->query('search')) {
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('priest_name', 'like', "%{$search}%")
+                  ->orWhere('contact_email', 'like', "%{$search}%")
+                  ->orWhere('slug', 'like', "%{$search}%");
+            });
+        }
+
+        if ($churchName = $request->query('church_name')) {
+            $query->where('name', 'like', "%{$churchName}%");
+        }
+
+        if ($priestName = $request->query('priest_name')) {
+            $query->where('priest_name', 'like', "%{$priestName}%");
+        }
+
+        if ($dateFrom = $request->query('deleted_from')) {
+            $query->whereDate('deleted_at', '>=', $dateFrom);
+        }
+
+        if ($dateTo = $request->query('deleted_to')) {
+            $query->whereDate('deleted_at', '<=', $dateTo);
+        }
+
+        $perPage = min((int) $request->query('per_page', 15), 100);
+
+        return $query->orderBy('deleted_at', 'desc')->paginate($perPage);
+    }
+
+    public function getDeletedChurchDetail(int $id): Church
+    {
+        $church = Church::onlyTrashed()
+            ->with([
+                'deletedBy' => fn($q) => $q->select('id', 'name', 'email'),
+                'users' => fn($q) => $q->select('id', 'name', 'email', 'role', 'is_active'),
+            ])
+            ->findOrFail($id);
+
+        return $church;
     }
 
     public function hardDelete(Church $church, User $admin): void
