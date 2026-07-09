@@ -58,10 +58,12 @@ class PointService implements PointServiceInterface
             'description' => $reason ?? 'Bonus points awarded',
         ]);
 
+        /** @var int $pointChurchId */
+        $pointChurchId = $member->church_id;
         $this->notificationService->createForBonusPoints(
             pointsId: $point->id,
             userId: $userId,
-            churchId: $member->church_id,
+            churchId: $pointChurchId,
             title: 'Bonus Points Added',
             body: "You received {$points} bonus points." . ($reason ? " Reason: {$reason}" : ''),
         );
@@ -106,12 +108,14 @@ class PointService implements PointServiceInterface
             ->limit($limit)
             ->get()
             ->map(function ($user, $index) {
+                /** @var int $totalPoints */
+                $totalPoints = $user->total_points;
                 return [
                     'rank' => $index + 1,
                     'user_id' => $user->id,
                     'name' => $user->name,
                     'email' => $user->email,
-                    'total_points' => (int) $user->total_points,
+                    'total_points' => $totalPoints,
                 ];
             });
 

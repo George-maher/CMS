@@ -8,6 +8,9 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 class MembershipRequestRepository implements MembershipRequestRepositoryInterface
 {
+    /**
+     * @param array<string, mixed> $data
+     */
     public function create(array $data): MembershipRequest
     {
         return MembershipRequest::create($data);
@@ -18,6 +21,10 @@ class MembershipRequestRepository implements MembershipRequestRepositoryInterfac
         return MembershipRequest::with(['reviewer'])->find($id);
     }
 
+    /**
+     * @param array<string, mixed> $filters
+     * @return LengthAwarePaginator<int, MembershipRequest>
+     */
     public function paginate(int $perPage = 15, array $filters = []): LengthAwarePaginator
     {
         $query = MembershipRequest::query();
@@ -33,6 +40,9 @@ class MembershipRequestRepository implements MembershipRequestRepositoryInterfac
         return $query->latest()->paginate($perPage);
     }
 
+    /**
+     * @param array<string, mixed> $data
+     */
     public function update(int $id, array $data): bool
     {
         $request = $this->findById($id);

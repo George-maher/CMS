@@ -7,6 +7,7 @@ use App\Contracts\FeedbackServiceInterface;
 use App\Contracts\NotificationServiceInterface;
 use App\Enums\UserRole;
 use App\Http\Resources\FeedbackResource;
+use App\Models\Feedback;
 use App\Models\FeedbackReply;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -111,7 +112,7 @@ class FeedbackService implements FeedbackServiceInterface
             $this->notificationService->createForFeedbackReply(
                 feedbackId: $feedback->id,
                 userId: $feedback->user_id,
-                churchId: $feedback->church_id,
+                churchId: $feedback->church_id ?? 0,
                 title: 'New Reply to Your Feedback',
                 body: 'Your feedback has received a reply.',
             );
@@ -153,7 +154,8 @@ class FeedbackService implements FeedbackServiceInterface
     // Private notification helpers
     // ----------------------------------------------------------------
 
-    private function notifyStaff(int $churchId, ?int $classId, string $title, string $body, string $type, ?int $excludeUserId = null): void
+    /** @param int|null $churchId */
+    private function notifyStaff($churchId, ?int $classId, string $title, string $body, string $type, ?int $excludeUserId = null): void
     {
         if (!$churchId) {
             return;
@@ -166,6 +168,7 @@ class FeedbackService implements FeedbackServiceInterface
             $adminQuery->where('id', '!=', $excludeUserId);
         }
 
+        /** @var array<int, int> $adminIds */
         $adminIds = $adminQuery->pluck('id')->toArray();
 
         foreach ($adminIds as $adminId) {
@@ -191,6 +194,7 @@ class FeedbackService implements FeedbackServiceInterface
                 $servantQuery->where('users.id', '!=', $excludeUserId);
             }
 
+            /** @var array<int, int> $servantIds */
             $servantIds = $servantQuery->pluck('users.id')
                 ->unique()
                 ->values()
@@ -208,7 +212,7 @@ class FeedbackService implements FeedbackServiceInterface
         }
     }
 
-    private function notifyFeedbackSubmission($feedback): void
+    private function notifyFeedbackSubmission(Feedback $feedback): void
     {
         $this->notifyStaff(
             churchId: $feedback->church_id,
@@ -219,7 +223,7 @@ class FeedbackService implements FeedbackServiceInterface
         );
     }
 
-    private function notifyFeedbackReply($feedback, int $replierId): void
+    private function notifyFeedbackReply(Feedback $feedback, int $replierId): void
     {
         $this->notifyStaff(
             churchId: $feedback->church_id,

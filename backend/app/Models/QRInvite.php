@@ -23,7 +23,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property bool $is_single_use
  * @property int|null $max_uses
  * @property int $use_count
- * @property array|null $used_by_users
+ * @property array<int, array{id: int, name: string, role: string|null, phone: string|null, member_id: string|null, class_id: int|null, class_name: string|null, stage_name: string|null, used_at: string}>|null $used_by_users
  * @property int|null $church_id
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
@@ -72,26 +72,41 @@ class QRInvite extends Model
         ];
     }
 
+    /**
+     * @return BelongsTo<User, $this>
+     */
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
     }
 
+    /**
+     * @return BelongsTo<User, $this>
+     */
     public function usedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'used_by');
     }
 
+    /**
+     * @return BelongsTo<Classe, $this>
+     */
     public function classe(): BelongsTo
     {
         return $this->belongsTo(Classe::class, 'class_id');
     }
 
+    /**
+     * @return BelongsTo<Classe, $this>
+     */
     public function classeYear(): BelongsTo
     {
         return $this->belongsTo(Classe::class, 'class_year_id');
     }
 
+    /**
+     * @return BelongsTo<AttendanceContext, $this>
+     */
     public function attendanceContext(): BelongsTo
     {
         return $this->belongsTo(AttendanceContext::class, 'attendance_context_id');

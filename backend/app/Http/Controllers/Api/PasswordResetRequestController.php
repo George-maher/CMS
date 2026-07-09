@@ -30,13 +30,16 @@ class PasswordResetRequestController extends Controller
 
     public function index(Request $request): JsonResponse
     {
+        /** @var \App\Models\User $user */
         $user = $request->user();
+        /** @var int $churchId */
+        $churchId = $user->church_id;
 
-        $perPage = min((int) $request->input('per_page', 15), 100);
+        $perPage = min($request->integer('per_page', 15), 100);
         $filters = array_filter($request->only('status'));
 
         $result = $this->passwordResetRequestService->listRequests(
-            $user->church_id,
+            $churchId,
             $perPage,
             $filters,
         );
@@ -49,8 +52,11 @@ class PasswordResetRequestController extends Controller
 
     public function show(int $id): JsonResponse
     {
+        /** @var \App\Models\User $user */
         $user = request()->user();
-        $request = $this->passwordResetRequestService->findById($id, $user->church_id);
+        /** @var int $churchId */
+        $churchId = $user->church_id;
+        $request = $this->passwordResetRequestService->findById($id, $churchId);
 
         if (!$request) {
             return response()->json(['message' => 'Not found.'], 404);
@@ -65,6 +71,7 @@ class PasswordResetRequestController extends Controller
 
     public function approve(int $id, ApprovePasswordResetRequest $request): JsonResponse
     {
+        /** @var \App\Models\User $user */
         $user = $request->user();
         $resetRequest = PasswordResetRequest::find($id);
 
@@ -74,7 +81,9 @@ class PasswordResetRequestController extends Controller
 
         Gate::authorize('approve', $resetRequest);
 
-        $result = $this->passwordResetRequestService->approve($id, $user->id);
+        /** @var int $adminId */
+        $adminId = $user->id;
+        $result = $this->passwordResetRequestService->approve($id, $adminId);
 
         return response()->json([
             'message' => $result['message'],
@@ -83,6 +92,7 @@ class PasswordResetRequestController extends Controller
 
     public function reject(int $id, RejectPasswordResetRequest $request): JsonResponse
     {
+        /** @var \App\Models\User $user */
         $user = $request->user();
         $resetRequest = PasswordResetRequest::find($id);
 
@@ -92,10 +102,14 @@ class PasswordResetRequestController extends Controller
 
         Gate::authorize('reject', $resetRequest);
 
+        /** @var string $reason */
+        $reason = $request->input('reason');
+        /** @var int $adminId */
+        $adminId = $user->id;
         $result = $this->passwordResetRequestService->reject(
             $id,
-            $user->id,
-            $request->input('reason'),
+            $adminId,
+            $reason,
         );
 
         return response()->json([
@@ -110,9 +124,13 @@ class PasswordResetRequestController extends Controller
             'password' => ['required', 'string', 'min:8', 'confirmed'],
         ]);
 
+        /** @var string $token */
+        $token = $request->input('token');
+        /** @var string $password */
+        $password = $request->input('password');
         $result = $this->passwordResetRequestService->completeReset(
-            $request->input('token'),
-            $request->input('password'),
+            $token,
+            $password,
         );
 
         return response()->json([

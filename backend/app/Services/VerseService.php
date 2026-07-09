@@ -45,9 +45,14 @@ class VerseService implements VerseServiceInterface
     /** @return array<string, mixed> */
     public function create(array $data, int $creatorId): array
     {
+        /** @var string $verseText */
+        $verseText = $data['verse_text'];
+        /** @var string $reference */
+        $reference = $data['reference'];
+
         $verse = $this->verseRepository->create([
-            'verse_text' => $data['verse_text'],
-            'reference' => $data['reference'],
+            'verse_text' => $verseText,
+            'reference' => $reference,
             'created_by' => $creatorId,
             'is_active' => $data['is_active'] ?? false,
         ]);
@@ -68,6 +73,7 @@ class VerseService implements VerseServiceInterface
     /** @return array<string, mixed> */
     public function update(int $id, array $data): array
     {
+        /** @var array<string, mixed> $data */
         $verse = $this->verseRepository->findById($id);
         if (!$verse) {
             throw ValidationException::withMessages([
@@ -85,7 +91,7 @@ class VerseService implements VerseServiceInterface
         $this->cacheService->invalidateVerse(0);
 
         return [
-            'data' => new DailyVerseResource($verse->fresh()->load('creator')),
+            'data' => new DailyVerseResource(($verse->fresh() ?? $verse)->load('creator')),
         ];
     }
 
@@ -116,7 +122,7 @@ class VerseService implements VerseServiceInterface
         $this->cacheService->invalidateVerse(0);
 
         return [
-            'data' => new DailyVerseResource($verse->fresh()->load('creator')),
+            'data' => new DailyVerseResource(($verse->fresh() ?? $verse)->load('creator')),
         ];
     }
 

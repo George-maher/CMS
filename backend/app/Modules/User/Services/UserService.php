@@ -2,12 +2,16 @@
 
 namespace App\Modules\User\Services;
 
-use App\Contracts\AuditServiceInterface;
 use App\Contracts\UserRepositoryInterface;
 use App\Contracts\UserServiceInterface;
+use App\Contracts\AttendanceServiceInterface;
+use App\Contracts\PointServiceInterface;
 use App\Enums\UserRole;
 use App\Models\User;
 use App\Modules\User\Resources\UserResource;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 
@@ -15,15 +19,24 @@ class UserService implements UserServiceInterface
 {
     public function __construct(
         private readonly UserRepositoryInterface $userRepository,
-        private readonly AuditServiceInterface $auditService,
+        private readonly AttendanceServiceInterface $attendanceService,
     ) {}
 
+    /**
+     * @param int $perPage
+     * @param array<string, mixed> $filters
+     * @return array{data: LengthAwarePaginator<int, User>, meta: array{current_page: int, last_page: int, per_page: int, total: int}}
+     */
+    /** @param array<string, mixed> $filters */
     public function listUsers(int $perPage = 15, array $filters = []): array
     {
+        /** @var LengthAwarePaginator<int, User> $paginator */
         $paginator = $this->userRepository->paginate($perPage, $filters);
 
+        $data = UserResource::collection($paginator->items());
+
         return [
-            'data' => $paginator->items(),
+            'data' => $paginator,
             'meta' => [
                 'current_page' => $paginator->currentPage(),
                 'last_page' => $paginator->lastPage(),
@@ -33,205 +46,215 @@ class UserService implements UserServiceInterface
         ];
     }
 
-    public function getUser(int $id): array
+    /** @return array<string, mixed>|null */
+    public function findById(int $id): ?array
     {
+        /** @var User|null $user */
         $user = $this->userRepository->findById($id);
 
-        if (!$user) {
-            throw ValidationException::withMessages([
-                'user' => ['User not found.'],
-            ]);
-        }
+        return $user ? ['data' => new UserResource($user->load(['classe.stage', 'servant', 'church']))] : null;
+    }
+
+    /** @param array<string, mixed> $data */
+    /** @return array<string, mixed> */
+    public function create(array $data, ?int $authUserId = null): array
+    {
+        /** @var string $email */
+        $email = $data['email'] ?? '';
+        /** @var string $password */
+        $password = $data['password'] ?? '';
+
+        /** @var array<string, mixed> $data */
+        $data['password'] = Hash::make($password);
+        $data['created_by'] = $authUserId;
+        $data['application_status'] = 'approved';
+        $data['is_active'] = $data['is_active'] ?? true;
+
+        $user = $this->userRepository->create([
+            'name' => $data['name'] ?? '',
+            'email' => $email,
+            'password' => $data['password'],
+            'role' => $data['role'] ?? UserRole::Member->value,
+            'class_id' => $data['class_id'] ?? null,
+            'class_year_id' => $data['class_year_id'] ?? null,
+            'phone' => $data['phone'] ?? null,
+            'address' => $data['address'] ?? null,
+            'is_active' => $data['is_active'],
+            'application_status' => 'approved',
+            'created_by' => $authUserId,
+            'attendance_qr_token' => User::generateAttendanceQrToken(),
+        ]);
 
         return [
-            'user' => $user->load(['classe.stage', 'createdBy']),
+            'message' => 'User created successfully.',
+            'data' => new UserResource($user->load(['classe.stage', 'servant', 'church'])),
         ];
     }
 
-    public function createUser(array $data): array
+    /** @param array<string, mixed> $data */
+    /** @return array<string, mixed>|null */
+    public function update(int $id, array $data): ?array
     {
-        $existingUser = $this->userRepository->findByEmailByChurch($data['email']);
-        if ($existingUser) {
-            throw ValidationException::withMessages([
-                'email' => ['A user with this email already exists in your church.'],
-            ]);
-        }
-
-        $data['password'] = Hash::make($data['password'] ?? 'password');
-        $data['is_active'] = true;
-        if (empty($data['church_id']) && auth()->check()) {
-            $data['church_id'] = auth()->user()->church_id;
-        }
-
-        $user = $this->userRepository->create($data);
-
-        return [
-            'user' => $user->load('classe'),
-        ];
-    }
-
-    public function updateUser(int $id, array $data): array
-    {
+        /** @var User|null $user */
         $user = $this->userRepository->findById($id);
 
         if (!$user) {
-            throw ValidationException::withMessages([
-                'user' => ['User not found.'],
-            ]);
+            return null;
         }
 
-        if (!empty($data['password'])) {
-            $data['password'] = Hash::make($data['password']);
-        } else {
-            unset($data['password']);
+        if (isset($data['password'])) {
+            /** @var string $password */
+            $password = $data['password'];
+            $data['password'] = Hash::make($password);
         }
 
-        $this->userRepository->update($id, $data);
+        /** @var array<string, mixed> $updateData */
+        $updateData = $data;
+        $this->userRepository->update($id, $updateData);
 
         return [
-            'user' => $user->fresh()->load(['classe', 'createdBy']),
+            'message' => 'User updated successfully.',
+            'data' => new UserResource($user->load(['classe.stage', 'servant', 'church'])),
         ];
     }
 
-    public function deleteUser(int $id): bool
+    public function delete(int $id): bool
     {
+        /** @var User|null $user */
         $user = $this->userRepository->findById($id);
 
         if (!$user) {
-            throw ValidationException::withMessages([
-                'user' => ['User not found.'],
-            ]);
+            return false;
         }
-
-        $this->auditService->log(
-            action: 'user.deleted',
-            resourceType: 'user',
-            resourceId: $id,
-            oldValues: $user->toArray(),
-            newValues: null,
-        );
 
         return $this->userRepository->delete($id);
     }
 
-    public function getServants(int $adminId): array
+    /** @return array<string, mixed> */
+    public function servants(int $churchId): array
     {
-        $servants = $this->userRepository->findServantsByAdmin($adminId);
+        $servants = $this->userRepository->getServantsByChurch($churchId);
 
         return [
-            'data' => $servants,
+            'data' => UserResource::collection($servants),
         ];
     }
 
+    /** @return array<string, mixed> */
     public function getMembers(int $servantId, ?int $classYearId = null): array
     {
-        if ($classYearId) {
-            $members = $this->userRepository->findMembersByClassYear($classYearId);
-        } else {
-            $members = $this->userRepository->findMembersByServant($servantId);
-        }
+        $members = $this->userRepository->getMembersByServant($servantId);
 
         return [
-            'data' => $members,
+            'data' => UserResource::collection($members),
         ];
     }
 
-    public function promoteToAdmin(int $id): array
+    /** @return array<string, mixed> */
+    public function promote(int $userId, int $authUserId, string $newRole): array
     {
-        $user = $this->userRepository->findById($id);
+        /** @var User|null $user */
+        $user = $this->userRepository->findById($userId);
 
         if (!$user) {
-            throw ValidationException::withMessages([
-                'user' => ['User not found.'],
-            ]);
+            throw ValidationException::withMessages(['user' => ['User not found.']]);
         }
 
-        if ($user->role === UserRole::Admin) {
-            throw ValidationException::withMessages([
-                'user' => ['User is already an admin.'],
-            ]);
-        }
-
-        $oldRole = $user->role->value;
-        $this->userRepository->updateRole($id, UserRole::Admin->value);
-
-        $this->auditService->log(
-            action: 'user.promoted',
-            resourceType: 'user',
-            resourceId: $id,
-            oldValues: ['role' => $oldRole],
-            newValues: ['role' => UserRole::Admin->value],
-        );
+        $user->role = UserRole::from($newRole);
+        $user->save();
 
         return [
-            'data' => new UserResource($user->fresh()->load(['classe', 'createdBy'])),
+            'message' => 'User promoted successfully.',
+            'data' => new UserResource($user),
         ];
     }
 
-    public function demoteFromAdmin(int $id, string $newRole): array
+    /** @return array<string, mixed> */
+    public function demoteFromAdmin(int $userId, int $authUserId): array
     {
-        $user = $this->userRepository->findById($id);
+        $result = $this->userRepository->demoteFromAdmin($userId);
+
+        if (!$result) {
+            throw ValidationException::withMessages(['user' => ['User not found or cannot be demoted.']]);
+        }
+
+        return ['message' => 'User demoted from admin successfully.'];
+    }
+
+    /** @return array<string, mixed> */
+    public function getAttendanceHistory(int $userId, int $perPage = 15): array
+    {
+        /** @var array<string, mixed> $result */
+        $result = $this->attendanceService->getAttendanceHistory($userId, $perPage);
+        return $result;
+    }
+
+    /** @return array<string, mixed> */
+    public function getAvailablePermissions(int $userId): array
+    {
+        /** @var User|null $user */
+        $user = $this->userRepository->findById($userId);
 
         if (!$user) {
-            throw ValidationException::withMessages([
-                'user' => ['User not found.'],
-            ]);
+            throw ValidationException::withMessages(['user' => ['User not found.']]);
         }
-
-        if ($user->role !== UserRole::Admin) {
-            throw ValidationException::withMessages([
-                'user' => ['User is not an admin.'],
-            ]);
-        }
-
-        $adminCount = $this->userRepository->countAdmins();
-
-        if ($adminCount <= 1) {
-            throw ValidationException::withMessages([
-                'user' => ['Cannot demote the last admin. At least one admin must remain.'],
-            ]);
-        }
-
-        $oldRole = $user->role->value;
-        $this->userRepository->updateRole($id, $newRole);
-
-        $this->auditService->log(
-            action: 'user.demoted',
-            resourceType: 'user',
-            resourceId: $id,
-            oldValues: ['role' => $oldRole],
-            newValues: ['role' => $newRole],
-        );
 
         return [
-            'data' => new UserResource($user->fresh()->load(['classe', 'createdBy'])),
+            'data' => $user->getAvailablePermissions(),
         ];
     }
 
-    public function regenerateAttendanceToken(int $id): array
+    /** @param array<int, string> $permissions */
+    /** @return array<string, mixed> */
+    public function updatePermissions(int $userId, array $permissions, int $authUserId): array
     {
-        $user = $this->userRepository->findById($id);
+        /** @var User|null $user */
+        $user = $this->userRepository->findById($userId);
 
         if (!$user) {
-            throw ValidationException::withMessages([
-                'user' => ['User not found.'],
-            ]);
+            throw ValidationException::withMessages(['user' => ['User not found.']]);
         }
 
-        $oldToken = $user->attendance_qr_token;
+        /** @var array<int, string> $permissionList */
+        $permissionList = $permissions;
+        $user->syncPermissions($permissionList);
+
+        return ['message' => 'Permissions updated successfully.'];
+    }
+
+    /**
+     * @param array<int, int> $userIds
+     * @param array<int, string> $permissions
+     * @return array<string, mixed>
+     */
+    public function bulkUpdatePermissions(array $userIds, array $permissions, int $authUserId): array
+    {
+        /** @var \Illuminate\Support\Collection<int, User> $users */
+        $users = $this->userRepository->findByIds($userIds);
+
+        foreach ($users as $user) {
+            $user->syncPermissions($permissions);
+        }
+
+        return ['message' => 'Permissions updated successfully for ' . $users->count() . ' users.'];
+    }
+
+    /** @return array<string, mixed> */
+    public function regenerateAttendanceToken(int $userId): array
+    {
+        /** @var User|null $user */
+        $user = $this->userRepository->findById($userId);
+
+        if (!$user) {
+            throw ValidationException::withMessages(['user' => ['User not found.']]);
+        }
+
         $token = User::generateAttendanceQrToken();
-
-        $this->userRepository->update($id, ['attendance_qr_token' => $token]);
-
-        $this->auditService->log(
-            action: 'user.qr_token_regenerated',
-            resourceType: 'user',
-            resourceId: $id,
-            oldValues: ['attendance_qr_token' => '***hidden***'],
-            newValues: ['attendance_qr_token' => '***regenerated***'],
-        );
+        $user->attendance_qr_token = $token;
+        $user->save();
 
         return [
+            'message' => 'Attendance QR token regenerated successfully.',
             'token' => $token,
         ];
     }

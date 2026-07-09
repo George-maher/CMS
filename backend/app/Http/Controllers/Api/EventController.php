@@ -22,13 +22,19 @@ class EventController extends Controller
 
     public function index(Request $request): JsonResponse
     {
+        /** @var \App\Models\User $user */
         $user = $request->user();
+        /** @var array<string, mixed> $filters */
         $filters = $request->only(['upcoming', 'active_only', 'class_year_id', 'search', 'class_id']);
+        /** @var int $perPage */
+        $perPage = $request->integer('per_page', 15);
+        /** @var int $userId */
+        $userId = $user->id;
 
         $result = $this->eventService->list(
-            perPage: $request->input('per_page', 15),
+            perPage: $perPage,
             filters: $filters,
-            userId: $user->id,
+            userId: $userId,
             userRole: $user->role->value,
         );
 
@@ -40,11 +46,15 @@ class EventController extends Controller
 
     public function store(EventRequest $request): JsonResponse
     {
+        /** @var \App\Models\User $user */
         $user = $request->user();
+        /** @var array<string, mixed> $data */
         $data = $request->validated();
 
         if ($request->hasFile('image')) {
-            $data['image'] = $this->fileUploadService->upload($request->file('image'), 'uploads/events');
+            /** @var \Illuminate\Http\UploadedFile $imageFile */
+            $imageFile = $request->file('image');
+            $data['image'] = $this->fileUploadService->upload($imageFile, 'uploads/events');
         } else {
             unset($data['image']);
         }
@@ -54,12 +64,16 @@ class EventController extends Controller
         }
         unset($data['class_id']);
 
+        /** @var int $creatorId */
+        $creatorId = $user->id;
+        /** @var array<int, int>|null $servantClassIds */
+        $servantClassIds = $user->getServantClassIds();
         $result = $this->eventService->create(
             data: $data,
-            creatorId: $user->id,
+            creatorId: $creatorId,
             creatorRole: $user->role->value,
             creatorClassYearId: $user->role === UserRole::Servant
-                ? ($user->getServantClassIds()[0] ?? null)
+                ? ($servantClassIds[0] ?? null)
                 : ($user->class_year_id ?? $user->class_id),
         );
 
@@ -72,20 +86,25 @@ class EventController extends Controller
     public function show(Request $request, int $id): JsonResponse
     {
         try {
+            /** @var \App\Models\User $user */
             $user = $request->user();
-            $result = $this->eventService->findById($id, $user->id, $user->role->value);
+            /** @var int $userId */
+            $userId = $user->id;
+            $result = $this->eventService->findById($id, $userId, $user->role->value);
 
             if (!$result) {
                 return response()->json(['message' => 'Event not found.'], 404);
             }
 
-            $event = $result['data']->resource;
+            /** @var array{data: \App\Http\Resources\EventResource, ...} $result */
+            /** @var \App\Models\Event $eventModel */
+            $eventModel = $result['data']->resource;
 
-            if ($this->servantCannotAccessEvent($user, $event)) {
+            if ($this->servantCannotAccessEvent($user, $eventModel)) {
                 return response()->json(['message' => 'Forbidden.'], 403);
             }
 
-            if ($user->role === UserRole::Member && !$event->is_active) {
+            if ($user->role === UserRole::Member && !$eventModel->is_active) {
                 return response()->json(['message' => 'Forbidden.'], 403);
             }
 
@@ -98,19 +117,23 @@ class EventController extends Controller
 
     public function update(EventRequest $request, int $id): JsonResponse
     {
+        /** @var \App\Models\User $user */
         $user = $request->user();
+        /** @var array{data: \App\Http\Resources\EventResource}|null $existing */
         $existing = $this->eventService->findById($id);
 
         if (!$existing) {
             return response()->json(['message' => 'Event not found.'], 404);
         }
 
+        /** @var \App\Models\Event $eventModel */
         $eventModel = $existing['data']->resource;
 
         if ($this->servantCannotAccessEvent($user, $eventModel)) {
             return response()->json(['message' => 'Forbidden.'], 403);
         }
 
+        /** @var array<string, mixed> $data */
         $data = $request->validated();
 
         if (isset($data['class_id']) && !isset($data['class_year_id'])) {
@@ -122,7 +145,9 @@ class EventController extends Controller
             if ($eventModel->image ?? null) {
                 $this->fileUploadService->delete($eventModel->image);
             }
-            $data['image'] = $this->fileUploadService->upload($request->file('image'), 'uploads/events');
+            /** @var \Illuminate\Http\UploadedFile $uploadedImage */
+            $uploadedImage = $request->file('image');
+            $data['image'] = $this->fileUploadService->upload($uploadedImage, 'uploads/events');
         } elseif ($request->boolean('remove_image')) {
             if ($eventModel->image ?? null) {
                 $this->fileUploadService->delete($eventModel->image);
@@ -142,13 +167,16 @@ class EventController extends Controller
 
     public function destroy(Request $request, int $id): JsonResponse
     {
+        /** @var \App\Models\User $user */
         $user = $request->user();
+        /** @var array{data: \App\Http\Resources\EventResource}|null $existing */
         $existing = $this->eventService->findById($id);
 
         if (!$existing) {
             return response()->json(['message' => 'Event not found.'], 404);
         }
 
+        /** @var \App\Models\Event $eventModel */
         $eventModel = $existing['data']->resource;
 
         if ($this->servantCannotAccessEvent($user, $eventModel)) {
@@ -169,10 +197,12 @@ class EventController extends Controller
         }
 
         $hasAccess = $event->is_all_classes || $event->targets()->where('is_all_classes', true)->exists();
+        /** @var array<int, int> $servantClassIds */
         $servantClassIds = $user->classes()->pluck('classes.id')->toArray();
+        /** @var array<int, int> $targetClassIds */
         $targetClassIds = $event->targets()->where('is_all_classes', false)->pluck('class_id')->filter()->toArray();
         $overlap = !empty($targetClassIds) && !empty(array_intersect($servantClassIds, $targetClassIds));
 
-        return !$hasAccess && !$overlap && $event->class_year_id && $event->class_year_id !== $user->class_year_id;
+        return !$hasAccess && !$overlap && $event->class_year_id !== null && $event->class_year_id !== $user->class_year_id;
     }
 }

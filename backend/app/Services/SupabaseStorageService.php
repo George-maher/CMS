@@ -33,11 +33,24 @@ class SupabaseStorageService implements StorageServiceInterface
 
     public function __construct()
     {
-        $this->projectUrl = rtrim(config('supabase-storage.project_url', ''), '/');
-        $this->serviceRoleKey = config('supabase-storage.service_role_key', '');
-        $this->baseUrl = rtrim(config('supabase-storage.base_url', ''), '/');
-        $this->maxImageSize = (int) config('supabase-storage.max_image_size', 5120);
-        $this->maxDocumentSize = (int) config('supabase-storage.max_document_size', 10240);
+        /** @var string $projectUrl */
+        $projectUrl = config('supabase-storage.project_url', '');
+        $this->projectUrl = rtrim($projectUrl, '/');
+
+        /** @var string $serviceRoleKey */
+        $serviceRoleKey = config('supabase-storage.service_role_key', '');
+        $this->serviceRoleKey = $serviceRoleKey;
+
+        /** @var string $baseUrl */
+        $baseUrl = config('supabase-storage.base_url', '');
+        $this->baseUrl = rtrim($baseUrl, '/');
+
+        /** @var int $maxImageSize */
+        $maxImageSize = config('supabase-storage.max_image_size', 5120);
+        $this->maxImageSize = $maxImageSize;
+        /** @var int $maxDocumentSize */
+        $maxDocumentSize = config('supabase-storage.max_document_size', 10240);
+        $this->maxDocumentSize = $maxDocumentSize;
     }
 
     public function uploadImage(UploadedFile $file, string $bucket, ?string $path = null): string
@@ -178,7 +191,9 @@ class SupabaseStorageService implements StorageServiceInterface
                 ->get("{$this->storageApiUrl()}/object/{$bucket}/{$objectPath}/info");
 
             if ($response->successful()) {
-                return $response->json();
+                /** @var array<string, mixed> $metadata */
+                $metadata = $response->json();
+                return $metadata;
             }
 
             return null;
@@ -257,14 +272,21 @@ class SupabaseStorageService implements StorageServiceInterface
         $bucket = $this->extractBucketFromKey($key);
         $objectPath = $this->extractObjectPathFromKey($key);
 
+        /** @var string $mimeType */
+        $mimeType = $file->getMimeType();
+        /** @var string $realPath */
+        $realPath = $file->getRealPath();
+
+        /** @var string $bodyContent */
+        $bodyContent = file_get_contents($realPath) ?: '';
         $response = Http::withHeaders(array_merge(
             $this->authHeaders(),
-            ['Content-Type' => $file->getMimeType()]
+            ['Content-Type' => $mimeType]
         ))
             ->timeout(60)
             ->withBody(
-                file_get_contents($file->getRealPath()),
-                $file->getMimeType()
+                $bodyContent,
+                $mimeType
             )
             ->post("{$this->storageApiUrl()}/object/{$bucket}/{$objectPath}");
 
@@ -295,7 +317,7 @@ class SupabaseStorageService implements StorageServiceInterface
             'bucket' => $bucket,
             'key' => $key,
             'size' => $file->getSize(),
-            'mime' => $file->getMimeType(),
+            'mime' => $mimeType,
         ]);
     }
 
@@ -384,6 +406,7 @@ class SupabaseStorageService implements StorageServiceInterface
         return "{$this->projectUrl}/storage/v1";
     }
 
+    /** @return array<string, string> */
     protected function authHeaders(): array
     {
         return [

@@ -19,7 +19,11 @@ class PointController extends Controller
 
     public function balance(Request $request): JsonResponse
     {
-        $balance = $this->pointService->getPointsBalance($request->user()->id);
+        /** @var \App\Models\User $user */
+        $user = $request->user();
+        /** @var int $userId */
+        $userId = $user->id;
+        $balance = $this->pointService->getPointsBalance($userId);
 
         return response()->json([
             'data' => [
@@ -30,9 +34,15 @@ class PointController extends Controller
 
     public function history(Request $request): JsonResponse
     {
+        /** @var \App\Models\User $user */
+        $user = $request->user();
+        /** @var int $perPage */
+        $perPage = $request->integer('per_page', 15);
+        /** @var int $userId */
+        $userId = $user->id;
         $result = $this->pointService->getPointsHistory(
-            userId: $request->user()->id,
-            perPage: $request->input('per_page', 15)
+            userId: $userId,
+            perPage: $perPage,
         );
 
         return response()->json([
@@ -43,8 +53,10 @@ class PointController extends Controller
 
     public function leaderboard(Request $request): JsonResponse
     {
+        /** @var int $limit */
+        $limit = $request->integer('limit', 10);
         $result = $this->pointService->getLeaderboard(
-            limit: $request->input('limit', 10)
+            limit: $limit,
         );
 
         return response()->json([
@@ -68,7 +80,7 @@ class PointController extends Controller
     {
         $result = $this->pointService->getPointsHistory(
             userId: $userId,
-            perPage: $request->input('per_page', 15)
+            perPage: $request->integer('per_page', 15)
         );
 
         return response()->json([
@@ -79,8 +91,9 @@ class PointController extends Controller
 
     public function addBonusPoints(AddBonusPointsRequest $request): JsonResponse
     {
+        /** @var \App\Models\User $user */
         $user = $request->user();
-        $targetUserId = (int) $request->input('user_id');
+        $targetUserId = $request->integer('user_id');
         $targetUser = User::byChurch()->find($targetUserId);
 
         if (!$targetUser) {
@@ -89,11 +102,16 @@ class PointController extends Controller
             ]);
         }
 
+        /** @var int $points */
+        $points = $request->integer('points');
+        $reason = (string) $request->str('reason');
+        /** @var int $addedBy */
+        $addedBy = $user->id;
         $result = $this->pointService->addBonusPoints(
             userId: $targetUserId,
-            points: (int) $request->input('points'),
-            addedBy: $user->id,
-            reason: $request->input('reason'),
+            points: $points,
+            addedBy: $addedBy,
+            reason: $reason,
         );
 
         return response()->json([

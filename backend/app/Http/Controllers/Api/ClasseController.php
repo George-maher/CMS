@@ -17,7 +17,9 @@ class ClasseController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        return response()->json($this->classeService->all($request->input('search')));
+        /** @var string|null $search */
+        $search = $request->input('search');
+        return response()->json($this->classeService->all($search));
     }
 
     public function store(StoreClasseRequest $request): JsonResponse
@@ -45,11 +47,12 @@ class ClasseController extends Controller
     {
         $this->classeService->update($id, $request->validated());
 
+        /** @var array{data: \App\Http\Resources\ClasseResource}|null $updated */
         $updated = $this->classeService->findById($id);
 
         return response()->json([
             'message' => 'Class updated successfully.',
-            'data' => $updated['data'],
+            'data' => $updated['data'] ?? null,
         ]);
     }
 
@@ -73,9 +76,11 @@ class ClasseController extends Controller
     {
         $request->validate(['user_id' => 'required|integer|exists:users,id']);
 
+        /** @var int $servantId */
+        $servantId = $request->input('user_id');
         $result = $this->classeService->assignServant(
             classeId: $id,
-            servantId: $request->input('user_id')
+            servantId: $servantId,
         );
 
         return response()->json([
@@ -88,9 +93,11 @@ class ClasseController extends Controller
     {
         $request->validate(['user_id' => 'required|integer|exists:users,id']);
 
+        /** @var int $servantId */
+        $servantId = $request->input('user_id');
         $result = $this->classeService->removeServant(
             classeId: $id,
-            servantId: $request->input('user_id')
+            servantId: $servantId,
         );
 
         return response()->json($result);
@@ -103,7 +110,9 @@ class ClasseController extends Controller
             'ordered_ids.*' => 'integer|exists:classes,id',
         ]);
 
-        $this->classeService->updateOrder($request->input('ordered_ids'));
+        /** @var array<int, int> $orderedIds */
+        $orderedIds = $request->input('ordered_ids');
+        $this->classeService->updateOrder($orderedIds);
 
         return response()->json(['message' => 'Class order updated successfully.']);
     }
@@ -112,7 +121,7 @@ class ClasseController extends Controller
     {
         $result = $this->classeService->getMembers(
             classeId: $id,
-            perPage: (int) ($request->input('per_page', 15)),
+            perPage: $request->integer('per_page', 15),
         );
 
         return response()->json($result);
@@ -122,7 +131,7 @@ class ClasseController extends Controller
     {
         $result = $this->classeService->getServants(
             classeId: $id,
-            perPage: (int) ($request->input('per_page', 15)),
+            perPage: $request->integer('per_page', 15),
         );
 
         return response()->json($result);
@@ -132,7 +141,9 @@ class ClasseController extends Controller
     {
         $request->validate(['user_id' => 'required|integer|exists:users,id']);
 
-        $user = \App\Models\User::byChurch()->find($request->input('user_id'));
+        /** @var int $memberId */
+        $memberId = $request->input('user_id');
+        $user = \App\Models\User::byChurch()->find($memberId);
         if (!$user) {
             return response()->json(['message' => 'User not found.'], 404);
         }

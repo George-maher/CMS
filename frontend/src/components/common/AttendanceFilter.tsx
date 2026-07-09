@@ -66,7 +66,7 @@ export default function AttendanceFilter({
 
   useEffect(() => {
     getActiveContexts().then(setContexts).catch(() => toast.error(t('common.failedToLoad')))
-  }, [])
+  }, [t])
 
   const update = (partial: Partial<AttendanceFilterValues>) => {
     onChange({ ...values, ...partial })

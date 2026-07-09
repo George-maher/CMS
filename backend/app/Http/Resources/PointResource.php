@@ -13,14 +13,22 @@ class PointResource extends JsonResource
     {
         return [
             'id' => $this->id,
-            'user' => $this->when($this->user !== null, fn() => [
-                'id' => $this->user->id,
-                'name' => $this->user->name,
-            ]),
-            'added_by' => $this->when($this->addedBy !== null, fn() => [
-                'id' => $this->addedBy->id,
-                'name' => $this->addedBy->name,
-            ]),
+            'user' => $this->when($this->user !== null, function () {
+                /** @var \App\Models\User $user */
+                $user = $this->user;
+                return [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                ];
+            }),
+            'added_by' => $this->when($this->addedBy !== null, function () {
+                /** @var \App\Models\User $addedBy */
+                $addedBy = $this->addedBy;
+                return [
+                    'id' => $addedBy->id,
+                    'name' => $addedBy->name,
+                ];
+            }),
 
             'points' => $this->points,
             'type' => $this->type?->value,

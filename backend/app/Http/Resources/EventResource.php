@@ -22,8 +22,8 @@ class EventResource extends JsonResource
         $targetClasses = null;
         if ($this->relationLoaded('targets')) {
             $targetClasses = $this->targets
-                ->filter(fn($t) => !$t->is_all_classes && $t->classe)
-                ->map(fn($t) => ['id' => $t->classe->id, 'name' => $t->classe->name])
+                ->filter(fn($t) => !$t->is_all_classes && $t->classe !== null)
+                ->map(fn($t) => ['id' => $t->classe?->id, 'name' => $t->classe?->name])
                 ->values();
         }
 
@@ -52,20 +52,28 @@ class EventResource extends JsonResource
             'is_active' => $this->is_active,
             'is_all_classes' => $isAllClasses,
             'target_classes' => $targetClasses,
-            'classe' => $this->when($this->relationLoaded('classe') && $this->classe, fn() => [
-                'id' => $this->classe->id,
-                'name' => $this->classe->name,
-            ]),
+            'classe' => $this->when($this->relationLoaded('classe') && $this->classe, function () {
+                /** @var \App\Models\Classe $classe */
+                $classe = $this->classe;
+                return [
+                    'id' => $classe->id,
+                    'name' => $classe->name,
+                ];
+            }),
             'class_id' => $this->class_year_id ?? ($targetClasses && $targetClasses->isNotEmpty() ? $targetClasses->first()['id'] : null),
             'class_year_id' => $this->class_year_id,
-            'creator' => $this->when($this->creator !== null, fn() => [
-                'id' => $this->creator->id,
-                'name' => $this->creator->name,
-            ]),
+            'creator' => $this->when($this->creator !== null, function () {
+                /** @var \App\Models\User $creator */
+                $creator = $this->creator;
+                return [
+                    'id' => $creator->id,
+                    'name' => $creator->name,
+                ];
+            }),
             'view_count' => $this->when($isAdminOrServant, fn() => $this->viewCount()),
             'views' => $this->when($isAdminOrServant && $this->relationLoaded('views'), fn() =>
                 $this->views->map(fn($v) => [
-                    'user' => ['id' => $v->user_id, 'name' => $v->user->name ?? 'Unknown'],
+                    'user' => ['id' => $v->user_id, 'name' => ($v->user->name ?? 'Unknown')],
                     'viewed_at' => $v->viewed_at,
                 ])
             ),

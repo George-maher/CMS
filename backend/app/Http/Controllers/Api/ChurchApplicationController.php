@@ -17,13 +17,25 @@ class ChurchApplicationController extends Controller
 
     public function store(ChurchApplicationRequest $request): JsonResponse
     {
+        /** @var \Illuminate\Http\UploadedFile|null $frontId */
+        $frontId = $request->file('front_id');
+        /** @var \Illuminate\Http\UploadedFile|null $backId */
+        $backId = $request->file('back_id');
+        /** @var \Illuminate\Http\UploadedFile|null $permissionDoc */
+        $permissionDoc = $request->file('church_permission_doc');
+        /** @var string $email */
+        $email = $request->input('email');
+        /** @var string $password */
+        $password = $request->input('password', '');
+        /** @var array<string, mixed> $safeData */
+        $safeData = $request->safe()->except(['front_id', 'back_id', 'church_permission_doc', 'password', 'password_confirmation']);
         $result = $this->churchApplicationService->submit(
-            $request->safe()->except(['front_id', 'back_id', 'church_permission_doc', 'password', 'password_confirmation']),
-            $request->file('front_id'),
-            $request->file('back_id'),
-            $request->input('email'),
-            $request->input('password', ''),
-            $request->file('church_permission_doc'),
+            $safeData,
+            $frontId,
+            $backId,
+            $email,
+            $password,
+            $permissionDoc,
         );
 
         $statusCode = $result['is_update'] ? 200 : 201;
@@ -31,12 +43,17 @@ class ChurchApplicationController extends Controller
             ? 'Application updated successfully.'
             : 'Application submitted successfully. You can now login to track your application status.';
 
+        /** @var \App\Models\ChurchApplication $application */
+        $application = $result['application'];
+        /** @var \App\Models\User $user */
+        $user = $result['user'];
+
         return response()->json([
             'message' => $message,
-            'data' => new ChurchApplicationResource($result['application']),
+            'data' => new ChurchApplicationResource($application),
             'user' => [
-                'id' => $result['user']->id,
-                'email' => $result['user']->email,
+                'id' => $user->id,
+                'email' => $user->email,
             ],
             'is_update' => $result['is_update'],
         ], $statusCode);
@@ -46,7 +63,9 @@ class ChurchApplicationController extends Controller
     {
         $request->validate(['email' => 'required|email']);
 
-        $application = $this->churchApplicationService->findByEmail($request->input('email'));
+        /** @var string $email */
+        $email = $request->input('email');
+        $application = $this->churchApplicationService->findByEmail($email);
 
         if (!$application) {
             return response()->json(['data' => null]);

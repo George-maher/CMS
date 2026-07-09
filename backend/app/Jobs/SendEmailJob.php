@@ -23,6 +23,9 @@ class SendEmailJob implements ShouldQueue
 
     public ?int $retryUntil = null;
 
+    /**
+     * @param array<string, mixed> $viewData
+     */
     public function __construct(
         private readonly User $user,
         private readonly string $subjectText,

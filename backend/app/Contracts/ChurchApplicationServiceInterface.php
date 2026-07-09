@@ -11,12 +11,15 @@ interface ChurchApplicationServiceInterface
 {
     public function findByEmail(string $email): ?ChurchApplication;
 
+    /** @param array<string, mixed> $data */
+    /** @return array<string, mixed> */
     public function submit(array $data, ?UploadedFile $frontId, ?UploadedFile $backId, string $email, string $password, ?UploadedFile $churchPermissionDoc = null): array;
 
     public function approve(ChurchApplication $application, User $platformAdmin, ?string $notes = null): Church;
 
     public function reject(ChurchApplication $application, User $platformAdmin, string $reason): ChurchApplication;
 
+    /** @return \Illuminate\Contracts\Pagination\LengthAwarePaginator<int, \App\Models\ChurchApplication> */
     public function listApplications(?string $status = null, int $perPage = 15);
 
     public function uploadIdImage(ChurchApplication $application, string $side, UploadedFile $image): ChurchApplication;

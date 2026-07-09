@@ -57,11 +57,13 @@ class AttendanceContext extends Model
         });
     }
 
+    /** @return BelongsTo<\App\Models\User, $this> */
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
     }
 
+    /** @return BelongsTo<\App\Models\User, $this> */
     public function updater(): BelongsTo
     {
         return $this->belongsTo(User::class, 'updated_by');

@@ -11,6 +11,7 @@ class RejectPasswordResetRequest extends FormRequest
         return $this->user()?->isAdminOrAssistantAdmin() ?? false;
     }
 
+    /** @return array<string, mixed> */
     public function rules(): array
     {
         return [

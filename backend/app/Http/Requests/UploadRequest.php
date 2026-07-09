@@ -11,23 +11,15 @@ class UploadRequest extends FormRequest
         return true;
     }
 
+    /** @return array<string, mixed> */
     public function rules(): array
     {
-        $bucket = $this->route('bucket');
-
-        $imageBuckets = ['profiles', 'events'];
-        $docBuckets = ['documents', 'ids', 'attachments'];
-
-        if (in_array($bucket, $imageBuckets, true)) {
-            return [
-                'file' => [
-                    'required',
-                    'file',
-                    'mimes:jpg,jpeg,png,gif,webp',
-                    'max:' . config('supabase-storage.validation.max_image_size', 5120),
-                ],
-            ];
-        }
+        $bucket = $this->input('bucket', 'profiles');
+        $docBuckets = ['documents', 'ids'];
+        /** @var int $maxImageSize */
+        $maxImageSize = config('supabase-storage.validation.max_image_size', 5120);
+        /** @var int $maxDocumentSize */
+        $maxDocumentSize = config('supabase-storage.validation.max_document_size', 10240);
 
         if (in_array($bucket, $docBuckets, true)) {
             return [
@@ -35,13 +27,18 @@ class UploadRequest extends FormRequest
                     'required',
                     'file',
                     'mimes:pdf,doc,docx,jpg,jpeg,png',
-                    'max:' . config('supabase-storage.validation.max_document_size', 10240),
+                    'max:' . $maxDocumentSize,
                 ],
             ];
         }
 
         return [
-            'file' => ['required', 'file', 'max:10240'],
+            'file' => [
+                'required',
+                'file',
+                'mimes:jpg,jpeg,png,gif,webp',
+                'max:' . $maxImageSize,
+            ],
         ];
     }
 

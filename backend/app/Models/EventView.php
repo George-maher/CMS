@@ -42,11 +42,13 @@ class EventView extends Model
         ];
     }
 
+    /** @return BelongsTo<\App\Models\Event, $this> */
     public function event(): BelongsTo
     {
         return $this->belongsTo(Event::class);
     }
 
+    /** @return BelongsTo<\App\Models\User, $this> */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);

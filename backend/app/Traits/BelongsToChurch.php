@@ -12,23 +12,24 @@ trait BelongsToChurch
     {
         static::addGlobalScope(new ChurchScope);
 
-        static::creating(function ($model) {
-            if ($model->church_id) {
+        static::creating(function (\Illuminate\Database\Eloquent\Model $model) {
+            if ($model->getAttribute('church_id')) {
                 return;
             }
 
             // Resolve from authenticated user
             if (auth()->check()) {
+                /** @var \App\Models\User|null $user */
                 $user = auth()->user();
-                if ($user->church_id) {
-                    $model->church_id = $user->church_id;
+                if ($user && $user->church_id) {
+                    $model->setAttribute('church_id', $user->church_id);
                     return;
                 }
             }
 
             // Resolve from HTTP header
             if (!app()->runningInConsole() && request()->hasHeader('X-Church-ID')) {
-                $model->church_id = (int) request()->header('X-Church-ID');
+                $model->setAttribute('church_id', intval(request()->header('X-Church-ID')));
                 return;
             }
 

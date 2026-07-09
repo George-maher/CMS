@@ -15,10 +15,12 @@ class CreateStorageBuckets extends Command
 
     public function handle(SupabaseStorageService $storageService): int
     {
+        /** @var string $projectUrl */
         $projectUrl = config('supabase-storage.project_url');
+        /** @var string $serviceRoleKey */
         $serviceRoleKey = config('supabase-storage.service_role_key');
 
-        if (!$projectUrl || !$serviceRoleKey) {
+        if ($projectUrl === '' || $projectUrl === null || $serviceRoleKey === '' || $serviceRoleKey === null) {
             $this->error('SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set in .env');
             $this->warn('Set SUPABASE_URL to your Supabase project URL (e.g., https://xxx.supabase.co)');
             $this->warn('Set SUPABASE_SERVICE_ROLE_KEY to your Supabase service_role key (from Settings → API)');
@@ -26,6 +28,7 @@ class CreateStorageBuckets extends Command
             return self::FAILURE;
         }
 
+        /** @var array<string, array<string, mixed>> $buckets */
         $buckets = config('supabase-storage.buckets', []);
         $apiUrl = rtrim($projectUrl, '/') . '/storage/v1/bucket';
 
@@ -34,8 +37,9 @@ class CreateStorageBuckets extends Command
         $failed = 0;
 
         foreach ($buckets as $key => $bucketConfig) {
+            /** @var string $bucketName */
             $bucketName = $bucketConfig['name'] ?? $key;
-            $isPublic = $bucketConfig['public'] ?? true;
+            $isPublic = (bool) ($bucketConfig['public'] ?? true);
 
             $this->line("Checking bucket: {$bucketName}...");
 
@@ -45,8 +49,9 @@ class CreateStorageBuckets extends Command
             ])->get("{$apiUrl}/{$bucketName}");
 
             if ($check->successful()) {
+                /** @var array<string, mixed> $bucketData */
                 $bucketData = $check->json();
-                $currentlyPublic = $bucketData['public'] ?? false;
+                $currentlyPublic = (bool) ($bucketData['public'] ?? false);
 
                 if ($currentlyPublic !== $isPublic) {
                     $update = Http::withHeaders([

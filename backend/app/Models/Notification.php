@@ -52,21 +52,25 @@ class Notification extends Model
         ];
     }
 
+    /** @return BelongsTo<\App\Models\User, $this> */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
+    /** @return BelongsTo<\App\Models\Event, $this> */
     public function event(): BelongsTo
     {
         return $this->belongsTo(Event::class);
     }
 
+    /** @return BelongsTo<\App\Models\Feedback, $this> */
     public function feedback(): BelongsTo
     {
         return $this->belongsTo(Feedback::class);
     }
 
+    /** @return BelongsTo<\App\Models\Point, $this> */
     public function point(): BelongsTo
     {
         return $this->belongsTo(Point::class, 'points_id');

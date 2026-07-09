@@ -33,10 +33,14 @@ class MembershipRequestResource extends JsonResource
             'notes' => $this->notes,
             'rejection_reason' => $this->rejection_reason,
             'file_url' => $this->when($isAdminOrPlatform, fn() => $this->file_url),
-            'reviewer' => $this->when($this->relationLoaded('reviewer') && $this->reviewer, fn() => [
-                'id' => $this->reviewer->id,
-                'name' => $this->reviewer->name,
-            ]),
+            'reviewer' => $this->when($this->relationLoaded('reviewer') && $this->reviewer, function () {
+                /** @var \App\Models\User $reviewer */
+                $reviewer = $this->reviewer;
+                return [
+                    'id' => $reviewer->id,
+                    'name' => $reviewer->name,
+                ];
+            }),
             'reviewed_at' => $this->reviewed_at,
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,

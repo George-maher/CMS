@@ -28,6 +28,7 @@ class ResetApplicationData extends Command
         }
 
         $startTime = microtime(true);
+        /** @var array<string, int> $recordsRemoved */
         $recordsRemoved = [];
 
         $this->info('Starting application data reset...');
@@ -35,6 +36,7 @@ class ResetApplicationData extends Command
 
         $this->line('Step 1/4: Counting records before deletion...');
 
+        /** @var array<string, string> $tables */
         $tables = [
             'points'                 => 'Points',
             'attendances'            => 'Attendances',
@@ -76,6 +78,7 @@ class ResetApplicationData extends Command
         $bar = $this->output->createProgressBar(count($tables));
         $bar->start();
 
+        /** @var array<string, int> $deleted */
         $deleted = [];
 
         foreach ($tables as $table => $label) {
@@ -109,10 +112,12 @@ class ResetApplicationData extends Command
         $this->newLine();
         $this->line('Step 4/4: Creating Platform Admin and seeding defaults...');
 
+        /** @var string $platformEmail */
         $platformEmail = $this->option('platform-email');
+        /** @var string $platformPassword */
         $platformPassword = $this->option('platform-password');
 
-        $platformAdmin = User::create([
+        User::create([
             'name'               => 'Platform Admin',
             'email'              => $platformEmail,
             'password'           => Hash::make($platformPassword),
@@ -127,6 +132,7 @@ class ResetApplicationData extends Command
         $this->line("    Email:    {$platformEmail}");
         $this->line("    Password: {$platformPassword}");
 
+        /** @var array<int, array<string, mixed>> $contexts */
         $contexts = [
             ['name' => 'Sunday School',           'slug' => 'sunday-school',    'is_default' => true,  'is_active' => true],
             ['name' => 'Trip',                    'slug' => 'trip',             'is_default' => false, 'is_active' => true],

@@ -149,7 +149,7 @@ export default function AdminQRManagement() {
         })))
       })
       .catch(() => toast.error(t('common.failedToLoad')))
-  }, [])
+  }, [t])
 
   const handleRevoke = async (id: number) => {
     if (window.confirm(t('qr.revokeConfirm'))) { await revokeQRInvite(id); fetch(); toast.success(t('qr.revokedSuccess')) }

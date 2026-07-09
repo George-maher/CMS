@@ -67,7 +67,7 @@ export default function ServantScanQR() {
     return () => {
       if (html5QrCodeRef.current) { try { html5QrCodeRef.current.stop() } catch (e) { logCatch('ScanQR.stopScanner(cleanup)', e) }; html5QrCodeRef.current = null }
     }
-  }, [])
+  }, [t])
 
   const confirmAttendance = async (token: string, memberId?: string) => {
     if (!confirmContextId) {
@@ -149,7 +149,7 @@ export default function ServantScanQR() {
       setResult({ success: false, message: msg })
       toast.error(msg)
     } finally { setLoading(false) }
-  }, [contexts, t])
+  }, [t])
 
   const handleLookupByMemberId = useCallback(async (memberId: string) => {
     setLoading(true)
@@ -167,7 +167,7 @@ export default function ServantScanQR() {
       setResult({ success: false, message: msg })
       toast.error(msg)
     } finally { setLoading(false) }
-  }, [])
+  }, [t])
 
   const canUseCamera = () => !!(
     typeof navigator.mediaDevices?.getUserMedia === 'function' &&
@@ -229,7 +229,7 @@ export default function ServantScanQR() {
     }
     initScanner()
     return () => { cancelled = true; if (html5QrCodeRef.current) { try { html5QrCodeRef.current.stop() } catch (e) { logCatch('ScanQR.scannerCleanup', e) }; html5QrCodeRef.current = null } }
-  }, [cameraActive])
+  }, [cameraActive, handleLookupAndConfirm, t])
 
   const startScanner = async () => {
     setResult(null)

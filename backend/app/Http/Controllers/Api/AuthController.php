@@ -49,7 +49,9 @@ class AuthController extends Controller
 
     public function logout(Request $request): JsonResponse
     {
-        $this->authService->logout($request->user());
+        /** @var \App\Models\User $user */
+        $user = $request->user();
+        $this->authService->logout($user);
 
         return response()->json([
             'message' => 'Logged out successfully.',
@@ -70,7 +72,9 @@ class AuthController extends Controller
 
     public function me(Request $request): JsonResponse
     {
-        $result = $this->authService->getAuthenticatedUser($request->user());
+        /** @var \App\Models\User $user */
+        $user = $request->user();
+        $result = $this->authService->getAuthenticatedUser($user);
 
         return response()->json([
             'data' => [
@@ -131,7 +135,9 @@ class AuthController extends Controller
         $user->email_verification_token = Str::random(64);
         $user->save();
 
-        $verificationUrl = config('app.frontend_url') . '/verify-email?token=' . urlencode($user->email_verification_token) . '&email=' . urlencode($user->email);
+        /** @var string $frontendUrl */
+        $frontendUrl = config('app.frontend_url');
+        $verificationUrl = $frontendUrl . '/verify-email?token=' . urlencode($user->email_verification_token ?? '') . '&email=' . urlencode($user->email);
 
         try {
             $user->notify(new VerifyEmailNotification($user, $verificationUrl));
@@ -153,7 +159,9 @@ class AuthController extends Controller
             'email' => ['required', 'email'],
         ]);
 
-        $result = $this->authService->forgotPassword($request->only('email'));
+        /** @var array<string, mixed> $data */
+        $data = $request->only('email');
+        $result = $this->authService->forgotPassword($data);
 
         return response()->json([
             'message' => 'If an account exists, a password reset link has been sent.',
@@ -168,9 +176,11 @@ class AuthController extends Controller
             'password' => ['required', 'string', 'min:8', 'confirmed'],
         ]);
 
-        $result = $this->authService->resetPassword($request->only(
+        /** @var array<string, mixed> $data */
+        $data = $request->only(
             'email', 'password', 'password_confirmation', 'token'
-        ));
+        );
+        $result = $this->authService->resetPassword($data);
 
         return response()->json([
             'message' => $result['message'],

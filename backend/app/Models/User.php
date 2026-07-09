@@ -55,6 +55,8 @@ use Laravel\Sanctum\HasApiTokens;
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\User> $servants
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Attendance> $attendances
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Attendance> $recordedAttendances
+ * @property-read int|null $total_points
+ * @property-read int|null $attendance_count
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Point> $points
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\QRInvite> $createdQrInvites
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\QRInvite> $usedQrInvites
@@ -116,85 +118,131 @@ class User extends Authenticatable
         ];
     }
 
+    /**
+     * @return BelongsTo<Church, $this>
+     */
     public function church(): BelongsTo
     {
         return $this->belongsTo(Church::class);
     }
 
+    /**
+     * @return BelongsTo<ChurchApplication, $this>
+     */
     public function churchApplication(): BelongsTo
     {
         return $this->belongsTo(ChurchApplication::class);
     }
 
+    /**
+     * @return BelongsTo<Classe, $this>
+     */
     public function classe(): BelongsTo
     {
         return $this->belongsTo(Classe::class, 'class_id');
     }
 
+    /**
+     * @return BelongsToMany<Classe, $this, \Illuminate\Database\Eloquent\Relations\Pivot, 'pivot'>
+     */
     public function classes(): BelongsToMany
     {
         return $this->belongsToMany(Classe::class, 'class_servant', 'user_id', 'class_id')
             ->withTimestamps();
     }
 
+    /**
+     * @return BelongsTo<QRInvite, $this>
+     */
     public function invite(): BelongsTo
     {
         return $this->belongsTo(QRInvite::class, 'invite_id');
     }
 
+    /**
+     * @return BelongsTo<User, $this>
+     */
     public function createdBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
     }
 
+    /**
+     * @return BelongsTo<User, $this>
+     */
     public function servant(): BelongsTo
     {
         return $this->belongsTo(User::class, 'servant_id');
     }
 
+    /**
+     * @return HasMany<User, $this>
+     */
     public function assignedMembers(): HasMany
     {
         return $this->hasMany(User::class, 'servant_id');
     }
 
+    /**
+     * @return HasMany<User, $this>
+     */
     public function servants(): HasMany
     {
         return $this->hasMany(User::class, 'created_by');
     }
 
+    /**
+     * @return HasMany<Attendance, $this>
+     */
     public function attendances(): HasMany
     {
         return $this->hasMany(Attendance::class);
     }
 
+    /**
+     * @return HasMany<Attendance, $this>
+     */
     public function recordedAttendances(): HasMany
     {
         return $this->hasMany(Attendance::class, 'recorded_by');
     }
 
+    /**
+     * @return HasMany<Point, $this>
+     */
     public function points(): HasMany
     {
         return $this->hasMany(Point::class);
     }
 
+    /**
+     * @return HasMany<QRInvite, $this>
+     */
     public function createdQrInvites(): HasMany
     {
         return $this->hasMany(QRInvite::class, 'created_by');
     }
 
+    /**
+     * @return HasMany<QRInvite, $this>
+     */
     public function usedQrInvites(): HasMany
     {
         return $this->hasMany(QRInvite::class, 'used_by');
     }
 
+    /**
+     * @return array<int, int>|null
+     */
     public function getServantClassIds(): ?array
     {
         if ($this->isServant()) {
+            /** @var array<int, int> $classIds */
             $classIds = $this->classes()->pluck('classes.id')->toArray();
             if (!empty($classIds)) {
                 return $classIds;
             }
-            return $this->class_id ? [$this->class_id] : null;
+            return $this->class_id ? [(int) $this->class_id] : null;
         }
         return null;
     }

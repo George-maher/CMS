@@ -8,11 +8,18 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 class FeedbackRepository implements FeedbackRepositoryInterface
 {
+    /**
+     * @param array<string, mixed> $data
+     */
     public function create(array $data): Feedback
     {
         return Feedback::create($data);
     }
 
+    /**
+     * @param array<string, mixed> $filters
+     * @return LengthAwarePaginator<int, Feedback>
+     */
     public function paginate(int $perPage = 15, array $filters = []): LengthAwarePaginator
     {
         $query = Feedback::with(['user', 'user.classe', 'user.classe.stage', 'replies.user']);
@@ -29,7 +36,6 @@ class FeedbackRepository implements FeedbackRepositoryInterface
             $query->where('is_resolved', false);
         }
 
-        // Support both single class_year_id and array of class_year_ids
         if (!empty($filters['class_year_ids']) && is_array($filters['class_year_ids'])) {
             $query->whereIn('class_year_id', $filters['class_year_ids']);
         } elseif (!empty($filters['class_year_id'])) {
@@ -61,6 +67,9 @@ class FeedbackRepository implements FeedbackRepositoryInterface
         return $feedback->update(['is_resolved' => true]);
     }
 
+    /**
+     * @param array<int, int>|int|null $classYearIds
+     */
     public function countUnresolved(array|int|null $classYearIds = null): int
     {
         $query = Feedback::where('is_resolved', false);

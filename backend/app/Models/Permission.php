@@ -28,17 +28,16 @@ class Permission extends Model
         'key' => 'string',
     ];
 
-    private const CACHE_TTL = 3600;
-
+    /** @return array<int, string> */
     public static function getPermissionsForRole(string $roleName): array
     {
-        return Cache::remember("permissions_role_{$roleName}", self::CACHE_TTL, function () use ($roleName) {
-            return \Illuminate\Support\Facades\DB::table('role_permission as rp')
-                ->join('permissions as p', 'rp.permission_key', '=', 'p.key')
-                ->where('rp.role_name', $roleName)
-                ->pluck('p.key')
-                ->toArray();
-        });
+        $result = \Illuminate\Support\Facades\DB::table('role_permission as rp')
+            ->join('permissions as p', 'rp.permission_key', '=', 'p.key')
+            ->where('rp.role_name', $roleName)
+            ->pluck('p.key')
+            ->toArray();
+        /** @var array<int, string> $result */
+        return $result;
     }
 
     public static function roleHasPermission(string $roleName, string $permissionKey): bool
@@ -58,6 +57,7 @@ class Permission extends Model
         }
     }
 
+    /** @return array<int, array{key: string, name: string, group: string|null}> */
     public static function defaultPermissions(): array
     {
         return [
@@ -89,6 +89,7 @@ class Permission extends Model
         ];
     }
 
+    /** @return array<string, array<int, string>> */
     public static function defaultRolePermissions(): array
     {
         return [

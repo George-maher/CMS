@@ -2,6 +2,7 @@
 
 namespace App\Notifications;
 
+use App\Models\User;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -13,12 +14,13 @@ class PasswordChangedNotification extends Notification implements ShouldQueue
 
     public function __construct() {}
 
+    /** @return array<int, string> */
     public function via(object $notifiable): array
     {
         return ['mail'];
     }
 
-    public function toMail(object $notifiable): MailMessage
+    public function toMail(User $notifiable): MailMessage
     {
         $locale = $notifiable->preferredLocale();
 

@@ -66,7 +66,7 @@ class PasswordResetRequestService implements PasswordResetRequestServiceInterfac
                 ->get();
 
             foreach ($admins as $admin) {
-                $admin->notify(new PasswordResetRequestSubmittedNotification($request, $user));
+                $admin->notify(new PasswordResetRequestSubmittedNotification($user));
             }
         } catch (\Exception $e) {
             Log::warning('Failed to notify admins about password reset request', [
@@ -112,7 +112,15 @@ class PasswordResetRequestService implements PasswordResetRequestServiceInterfac
 
             $user = $request->user;
 
-            $resetUrl = config('app.frontend_url') . '/reset-password-request?' . http_build_query([
+            if ($user === null) {
+                throw ValidationException::withMessages([
+                    'request' => [__('password_reset_requests.user_not_found')],
+                ]);
+            }
+
+            /** @var string $frontendUrl */
+            $frontendUrl = config('app.frontend_url');
+            $resetUrl = $frontendUrl . '/reset-password-request?' . http_build_query([
                 'token' => $token,
                 'email' => $user->email,
             ]);
@@ -133,9 +141,12 @@ class PasswordResetRequestService implements PasswordResetRequestServiceInterfac
                 'reviewed_by' => $adminId,
             ]);
 
+            /** @var PasswordResetRequest $freshRequest */
+            $freshRequest = $request->fresh(['user', 'reviewer']);
+
             return [
                 'message' => __('password_reset_requests.approved'),
-                'request' => $request->fresh()->load(['user', 'reviewer']),
+                'request' => $freshRequest,
             ];
         });
     }
@@ -169,6 +180,12 @@ class PasswordResetRequestService implements PasswordResetRequestServiceInterfac
 
             $user = $request->user;
 
+            if ($user === null) {
+                throw ValidationException::withMessages([
+                    'request' => [__('password_reset_requests.user_not_found')],
+                ]);
+            }
+
             try {
                 $user->notify(new PasswordResetRequestRejectedNotification($reason));
             } catch (\Exception $e) {
@@ -185,9 +202,12 @@ class PasswordResetRequestService implements PasswordResetRequestServiceInterfac
                 'reviewed_by' => $adminId,
             ]);
 
+            /** @var PasswordResetRequest $freshRequest */
+            $freshRequest = $request->fresh(['user', 'reviewer']);
+
             return [
                 'message' => __('password_reset_requests.rejected'),
-                'request' => $request->fresh()->load(['user', 'reviewer']),
+                'request' => $freshRequest,
             ];
         });
     }
@@ -207,6 +227,12 @@ class PasswordResetRequestService implements PasswordResetRequestServiceInterfac
             }
 
             $user = $request->user;
+
+            if ($user === null) {
+                throw ValidationException::withMessages([
+                    'token' => [__('password_reset_requests.invalid_token')],
+                ]);
+            }
 
             $user->forceFill([
                 'password' => Hash::make($password),

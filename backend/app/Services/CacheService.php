@@ -40,10 +40,11 @@ class CacheService
     }
 
     /**
-     * @param callable $callback
-     * @return mixed
+     * @template T
+     * @param \Closure(): T $callback
+     * @return T
      */
-    public function rememberAttendanceToday(?int $churchId, ?int $classYearId, callable $callback): mixed
+    public function rememberAttendanceToday(?int $churchId, ?int $classYearId, \Closure $callback): mixed
     {
         if ($churchId === null) {
             return $callback();
@@ -53,10 +54,11 @@ class CacheService
     }
 
     /**
-     * @param callable $callback
-     * @return mixed
+     * @template T
+     * @param \Closure(): T $callback
+     * @return T
      */
-    public function rememberAttendanceStats(?int $churchId, int $userId, callable $callback): mixed
+    public function rememberAttendanceStats(?int $churchId, int $userId, \Closure $callback): mixed
     {
         if ($churchId === null) {
             return $callback();
@@ -66,10 +68,11 @@ class CacheService
     }
 
     /**
-     * @param callable $callback
-     * @return mixed
+     * @template T
+     * @param \Closure(): T $callback
+     * @return T
      */
-    public function rememberLeaderboard(?int $churchId, ?int $classYearId, int $limit, callable $callback): mixed
+    public function rememberLeaderboard(?int $churchId, ?int $classYearId, int $limit, \Closure $callback): mixed
     {
         if ($churchId === null) {
             return $callback();
@@ -79,10 +82,11 @@ class CacheService
     }
 
     /**
-     * @param callable $callback
-     * @return mixed
+     * @template T
+     * @param \Closure(): T $callback
+     * @return T
      */
-    public function rememberPointsBalance(?int $churchId, int $userId, callable $callback): mixed
+    public function rememberPointsBalance(?int $churchId, int $userId, \Closure $callback): mixed
     {
         if ($churchId === null) {
             return $callback();
@@ -92,10 +96,11 @@ class CacheService
     }
 
     /**
-     * @param callable $callback
-     * @return mixed
+     * @template T
+     * @param \Closure(): T $callback
+     * @return T
      */
-    public function rememberDashboardStats(?int $churchId, callable $callback): mixed
+    public function rememberDashboardStats(?int $churchId, \Closure $callback): mixed
     {
         if ($churchId === null) {
             return $callback();
@@ -105,10 +110,11 @@ class CacheService
     }
 
     /**
-     * @param callable $callback
-     * @return mixed
+     * @template T
+     * @param \Closure(): T $callback
+     * @return T
      */
-    public function rememberStagesLeaderboards(?int $churchId, callable $callback): mixed
+    public function rememberStagesLeaderboards(?int $churchId, \Closure $callback): mixed
     {
         if ($churchId === null) {
             return $callback();
@@ -118,10 +124,11 @@ class CacheService
     }
 
     /**
-     * @param callable $callback
-     * @return mixed
+     * @template T
+     * @param \Closure(): T $callback
+     * @return T
      */
-    public function rememberActiveVerse(?int $churchId, callable $callback): mixed
+    public function rememberActiveVerse(?int $churchId, \Closure $callback): mixed
     {
         if ($churchId === null) {
             return $callback();
@@ -131,10 +138,11 @@ class CacheService
     }
 
     /**
-     * @param callable $callback
-     * @return mixed
+     * @template T
+     * @param \Closure(): T $callback
+     * @return T
      */
-    public function rememberEventList(?int $churchId, string $filterHash, callable $callback): mixed
+    public function rememberEventList(?int $churchId, string $filterHash, \Closure $callback): mixed
     {
         if ($churchId === null) {
             return $callback();
@@ -144,10 +152,11 @@ class CacheService
     }
 
     /**
-     * @param callable $callback
-     * @return mixed
+     * @template T
+     * @param \Closure(): T $callback
+     * @return T
      */
-    public function rememberContextSummary(?int $churchId, ?string $dateFrom, ?string $dateTo, ?int $classYearId, callable $callback): mixed
+    public function rememberContextSummary(?int $churchId, ?string $dateFrom, ?string $dateTo, ?int $classYearId, \Closure $callback): mixed
     {
         if ($churchId === null) {
             return $callback();

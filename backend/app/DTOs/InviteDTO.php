@@ -21,24 +21,53 @@ readonly class InviteDTO
         public int $use_count,
     ) {}
 
+    /** @param array<string, mixed> $data */
     public static function fromArray(array $data): self
     {
+        /** @var int|null $id */
+        $id = $data['id'] ?? null;
+        /** @var string|QRInviteType $rawType */
+        $rawType = $data['type'];
+        /** @var string $type */
+        $type = $rawType instanceof QRInviteType ? $rawType->value : $rawType;
+        /** @var string $token */
+        $token = $data['token'];
+        /** @var int $created_by */
+        $created_by = $data['created_by'];
+        /** @var int|null $class_year_id */
+        $class_year_id = $data['class_year_id'] ?? null;
+        /** @var int|null $used_by */
+        $used_by = $data['used_by'] ?? null;
+        /** @var string $expires_at */
+        $expires_at = $data['expires_at'];
+        /** @var string|null $used_at */
+        $used_at = $data['used_at'] ?? null;
+        /** @var bool $is_revoked */
+        $is_revoked = $data['is_revoked'] ?? false;
+        /** @var bool $is_single_use */
+        $is_single_use = $data['is_single_use'] ?? true;
+        /** @var int $max_uses */
+        $max_uses = $data['max_uses'] ?? 1;
+        /** @var int $use_count */
+        $use_count = $data['use_count'] ?? 0;
+
         return new self(
-            id: $data['id'] ?? null,
-            type: $data['type'] instanceof QRInviteType ? $data['type'] : QRInviteType::from($data['type']),
-            token: $data['token'],
-            created_by: $data['created_by'],
-            class_year_id: $data['class_year_id'] ?? null,
-            used_by: $data['used_by'] ?? null,
-            expires_at: $data['expires_at'],
-            used_at: $data['used_at'] ?? null,
-            is_revoked: $data['is_revoked'] ?? false,
-            is_single_use: $data['is_single_use'] ?? true,
-            max_uses: $data['max_uses'] ?? 1,
-            use_count: $data['use_count'] ?? 0,
+            id: $id,
+            type: $data['type'] instanceof QRInviteType ? $data['type'] : QRInviteType::from($type),
+            token: $token,
+            created_by: $created_by,
+            class_year_id: $class_year_id,
+            used_by: $used_by,
+            expires_at: $expires_at,
+            used_at: $used_at,
+            is_revoked: $is_revoked,
+            is_single_use: $is_single_use,
+            max_uses: $max_uses,
+            use_count: $use_count,
         );
     }
 
+    /** @return array<string, mixed> */
     public function toArray(): array
     {
         return [

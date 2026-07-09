@@ -37,14 +37,18 @@ class ChurchApplicationResource extends JsonResource
             'status' => $this->status,
             'admin_notes' => $this->admin_notes,
             'rejection_reason' => $this->rejection_reason,
-            'reviewed_by' => $this->whenLoaded('reviewer', fn() => [
-                'id' => $this->reviewer->id,
-                'name' => $this->reviewer->name,
-            ]),
+            'reviewed_by' => $this->whenLoaded('reviewer', function () {
+                /** @var \App\Models\User $reviewer */
+                $reviewer = $this->reviewer;
+                return [
+                    'id' => $reviewer->id,
+                    'name' => $reviewer->name,
+                ];
+            }),
             'reviewed_at' => $this->reviewed_at?->toISOString(),
             'rejected_at' => $this->rejected_at?->toISOString(),
-            'created_at' => $this->created_at->toISOString(),
-            'updated_at' => $this->updated_at->toISOString(),
+            'created_at' => $this->created_at?->toISOString(),
+            'updated_at' => $this->updated_at?->toISOString(),
         ];
     }
 }

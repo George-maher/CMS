@@ -23,6 +23,7 @@ class PasswordResetRequestPolicy
     {
         return $user->isAdminOrAssistantAdmin()
             && $request->isPending()
+            && $request->user !== null
             && $request->user->church_id === $user->church_id;
     }
 
@@ -30,6 +31,7 @@ class PasswordResetRequestPolicy
     {
         return $user->isAdminOrAssistantAdmin()
             && $request->isPending()
+            && $request->user !== null
             && $request->user->church_id === $user->church_id;
     }
 

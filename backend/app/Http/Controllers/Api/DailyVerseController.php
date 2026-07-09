@@ -17,8 +17,10 @@ class DailyVerseController extends Controller
 
     public function index(Request $request): JsonResponse
     {
+        /** @var int $perPage */
+        $perPage = $request->input('per_page', 15);
         $result = $this->verseService->list(
-            perPage: $request->input('per_page', 15),
+            perPage: $perPage,
         );
 
         return response()->json([
@@ -29,9 +31,13 @@ class DailyVerseController extends Controller
 
     public function store(StoreVerseRequest $request): JsonResponse
     {
+        /** @var \App\Models\User $user */
+        $user = $request->user();
+        /** @var int $creatorId */
+        $creatorId = $user->id;
         $result = $this->verseService->create(
             data: $request->validated(),
-            creatorId: $request->user()->id,
+            creatorId: $creatorId,
         );
 
         return response()->json([

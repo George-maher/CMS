@@ -26,7 +26,7 @@ class ChurchResource extends JsonResource
             'is_active' => $this->is_active,
             'is_suspended' => $this->is_suspended,
             'member_count' => $this->whenCounted('users'),
-            'created_at' => $this->created_at->toISOString(),
+            'created_at' => $this->created_at?->toISOString(),
         ];
     }
 }

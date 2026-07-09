@@ -15,8 +15,12 @@ class CreateUserRequest extends FormRequest
         return true;
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     public function rules(): array
     {
+        /** @var array<int, string> $allowedRoles */
         $allowedRoles = array_diff(UserRole::values(), [UserRole::PlatformAdmin->value]);
 
         return [

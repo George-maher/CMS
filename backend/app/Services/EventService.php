@@ -47,7 +47,9 @@ class EventService implements EventServiceInterface
             }
         }
 
-        $churchId = auth()->user()?->church_id;
+        /** @var \App\Models\User|null $authUser */
+        $authUser = auth()->user();
+        $churchId = $authUser?->church_id;
 
         return $this->cacheService->rememberEventList(
             $churchId,
@@ -95,6 +97,7 @@ class EventService implements EventServiceInterface
     /** @return array<string, mixed> */
     public function create(array $data, int $creatorId, ?string $creatorRole = null, ?int $creatorClassYearId = null): array
     {
+        /** @var array<string, mixed> $data */
         if (!isset($data['type'])) {
             $data['type'] = 'service';
         }
@@ -105,10 +108,12 @@ class EventService implements EventServiceInterface
             }
         }
 
-        $event = $this->eventRepository->create([
+        /** @var array<string, mixed> $createData */
+        $createData = [
             ...$data,
             'created_by' => $creatorId,
-        ]);
+        ];
+        $event = $this->eventRepository->create($createData);
 
         $this->sendEventNotifications($event);
 
@@ -134,15 +139,16 @@ class EventService implements EventServiceInterface
             $query->where('class_year_id', $event->class_year_id);
         }
 
-        $targetUserIds = $query->pluck('id')->toArray();
+        /** @var array<int, int> $targetUserIds */
+        $targetUserIds = $query->pluck('id')->values()->toArray();
 
         if (empty($targetUserIds)) {
             return;
         }
 
-        $churchId = $event->church_id;
+        $churchId = $event->church_id ?? 0;
         $title = 'New Event Available';
-        $body = "{$event->name} — " . ($event->event_date ? $event->event_date->format('M j, Y g:i A') : 'Check it out!');
+        $body = strval($event->name) . ' — ' . ($event->event_date ? $event->event_date->format('M j, Y g:i A') : 'Check it out!');
 
         $this->notificationService->createForEvent(
             targetUserIds: $targetUserIds,
@@ -157,6 +163,7 @@ class EventService implements EventServiceInterface
     /** @return array<string, mixed> */
     public function update(int $id, array $data): array
     {
+        /** @var array<string, mixed> $data */
         $updated = $this->eventRepository->update($id, $data);
 
         if (!$updated) {
@@ -166,6 +173,12 @@ class EventService implements EventServiceInterface
         }
 
         $event = $this->eventRepository->findById($id);
+
+        if (!$event) {
+            throw ValidationException::withMessages([
+                'event' => ['Event not found after update.'],
+            ]);
+        }
 
         $this->cacheService->invalidateEvents($event->church_id);
 
@@ -257,7 +270,9 @@ class EventService implements EventServiceInterface
         }
 
         if (!empty($filters['search'])) {
-            $query->where('name', 'like', '%' . $filters['search'] . '%');
+            /** @var string $searchTerm */
+            $searchTerm = $filters['search'];
+            $query->where('name', 'like', '%' . $searchTerm . '%');
         }
 
         $users = $query->get();
@@ -306,10 +321,10 @@ class EventService implements EventServiceInterface
         }
 
         if (!empty($filters['search'])) {
-            $search = $filters['search'];
-            /** @var \Illuminate\Database\Eloquent\Collection<int, User> $query */
-            $query = $query->filter(function (User $user) use ($search) {
-                return stripos($user->name, $search) !== false;
+            /** @var string $searchTerm */
+            $searchTerm = $filters['search'];
+            $query = $query->filter(function (User $user) use ($searchTerm) {
+                return stripos($user->name, $searchTerm) !== false;
             });
         }
 
@@ -339,7 +354,8 @@ class EventService implements EventServiceInterface
     {
         $query = User::query()->byChurch()->byRole(UserRole::Member)->active();
 
-        $targetClassIds = $event->targets()->where('is_all_classes', false)->pluck('class_id')->filter()->toArray();
+        /** @var array<int, int> $targetClassIds */
+        $targetClassIds = $event->targets()->where('is_all_classes', false)->pluck('class_id')->filter()->values()->toArray();
         $hasAllClasses = $event->targets()->where('is_all_classes', true)->exists();
 
         if ($hasAllClasses) {

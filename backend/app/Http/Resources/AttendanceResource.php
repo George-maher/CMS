@@ -15,24 +15,40 @@ class AttendanceResource extends JsonResource
         return [
             'id' => $this->id,
             'user' => new UserResource($this->whenLoaded('user')),
-            'recorder' => $this->when($this->recorder !== null, fn() => [
-                'id' => $this->recorder->id,
-                'name' => $this->recorder->name,
-            ]),
-            'classe' => $this->when($this->relationLoaded('classe') && $this->classe, fn() => [
-                'id' => $this->classe->id,
-                'name' => $this->classe->name,
-            ]),
-            'event' => $this->when($this->relationLoaded('event') && $this->event, fn() => [
-                'id' => $this->event->id,
-                'name' => $this->event->name,
-            ]),
-            'attendance_context' => $this->when($this->relationLoaded('attendanceContext') && $this->attendanceContext, fn() => [
-                'id' => $this->attendanceContext->id,
-                'name' => $this->attendanceContext->name,
-                'name_ar' => $this->attendanceContext->name_ar,
-                'slug' => $this->attendanceContext->slug,
-            ]),
+            'recorder' => $this->when($this->recorder !== null, function () {
+                /** @var \App\Models\User $recorder */
+                $recorder = $this->recorder;
+                return [
+                    'id' => $recorder->id,
+                    'name' => $recorder->name,
+                ];
+            }),
+            'classe' => $this->when($this->relationLoaded('classe') && $this->classe, function () {
+                /** @var \App\Models\Classe $classe */
+                $classe = $this->classe;
+                return [
+                    'id' => $classe->id,
+                    'name' => $classe->name,
+                ];
+            }),
+            'event' => $this->when($this->relationLoaded('event') && $this->event, function () {
+                /** @var \App\Models\Event $event */
+                $event = $this->event;
+                return [
+                    'id' => $event->id,
+                    'name' => $event->name,
+                ];
+            }),
+            'attendance_context' => $this->when($this->relationLoaded('attendanceContext') && $this->attendanceContext, function () {
+                /** @var \App\Models\AttendanceContext $attendanceContext */
+                $attendanceContext = $this->attendanceContext;
+                return [
+                    'id' => $attendanceContext->id,
+                    'name' => $attendanceContext->name,
+                    'name_ar' => $attendanceContext->name_ar,
+                    'slug' => $attendanceContext->slug,
+                ];
+            }),
             'attendance_context_id' => $this->attendance_context_id,
             'method' => $this->method,
             'attended_at' => $this->attended_at,

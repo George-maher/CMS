@@ -59,7 +59,7 @@ class ChurchDeletionController extends Controller
                 'deletion_type' => $church->deletion_type,
                 'recoverable_until' => $church->recoverable_until?->toISOString(),
                 'member_count' => $church->users_count ?? $church->users()->count(),
-                'created_at' => $church->created_at->toISOString(),
+                'created_at' => $church->created_at?->toISOString(),
                 'updated_at' => $church->updated_at?->toISOString(),
             ],
         ]);
@@ -93,7 +93,9 @@ class ChurchDeletionController extends Controller
     {
         $church = Church::findOrFail($id);
 
-        $this->churchDeletionService->softDelete($church, $request->user());
+        /** @var \App\Models\User $admin */
+        $admin = $request->user();
+        $this->churchDeletionService->softDelete($church, $admin);
 
         return response()->json([
             'message' => __('church_deletion.soft_deleted'),
@@ -105,7 +107,9 @@ class ChurchDeletionController extends Controller
     {
         $church = Church::onlyTrashed()->findOrFail($id);
 
-        $restored = $this->churchDeletionService->restore($church, $request->user());
+        /** @var \App\Models\User $admin */
+        $admin = $request->user();
+        $restored = $this->churchDeletionService->restore($church, $admin);
 
         return response()->json([
             'message' => __('church_deletion.restored'),
@@ -117,7 +121,9 @@ class ChurchDeletionController extends Controller
     {
         $church = Church::withTrashed()->findOrFail($id);
 
-        $this->churchDeletionService->hardDelete($church, $request->user());
+        /** @var \App\Models\User $admin */
+        $admin = $request->user();
+        $this->churchDeletionService->hardDelete($church, $admin);
 
         return response()->json([
             'message' => __('church_deletion.hard_deleted'),

@@ -11,14 +11,16 @@ class TrackActivity
 {
     public function handle(Request $request, Closure $next): Response
     {
-        if ($user = $request->user()) {
+        /** @var \App\Models\User|null $user */
+        $user = $request->user();
+        if ($user) {
             $cacheKey = 'user-last-active-' . $user->id;
             $lastActivity = Cache::get($cacheKey);
 
-            $inactivityLimit = config('session.inactivity_timeout', 60); // minutes
+            /** @var int $inactivityLimit */
+            $inactivityLimit = config('session.inactivity_timeout', 60);
 
-            if ($lastActivity && now()->diffInMinutes($lastActivity) > $inactivityLimit) {
-                // Token expired due to inactivity — revoke it
+            if ($lastActivity instanceof \Carbon\Carbon && now()->diffInMinutes($lastActivity) > $inactivityLimit) {
                 $user->tokens()->where('id', $user->currentAccessToken()->id)->delete();
 
                 return response()->json([
@@ -29,6 +31,9 @@ class TrackActivity
             Cache::put($cacheKey, now(), now()->addMinutes($inactivityLimit * 2));
         }
 
-        return $next($request);
+        /** @var Response $response */
+        $response = $next($request);
+
+        return $response;
     }
 }

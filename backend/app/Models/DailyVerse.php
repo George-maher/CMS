@@ -37,6 +37,7 @@ class DailyVerse extends Model
         ];
     }
 
+    /** @return BelongsTo<\App\Models\User, $this> */
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');

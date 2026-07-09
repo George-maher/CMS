@@ -15,14 +15,17 @@ class EventRequest extends FormRequest
         return true;
     }
 
+    /** @return array<string, mixed> */
     public function rules(): array
     {
         $isUpdate = $this->isMethod('PATCH') || $this->isMethod('PUT');
+        /** @var int $maxImageSize */
+        $maxImageSize = config('supabase-storage.validation.max_image_size', 5120);
 
         $rules = [
             'name' => $isUpdate ? ['sometimes', 'string', 'max:255', new NotPlaceholder] : ['required', 'string', 'max:255', new NotPlaceholder],
             'type' => $isUpdate ? ['sometimes', Rule::in(EventType::values())] : ['required', Rule::in(EventType::values())],
-            'image' => $isUpdate ? ['sometimes', 'nullable', 'file', 'max:' . config('supabase-storage.validation.max_image_size', 5120), $this->imageRule()] : ['nullable', 'file', 'max:' . config('supabase-storage.validation.max_image_size', 5120), $this->imageRule()],
+            'image' => $isUpdate ? ['sometimes', 'nullable', 'file', 'max:' . $maxImageSize, $this->imageRule()] : ['nullable', 'file', 'max:' . $maxImageSize, $this->imageRule()],
             'description' => $isUpdate ? ['sometimes', 'nullable', 'string'] : ['nullable', 'string'],
             'event_date' => ['nullable', 'date'],
             'location' => ['nullable', 'string', 'max:255', new NotPlaceholder],
@@ -45,7 +48,7 @@ class EventRequest extends FormRequest
 
     private function imageRule(): callable
     {
-        return function ($attribute, $value, $fail) {
+        return function (string $attribute, mixed $value, \Closure $fail) {
             if (!$value instanceof UploadedFile) {
                 return;
             }

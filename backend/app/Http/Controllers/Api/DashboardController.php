@@ -19,6 +19,7 @@ class DashboardController extends Controller
 
     public function stats(Request $request): JsonResponse
     {
+        /** @var \App\Models\User $user */
         $user = $request->user();
         $churchId = $user->church_id;
 

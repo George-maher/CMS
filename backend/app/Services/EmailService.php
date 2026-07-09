@@ -11,6 +11,7 @@ class EmailService implements EmailServiceInterface
 {
     public function sendPasswordReset(User $user, string $token): void
     {
+        /** @var string $frontendUrl */
         $frontendUrl = config('app.frontend_url');
         $resetUrl = $frontendUrl . '/reset-password?' . http_build_query([
             'token' => $token,
@@ -66,7 +67,9 @@ class EmailService implements EmailServiceInterface
 
     public function sendWelcomeEmail(User $user): void
     {
-        $loginUrl = config('app.frontend_url') . '/login';
+        /** @var string $frontendUrl */
+        $frontendUrl = config('app.frontend_url');
+        $loginUrl = $frontendUrl . '/login';
 
         dispatch(new SendEmailJob(
             user: $user,
@@ -92,7 +95,9 @@ class EmailService implements EmailServiceInterface
 
     public function sendApplicationApproved(User $user, string $churchName): void
     {
-        $dashboardUrl = config('app.frontend_url') . '/admin';
+        /** @var string $frontendUrl */
+        $frontendUrl = config('app.frontend_url');
+        $dashboardUrl = $frontendUrl . '/admin';
 
         dispatch(new SendEmailJob(
             user: $user,

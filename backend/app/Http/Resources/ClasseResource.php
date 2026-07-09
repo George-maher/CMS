@@ -19,10 +19,14 @@ class ClasseResource extends JsonResource
             'display_order' => $this->display_order,
             'member_count' => (int) ($this->member_count ?? 0),
             'servant_count' => (int) ($this->servant_count ?? 0),
-            'stage' => $this->whenLoaded('stage', fn() => [
-                'id' => $this->stage->id,
-                'name' => $this->stage->name,
-            ]),
+            'stage' => $this->whenLoaded('stage', function () {
+                /** @var \App\Models\Stage $stage */
+                $stage = $this->stage;
+                return [
+                    'id' => $stage->id,
+                    'name' => $stage->name,
+                ];
+            }),
             'created_at' => $this->created_at,
         ];
     }

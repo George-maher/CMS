@@ -5,6 +5,7 @@ namespace App\Repositories;
 use App\Contracts\QRInviteRepositoryInterface;
 use App\Models\QRInvite;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Builder;
 
 class QRInviteRepository implements QRInviteRepositoryInterface
 {
@@ -20,11 +21,17 @@ class QRInviteRepository implements QRInviteRepositoryInterface
             ->first();
     }
 
+    /**
+     * @param array<string, mixed> $data
+     */
     public function create(array $data): QRInvite
     {
         return QRInvite::create($data);
     }
 
+    /**
+     * @param array<string, mixed> $data
+     */
     public function update(int $id, array $data): bool
     {
         $invite = $this->findById($id);
@@ -40,20 +47,23 @@ class QRInviteRepository implements QRInviteRepositoryInterface
         if (!$invite) {
             return false;
         }
-        return $invite->delete();
+        return (bool) $invite->delete();
     }
 
-    private function applySearch(\Illuminate\Database\Eloquent\Builder $query, string $search): void
+    /**
+     * @param Builder<QRInvite> $query
+     */
+    private function applySearch(Builder $query, string $search): void
     {
-        $query->where(function ($q) use ($search) {
+        $query->where(function (\Illuminate\Database\Eloquent\Builder $q) use ($search) {
             $q->where('token', 'like', "%{$search}%")
-              ->orWhereHas('creator', function ($u) use ($search) {
+              ->orWhereHas('creator', function (\Illuminate\Database\Eloquent\Builder $u) use ($search) {
                   $u->where('name', 'ilike', "%{$search}%")
                     ->orWhere('email', 'ilike', "%{$search}%")
                     ->orWhere('phone', 'like', "%{$search}%")
                     ->orWhere('member_id', 'like', "%{$search}%");
               })
-              ->orWhereHas('usedBy', function ($u) use ($search) {
+              ->orWhereHas('usedBy', function (\Illuminate\Database\Eloquent\Builder $u) use ($search) {
                   $u->where('name', 'ilike', "%{$search}%")
                     ->orWhere('email', 'ilike', "%{$search}%")
                     ->orWhere('phone', 'like', "%{$search}%")
@@ -62,6 +72,10 @@ class QRInviteRepository implements QRInviteRepositoryInterface
         });
     }
 
+    /**
+     * @param array<string, mixed> $filters
+     * @return LengthAwarePaginator<int, QRInvite>
+     */
     public function paginate(int $perPage = 15, array $filters = []): LengthAwarePaginator
     {
         $query = QRInvite::query();
@@ -81,16 +95,16 @@ class QRInviteRepository implements QRInviteRepositoryInterface
         if (!empty($filters['status'])) {
             $status = $filters['status'];
             if ($status === 'used') {
-                $query->where(function ($q) {
+                $query->where(function (\Illuminate\Database\Eloquent\Builder $q) {
                     $q->whereNotNull('used_at')
-                      ->orWhere(function ($q2) {
+                      ->orWhere(function (\Illuminate\Database\Eloquent\Builder $q2) {
                           $q2->whereNotNull('max_uses')
                              ->whereColumn('use_count', '>=', 'max_uses');
                       });
                 });
             } elseif ($status === 'unused') {
                 $query->whereNull('used_at')->where('is_revoked', false)->where('expires_at', '>', now())
-                    ->where(function ($q) {
+                    ->where(function (\Illuminate\Database\Eloquent\Builder $q) {
                         $q->whereNull('max_uses')
                           ->orWhereColumn('use_count', '<', 'max_uses');
                     });
@@ -102,14 +116,16 @@ class QRInviteRepository implements QRInviteRepositoryInterface
         }
 
         if (!empty($filters['class_id'])) {
-            $classId = (int) $filters['class_id'];
-            $query->where(function ($q) use ($classId) {
+            /** @var int|string $classId */
+            $classId = $filters['class_id'];
+            $classId = (int) $classId;
+            $query->where(function (\Illuminate\Database\Eloquent\Builder $q) use ($classId) {
                 $q->where('qr_invites.class_id', $classId)
                   ->orWhereRaw(
                       "EXISTS (SELECT 1 FROM jsonb_array_elements(used_by_users::jsonb) AS elem WHERE (elem->>'class_id')::int = ?)",
                       [$classId]
                   )
-                  ->orWhereHas('usedBy', function ($userQ) use ($classId) {
+                  ->orWhereHas('usedBy', function (\Illuminate\Database\Eloquent\Builder $userQ) use ($classId) {
                       $userQ->where('class_id', $classId);
                   });
             });
@@ -118,23 +134,33 @@ class QRInviteRepository implements QRInviteRepositoryInterface
         }
 
         if (!empty($filters['date_from'])) {
-            $query->whereDate('created_at', '>=', $filters['date_from']);
+            /** @var string $dateFrom */
+            $dateFrom = $filters['date_from'];
+            $query->whereDate('created_at', '>=', $dateFrom);
         }
 
         if (!empty($filters['date_to'])) {
-            $query->whereDate('created_at', '<=', $filters['date_to']);
+            /** @var string $dateTo */
+            $dateTo = $filters['date_to'];
+            $query->whereDate('created_at', '<=', $dateTo);
         }
 
         if (!empty($filters['expires_from'])) {
-            $query->whereDate('expires_at', '>=', $filters['expires_from']);
+            /** @var string $expiresFrom */
+            $expiresFrom = $filters['expires_from'];
+            $query->whereDate('expires_at', '>=', $expiresFrom);
         }
 
         if (!empty($filters['expires_to'])) {
-            $query->whereDate('expires_at', '<=', $filters['expires_to']);
+            /** @var string $expiresTo */
+            $expiresTo = $filters['expires_to'];
+            $query->whereDate('expires_at', '<=', $expiresTo);
         }
 
         if (!empty($filters['search'])) {
-            $this->applySearch($query, $filters['search']);
+            /** @var string $search */
+            $search = $filters['search'];
+            $this->applySearch($query, $search);
         }
 
         return $query->with(['creator', 'usedBy.classe.stage', 'classe.stage', 'attendanceContext'])->latest()->paginate($perPage);

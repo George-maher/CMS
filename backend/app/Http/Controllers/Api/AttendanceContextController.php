@@ -39,9 +39,11 @@ class AttendanceContextController extends Controller
     {
         $this->authorize('create', AttendanceContext::class);
 
+        /** @var \App\Models\User $user */
+        $user = $request->user();
         $result = $this->contextService->create(
             data: $request->validated(),
-            creatorId: $request->user()->id,
+            creatorId: $user->id,
         );
 
         return response()->json([
@@ -69,10 +71,12 @@ class AttendanceContextController extends Controller
         $context = AttendanceContext::withoutGlobalScope(ChurchScope::class)->findOrFail($id);
         $this->authorize('update', $context);
 
+        /** @var \App\Models\User $user */
+        $user = $request->user();
         $result = $this->contextService->update(
             id: $id,
             data: $request->validated(),
-            updaterId: $request->user()->id,
+            updaterId: $user->id,
         );
 
         return response()->json([
@@ -98,10 +102,12 @@ class AttendanceContextController extends Controller
         $context = AttendanceContext::withoutGlobalScope(ChurchScope::class)->findOrFail($id);
         $this->authorize('toggleActive', $context);
 
+        /** @var \App\Models\User $user */
+        $user = request()->user();
         $result = $this->contextService->update(
             id: $id,
             data: ['is_active' => !$context->is_active],
-            updaterId: request()->user()->id,
+            updaterId: $user->id,
         );
 
         $status = $context->fresh()->is_active ? 'activated' : 'archived';

@@ -19,7 +19,11 @@ class AttendanceContextResource extends JsonResource
             'description' => $this->description,
             'is_active' => $this->is_active,
             'created_by' => $this->created_by,
-            'creator_name' => $this->when($this->creator !== null, fn() => $this->creator->name),
+            'creator_name' => $this->when($this->creator !== null, function () {
+                /** @var \App\Models\User $creator */
+                $creator = $this->creator;
+                return $creator->name;
+            }),
             'updated_by' => $this->updated_by,
             'updater_name' => $this->updater?->name,
             'created_at' => $this->created_at,

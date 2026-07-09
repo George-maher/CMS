@@ -18,11 +18,14 @@ class FeedbackController extends Controller
 
     public function submit(FeedbackRequest $request): JsonResponse
     {
+        /** @var \App\Models\User $user */
         $user = $request->user();
+        /** @var int|null $userId */
+        $userId = $user->id;
 
         $result = $this->feedbackService->submit(
             data: $request->validated(),
-            userId: $user->id,
+            userId: $userId,
             classYearId: $user->class_id
         );
 
@@ -38,9 +41,12 @@ class FeedbackController extends Controller
 
     public function myFeedback(Request $request): JsonResponse
     {
+        /** @var \App\Models\User $user */
         $user = $request->user();
+        /** @var int $perPage */
+        $perPage = $request->integer('per_page', 15);
         $result = $this->feedbackService->list(
-            perPage: $request->input('per_page', 15),
+            perPage: $perPage,
             filters: ['user_id' => $user->id],
         );
 
@@ -52,7 +58,9 @@ class FeedbackController extends Controller
 
     public function index(Request $request): JsonResponse
     {
+        /** @var array<string, mixed> $filters */
         $filters = $request->only(['category', 'is_resolved', 'unresolved']);
+        /** @var \App\Models\User $user */
         $user = $request->user();
 
         $classYearIds = null;
@@ -68,7 +76,7 @@ class FeedbackController extends Controller
         }
 
         $result = $this->feedbackService->list(
-            perPage: $request->input('per_page', 15),
+            perPage: $request->integer('per_page', 15),
             filters: $filters,
             classYearIds: $classYearIds
         );
@@ -82,12 +90,15 @@ class FeedbackController extends Controller
 
     public function resolve(Request $request, int $id): JsonResponse
     {
+        /** @var \App\Models\User $user */
         $user = $request->user();
 
         // Servants: verify the feedback belongs to one of their classes
         if ($user->role === UserRole::Servant) {
             $feedback = \App\Models\Feedback::byChurch()->find($id);
-            if (!$feedback || !in_array($feedback->class_year_id, $user->getServantClassIds())) {
+            /** @var array<int, int>|null $servantClassIds */
+            $servantClassIds = $user->getServantClassIds();
+            if (!$feedback || !in_array($feedback->class_year_id, (array) $servantClassIds)) {
                 throw ValidationException::withMessages([
                     'feedback' => ['Feedback not found.'],
                 ]);
@@ -105,22 +116,28 @@ class FeedbackController extends Controller
             'message' => ['required', 'string', 'max:2000'],
         ]);
 
+        /** @var \App\Models\User $user */
         $user = $request->user();
 
         // Servants: verify the feedback belongs to one of their classes
         if ($user->role === UserRole::Servant) {
             $feedback = \App\Models\Feedback::byChurch()->find($id);
-            if (!$feedback || !in_array($feedback->class_year_id, $user->getServantClassIds())) {
+            /** @var array<int, int>|null $servantClassIds */
+            $servantClassIds = $user->getServantClassIds();
+            if (!$feedback || !in_array($feedback->class_year_id, (array) $servantClassIds)) {
                 throw ValidationException::withMessages([
                     'feedback' => ['Feedback not found.'],
                 ]);
             }
         }
 
+        /** @var int $userId */
+        $userId = $user->id;
+        $message = (string) $request->str('message');
         $result = $this->feedbackService->reply(
             feedbackId: $id,
-            userId: $user->id,
-            message: $request->input('message'),
+            userId: $userId,
+            message: $message,
         );
 
         return response()->json([
@@ -131,15 +148,19 @@ class FeedbackController extends Controller
 
     public function markSeen(Request $request, int $id): JsonResponse
     {
+        /** @var \App\Models\User $user */
         $user = $request->user();
 
-        $result = $this->feedbackService->markAsSeen($id, $user->id);
+        /** @var int $userId */
+        $userId = $user->id;
+        $result = $this->feedbackService->markAsSeen($id, $userId);
 
         return response()->json($result);
     }
 
     public function show(Request $request, int $id): JsonResponse
     {
+        /** @var \App\Models\User $user */
         $user = $request->user();
         $filters = ['id' => $id];
 
@@ -158,7 +179,9 @@ class FeedbackController extends Controller
             filters: $filters,
         );
 
-        $feedback = $result['data']->first();
+        /** @var \Illuminate\Support\Collection<int, mixed> $feedbackCollection */
+        $feedbackCollection = $result['data'];
+        $feedback = $feedbackCollection->first();
         if (!$feedback) {
             throw ValidationException::withMessages([
                 'feedback' => ['Feedback not found.'],

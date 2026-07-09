@@ -15,6 +15,7 @@ class ChurchApplicationRequest extends FormRequest
         return true;
     }
 
+    /** @return array<string, mixed> */
     public function rules(): array
     {
         $email = $this->input('email');
@@ -22,10 +23,15 @@ class ChurchApplicationRequest extends FormRequest
         $isUpdate = $existingApplication !== null;
 
         $userUniqueRule = $isUpdate
-            ? Rule::unique('users', 'email')->where(function ($query) use ($existingApplication) {
+            ? Rule::unique('users', 'email')->where(function (\Illuminate\Database\Eloquent\Builder $query) use ($existingApplication) {
                 $query->where('church_application_id', '!=', $existingApplication->id);
             })
             : 'unique:users,email';
+
+        /** @var int $maxImageSize */
+        $maxImageSize = config('supabase-storage.max_image_size', 5120);
+        /** @var int $maxDocSize */
+        $maxDocSize = config('supabase-storage.max_document_size', 10240);
 
         return [
             'church_name' => ['required', 'string', 'max:255', new NotPlaceholder],
@@ -39,15 +45,15 @@ class ChurchApplicationRequest extends FormRequest
             'id_type' => ['required', 'string', Rule::in(['national_id', 'church_permission'])],
             'front_id' => [
                 Rule::requiredIf(fn () => $this->input('id_type') === 'national_id' && !$isUpdate),
-                'nullable', 'image', 'mimes:jpg,jpeg,png', 'max:' . config('supabase-storage.max_image_size', 5120),
+                'nullable', 'image', 'mimes:jpg,jpeg,png', 'max:' . $maxImageSize,
             ],
             'back_id' => [
                 Rule::requiredIf(fn () => $this->input('id_type') === 'national_id' && !$isUpdate),
-                'nullable', 'image', 'mimes:jpg,jpeg,png', 'max:' . config('supabase-storage.max_image_size', 5120),
+                'nullable', 'image', 'mimes:jpg,jpeg,png', 'max:' . $maxImageSize,
             ],
             'church_permission_doc' => [
                 Rule::requiredIf(fn () => $this->input('id_type') === 'church_permission' && !$isUpdate),
-                'nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:' . config('supabase-storage.max_document_size', 10240),
+                'nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:' . $maxDocSize,
             ],
         ];
     }

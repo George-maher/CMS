@@ -12,8 +12,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $action
  * @property string|null $resource_type
  * @property int|null $resource_id
- * @property array|null $old_values
- * @property array|null $new_values
+ * @property array<string, mixed>|null $old_values
+ * @property array<string, mixed>|null $new_values
  * @property string|null $ip_address
  * @property string|null $user_agent
  * @property \Illuminate\Support\Carbon|null $created_at
@@ -42,6 +42,7 @@ class AuditLog extends Model
         ];
     }
 
+    /** @return BelongsTo<\App\Models\User, $this> */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);

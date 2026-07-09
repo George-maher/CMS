@@ -59,11 +59,13 @@ class MembershipRequest extends Model
         ];
     }
 
+    /** @return BelongsTo<\App\Models\Church, $this> */
     public function church(): BelongsTo
     {
         return $this->belongsTo(Church::class);
     }
 
+    /** @return BelongsTo<\App\Models\User, $this> */
     public function reviewer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'reviewed_by');

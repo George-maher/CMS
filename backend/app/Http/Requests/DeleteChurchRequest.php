@@ -13,12 +13,16 @@ class DeleteChurchRequest extends FormRequest
         return $this->user()?->role === UserRole::PlatformAdmin;
     }
 
+    /** @return array<string, mixed> */
+    /** @return array<string, mixed> */
     public function rules(): array
     {
         return [
             'confirmation' => ['required', 'string', 'in:DELETE CHURCH'],
-            'password' => ['required', 'string', function ($attribute, $value, $fail) {
-                if (!Hash::check($value, $this->user()->password)) {
+            'password' => ['required', 'string', function (string $attribute, string $value, \Closure $fail) {
+                /** @var \App\Models\User $user */
+                $user = $this->user();
+                if (!Hash::check($value, $user->password)) {
                     $fail(__('church_deletion.reauth_password_incorrect'));
                 }
             }],

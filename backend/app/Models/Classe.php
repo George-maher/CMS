@@ -30,6 +30,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  */
 class Classe extends Model
 {
+    /** @use HasFactory<\Database\Factories\ClasseFactory> */
     use HasFactory, BelongsToChurch;
 
     protected $fillable = [
@@ -42,37 +43,44 @@ class Classe extends Model
 
     protected $table = 'classes';
 
+    /** @return BelongsTo<\App\Models\Stage, $this> */
     public function stage(): BelongsTo
     {
         return $this->belongsTo(Stage::class);
     }
 
+    /** @return HasMany<\App\Models\User, $this> */
     public function allUsers(): HasMany
     {
         return $this->hasMany(User::class, 'class_id');
     }
 
+    /** @return BelongsToMany<\App\Models\User, $this> */
     public function servants(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'class_servant', 'class_id', 'user_id')
             ->withTimestamps();
     }
 
+    /** @return HasMany<\App\Models\Attendance, $this> */
     public function attendances(): HasMany
     {
         return $this->hasMany(Attendance::class, 'class_year_id', 'id');
     }
 
+    /** @return HasMany<\App\Models\Event, $this> */
     public function events(): HasMany
     {
         return $this->hasMany(Event::class, 'class_year_id', 'id');
     }
 
+    /** @return HasMany<\App\Models\Feedback, $this> */
     public function feedback(): HasMany
     {
         return $this->hasMany(Feedback::class, 'class_year_id', 'id');
     }
 
+    /** @return HasMany<\App\Models\QRInvite, $this> */
     public function qrInvites(): HasMany
     {
         return $this->hasMany(QRInvite::class, 'class_year_id', 'id');

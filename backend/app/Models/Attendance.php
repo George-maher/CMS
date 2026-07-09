@@ -68,31 +68,37 @@ class Attendance extends Model
         ];
     }
 
+    /** @return BelongsTo<\App\Models\User, $this> */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
+    /** @return BelongsTo<\App\Models\User, $this> */
     public function recorder(): BelongsTo
     {
         return $this->belongsTo(User::class, 'recorded_by');
     }
 
+    /** @return BelongsTo<\App\Models\Classe, $this> */
     public function classe(): BelongsTo
     {
         return $this->belongsTo(Classe::class, 'class_year_id');
     }
 
+    /** @return BelongsTo<\App\Models\QRInvite, $this> */
     public function qrInvite(): BelongsTo
     {
         return $this->belongsTo(QRInvite::class);
     }
 
+    /** @return BelongsTo<\App\Models\Event, $this> */
     public function event(): BelongsTo
     {
         return $this->belongsTo(Event::class);
     }
 
+    /** @return BelongsTo<\App\Models\AttendanceContext, $this> */
     public function attendanceContext(): BelongsTo
     {
         return $this->belongsTo(AttendanceContext::class);

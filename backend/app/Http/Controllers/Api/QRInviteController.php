@@ -22,8 +22,11 @@ class QRInviteController extends Controller
 
     public function store(CreateQRInviteRequest $request): JsonResponse
     {
+        /** @var \App\Models\User $user */
         $user = $request->user();
-        $type = QRInviteType::from($request->validated()['type']);
+        /** @var string $typeValue */
+        $typeValue = $request->validated()['type'];
+        $type = QRInviteType::from($typeValue);
 
         if ($user->role === UserRole::Servant && !in_array($type, [QRInviteType::ServantToMemberInvite, QRInviteType::AttendanceQR], true)) {
             throw ValidationException::withMessages([
@@ -37,11 +40,15 @@ class QRInviteController extends Controller
             ]);
         }
 
+        /** @var array<string, mixed> $data */
         $data = $request->validated();
 
+        /** @var int $creatorId */
+        $creatorId = $user->id;
+        /** @var array{invite: \App\Models\QRInvite, url: string} $result */
         $result = $this->qrInviteService->createInvite(
             data: $data,
-            creatorId: $user->id
+            creatorId: $creatorId,
         );
 
         return response()->json([
@@ -55,6 +62,7 @@ class QRInviteController extends Controller
 
     public function validateToken(string $token): JsonResponse
     {
+        /** @var array{valid: bool, invite: \App\Models\QRInvite, type: \App\Enums\QRInviteType} $result */
         $result = $this->qrInviteService->validateToken($token);
         $invite = $result['invite'];
         $classes = Classe::where('church_id', $invite->church_id)
@@ -86,7 +94,11 @@ class QRInviteController extends Controller
 
     public function details(string $token): JsonResponse
     {
+        /** @var array{valid: bool, invite: \App\Models\QRInvite, type: \App\Enums\QRInviteType, type_label: string, role: \App\Enums\UserRole|null, role_label: string|null, creator_name: string|null, creator_class_id: int|null, creator_class_name: string|null, class_id: int|null, class_name: string|null, classes: array<int, array<string, mixed>>, expires_at: mixed, is_expired: bool, is_used: bool, is_revoked: bool} $result */
         $result = $this->qrInviteService->getInviteDetails($token);
+
+        /** @var \App\Models\QRInvite $invite */
+        $invite = $result['invite'];
 
         return response()->json([
             'data' => [
@@ -95,35 +107,41 @@ class QRInviteController extends Controller
                 'type_label' => $result['type_label'],
                 'role' => $result['role']?->value,
                 'role_label' => $result['role_label'] ?? null,
-                'creator_name' => $result['creator_name'],
+                'creator_name' => $result['creator_name'] ?? null,
                 'creator_class_id' => $result['creator_class_id'] ?? null,
                 'creator_class_name' => $result['creator_class_name'] ?? null,
                 'class_id' => $result['class_id'] ?? null,
                 'class_name' => $result['class_name'] ?? null,
                 'classes' => $result['classes'] ?? [],
-                'expires_at' => $result['expires_at'],
-                'is_expired' => $result['is_expired'],
-                'is_used' => $result['is_used'],
-                'is_revoked' => $result['is_revoked'],
-                'use_count' => $result['invite']->use_count,
-                'max_uses' => $result['invite']->max_uses,
-                'remaining_uses' => $result['invite']->max_uses !== null
-                    ? max(0, $result['invite']->max_uses - $result['invite']->use_count)
+                'expires_at' => $result['expires_at'] ?? null,
+                'is_expired' => $result['is_expired'] ?? false,
+                'is_used' => $result['is_used'] ?? false,
+                'is_revoked' => $result['is_revoked'] ?? false,
+                'use_count' => $invite->use_count,
+                'max_uses' => $invite->max_uses,
+                'remaining_uses' => $invite->max_uses !== null
+                    ? max(0, $invite->max_uses - $invite->use_count)
                     : null,
-                'usage_label' => $result['invite']->max_uses
-                    ? ($result['invite']->use_count . ' / ' . $result['invite']->max_uses)
+                'usage_label' => $invite->max_uses
+                    ? ($invite->use_count . ' / ' . $invite->max_uses)
                     : null,
-                'used_by_users' => $result['invite']->used_by_users,
+                'used_by_users' => $invite->used_by_users,
             ],
         ]);
     }
 
     public function accept(Request $request, string $token): JsonResponse
     {
+        /** @var \App\Models\User $user */
+        $user = $request->user();
+        $classId = $request->integer('class_id') ?: null;
+        /** @var int $userId */
+        $userId = (int) $user->id;
+        /** @var array{message: string, user: \App\Models\User, role: \App\Enums\UserRole} $result */
         $result = $this->qrInviteService->acceptInvite(
             token: $token,
-            userId: $request->user()->id,
-            classId: $request->input('class_id'),
+            userId: $userId,
+            classId: $classId,
         );
 
         return response()->json([
@@ -144,8 +162,11 @@ class QRInviteController extends Controller
             return response()->json(['message' => 'QR invite not found.'], 404);
         }
 
+        /** @var \App\Models\User $user */
         $user = $request->user();
-        if ($user->role === UserRole::Servant && $invite->created_by !== $user->id) {
+        /** @var int $uid */
+        $uid = $user->id;
+        if ($user->role === UserRole::Servant && $invite->created_by !== $uid) {
             return response()->json(['message' => 'Forbidden.'], 403);
         }
 
@@ -158,20 +179,24 @@ class QRInviteController extends Controller
 
     public function index(Request $request): JsonResponse
     {
+        /** @var array<string, mixed> $filters */
         $filters = $request->only([
             'type', 'created_by', 'is_revoked', 'status',
             'class_id', 'date_from', 'date_to',
             'expires_from', 'expires_to', 'search',
         ]);
 
-        if ($request->user()->role === UserRole::Servant) {
-            $filters['created_by'] = $request->user()->id;
+        /** @var \App\Models\User $currentUser */
+        $currentUser = $request->user();
+        if ($currentUser->role === UserRole::Servant) {
+            $filters['created_by'] = $currentUser->id;
             // Ignore class_id filter — servants only see their own invites
             unset($filters['class_id']);
         }
 
+        /** @var array{data: \Illuminate\Support\Collection<int, \App\Models\QRInvite>, meta: array<string, mixed>} $result */
         $result = $this->qrInviteService->listInvites(
-            perPage: $request->input('per_page', 15),
+            perPage: $request->integer('per_page', 15),
             filters: $filters
         );
 

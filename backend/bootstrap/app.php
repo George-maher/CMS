@@ -85,13 +85,17 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $exceptions->render(function (\Illuminate\Http\Exceptions\ThrottleRequestsException $e, Request $request) {
             if ($request->is('api/*')) {
-                $retryAfter = $e->getHeaders()['Retry-After'] ?? 60;
+                /** @var array<string, mixed> $headers */
+                $headers = $e->getHeaders();
+                $retryAfter = $headers['Retry-After'] ?? 60;
 
+                /** @var \App\Models\User|null $user */
+                $user = $request->user();
                 \Illuminate\Support\Facades\Log::warning('Rate limit exceeded', [
                     'ip' => $request->ip(),
                     'path' => $request->path(),
                     'method' => $request->method(),
-                    'user_id' => $request->user()?->id,
+                    'user_id' => $user?->id,
                     'user_agent' => $request->userAgent(),
                     'retry_after' => $retryAfter,
                 ]);
@@ -107,6 +111,8 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $exceptions->render(function (\Throwable $e, Request $request) {
             if ($request->is('api/*')) {
+                /** @var \App\Models\User|null $errorUser */
+                $errorUser = $request->user();
                 \Illuminate\Support\Facades\Log::error('Unhandled API exception', [
                     'message' => $e->getMessage(),
                     'file' => $e->getFile(),
@@ -115,7 +121,7 @@ return Application::configure(basePath: dirname(__DIR__))
                     'url' => $request->fullUrl(),
                     'method' => $request->method(),
                     'ip' => $request->ip(),
-                    'user_id' => $request->user()?->id,
+                    'user_id' => $errorUser?->id,
                 ]);
 
                 $statusCode = method_exists($e, 'getStatusCode') ? $e->getStatusCode() : 500;

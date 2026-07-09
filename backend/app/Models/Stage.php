@@ -19,6 +19,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  */
 class Stage extends Model
 {
+    /** @use \Illuminate\Database\Eloquent\Factories\HasFactory<\Database\Factories\StageFactory> */
     use HasFactory, BelongsToChurch;
 
     protected $fillable = [
@@ -27,6 +28,9 @@ class Stage extends Model
         'display_order',
     ];
 
+    /**
+     * @return HasMany<Classe, $this>
+     */
     public function classes(): HasMany
     {
         return $this->hasMany(Classe::class, 'stage_id')->orderBy('display_order');

@@ -30,9 +30,16 @@ class LocalStorageService implements StorageServiceInterface
 
     public function __construct()
     {
-        $this->disk = config('filesystems.default') === 'local' ? 'public' : config('filesystems.default');
-        $this->maxImageSize = (int) config('supabase-storage.max_image_size', 5120);
-        $this->maxDocumentSize = (int) config('supabase-storage.max_document_size', 10240);
+        /** @var string $diskDefault */
+        $diskDefault = config('filesystems.default');
+        /** @var int $maxImageSize */
+        $maxImageSize = config('supabase-storage.max_image_size', 5120);
+        $this->maxImageSize = $maxImageSize;
+        /** @var int $maxDocumentSize */
+        $maxDocumentSize = config('supabase-storage.max_document_size', 10240);
+        $this->maxDocumentSize = $maxDocumentSize;
+
+        $this->disk = $diskDefault === 'local' ? 'public' : $diskDefault;
     }
 
     public function uploadImage(UploadedFile $file, string $bucket, ?string $path = null): string
@@ -111,7 +118,9 @@ class LocalStorageService implements StorageServiceInterface
 
     public function getBucketUrl(string $bucket): string
     {
-        $baseUrl = rtrim(config('app.url', 'http://localhost'), '/');
+        /** @var string $appUrl */
+        $appUrl = config('app.url', 'http://localhost');
+        $baseUrl = rtrim($appUrl, '/');
         return "{$baseUrl}/storage/{$bucket}";
     }
 
@@ -145,7 +154,7 @@ class LocalStorageService implements StorageServiceInterface
 
     protected function generateKey(UploadedFile $file, string $bucket, ?string $path = null): string
     {
-        $uuid = (string) Str::uuid();
+        $uuid = strval(Str::uuid());
         $extension = $file->getClientOriginalExtension();
         $filename = $uuid . '.' . $extension;
         $parts = [$bucket];

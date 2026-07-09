@@ -4,6 +4,8 @@ namespace App\Contracts;
 
 interface AuditServiceInterface
 {
+    /** @param array<string, mixed>|null $oldValues */
+    /** @param array<string, mixed>|null $newValues */
     public function log(
         string $action,
         string $resourceType,
@@ -14,6 +16,8 @@ interface AuditServiceInterface
         ?int $churchId = null,
     ): void;
 
+    /** @param array<string, mixed>|null $oldValues */
+    /** @param array<string, mixed>|null $newValues */
     public function logModelAction(
         string $action,
         object $model,

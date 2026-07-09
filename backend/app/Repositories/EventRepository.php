@@ -15,6 +15,9 @@ class EventRepository implements EventRepositoryInterface
         return Event::with(['creator', 'classe', 'targets.classe'])->find($id);
     }
 
+    /**
+     * @param array<string, mixed> $data
+     */
     public function create(array $data): Event
     {
         return DB::transaction(function () use ($data) {
@@ -29,7 +32,7 @@ class EventRepository implements EventRepositoryInterface
                     'is_all_classes' => true,
                     'church_id' => $event->church_id,
                 ]);
-            } elseif (!empty($targetClassIds)) {
+            } elseif (!empty($targetClassIds) && is_array($targetClassIds)) {
                 foreach ($targetClassIds as $classId) {
                     $event->targets()->create([
                         'class_id' => $classId,
@@ -48,10 +51,15 @@ class EventRepository implements EventRepositoryInterface
                 }
             }
 
-            return $event->fresh()->load(['creator', 'classe', 'targets.classe']);
+            /** @var Event $freshEvent */
+            $freshEvent = $event->fresh(['creator', 'classe', 'targets.classe']);
+            return $freshEvent;
         });
     }
 
+    /**
+     * @param array<string, mixed> $data
+     */
     public function update(int $id, array $data): bool
     {
         $event = Event::find($id);
@@ -74,7 +82,7 @@ class EventRepository implements EventRepositoryInterface
                         'is_all_classes' => true,
                         'church_id' => $event->church_id,
                     ]);
-                } elseif (!empty($targetClassIds)) {
+                } elseif (!empty($targetClassIds) && is_array($targetClassIds)) {
                     foreach ($targetClassIds as $classId) {
                         $event->targets()->create([
                             'class_id' => $classId,
@@ -94,15 +102,19 @@ class EventRepository implements EventRepositoryInterface
         if (!$event) {
             return false;
         }
-        return $event->delete();
+        return (bool) $event->delete();
     }
 
+    /**
+     * @param array<string, mixed> $filters
+     * @return LengthAwarePaginator<int, Event>
+     */
     public function paginate(int $perPage = 15, array $filters = []): LengthAwarePaginator
     {
         $query = Event::with(['creator', 'classe', 'targets.classe']);
 
         if (!empty($filters['upcoming']) && filter_var($filters['upcoming'], FILTER_VALIDATE_BOOLEAN)) {
-            $query->where(function ($q) {
+            $query->where(function (\Illuminate\Database\Eloquent\Builder $q) {
                 $q->where('event_date', '>=', now())
                   ->orWhereNull('event_date');
             });
@@ -112,33 +124,37 @@ class EventRepository implements EventRepositoryInterface
             $query->where('is_active', true);
         }
 
+        /** @var int|string|null $classId */
         $classId = $filters['member_class_id'] ?? $filters['class_year_id'] ?? $filters['member_class_year_id'] ?? null;
         $classIds = $filters['class_year_ids'] ?? null;
 
         if ($classIds !== null && is_array($classIds)) {
-            $classIds = array_map('intval', $classIds);
-            $query->where(function ($q) use ($classIds) {
-                $q->whereHas('targets', function ($t) use ($classIds) {
+            $classIdsInt = array_map(function(mixed $v): int {
+                /** @var int|string $v */
+                return (int) $v;
+            }, $classIds);
+            $query->where(function (\Illuminate\Database\Eloquent\Builder $q) use ($classIdsInt) {
+                $q->whereHas('targets', function (\Illuminate\Database\Eloquent\Builder $t) use ($classIdsInt) {
                     $t->where('is_all_classes', true)
-                      ->orWhereIn('class_id', $classIds);
+                      ->orWhereIn('class_id', $classIdsInt);
                 })
-                ->orWhereIn('events.class_year_id', $classIds);
+                ->orWhereIn('events.class_year_id', $classIdsInt);
             });
         } elseif ($classId !== null) {
             $classId = (int) $classId;
             if ($classId === 0) {
-                $query->where(function ($q) {
+                $query->where(function (\Illuminate\Database\Eloquent\Builder $q) {
                     $q->whereNull('class_year_id')
                       ->whereDoesntHave('targets');
                 });
             } else {
-                $query->where(function ($q) use ($classId) {
-                    $q->whereHas('targets', function ($t) use ($classId) {
+                $query->where(function (\Illuminate\Database\Eloquent\Builder $q) use ($classId) {
+                    $q->whereHas('targets', function (\Illuminate\Database\Eloquent\Builder $t) use ($classId) {
                         $t->where('is_all_classes', true)
                           ->orWhere('class_id', $classId);
                     })
                     ->orWhere('events.class_year_id', $classId)
-                    ->orWhere(function ($q2) {
+                    ->orWhere(function (\Illuminate\Database\Eloquent\Builder $q2) {
                         $q2->whereNull('events.class_year_id')
                            ->whereDoesntHave('targets');
                     });
@@ -147,9 +163,11 @@ class EventRepository implements EventRepositoryInterface
         }
 
         if (!empty($filters['search'])) {
-            $query->where(function ($q) use ($filters) {
-                $q->where('name', 'like', '%' . $filters['search'] . '%')
-                    ->orWhere('description', 'like', '%' . $filters['search'] . '%');
+            /** @var string $search */
+            $search = $filters['search'];
+            $query->where(function (\Illuminate\Database\Eloquent\Builder $q) use ($search) {
+                $q->where('name', 'like', '%' . $search . '%')
+                    ->orWhere('description', 'like', '%' . $search . '%');
             });
         }
 

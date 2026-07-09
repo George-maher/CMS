@@ -18,8 +18,10 @@ class LeaderboardService implements LeaderboardServiceInterface
     /** @return array<string, mixed> */
     public function classLeaderboard(int $classId, int $limit = 3): array
     {
+        $churchId = $this->getAuthChurchId();
+
         return $this->cacheService->rememberLeaderboard(
-            auth()->user()->church_id,
+            $churchId,
             $classId,
             $limit,
             function () use ($classId, $limit) {
@@ -48,8 +50,10 @@ class LeaderboardService implements LeaderboardServiceInterface
     /** @return array<string, mixed> */
     public function globalLeaderboard(int $limit = 5): array
     {
+        $churchId = $this->getAuthChurchId();
+
         return $this->cacheService->rememberLeaderboard(
-            auth()->user()->church_id,
+            $churchId,
             null,
             $limit,
             function () use ($limit) {
@@ -67,11 +71,13 @@ class LeaderboardService implements LeaderboardServiceInterface
     /** @return array<int, array<string, mixed>> */
     public function stagesLeaderboards(): array
     {
+        $churchId = $this->getAuthChurchId();
+
         return $this->cacheService->rememberStagesLeaderboards(
-            auth()->user()->church_id,
+            $churchId,
             function () {
                 $stages = Stage::byChurch()
-                    ->with(['classes' => function ($query) {
+                    ->with(['classes' => function (\Illuminate\Database\Eloquent\Relations\Relation $query) {
                         $query->orderBy('display_order');
                     }])
                     ->orderBy('display_order')
@@ -123,9 +129,10 @@ class LeaderboardService implements LeaderboardServiceInterface
         return $this->classLeaderboard($user->class_id, $limit);
     }
 
+    /** @return \Illuminate\Database\Eloquent\Builder<\App\Models\User> */
     private function baseLeaderboardQuery(): \Illuminate\Database\Eloquent\Builder
     {
-        $churchId = auth()->user()->church_id;
+        $churchId = $this->getAuthChurchId();
 
         return User::select([
             'users.id',
@@ -145,13 +152,27 @@ class LeaderboardService implements LeaderboardServiceInterface
             ->orderBy('users.created_at');
     }
 
-    /** @return array<int, array<string, mixed>> */
+    private function getAuthChurchId(): ?int
+    {
+        /** @var \App\Models\User|null $user */
+        $user = auth()->user();
+        return $user?->church_id;
+    }
+
+    /**
+     * @param \Illuminate\Support\Collection<int, \App\Models\User>|\Illuminate\Database\Eloquent\Collection<int, \App\Models\User> $members
+     * @return array<int, array<string, mixed>>
+     */
     private function formatLeaderboard(\Illuminate\Database\Eloquent\Collection|\Illuminate\Support\Collection $members): array
     {
         $entries = [];
         $rank = 1;
 
         foreach ($members as $member) {
+            /** @var int $totalPoints */
+            $totalPoints = $member->total_points;
+            /** @var mixed $attendanceCount */
+            $attendanceCount = $member->attendance_count;
             $entries[] = [
                 'rank' => $rank,
                 'user_id' => $member->id,
@@ -159,8 +180,8 @@ class LeaderboardService implements LeaderboardServiceInterface
                 'avatar' => $member->avatar,
                 'class_name' => $member->classe?->name,
                 'stage_name' => $member->classe?->stage?->name,
-                'total_points' => (int) $member->total_points,
-                'attendance_count' => (int) $member->attendance_count,
+                'total_points' => $totalPoints,
+                'attendance_count' => $attendanceCount,
             ];
             $rank++;
         }

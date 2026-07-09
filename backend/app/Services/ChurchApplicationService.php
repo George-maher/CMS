@@ -30,6 +30,7 @@ class ChurchApplicationService implements ChurchApplicationServiceInterface
     }
 
     /** @param array<string, mixed> $data */
+    /** @return array<string, mixed> */
     public function submit(array $data, ?UploadedFile $frontId, ?UploadedFile $backId, string $email, string $password, ?UploadedFile $churchPermissionDoc = null): array
     {
         $existing = $this->findByEmail($email);
@@ -42,17 +43,32 @@ class ChurchApplicationService implements ChurchApplicationServiceInterface
     }
 
     /** @param array<string, mixed> $data */
+    /** @return array<string, mixed> */
     private function createNew(array $data, ?UploadedFile $frontId, ?UploadedFile $backId, string $email, string $password, ?UploadedFile $churchPermissionDoc = null): array
     {
         return DB::transaction(function () use ($data, $frontId, $backId, $email, $password, $churchPermissionDoc) {
+            /** @var array<string, mixed> $data */
+            /** @var string $churchName */
+            $churchName = $data['church_name'];
+            /** @var string|null $serviceName */
+            $serviceName = $data['service_name'] ?? null;
+            /** @var string $priestName */
+            $priestName = $data['priest_name'];
+            /** @var string|null $phone */
+            $phone = $data['phone'] ?? null;
+            /** @var string|null $mainServantName */
+            $mainServantName = $data['main_servant_name'] ?? null;
+            /** @var string $address */
+            $address = $data['address'];
+
             $application = ChurchApplication::create([
-                'church_name' => $data['church_name'],
-                'service_name' => $data['service_name'] ?? null,
-                'priest_name' => $data['priest_name'],
-                'priest_phone' => $data['phone'] ?? null,
-                'main_servant_name' => $data['main_servant_name'] ?? null,
-                'phone' => $data['phone'] ?? null,
-                'address' => $data['address'],
+                'church_name' => $churchName,
+                'service_name' => $serviceName,
+                'priest_name' => $priestName,
+                'priest_phone' => $phone,
+                'main_servant_name' => $mainServantName,
+                'phone' => $phone,
+                'address' => $address,
                 'contact_email' => $email,
                 'status' => 'pending',
             ]);
@@ -61,7 +77,7 @@ class ChurchApplicationService implements ChurchApplicationServiceInterface
 
             $user = User::create([
                 'church_application_id' => $application->id,
-                'name' => $data['priest_name'],
+                'name' => $priestName,
                 'email' => $email,
                 'password' => Hash::make($password),
                 'role' => UserRole::Admin,
@@ -73,7 +89,7 @@ class ChurchApplicationService implements ChurchApplicationServiceInterface
                 action: 'church_application_submitted',
                 resourceType: 'church_application',
                 resourceId: $application->id,
-                newValues: ['church_name' => $data['church_name'], 'status' => 'pending'],
+                newValues: ['church_name' => $churchName, 'status' => 'pending'],
             );
 
             $this->notifyPlatformAdmins($application);
@@ -87,19 +103,28 @@ class ChurchApplicationService implements ChurchApplicationServiceInterface
     }
 
     /** @param array<string, mixed> $data */
+    /** @return array<string, mixed> */
     private function updateExisting(ChurchApplication $application, array $data, ?UploadedFile $frontId, ?UploadedFile $backId, ?UploadedFile $churchPermissionDoc = null): array
     {
         return DB::transaction(function () use ($application, $data, $frontId, $backId, $churchPermissionDoc) {
+            /** @var array<string, mixed> $data */
             $oldValues = $application->toArray();
 
+            /** @var string $churchName */
+            $churchName = $data['church_name'];
+            /** @var string $priestName */
+            $priestName = $data['priest_name'];
+            /** @var string $address */
+            $address = $data['address'];
+
             $application->update([
-                'church_name' => $data['church_name'],
+                'church_name' => $churchName,
                 'service_name' => $data['service_name'] ?? $application->service_name,
-                'priest_name' => $data['priest_name'],
+                'priest_name' => $priestName,
                 'priest_phone' => $data['phone'] ?? $application->priest_phone,
                 'main_servant_name' => $data['main_servant_name'] ?? $application->main_servant_name,
                 'phone' => $data['phone'] ?? $application->phone,
-                'address' => $data['address'],
+                'address' => $address,
             ]);
 
             if ($application->status === 'rejected') {
@@ -123,7 +148,7 @@ class ChurchApplicationService implements ChurchApplicationServiceInterface
                 resourceType: 'church_application',
                 resourceId: $application->id,
                 oldValues: $oldValues,
-                newValues: ['church_name' => $data['church_name'], 'status' => $application->status],
+                newValues: ['church_name' => $churchName, 'status' => $application->status],
             );
 
             $user = User::where('church_application_id', $application->id)->first();
@@ -139,6 +164,7 @@ class ChurchApplicationService implements ChurchApplicationServiceInterface
     /** @param array<string, mixed> $data */
     private function uploadApplicationFiles(ChurchApplication $application, array $data, ?UploadedFile $frontId, ?UploadedFile $backId, ?UploadedFile $churchPermissionDoc = null): void
     {
+        /** @var string $idType */
         $idType = $data['id_type'] ?? 'national_id';
         $previousIdType = $application->church_permission_doc_path ? 'church_permission' : ($application->front_id_path ? 'national_id' : null);
 
@@ -191,7 +217,7 @@ class ChurchApplicationService implements ChurchApplicationServiceInterface
         }
         $path = $this->fileUploadService->uploadIdImage($image, (string) $application->id);
         $application->update([$field => $path]);
-        return $application->fresh();
+        return $application->fresh() ?? $application;
     }
 
     public function approve(ChurchApplication $application, User $platformAdmin, ?string $notes = null): Church
@@ -218,11 +244,13 @@ class ChurchApplicationService implements ChurchApplicationServiceInterface
                 'is_suspended' => false,
             ]);
 
+            /** @var string|null $existingNotes */
+            $existingNotes = $application->admin_notes;
             $application->update([
                 'status' => 'approved',
                 'reviewed_by' => $platformAdmin->id,
                 'reviewed_at' => now(),
-                'admin_notes' => $notes ? ($application->admin_notes ? $application->admin_notes . "\n" . $notes : $notes) : $application->admin_notes,
+                'admin_notes' => $notes ? ($existingNotes ? $existingNotes . "\n" . $notes : $notes) : $existingNotes,
             ]);
 
             $admin = User::where('church_application_id', $application->id)->first();
@@ -250,7 +278,7 @@ class ChurchApplicationService implements ChurchApplicationServiceInterface
 
             if ($admin) {
                 try {
-                    $admin->notify(new ApplicationApprovedNotification($application, $admin, $church->name));
+                    $admin->notify(new ApplicationApprovedNotification($admin, $church->name));
                 } catch (\Exception $e) {
                     \Illuminate\Support\Facades\Log::warning('Failed to notify applicant of approval', [
                         'application_id' => $application->id,
@@ -273,6 +301,7 @@ class ChurchApplicationService implements ChurchApplicationServiceInterface
         }
 
         return DB::transaction(function () use ($application, $platformAdmin, $reason) {
+            /** @var string $oldStatus */
             $oldStatus = $application->status;
 
             $application->update([
@@ -309,11 +338,11 @@ class ChurchApplicationService implements ChurchApplicationServiceInterface
                 }
             }
 
-            return $application->fresh();
+            return $application->fresh() ?? $application;
         });
     }
 
-    /** @return \Illuminate\Contracts\Pagination\LengthAwarePaginator<\App\Models\ChurchApplication> */
+    /** @return \Illuminate\Contracts\Pagination\LengthAwarePaginator<int, \App\Models\ChurchApplication> */
     public function listApplications(?string $status = null, int $perPage = 15): \Illuminate\Contracts\Pagination\LengthAwarePaginator
     {
         $query = ChurchApplication::query();

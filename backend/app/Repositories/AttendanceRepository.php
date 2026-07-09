@@ -4,6 +4,8 @@ namespace App\Repositories;
 
 use App\Contracts\AttendanceRepositoryInterface;
 use App\Models\Attendance;
+use App\Models\User;
+use App\Enums\UserRole;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 
@@ -14,11 +16,17 @@ class AttendanceRepository implements AttendanceRepositoryInterface
         return Attendance::find($id);
     }
 
+    /**
+     * @param array<string, mixed> $data
+     */
     public function create(array $data): Attendance
     {
         return Attendance::create($data);
     }
 
+    /**
+     * @param array<string, mixed> $data
+     */
     public function update(int $id, array $data): bool
     {
         $attendance = $this->findById($id);
@@ -34,9 +42,13 @@ class AttendanceRepository implements AttendanceRepositoryInterface
         if (!$attendance) {
             return false;
         }
-        return $attendance->delete();
+        return (bool) $attendance->delete();
     }
 
+    /**
+     * @param array<string, mixed> $filters
+     * @return LengthAwarePaginator<int, Attendance>
+     */
     public function paginate(int $perPage = 15, array $filters = []): LengthAwarePaginator
     {
         $query = Attendance::query()->with(['user', 'recorder', 'classe', 'event', 'attendanceContext']);
@@ -74,6 +86,7 @@ class AttendanceRepository implements AttendanceRepositoryInterface
         }
 
         if (!empty($filters['search'])) {
+            /** @var string $search */
             $search = $filters['search'];
             $query->whereHas('user', function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
@@ -100,6 +113,9 @@ class AttendanceRepository implements AttendanceRepositoryInterface
         return $query->exists();
     }
 
+    /**
+     * @return Collection<int, Attendance>
+     */
     public function getTodayAttendanceByClass(int $classYearId): Collection
     {
         return Attendance::where('class_year_id', $classYearId)
@@ -109,6 +125,9 @@ class AttendanceRepository implements AttendanceRepositoryInterface
             ->get();
     }
 
+    /**
+     * @return Collection<int, Attendance>
+     */
     public function getAttendanceByClassYear(int $classYearId, ?string $dateFrom = null, ?string $dateTo = null): Collection
     {
         $query = Attendance::where('class_year_id', $classYearId)
@@ -130,6 +149,9 @@ class AttendanceRepository implements AttendanceRepositoryInterface
         return Attendance::where('user_id', $userId)->count();
     }
 
+    /**
+     * @return Collection<int, Attendance>
+     */
     public function getAttendanceByDateRange(string $startDate, string $endDate): Collection
     {
         return Attendance::whereBetween('attended_at', [$startDate, $endDate])
@@ -137,6 +159,9 @@ class AttendanceRepository implements AttendanceRepositoryInterface
             ->get();
     }
 
+    /**
+     * @return Collection<int, Attendance>
+     */
     public function getAttendanceByUserAndDateRange(int $userId, string $startDate, string $endDate): Collection
     {
         return Attendance::where('user_id', $userId)
@@ -145,6 +170,10 @@ class AttendanceRepository implements AttendanceRepositoryInterface
             ->get();
     }
 
+    /**
+     * @param array<int, int>|int|null $classYearIds
+     * @return Collection<int, Attendance>
+     */
     public function getContextSummary(?string $dateFrom = null, ?string $dateTo = null, array|int|null $classYearIds = null): Collection
     {
         $query = Attendance::query()
@@ -170,6 +199,10 @@ class AttendanceRepository implements AttendanceRepositoryInterface
         return $query->get();
     }
 
+    /**
+     * @param array<int, int>|int|null $classYearId
+     * @return Collection<int, Attendance>
+     */
     public function getContextAnalytics(int $contextId, array|int|null $classYearId = null, ?int $servantId = null, ?string $dateFrom = null, ?string $dateTo = null, ?int $dayOfWeek = null): Collection
     {
         $query = Attendance::where('attendance_context_id', $contextId)
@@ -195,10 +228,13 @@ class AttendanceRepository implements AttendanceRepositoryInterface
         return $query->latest('attended_at')->get();
     }
 
+    /**
+     * @return Collection<int, User>
+     */
     public function getMembersByClassYear(int $classYearId): Collection
     {
-        return \App\Models\User::byChurch()
-            ->byRole(\App\Enums\UserRole::Member)
+        return User::byChurch()
+            ->byRole(UserRole::Member)
             ->where(function ($q) use ($classYearId) {
                 $q->where('class_id', $classYearId)
                   ->orWhere('class_year_id', $classYearId);
@@ -208,6 +244,9 @@ class AttendanceRepository implements AttendanceRepositoryInterface
             ->get();
     }
 
+    /**
+     * @return array<int, int>
+     */
     public function getAttendedUserIds(int $classYearId, ?int $eventId = null, ?int $contextId = null, ?string $date = null, ?string $dateFrom = null, ?string $dateTo = null): array
     {
         $query = Attendance::where('class_year_id', $classYearId);
@@ -232,6 +271,7 @@ class AttendanceRepository implements AttendanceRepositoryInterface
             $query->where('attended_at', '<=', $dateTo);
         }
 
+        /** @var array<int, int> */
         return $query->pluck('user_id')->unique()->toArray();
     }
 
@@ -278,7 +318,7 @@ class AttendanceRepository implements AttendanceRepositoryInterface
     public function getMonthAbsenceCount(int $userId, int $contextId, int $year, int $month): int
     {
         $start = sprintf('%04d-%02d-01', $year, $month);
-        $end = date('Y-m-t', strtotime($start));
+        $end = date('Y-m-t', (int) strtotime($start));
 
         $totalSessions = Attendance::where('attendance_context_id', $contextId)
             ->whereBetween('attended_at', [$start, $end])
@@ -294,6 +334,10 @@ class AttendanceRepository implements AttendanceRepositoryInterface
         return max(0, $totalSessions - $userAttendances);
     }
 
+    /**
+     * @param array<int, int>|int|null $classYearId
+     * @return LengthAwarePaginator<int, Attendance>
+     */
     public function paginateContextAnalytics(int $contextId, int $perPage = 15, array|int|null $classYearId = null, ?int $servantId = null, ?string $dateFrom = null, ?string $dateTo = null): LengthAwarePaginator
     {
         $query = Attendance::where('attendance_context_id', $contextId)
@@ -319,6 +363,9 @@ class AttendanceRepository implements AttendanceRepositoryInterface
         return $query->latest('attended_at')->paginate($perPage);
     }
 
+    /**
+     * @return LengthAwarePaginator<int, Attendance>
+     */
     public function paginateAttendanceByClassYear(int $classYearId, int $perPage = 15, ?string $dateFrom = null, ?string $dateTo = null): LengthAwarePaginator
     {
         $query = Attendance::where('class_year_id', $classYearId)
@@ -335,6 +382,10 @@ class AttendanceRepository implements AttendanceRepositoryInterface
         return $query->latest('attended_at')->paginate($perPage);
     }
 
+    /**
+     * @param array<int, int>|int $classYearIds
+     * @return LengthAwarePaginator<int, Attendance>
+     */
     public function paginateTodayAttendanceByClass(array|int $classYearIds, int $perPage = 15): LengthAwarePaginator
     {
         $classYearIds = is_array($classYearIds) ? $classYearIds : [$classYearIds];
@@ -356,33 +407,51 @@ class AttendanceRepository implements AttendanceRepositoryInterface
         return $query->distinct('attended_at')->count('attended_at');
     }
 
-    public function getBatchedLastAttendance(array $userIds): Collection
+    /**
+     * @param array<int, int> $userIds
+     * @return \Illuminate\Support\Collection<int, mixed>
+     */
+    public function getBatchedLastAttendance(array $userIds): \Illuminate\Support\Collection
     {
         if (empty($userIds)) {
             return collect();
         }
 
-        return Attendance::selectRaw('user_id, MAX(attended_at) as last_attended_at')
+        /** @var \Illuminate\Support\Collection<int, mixed> $result */
+        $result = Attendance::selectRaw('user_id, MAX(attended_at) as last_attended_at')
             ->whereIn('user_id', $userIds)
             ->groupBy('user_id')
             ->get()
             ->keyBy('user_id');
+
+        return $result;
     }
 
-    public function getBatchedAttendanceCounts(array $userIds, ?int $contextId): Collection
+    /**
+     * @param array<int, int> $userIds
+     * @return \Illuminate\Support\Collection<int, mixed>
+     */
+    public function getBatchedAttendanceCounts(array $userIds, ?int $contextId): \Illuminate\Support\Collection
     {
         if (empty($userIds)) {
             return collect();
         }
 
-        return Attendance::selectRaw('user_id, COUNT(*) as count')
+        /** @var \Illuminate\Support\Collection<int, mixed> $result */
+        $result = Attendance::selectRaw('user_id, COUNT(*) as count')
             ->whereIn('user_id', $userIds)
             ->where('attendance_context_id', $contextId)
             ->groupBy('user_id')
             ->get()
             ->keyBy('user_id');
+
+        return $result;
     }
 
+    /**
+     * @param array<int, int> $userIds
+     * @return Collection<int, mixed>
+     */
     public function getBatchedConsecutiveAbsences(array $userIds, ?int $contextId, string $currentDate): Collection
     {
         if (empty($userIds)) {
@@ -407,6 +476,7 @@ class AttendanceRepository implements AttendanceRepositoryInterface
         $results = collect();
         $totalSessionCount = count($sessionDates);
 
+        /** @var int $uid */
         foreach ($userIds as $uid) {
             $last = $lastAttendances->get($uid);
             if (!$last || !($last->last_attended_at ?? false)) {
@@ -416,7 +486,7 @@ class AttendanceRepository implements AttendanceRepositoryInterface
 
             $lastDate = $last->last_attended_at instanceof \Carbon\Carbon
                 ? $last->last_attended_at->toDateString()
-                : date('Y-m-d', strtotime((string) $last->last_attended_at));
+                : date('Y-m-d', intval(strtotime(strval($last->last_attended_at))));
 
             $absences = 0;
             foreach ($sessionDates as $sd) {
@@ -431,6 +501,10 @@ class AttendanceRepository implements AttendanceRepositoryInterface
         return $results;
     }
 
+    /**
+     * @param array<int, int> $userIds
+     * @return Collection<int, mixed>
+     */
     public function getBatchedMonthAbsenceCounts(array $userIds, ?int $contextId, int $year, int $month): Collection
     {
         if (empty($userIds)) {
@@ -438,7 +512,7 @@ class AttendanceRepository implements AttendanceRepositoryInterface
         }
 
         $start = sprintf('%04d-%02d-01', $year, $month);
-        $end = date('Y-m-t', strtotime($start));
+        $end = date('Y-m-t', (int) strtotime($start));
 
         $totalSessions = Attendance::where('attendance_context_id', $contextId)
             ->whereBetween('attended_at', [$start, $end])
@@ -454,8 +528,10 @@ class AttendanceRepository implements AttendanceRepositoryInterface
             ->keyBy('user_id');
 
         $results = collect();
+        /** @var int $uid */
         foreach ($userIds as $uid) {
-            $count = (int) ($userCounts->get($uid)->attended_days ?? 0);
+            $row = $userCounts->get($uid);
+            $count = intval($row->attended_days ?? 0);
             $results->put($uid, (object) [
                 'user_id' => $uid,
                 'month_absences' => max(0, $totalSessions - $count),

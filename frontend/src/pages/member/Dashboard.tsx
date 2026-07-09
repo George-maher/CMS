@@ -40,7 +40,7 @@ export default function MemberDashboard() {
     if (user?.attendance_qr_token) {
       QRCodeLib.toDataURL(user.attendance_qr_token, { width: 400, margin: 2 }).then(setQrDataUrl).catch((e) => logCatch('MemberDashboard.qrCode', e))
     }
-  }, [])
+  }, [user])
 
   if (loading) return <LoadingSpinner className="py-20" />
 

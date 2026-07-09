@@ -21,11 +21,14 @@ enum UserRole: string
         };
     }
 
+    /** @return array<int, string> */
     public static function values(): array
     {
+        /** @var array<int, string> */
         return array_column(self::cases(), 'value');
     }
 
+    /** @return array<int, self> */
     public static function adminRoles(): array
     {
         return [self::Admin, self::AssistantAdmin];

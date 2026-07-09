@@ -12,6 +12,7 @@ class PendingDashboardController extends Controller
 {
     public function status(Request $request): JsonResponse
     {
+        /** @var \App\Models\User $user */
         $user = $request->user();
 
         $application = ChurchApplication::with('reviewer')->find($user->church_application_id);

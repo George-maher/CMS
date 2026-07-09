@@ -19,6 +19,7 @@ class MembershipRequestController extends Controller
 
     public function store(MembershipRequestSubmitRequest $request): JsonResponse
     {
+        /** @var int $churchId */
         $churchId = $request->input('church_id');
         $church = Church::find($churchId);
 
@@ -29,7 +30,9 @@ class MembershipRequestController extends Controller
         $data = $request->validated();
 
         if ($request->hasFile('file')) {
-            $data['file'] = $request->file('file');
+            /** @var \Illuminate\Http\UploadedFile $uploadedFile */
+            $uploadedFile = $request->file('file');
+            $data['file'] = $uploadedFile;
         }
 
         $result = $this->membershipRequestService->submit(
@@ -45,13 +48,17 @@ class MembershipRequestController extends Controller
 
     public function index(Request $request): JsonResponse
     {
+        /** @var \App\Models\User $user */
         $user = $request->user();
+        /** @var int $churchId */
+        $churchId = $user->church_id;
 
+        /** @var array<string, mixed> $filters */
         $filters = $request->only(['status']);
 
         $result = $this->membershipRequestService->listRequests(
-            churchId: $user->church_id,
-            perPage: $request->input('per_page', 15),
+            churchId: $churchId,
+            perPage: $request->integer('per_page', 15),
             filters: $filters,
         );
 
@@ -63,11 +70,14 @@ class MembershipRequestController extends Controller
 
     public function show(Request $request, int $id): JsonResponse
     {
+        /** @var \App\Models\User $user */
         $user = $request->user();
 
+        /** @var int $churchId */
+        $churchId = $user->church_id;
         $membershipRequest = $this->membershipRequestService->findById(
             id: $id,
-            churchId: $user->church_id,
+            churchId: $churchId,
         );
 
         if (!$membershipRequest) {
@@ -81,9 +91,13 @@ class MembershipRequestController extends Controller
 
     public function approve(Request $request, int $id): JsonResponse
     {
+        /** @var \App\Models\User $admin */
+        $admin = $request->user();
+        /** @var int $adminId */
+        $adminId = $admin->id;
         $result = $this->membershipRequestService->approve(
             id: $id,
-            adminId: $request->user()->id,
+            adminId: $adminId,
         );
 
         return response()->json([
@@ -93,10 +107,16 @@ class MembershipRequestController extends Controller
 
     public function reject(MembershipRequestReviewRequest $request, int $id): JsonResponse
     {
+        /** @var \App\Models\User $admin */
+        $admin = $request->user();
+        /** @var int $adminId */
+        $adminId = $admin->id;
+        /** @var string $reason */
+        $reason = $request->input('rejection_reason');
         $result = $this->membershipRequestService->reject(
             id: $id,
-            adminId: $request->user()->id,
-            reason: $request->input('rejection_reason'),
+            adminId: $adminId,
+            reason: $reason,
         );
 
         return response()->json([

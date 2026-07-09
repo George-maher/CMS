@@ -27,9 +27,14 @@ class AuthService implements AuthServiceInterface
     /** @param array<string, mixed> $credentials */
     public function login(array $credentials): array
     {
-        $user = $this->userRepository->findByEmail($credentials['email']);
+        /** @var string $email */
+        $email = $credentials['email'];
+        /** @var string $password */
+        $password = $credentials['password'];
 
-        if (!$user || !Hash::check($credentials['password'], $user->password)) {
+        $user = $this->userRepository->findByEmail($email);
+
+        if (!$user || !Hash::check($password, $user->password)) {
             throw ValidationException::withMessages([
                 'email' => [__('auth.failed')],
             ]);
@@ -74,9 +79,14 @@ class AuthService implements AuthServiceInterface
     /** @param array<string, mixed> $credentials */
     public function platformLogin(array $credentials): array
     {
-        $user = $this->userRepository->findByEmail($credentials['email']);
+        /** @var string $email */
+        $email = $credentials['email'];
+        /** @var string $password */
+        $password = $credentials['password'];
 
-        if (!$user || !Hash::check($credentials['password'], $user->password)) {
+        $user = $this->userRepository->findByEmail($email);
+
+        if (!$user || !Hash::check($password, $user->password)) {
             throw ValidationException::withMessages([
                 'email' => [__('auth.failed')],
             ]);
@@ -120,9 +130,10 @@ class AuthService implements AuthServiceInterface
         $user->currentAccessToken()->delete();
     }
 
-    /** @param array<string, mixed> $data */
+    /** @param array{password: string, invite_token?: string, class_id?: int, email?: string, name?: string} $data */
     public function register(array $data): array
     {
+        /** @var string|null $inviteToken */
         $inviteToken = $data['invite_token'] ?? null;
         if (!$inviteToken) {
             throw ValidationException::withMessages([
@@ -130,6 +141,7 @@ class AuthService implements AuthServiceInterface
             ]);
         }
 
+        /** @var array{invite: \App\Models\QRInvite, role: \App\Enums\UserRole} $validation */
         $validation = $this->qrInviteService->validateTokenForRegistration($inviteToken);
         $invite = $validation['invite'];
         $role = $validation['role'];
@@ -148,7 +160,9 @@ class AuthService implements AuthServiceInterface
                 ]);
             }
 
-            $data['password'] = Hash::make($data['password']);
+            /** @var string $password */
+            $password = $data['password'];
+            $data['password'] = Hash::make($password);
             $data['role'] = $role->value;
             $data['is_active'] = true;
             $data['created_by'] = $invite->created_by;
@@ -160,7 +174,9 @@ class AuthService implements AuthServiceInterface
             }
 
             if (!empty($data['class_id'])) {
-                $classe = Classe::where('id', $data['class_id'])
+                /** @var int $classId */
+                $classId = $data['class_id'];
+                $classe = Classe::where('id', $classId)
                     ->where('church_id', $invite->church_id)
                     ->first();
                 if (!$classe) {
@@ -175,7 +191,9 @@ class AuthService implements AuthServiceInterface
             $user->email_verification_token = Str::random(64);
             $user->save();
 
-            $verificationUrl = config('app.frontend_url') . '/verify-email?token=' . urlencode($user->email_verification_token) . '&email=' . urlencode($user->email);
+            /** @var string $frontendUrl */
+            $frontendUrl = config('app.frontend_url');
+            $verificationUrl = $frontendUrl . '/verify-email?token=' . urlencode($user->email_verification_token) . '&email=' . urlencode($user->email);
             try {
                 $user->notify(new VerifyEmailNotification($user, $verificationUrl));
             } catch (\Exception $e) {
@@ -185,7 +203,9 @@ class AuthService implements AuthServiceInterface
                 ]);
             }
 
-            $used = $freshInvite->markAsUsed($user->id);
+            /** @var int $userId */
+            $userId = $user->id;
+            $used = $freshInvite->markAsUsed($userId);
             if (!$used) {
                 throw ValidationException::withMessages([
                     'invite_token' => [__('invite.max_uses_reached')],
@@ -214,11 +234,14 @@ class AuthService implements AuthServiceInterface
         ];
     }
 
-    /** @param array<string, mixed> $data */
+    /** @param array{email: string} $data */
     public function forgotPassword(array $data): array
     {
+        /** @var string $email */
+        $email = $data['email'];
+
         Password::sendResetLink(
-            ['email' => $data['email']]
+            ['email' => $email]
         );
 
         return [
@@ -229,19 +252,19 @@ class AuthService implements AuthServiceInterface
     /** @param array<string, mixed> $data */
     public function resetPassword(array $data): array
     {
+        /** @var string|null $status */
         $status = Password::reset(
             $data,
-            function ($user, $password) {
+            function (\Illuminate\Contracts\Auth\CanResetPassword $user, string $password) {
+                /** @var \App\Models\User $user */
                 $user->forceFill([
                     'password' => Hash::make($password),
                 ])->setRememberToken(Str::random(60));
 
                 $user->save();
 
-                // Invalidate all existing Sanctum tokens for security
                 $user->tokens()->delete();
 
-                // Send password changed confirmation notification
                 try {
                     $user->notify(new \App\Notifications\PasswordChangedNotification());
                 } catch (\Exception $e) {
@@ -262,7 +285,7 @@ class AuthService implements AuthServiceInterface
         }
 
         throw ValidationException::withMessages([
-            'email' => [__($status)],
+            'email' => [__(strval($status))],
         ]);
     }
 }

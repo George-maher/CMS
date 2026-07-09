@@ -73,7 +73,11 @@ class StageService implements StageServiceInterface
     /** @return array<string, mixed> */
     public function create(array $data): array
     {
-        $data['church_id'] = auth()->user()->church_id;
+        /** @var array<string, mixed> $data */
+        /** @var \App\Models\User $user */
+        $user = auth()->user();
+        $data['church_id'] = $user->church_id;
+        /** @var int $maxOrder */
         $maxOrder = Stage::byChurch()->max('display_order') ?? 0;
         $data['display_order'] = $maxOrder + 1;
 
@@ -87,6 +91,7 @@ class StageService implements StageServiceInterface
     /** @return array<string, mixed> */
     public function createBulk(int $churchId, int $count): array
     {
+        /** @var int $maxOrder */
         $maxOrder = Stage::byChurch($churchId)->max('display_order') ?? 0;
         $stages = [];
 
@@ -139,14 +144,18 @@ class StageService implements StageServiceInterface
             ]);
         }
 
-        $classes = $stage->classes()
-            ->withCount([
-                'allUsers as member_count' => fn($q) => $q->where('role', \App\Enums\UserRole::Member),
-                'servants as servant_count',
-            ])
-            ->when($search, fn($q) => $q->where('name', 'like', "%{$search}%"))
-            ->orderBy('display_order')
-            ->get();
+        /** @var \Illuminate\Database\Eloquent\Relations\HasMany<\App\Models\Classe, \App\Models\Stage> $classesQuery */
+        $classesQuery = $stage->classes();
+        $classesQuery = $classesQuery->withCount([
+            'allUsers as member_count' => fn(\Illuminate\Database\Eloquent\Builder $q) => $q->where('role', \App\Enums\UserRole::Member),
+            'servants as servant_count',
+        ]);
+
+        if ($search) {
+            $classesQuery = $classesQuery->where('name', 'like', "%{$search}%");
+        }
+
+        $classes = $classesQuery->orderBy('display_order')->get();
 
         return [
             'data' => ClasseResource::collection($classes),

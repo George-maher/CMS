@@ -24,6 +24,7 @@ class LeaderboardController extends Controller
 
     public function byClass(int $classId): JsonResponse
     {
+        /** @var \App\Models\User $user */
         $user = request()->user();
 
         $classe = Classe::byChurch()->findOrFail($classId);
@@ -53,6 +54,7 @@ class LeaderboardController extends Controller
 
     public function myClass(): JsonResponse
     {
+        /** @var \App\Models\User $user */
         $user = request()->user();
 
         if (!$user->class_id) {
@@ -74,6 +76,7 @@ class LeaderboardController extends Controller
 
     public function myClasses(): JsonResponse
     {
+        /** @var \App\Models\User $user */
         $user = request()->user();
 
         $classIds = $user->getServantClassIds() ?? [];

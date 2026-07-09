@@ -129,7 +129,7 @@ export default function ServantQRInvites() {
     getMyClasses()
       .then(setMyClasses)
       .catch(() => toast.error(t('common.failedToLoad')))
-  }, [])
+  }, [t])
 
   const handleSearch = () => {
     if (searchInput.trim()) {

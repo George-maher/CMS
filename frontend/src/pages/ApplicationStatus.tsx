@@ -22,14 +22,6 @@ export default function ApplicationStatus() {
   const [userInfo, setUserInfo] = useState<{ name: string; email: string } | null>(null)
   const [status, setStatus] = useState<'pending' | 'approved' | 'rejected'>(authUser?.application_status || 'pending')
 
-  const roleRedirect: Record<string, string> = {
-    platform_admin: '/platform',
-    admin: '/admin',
-    assistant_admin: '/assistant-admin',
-    servant: '/servant',
-    member: '/member',
-  }
-
   useEffect(() => {
     if (!isAuthenticated) {
       navigate('/login', { replace: true })
@@ -44,10 +36,17 @@ export default function ApplicationStatus() {
     }).finally(() => {
       setLoading(false)
     })
-  }, [])
+  }, [isAuthenticated, navigate, t])
 
   useEffect(() => {
     if (!loading && status === 'approved' && authUser) {
+      const roleRedirect: Record<string, string> = {
+        platform_admin: '/platform',
+        admin: '/admin',
+        assistant_admin: '/assistant-admin',
+        servant: '/servant',
+        member: '/member',
+      }
       const target = roleRedirect[authUser.role] || '/login'
       navigate(target, { replace: true })
     }

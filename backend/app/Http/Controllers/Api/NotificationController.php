@@ -15,11 +15,14 @@ class NotificationController extends Controller
 
     public function index(Request $request): JsonResponse
     {
+        /** @var \App\Models\User $user */
         $user = $request->user();
+        /** @var int $userId */
+        $userId = $user->id;
 
         $result = $this->notificationService->listForUser(
-            userId: $user->id,
-            perPage: (int) $request->input('per_page', 15),
+            userId: $userId,
+            perPage: $request->integer('per_page', 15),
         );
 
         return response()->json($result);
@@ -27,9 +30,12 @@ class NotificationController extends Controller
 
     public function unreadCount(Request $request): JsonResponse
     {
+        /** @var \App\Models\User $user */
         $user = $request->user();
+        /** @var int $userId */
+        $userId = $user->id;
 
-        $count = $this->notificationService->unreadCount($user->id);
+        $count = $this->notificationService->unreadCount($userId);
 
         return response()->json([
             'data' => [
@@ -40,9 +46,12 @@ class NotificationController extends Controller
 
     public function markAsRead(Request $request, int $id): JsonResponse
     {
+        /** @var \App\Models\User $user */
         $user = $request->user();
+        /** @var int $userId */
+        $userId = $user->id;
 
-        $this->notificationService->markAsRead($id, $user->id);
+        $this->notificationService->markAsRead($id, $userId);
 
         return response()->json([
             'message' => 'Notification marked as read.',
@@ -51,9 +60,12 @@ class NotificationController extends Controller
 
     public function markAllAsRead(Request $request): JsonResponse
     {
+        /** @var \App\Models\User $user */
         $user = $request->user();
+        /** @var int $userId */
+        $userId = $user->id;
 
-        $this->notificationService->markAllAsRead($user->id);
+        $this->notificationService->markAllAsRead($userId);
 
         return response()->json([
             'message' => 'All notifications marked as read.',

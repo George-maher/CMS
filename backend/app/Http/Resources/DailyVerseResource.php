@@ -16,7 +16,11 @@ class DailyVerseResource extends JsonResource
             'verse_text' => $this->verse_text,
             'reference' => $this->reference,
             'created_by' => $this->created_by,
-            'creator_name' => $this->when($this->creator !== null, fn() => $this->creator->name),
+            'creator_name' => $this->when($this->creator !== null, function () {
+                /** @var \App\Models\User $creator */
+                $creator = $this->creator;
+                return $creator->name;
+            }),
             'is_active' => $this->is_active,
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,

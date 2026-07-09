@@ -15,6 +15,7 @@ class FeedbackRequest extends FormRequest
         return $this->user()?->role === UserRole::Member;
     }
 
+    /** @return array<string, mixed> */
     public function rules(): array
     {
         return [

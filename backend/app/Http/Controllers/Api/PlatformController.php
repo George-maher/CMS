@@ -38,7 +38,7 @@ class PlatformController extends Controller
                     'id' => $app->id,
                     'church_name' => $app->church_name,
                     'priest_name' => $app->priest_name,
-                    'created_at' => $app->created_at->toISOString(),
+                    'created_at' => $app->created_at?->toISOString(),
                 ]);
 
             return [
@@ -97,10 +97,14 @@ class PlatformController extends Controller
             return response()->json(['message' => 'Application is not pending.'], 422);
         }
 
+        /** @var \App\Models\User $admin */
+        $admin = $request->user();
+        /** @var string|null $notes */
+        $notes = $request->input('notes');
         $church = $this->churchApplicationService->approve(
             $application,
-            $request->user(),
-            $request->input('notes'),
+            $admin,
+            $notes,
         );
 
         Cache::forget('platform:dashboard');
@@ -124,10 +128,14 @@ class PlatformController extends Controller
             return response()->json(['message' => 'Application is not pending.'], 422);
         }
 
+        /** @var \App\Models\User $admin */
+        $admin = $request->user();
+        /** @var string $rejectionReason */
+        $rejectionReason = $request->input('rejection_reason');
         $this->churchApplicationService->reject(
             $application,
-            $request->user(),
-            $request->input('rejection_reason'),
+            $admin,
+            $rejectionReason,
         );
 
         Cache::forget('platform:dashboard');

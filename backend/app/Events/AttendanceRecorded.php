@@ -17,6 +17,8 @@ class AttendanceRecorded
     public function __construct(Attendance $attendance)
     {
         $this->attendance = $attendance;
-        $this->churchId = $attendance->church_id ?? auth()->user()?->church_id;
+        /** @var \App\Models\User|null $authUser */
+        $authUser = auth()->user();
+        $this->churchId = $attendance->church_id ?? $authUser?->church_id;
     }
 }

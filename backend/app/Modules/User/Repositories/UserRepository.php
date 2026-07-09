@@ -31,11 +31,17 @@ class UserRepository implements UserRepositoryInterface
         return User::byChurch()->where('email', $email)->first();
     }
 
+    /**
+     * @param array<string, mixed> $data
+     */
     public function create(array $data): User
     {
         return User::create($data);
     }
 
+    /**
+     * @param array<string, mixed> $data
+     */
     public function update(int $id, array $data): bool
     {
         $user = $this->findById($id);
@@ -51,9 +57,13 @@ class UserRepository implements UserRepositoryInterface
         if (!$user) {
             return false;
         }
-        return $user->delete();
+        return (bool) $user->delete();
     }
 
+    /**
+     * @param array<string, mixed> $filters
+     * @return LengthAwarePaginator<int, User>
+     */
     public function paginate(int $perPage = 15, array $filters = []): LengthAwarePaginator
     {
         $query = User::query()->byChurch();
@@ -73,7 +83,9 @@ class UserRepository implements UserRepositoryInterface
         }
 
         if (!empty($filters['search'])) {
-            $query->search($filters['search']);
+            /** @var string $search */
+            $search = $filters['search'];
+            $query->search($search);
         }
 
         if (!empty($filters['created_by'])) {
@@ -83,6 +95,9 @@ class UserRepository implements UserRepositoryInterface
         return $query->with('classe')->latest()->paginate($perPage);
     }
 
+    /**
+     * @return Collection<int, User>
+     */
     public function findServantsByAdmin(int $adminId): Collection
     {
         return User::byChurch()
@@ -92,6 +107,9 @@ class UserRepository implements UserRepositoryInterface
             ->get();
     }
 
+    /**
+     * @return Collection<int, User>
+     */
     public function findMembersByServant(int $servantId): Collection
     {
         $servant = $this->findById($servantId);
@@ -121,6 +139,9 @@ class UserRepository implements UserRepositoryInterface
             ->get();
     }
 
+    /**
+     * @return Collection<int, User>
+     */
     public function findMembersByClassYear(int $classYearId): Collection
     {
         return User::byChurch()
@@ -134,6 +155,9 @@ class UserRepository implements UserRepositoryInterface
             ->get();
     }
 
+    /**
+     * @return LengthAwarePaginator<int, User>
+     */
     public function paginateMembersByClassYear(int $classYearId, int $perPage = 15): LengthAwarePaginator
     {
         return User::byChurch()
@@ -159,5 +183,48 @@ class UserRepository implements UserRepositoryInterface
             return false;
         }
         return $user->update(['role' => $role]);
+    }
+
+    /**
+     * @return \Illuminate\Database\Eloquent\Collection<int, \App\Models\User>
+     */
+    public function getServantsByChurch(int $churchId): \Illuminate\Database\Eloquent\Collection
+    {
+        return $this->findServantsByAdmin($churchId);
+    }
+
+    /**
+     * @return \Illuminate\Database\Eloquent\Collection<int, \App\Models\User>
+     */
+    public function getMembersByServant(int $servantId): \Illuminate\Database\Eloquent\Collection
+    {
+        return $this->findMembersByServant($servantId);
+    }
+
+    public function demoteFromAdmin(int $id): bool
+    {
+        return $this->updateRole($id, \App\Enums\UserRole::Member->value);
+    }
+
+    /**
+     * @param array<int, int> $ids
+     * @return \Illuminate\Support\Collection<int, \App\Models\User>
+     */
+    /** @return \Illuminate\Support\Collection<int, \App\Models\User> */
+    public function findByIds(array $ids): \Illuminate\Support\Collection
+    {
+        if (empty($ids)) {
+            /** @var \Illuminate\Support\Collection<int, \App\Models\User> $empty */
+            $empty = collect();
+            return $empty;
+        }
+
+        $query = User::query();
+
+        if (auth()->check() && !auth()->user()?->isPlatformAdmin()) {
+            $query->byChurch();
+        }
+
+        return $query->whereIn('id', $ids)->get()->keyBy('id');
     }
 }

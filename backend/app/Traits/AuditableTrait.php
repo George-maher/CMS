@@ -8,22 +8,29 @@ trait AuditableTrait
 {
     public static function bootAuditableTrait(): void
     {
-        static::created(function ($model) {
-            self::logAction('created', $model, null, $model->toArray());
+        static::created(function (\Illuminate\Database\Eloquent\Model $model) {
+            /** @var array<string, mixed> $newValues */
+            $newValues = $model->toArray();
+            static::logAction('created', $model, null, $newValues);
         });
 
-        static::updated(function ($model) {
+        static::updated(function (\Illuminate\Database\Eloquent\Model $model) {
+            /** @var array<string, mixed> $changed */
             $changed = $model->getChanges();
             if (empty($changed)) {
                 return;
             }
 
-            $oldValues = array_intersect_key($model->getOriginal(), $changed);
-            self::logAction('updated', $model, $oldValues, $changed);
+            /** @var array<string, mixed> $original */
+            $original = $model->getOriginal();
+            $oldValues = array_intersect_key($original, $changed);
+            static::logAction('updated', $model, $oldValues, $changed);
         });
 
-        static::deleted(function ($model) {
-            self::logAction('deleted', $model, $model->toArray(), null);
+        static::deleted(function (\Illuminate\Database\Eloquent\Model $model) {
+            /** @var array<string, mixed> $oldValues */
+            $oldValues = $model->toArray();
+            static::logAction('deleted', $model, $oldValues, null);
         });
     }
 

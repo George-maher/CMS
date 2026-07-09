@@ -86,7 +86,7 @@ class CleanAuditLogs extends Command
                 try {
                     Storage::disk('local')->put(
                         "audit-archives/{$filename}",
-                        json_encode($data, JSON_PRETTY_PRINT)
+                        (string) json_encode($data, JSON_PRETTY_PRINT)
                     );
                 } catch (\Exception $e) {
                     $this->error("Failed to write archive file: {$e->getMessage()}");

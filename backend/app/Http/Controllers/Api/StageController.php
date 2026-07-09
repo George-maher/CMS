@@ -18,7 +18,9 @@ class StageController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        return response()->json($this->stageService->all($request->input('search')));
+        /** @var string|null $search */
+        $search = $request->input('search');
+        return response()->json($this->stageService->all($search));
     }
 
     public function store(StoreStageRequest $request): JsonResponse
@@ -33,8 +35,12 @@ class StageController extends Controller
 
     public function bulkCreate(BulkCreateStagesRequest $request): JsonResponse
     {
-        $churchId = $request->user()->church_id;
-        $result = $this->stageService->createBulk($churchId, $request->input('count'));
+        /** @var \App\Models\User $user */
+        $user = $request->user();
+        /** @var int $churchId */
+        $churchId = $user->church_id;
+        $count = $request->integer('count');
+        $result = $this->stageService->createBulk($churchId, $count);
 
         return response()->json([
             'message' => 'Stages created successfully.',
@@ -57,11 +63,12 @@ class StageController extends Controller
     {
         $this->stageService->update($id, $request->validated());
 
+        /** @var array<string, mixed>|null $updated */
         $updated = $this->stageService->findById($id);
 
         return response()->json([
             'message' => 'Stage updated successfully.',
-            'data' => $updated['data'],
+            'data' => $updated !== null ? $updated['data'] : null,
         ]);
     }
 
@@ -76,6 +83,8 @@ class StageController extends Controller
 
     public function classes(Request $request, int $id): JsonResponse
     {
-        return response()->json($this->stageService->getClasses($id, $request->input('search')));
+        /** @var string|null $search */
+        $search = $request->input('search');
+        return response()->json($this->stageService->getClasses($id, $search));
     }
 }

@@ -23,6 +23,6 @@ class GeneralHelper
 
     public static function slugify(string $text): string
     {
-        return strtolower(trim(preg_replace('/[^a-zA-Z0-9-]+/', '-', $text), '-'));
+        return strtolower(trim((string) preg_replace('/[^a-zA-Z0-9-]+/', '-', $text), '-'));
     }
 }

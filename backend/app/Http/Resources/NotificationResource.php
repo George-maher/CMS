@@ -22,30 +22,45 @@ class NotificationResource extends JsonResource
             'is_read' => $this->is_read,
             'read_at' => $this->read_at,
             'created_at' => $this->created_at,
-            'event' => $this->when($this->relationLoaded('event') && $this->event, fn() => [
-                'id' => $this->event->id,
-                'name' => $this->event->name,
-                'preview' => $this->event->description ? (mb_strlen($this->event->description) > 150 ? mb_substr($this->event->description, 0, 150) . '...' : $this->event->description) : null,
-            ]),
-            'feedback' => $this->when($this->relationLoaded('feedback') && $this->feedback, fn() => [
-                'id' => $this->feedback->id,
-                'message' => $this->feedback->message,
-                'created_at' => $this->feedback->created_at,
-                'replies' => $this->feedback->relationLoaded('replies')
-                    ? $this->feedback->replies->map(fn($r) => [
-                        'id' => $r->id,
-                        'message' => $r->message,
-                        'user' => ['id' => $r->user_id, 'name' => $r->user->name ?? 'Unknown'],
-                        'created_at' => $r->created_at,
-                    ])
-                    : [],
-            ]),
-            'point' => $this->when($this->relationLoaded('point') && $this->point, fn() => [
-                'id' => $this->point->id,
-                'points' => $this->point->points,
-                'description' => $this->point->description,
-                'created_at' => $this->point->created_at,
-            ]),
+            'event' => $this->when($this->relationLoaded('event') && $this->event, function () {
+                /** @var \App\Models\Event $event */
+                $event = $this->event;
+                return [
+                    'id' => $event->id,
+                    'name' => $event->name,
+                    'preview' => $event->description ? (mb_strlen($event->description) > 150 ? mb_substr($event->description, 0, 150) . '...' : $event->description) : null,
+                ];
+            }),
+            'feedback' => $this->when($this->relationLoaded('feedback') && $this->feedback, function () {
+                /** @var \App\Models\Feedback $feedback */
+                $feedback = $this->feedback;
+                return [
+                    'id' => $feedback->id,
+                    'message' => $feedback->message,
+                    'created_at' => $feedback->created_at,
+                    'replies' => $feedback->relationLoaded('replies')
+                        ? $feedback->replies->map(function ($r) {
+                            /** @var \App\Models\FeedbackReply $r */
+                            return [
+                                'id' => $r->id,
+                                'message' => $r->message,
+                                'user' => ['id' => $r->user_id, 'name' => ($r->user->name ?? 'Unknown')],
+                                'created_at' => $r->created_at,
+                            ];
+                        })
+                        : [],
+                ];
+            }),
+            'point' => $this->when($this->relationLoaded('point') && $this->point, function () {
+                /** @var \App\Models\Point $point */
+                $point = $this->point;
+                return [
+                    'id' => $point->id,
+                    'points' => $point->points,
+                    'description' => $point->description,
+                    'created_at' => $point->created_at,
+                ];
+            }),
         ];
     }
 }

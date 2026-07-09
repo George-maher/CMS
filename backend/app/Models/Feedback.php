@@ -41,16 +41,19 @@ class Feedback extends Model
         'church_id',
     ];
 
+    /** @return BelongsTo<\App\Models\Classe, $this> */
     public function classe(): BelongsTo
     {
         return $this->belongsTo(Classe::class, 'class_year_id');
     }
 
+    /** @return BelongsTo<\App\Models\User, $this> */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
+    /** @return HasMany<\App\Models\FeedbackReply, $this> */
     public function replies(): HasMany
     {
         return $this->hasMany(FeedbackReply::class);

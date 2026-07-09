@@ -23,11 +23,13 @@ class FeedbackReply extends Model
         'message',
     ];
 
+    /** @return BelongsTo<\App\Models\Feedback, $this> */
     public function feedback(): BelongsTo
     {
         return $this->belongsTo(Feedback::class);
     }
 
+    /** @return BelongsTo<\App\Models\User, $this> */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);

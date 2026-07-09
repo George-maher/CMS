@@ -20,6 +20,7 @@ class EventAnalyticsController extends Controller
 
     public function summary(Request $request, int $id): JsonResponse
     {
+        /** @var \App\Models\User $user */
         $user = $request->user();
         $servantClassIds = $user->role === \App\Enums\UserRole::Servant ? $user->getServantClassIds() : null;
         $summary = $this->eventService->viewSummary($id, $servantClassIds);
@@ -29,7 +30,9 @@ class EventAnalyticsController extends Controller
 
     public function viewed(Request $request, int $id): JsonResponse
     {
+        /** @var array<string, mixed> $filters */
         $filters = $request->only(['class_id', 'search']);
+        /** @var \App\Models\User $user */
         $user = $request->user();
         $servantClassIds = $user->role === \App\Enums\UserRole::Servant ? $user->getServantClassIds() : null;
         if ($servantClassIds !== null) {
@@ -55,7 +58,9 @@ class EventAnalyticsController extends Controller
 
     public function notViewed(Request $request, int $id): JsonResponse
     {
+        /** @var \App\Models\User $user */
         $user = $request->user();
+        /** @var array<string, mixed> $filters */
         $filters = $request->only(['class_id', 'search']);
         $servantClassIds = $user->role === \App\Enums\UserRole::Servant ? $user->getServantClassIds() : null;
         if ($servantClassIds !== null) {
@@ -81,6 +86,7 @@ class EventAnalyticsController extends Controller
 
     public function track(Request $request, int $id): JsonResponse
     {
+        /** @var \App\Models\User $user */
         $user = $request->user();
 
         if ($user->role !== UserRole::Member) {
@@ -92,7 +98,9 @@ class EventAnalyticsController extends Controller
             return response()->json(['message' => 'Event not found.'], 404);
         }
 
-        $this->eventService->trackView($event->id, $user->id, $request->ip(), $request->userAgent());
+        /** @var int $userId */
+        $userId = $user->id;
+        $this->eventService->trackView($event->id, $userId, $request->ip(), $request->userAgent());
 
         return response()->json(['message' => 'View tracked successfully.']);
     }

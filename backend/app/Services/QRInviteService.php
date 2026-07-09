@@ -27,20 +27,28 @@ class QRInviteService implements QRInviteServiceInterface
     /** @return array<string, mixed> */
     public function createInvite(array $data, int $creatorId): array
     {
-        $type = QRInviteType::from($data['type']);
+        /** @var string $typeValue */
+        $typeValue = $data['type'];
+        $type = QRInviteType::from($typeValue);
 
         do {
             $token = Str::random(self::TOKEN_LENGTH);
         } while (QRInvite::where('token', $token)->exists());
 
-        $maxUses = isset($data['max_uses']) ? (int) $data['max_uses'] : 1;
-        $expiresInHours = isset($data['expires_in_hours']) ? (int) $data['expires_in_hours'] : self::INVITE_EXPIRY_HOURS;
+        /** @var int|null $maxUsesInput */
+        $maxUsesInput = $data['max_uses'] ?? null;
+        $maxUses = $maxUsesInput !== null ? intval($maxUsesInput) : 1;
+        /** @var int|null $expiresInHoursInput */
+        $expiresInHoursInput = $data['expires_in_hours'] ?? null;
+        $expiresInHours = $expiresInHoursInput !== null ? intval($expiresInHoursInput) : self::INVITE_EXPIRY_HOURS;
+        /** @var string|null $contextId */
+        $contextId = $data['attendance_context_id'] ?? null;
 
         $invite = $this->qrInviteRepository->create([
             'type' => $type,
             'token' => $token,
             'created_by' => $creatorId,
-            'attendance_context_id' => $data['attendance_context_id'] ?? null,
+            'attendance_context_id' => $contextId,
             'expires_at' => now()->addHours($expiresInHours),
             'is_single_use' => $maxUses === 1,
             'max_uses' => $maxUses,
@@ -108,7 +116,9 @@ class QRInviteService implements QRInviteServiceInterface
     /** @return array<string, mixed> */
     public function validateTokenForRegistration(string $token): array
     {
+        /** @var array{valid: bool, invite: \App\Models\QRInvite, type: \App\Enums\QRInviteType} $validation */
         $validation = $this->validateToken($token);
+        /** @var \App\Models\QRInvite $invite */
         $invite = $validation['invite'];
 
         $role = $invite->type->targetRole();
@@ -167,7 +177,9 @@ class QRInviteService implements QRInviteServiceInterface
     /** @return array<string, mixed> */
     public function acceptInvite(string $token, int $userId, ?int $classId = null): array
     {
+        /** @var array{valid: bool, invite: \App\Models\QRInvite, type: \App\Enums\QRInviteType} $validation */
         $validation = $this->validateToken($token);
+        /** @var \App\Models\QRInvite $invite */
         $invite = $validation['invite'];
         $role = $invite->type->targetRole();
 
@@ -241,8 +253,14 @@ class QRInviteService implements QRInviteServiceInterface
                 'role' => $role->value,
             ]);
 
+            $freshUser = $user->fresh();
+            if (!$freshUser) {
+                throw ValidationException::withMessages([
+                    'user' => ['User not found after update.'],
+                ]);
+            }
             return [
-                'user' => $user->fresh()->load(['classe', 'servant']),
+                'user' => $freshUser->load(['classe', 'servant']),
                 'role' => $role,
                 'message' => 'Role updated. Please log in again with your new permissions.',
             ];
@@ -261,7 +279,9 @@ class QRInviteService implements QRInviteServiceInterface
 
     public function getInviteUrl(string $token): string
     {
-        return config('app.frontend_url') . '/invite/' . urlencode($token);
+        /** @var string $frontendUrl */
+        $frontendUrl = config('app.frontend_url');
+        return $frontendUrl . '/invite/' . urlencode($token);
     }
 
     /** @param array<string, mixed> $filters */

@@ -19,11 +19,14 @@ class StorageController extends Controller
 
     public function upload(UploadRequest $request, string $bucket): JsonResponse
     {
+        /** @var \Illuminate\Http\UploadedFile $file */
         $file = $request->file('file');
+        /** @var string|null $path */
         $path = $request->input('path');
 
+        $mimeType = $file->getMimeType();
         $key = match (true) {
-            str_starts_with($file->getMimeType(), 'image/') => $this->storageService->uploadImage($file, $bucket, $path),
+            is_string($mimeType) && str_starts_with($mimeType, 'image/') => $this->storageService->uploadImage($file, $bucket, $path),
             default => $this->storageService->uploadDocument($file, $bucket, $path),
         };
 
@@ -46,7 +49,9 @@ class StorageController extends Controller
 
     public function uploadProfileImage(UploadRequest $request): JsonResponse
     {
-        $key = $this->storageService->uploadImage($request->file('file'), 'profiles');
+        /** @var \Illuminate\Http\UploadedFile $file */
+        $file = $request->file('file');
+        $key = $this->storageService->uploadImage($file, 'profiles');
         $url = $this->fileUploadService->url($key);
 
         return response()->json([
@@ -57,7 +62,9 @@ class StorageController extends Controller
 
     public function uploadEventImage(UploadRequest $request): JsonResponse
     {
-        $key = $this->storageService->uploadImage($request->file('file'), 'events');
+        /** @var \Illuminate\Http\UploadedFile $file */
+        $file = $request->file('file');
+        $key = $this->storageService->uploadImage($file, 'events');
         $url = $this->fileUploadService->url($key);
 
         return response()->json([
@@ -68,8 +75,11 @@ class StorageController extends Controller
 
     public function uploadDocument(UploadRequest $request): JsonResponse
     {
+        /** @var string $bucket */
         $bucket = $request->input('bucket', 'documents');
-        $key = $this->storageService->uploadDocument($request->file('file'), $bucket);
+        /** @var \Illuminate\Http\UploadedFile $file */
+        $file = $request->file('file');
+        $key = $this->storageService->uploadDocument($file, $bucket);
         $url = $this->fileUploadService->url($key);
 
         return response()->json([
@@ -80,9 +90,13 @@ class StorageController extends Controller
 
     public function replaceFile(ReplaceFileRequest $request, string $bucket): JsonResponse
     {
+        /** @var string $oldUrl */
+        $oldUrl = $request->input('old_url');
+        /** @var \Illuminate\Http\UploadedFile $newFile */
+        $newFile = $request->file('file');
         $key = $this->storageService->replaceFile(
-            oldUrl: $request->input('old_url'),
-            newFile: $request->file('file'),
+            oldUrl: $oldUrl,
+            newFile: $newFile,
             bucket: $bucket,
         );
         $url = $this->fileUploadService->url($key);
@@ -106,7 +120,9 @@ class StorageController extends Controller
             'url' => ['required', 'string'],
         ]);
 
-        $deleted = $this->storageService->deleteFile($request->input('url'));
+        /** @var string $fileUrl */
+        $fileUrl = $request->input('url');
+        $deleted = $this->storageService->deleteFile($fileUrl);
 
         if (!$deleted) {
             return response()->json([

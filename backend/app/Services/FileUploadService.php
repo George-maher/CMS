@@ -26,7 +26,8 @@ class FileUploadService implements FileUploadServiceInterface
     {
         $bucket = $this->resolveBucket($path);
 
-        if (str_starts_with($file->getMimeType(), 'image/')) {
+        $mimeType = $file->getMimeType();
+        if (is_string($mimeType) && str_starts_with($mimeType, 'image/')) {
             return $this->storageService->uploadImage($file, $bucket, $path);
         }
 
@@ -40,7 +41,7 @@ class FileUploadService implements FileUploadServiceInterface
 
     public function url(string $path): ?string
     {
-        if (!$path) {
+        if ($path === '') {
             return null;
         }
 
@@ -55,12 +56,16 @@ class FileUploadService implements FileUploadServiceInterface
 
     public function publicDisk(): string
     {
-        return config('filesystems.default');
+        /** @var string $default */
+        $default = config('filesystems.default');
+        return $default;
     }
 
     public function uploadsDisk(): string
     {
-        return config('filesystems.default');
+        /** @var string $default */
+        $default = config('filesystems.default');
+        return $default;
     }
 
     public function uploadProfileImage(UploadedFile $file): string

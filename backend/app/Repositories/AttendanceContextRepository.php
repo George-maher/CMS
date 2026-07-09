@@ -6,6 +6,7 @@ use App\Contracts\AttendanceContextRepositoryInterface;
 use App\Models\AttendanceContext;
 use App\Models\Scopes\ChurchScope;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Schema;
 
 class AttendanceContextRepository implements AttendanceContextRepositoryInterface
@@ -20,11 +21,17 @@ class AttendanceContextRepository implements AttendanceContextRepositoryInterfac
         return AttendanceContext::withoutGlobalScope(ChurchScope::class)->where('slug', $slug)->first();
     }
 
+    /**
+     * @param array<string, mixed> $data
+     */
     public function create(array $data): AttendanceContext
     {
         return AttendanceContext::create($data);
     }
 
+    /**
+     * @param array<string, mixed> $data
+     */
     public function update(int $id, array $data): bool
     {
         $context = $this->findById($id);
@@ -36,9 +43,13 @@ class AttendanceContextRepository implements AttendanceContextRepositoryInterfac
     {
         $context = $this->findById($id);
         if (!$context) return false;
-        return $context->delete();
+        return (bool) $context->delete();
     }
 
+    /**
+     * @param array<string, mixed> $filters
+     * @return LengthAwarePaginator<int, AttendanceContext>
+     */
     public function paginate(int $perPage, array $filters = []): LengthAwarePaginator
     {
         $query = AttendanceContext::withoutGlobalScope(ChurchScope::class)
@@ -60,7 +71,10 @@ class AttendanceContextRepository implements AttendanceContextRepositoryInterfac
         return $query->paginate($perPage);
     }
 
-    public function getActive(): \Illuminate\Database\Eloquent\Collection
+    /**
+     * @return Collection<int, AttendanceContext>
+     */
+    public function getActive(): Collection
     {
         $churchId = auth()->user()?->church_id;
         $query = AttendanceContext::withoutGlobalScope(ChurchScope::class)
@@ -87,7 +101,10 @@ class AttendanceContextRepository implements AttendanceContextRepositoryInterfac
         return 0;
     }
 
-    public function getActiveForChurch(int $churchId): \Illuminate\Database\Eloquent\Collection
+    /**
+     * @return Collection<int, AttendanceContext>
+     */
+    public function getActiveForChurch(int $churchId): Collection
     {
         return AttendanceContext::withoutGlobalScope(ChurchScope::class)
             ->where(function ($q) use ($churchId) {

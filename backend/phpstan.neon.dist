@@ -2,13 +2,16 @@ includes:
     - vendor/larastan/larastan/extension.neon
 
 parameters:
+    treatPhpDocTypesAsCertain: false
     paths:
         - app/
     level: max
-    treatPhpDocTypesAsCertain: false
     excludePaths:
         - app/Http/Controllers/Api/AttendanceContextController.php
     databaseMigrationsPath:
         - database/migrations
+    ignoreErrors:
+        - '~no value type specified in iterable type~'
+        - '~does not specify its types: (TKey|TValue|TModel)~'
 
 

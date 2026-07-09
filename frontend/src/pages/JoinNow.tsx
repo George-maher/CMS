@@ -140,7 +140,7 @@ export default function JoinNow() {
         }).catch(() => {}).finally(() => setIsLookingUp(false))
       }
     }
-  }, [])
+  }, [authUser, searchParams])
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()

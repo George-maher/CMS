@@ -17,6 +17,8 @@ class RoleMiddleware
             return response()->json(['message' => 'Unauthenticated.'], 401);
         }
 
+        /** @var \App\Models\User $user */
+
         $allowedRoles = [];
         foreach ($roles as $role) {
             // Support comma-separated roles passed as single string: "admin,servant"
@@ -29,6 +31,9 @@ class RoleMiddleware
             return response()->json(['message' => 'Forbidden. You do not have the required role.'], 403);
         }
 
-        return $next($request);
+        /** @var Response $response */
+        $response = $next($request);
+
+        return $response;
     }
 }

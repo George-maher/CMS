@@ -17,8 +17,11 @@ class AttendanceContextService implements AttendanceContextServiceInterface
     /** @return array<string, mixed> */
     public function list(int $perPage = 15): array
     {
+        /** @var \App\Models\User|null $user */
+        $user = auth()->user();
+        $churchId = $user?->church_id;
+
         $filters = [];
-        $churchId = auth()->user()?->church_id;
         if ($churchId) {
             $filters['church_id'] = $churchId;
         }
@@ -39,16 +42,23 @@ class AttendanceContextService implements AttendanceContextServiceInterface
     /** @return array<string, mixed> */
     public function listActive(): array
     {
-        $churchId = auth()->user()?->church_id;
+        /** @var \App\Models\User|null $user */
+        $user = auth()->user();
+        $churchId = $user?->church_id;
+
         $contexts = $churchId
             ? $this->contextRepository->getActiveForChurch($churchId)
             : $this->contextRepository->getActive();
 
         $count = $contexts->count();
+
+        /** @var int|null $authId */
+        $authId = auth()->id();
+
         Log::debug('[AttendanceContext] listActive', [
             'church_id' => $churchId,
             'contexts_count' => $count,
-            'user_id' => auth()->id(),
+            'user_id' => $authId,
         ]);
 
         return [
@@ -80,7 +90,9 @@ class AttendanceContextService implements AttendanceContextServiceInterface
     /** @param array<string, mixed> $data */
     public function create(array $data, int $creatorId): array
     {
-        $churchId = auth()->user()?->church_id;
+        /** @var \App\Models\User|null $authUser */
+        $authUser = auth()->user();
+        $churchId = $authUser?->church_id;
 
         $context = $this->contextRepository->create([
             'name' => $data['name'],

@@ -16,12 +16,16 @@ class CheckApproval
             return response()->json(['message' => 'Unauthenticated.'], 401);
         }
 
+        /** @var \App\Models\User $user */
         if (!$user->isApproved()) {
             return response()->json([
                 'message' => 'Your account is pending approval. You cannot perform this action until your application is approved.',
             ], 403);
         }
 
-        return $next($request);
+        /** @var Response $response */
+        $response = $next($request);
+
+        return $response;
     }
 }

@@ -9,17 +9,18 @@ use Illuminate\Database\Eloquent\Collection;
 
 class ClasseRepository implements ClasseRepositoryInterface
 {
-    /** @return Collection<int, \App\Models\Classe> */
+    /** @return Collection<int, Classe> */
     public function all(?string $search = null): Collection
     {
+        /** @var \Illuminate\Database\Eloquent\Builder<\App\Models\Classe> $query */
         $query = Classe::with(['stage'])
             ->withCount([
-                'allUsers as member_count' => fn($q) => $q->where('role', UserRole::Member),
+                'allUsers as member_count' => fn(\Illuminate\Database\Eloquent\Builder $q) => $q->where('role', UserRole::Member),
                 'servants as servant_count',
             ]);
 
         if ($search) {
-            $query->where(function ($q) use ($search) {
+            $query->where(function (\Illuminate\Database\Eloquent\Builder $q) use ($search) {
                 $q->where('name', 'like', "%{$search}%");
             });
         }
@@ -29,19 +30,27 @@ class ClasseRepository implements ClasseRepositoryInterface
 
     public function findById(int $id): ?Classe
     {
-        return Classe::with(['stage'])
+        /** @var \Illuminate\Database\Eloquent\Builder<\App\Models\Classe> $query */
+        $query = Classe::with(['stage'])
             ->withCount([
-                'allUsers as member_count' => fn($q) => $q->where('role', UserRole::Member),
+                'allUsers as member_count' => fn(\Illuminate\Database\Eloquent\Builder $q) => $q->where('role', UserRole::Member),
                 'servants as servant_count',
-            ])
-            ->find($id);
+            ]);
+
+        return $query->find($id);
     }
 
+    /**
+     * @param array<string, mixed> $data
+     */
     public function create(array $data): Classe
     {
         return Classe::create($data);
     }
 
+    /**
+     * @param array<string, mixed> $data
+     */
     public function update(int $id, array $data): bool
     {
         $classe = $this->findById($id);
@@ -53,20 +62,21 @@ class ClasseRepository implements ClasseRepositoryInterface
     {
         $classe = $this->findById($id);
         if (!$classe) return false;
-        return $classe->delete();
+        return (bool) $classe->delete();
     }
 
-    /** @return Collection<int, \App\Models\Classe> */
+    /** @return Collection<int, Classe> */
     public function findByStage(int $stageId, ?string $search = null): Collection
     {
+        /** @var \Illuminate\Database\Eloquent\Builder<\App\Models\Classe> $query */
         $query = Classe::where('stage_id', $stageId)
             ->withCount([
-                'allUsers as member_count' => fn($q) => $q->where('role', UserRole::Member),
+                'allUsers as member_count' => fn(\Illuminate\Database\Eloquent\Builder $q) => $q->where('role', UserRole::Member),
                 'servants as servant_count',
             ]);
 
         if ($search) {
-            $query->where(function ($q) use ($search) {
+            $query->where(function (\Illuminate\Database\Eloquent\Builder $q) use ($search) {
                 $q->where('name', 'like', "%{$search}%");
             });
         }
@@ -74,6 +84,9 @@ class ClasseRepository implements ClasseRepositoryInterface
         return $query->orderBy('display_order')->get();
     }
 
+    /**
+     * @param array<int, int> $orderedIds
+     */
     public function updateOrder(array $orderedIds): bool
     {
         foreach ($orderedIds as $index => $id) {

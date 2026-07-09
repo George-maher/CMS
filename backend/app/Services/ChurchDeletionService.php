@@ -96,6 +96,9 @@ class ChurchDeletionService
 
             $church->delete();
 
+            /** @var string|null $recoverableUntilIso */
+            $recoverableUntilIso = $church->recoverable_until?->toISOString();
+
             $this->auditService->log(
                 action: 'church_soft_deleted',
                 resourceType: 'church',
@@ -105,7 +108,7 @@ class ChurchDeletionService
                     'deleted_at' => now()->toISOString(),
                     'deleted_by' => $admin->name,
                     'deletion_type' => 'soft',
-                    'recoverable_until' => $church->recoverable_until->toISOString(),
+                    'recoverable_until' => $recoverableUntilIso,
                     'affected_users' => $summary['total_users'],
                     'total_records' => $summary['total_records'],
                 ],
@@ -154,10 +157,11 @@ class ChurchDeletionService
                 userId: $admin->id,
             );
 
-            return $church->fresh();
+            return $church->fresh() ?? $church;
         });
     }
 
+    /** @return LengthAwarePaginator<int, Church> */
     public function getDeletedChurches(
         ?string $search = null,
         ?string $churchName = null,
@@ -168,11 +172,14 @@ class ChurchDeletionService
     ): LengthAwarePaginator {
         $perPage = min($perPage, 100);
         $query = Church::onlyTrashed()
-            ->with(['deletedBy' => fn($q) => $q->select('id', 'name', 'email')])
+            ->with(['deletedBy' => function ($q) {
+                /** @var \Illuminate\Database\Eloquent\Relations\BelongsTo<\App\Models\User, \App\Models\Church> $q */
+                $q->select('id', 'name', 'email');
+            }])
             ->withCount('users');
 
         if ($search) {
-            $query->where(function ($q) use ($search) {
+            $query->where(function (\Illuminate\Database\Eloquent\Builder $q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
                   ->orWhere('priest_name', 'like', "%{$search}%")
                   ->orWhere('contact_email', 'like', "%{$search}%")
@@ -203,8 +210,14 @@ class ChurchDeletionService
     {
         $church = Church::onlyTrashed()
             ->with([
-                'deletedBy' => fn($q) => $q->select('id', 'name', 'email'),
-                'users' => fn($q) => $q->select('id', 'name', 'email', 'role', 'is_active'),
+                'deletedBy' => function ($q) {
+                    /** @var \Illuminate\Database\Eloquent\Relations\BelongsTo<\App\Models\User, \App\Models\Church> $q */
+                    $q->select('id', 'name', 'email');
+                },
+                'users' => function ($q) {
+                    /** @var \Illuminate\Database\Eloquent\Relations\HasMany<\App\Models\User, \App\Models\Church> $q */
+                    $q->select('id', 'name', 'email', 'role', 'is_active');
+                },
             ])
             ->findOrFail($id);
 

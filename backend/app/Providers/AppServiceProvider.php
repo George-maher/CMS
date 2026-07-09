@@ -139,9 +139,11 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(FileUploadServiceInterface::class, \App\Services\FileUploadService::class);
 
         $this->app->bind(StorageServiceInterface::class, function () {
+            /** @var string $url */
             $url = config('supabase-storage.project_url', '');
+            /** @var string $key */
             $key = config('supabase-storage.service_role_key', '');
-            if ($url && $key) {
+            if ($url !== '' && $key !== '') {
                 return new SupabaseStorageService();
             }
             return new LocalStorageService();
@@ -156,10 +158,12 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
-        // Force root URL so url() / URL::temporarySignedRoute() use APP_URL
-        // instead of the request's Host header (which becomes 'nginx' behind Vite proxy)
-        if ($rootUrl = config('app.url')) {
-            $this->app['url']->forceRootUrl($rootUrl);
+        /** @var string|null $rootUrl */
+        $rootUrl = config('app.url');
+        if ($rootUrl !== null && $rootUrl !== '') {
+            /** @var \Illuminate\Routing\UrlGenerator $url */
+            $url = $this->app->make('url');
+            $url->forceRootUrl($rootUrl);
         }
 
         Gate::policy(User::class, UserPolicy::class);
@@ -183,10 +187,18 @@ class AppServiceProvider extends ServiceProvider
         // ──────────────────────────────────────────────
         // Set default mailer to resend (overrides log in dev)
         // ──────────────────────────────────────────────
-        if (config('mail.default') === 'log' && config('services.resend.api_key')) {
+        /** @var string|null $mailDefault */
+        $mailDefault = config('mail.default');
+        /** @var string|null $resendKey */
+        $resendKey = config('services.resend.api_key');
+        if ($mailDefault === 'log' && $resendKey) {
+            /** @var string|null $fromAddress */
+            $fromAddress = config('mail.from.address');
+            /** @var string|null $fromName */
+            $fromName = config('mail.from.name');
             Mail::alwaysFrom(
-                config('mail.from.address'),
-                config('mail.from.name')
+                (string) $fromAddress,
+                (string) $fromName,
             );
         }
 
@@ -236,8 +248,11 @@ class AppServiceProvider extends ServiceProvider
 
         // Login — 5 attempts/min per IP/email combo
         RateLimiter::for('login', function (Request $request) {
+            $loginIp = (string) $request->ip();
+            $emailInput = $request->input('email');
+            $loginEmail = is_string($emailInput) ? $emailInput : 'guest';
             return Limit::perMinute(5)
-                ->by($request->ip() . '|' . ($request->input('email') ?: 'guest'))
+                ->by($loginIp . '|' . $loginEmail)
                 ->response(fn() => self::rateLimitResponse());
         });
 
@@ -453,8 +468,11 @@ class AppServiceProvider extends ServiceProvider
 
         // Membership request submit — 3 requests/hour per IP
         RateLimiter::for('membership-request', function (Request $request) {
+            $membershipIp = (string) $request->ip();
+            $emailInput = $request->input('email');
+            $membershipEmail = is_string($emailInput) ? $emailInput : 'guest';
             return Limit::perHour(3)
-                ->by($request->ip() . '|' . ($request->input('email') ?: 'guest'))
+                ->by($membershipIp . '|' . $membershipEmail)
                 ->response(fn() => self::rateLimitResponse());
         });
 
@@ -482,15 +500,20 @@ class AppServiceProvider extends ServiceProvider
         // Fix: FormRequest's failedValidation() calls getRedirectUrl() which needs
         // the redirector. This is null in test environments, causing a 500 instead of
         // a proper 422 validation error response. Inject it when the FormRequest is resolved.
-        $this->app->resolving(FormRequest::class, function (FormRequest $request, $app) {
+        $this->app->resolving(FormRequest::class, function (FormRequest $request, \Illuminate\Contracts\Foundation\Application $app): void {
             if ($app->has('redirect')) {
-                $request->setRedirector($app['redirect']);
+                /** @var \Illuminate\Routing\Redirector $redirector */
+                $redirector = $app->make('redirect');
+                $request->setRedirector($redirector);
             }
         });
     }
 
     /**
      * Generate a standardized 429 response with Retry-After header.
+     */
+    /**
+     * @return \Illuminate\Http\JsonResponse
      */
     private static function rateLimitResponse(): \Illuminate\Http\JsonResponse
     {

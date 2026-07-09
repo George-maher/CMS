@@ -47,16 +47,25 @@ class Point extends Model
         ];
     }
 
+    /**
+     * @return BelongsTo<\App\Models\User, $this>
+     */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
+    /**
+     * @return MorphTo<\Illuminate\Database\Eloquent\Model, $this>
+     */
     public function reference(): MorphTo
     {
         return $this->morphTo();
     }
 
+    /**
+     * @return BelongsTo<\App\Models\User, $this>
+     */
     public function addedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'added_by');

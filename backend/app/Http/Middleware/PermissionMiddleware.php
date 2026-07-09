@@ -17,6 +17,8 @@ class PermissionMiddleware
             return response()->json(['message' => 'Unauthenticated.'], 401);
         }
 
+        /** @var \App\Models\User $user */
+
         $requiredPermissions = [];
         foreach ($permissions as $perm) {
             foreach (explode(',', $perm) as $p) {
@@ -25,12 +27,18 @@ class PermissionMiddleware
         }
 
         if (empty($requiredPermissions)) {
-            return $next($request);
+            /** @var Response $response */
+            $response = $next($request);
+
+            return $response;
         }
 
         foreach ($requiredPermissions as $permission) {
             if (Permission::userHasPermission($user, $permission)) {
-                return $next($request);
+                /** @var Response $response */
+                $response = $next($request);
+
+                return $response;
             }
         }
 

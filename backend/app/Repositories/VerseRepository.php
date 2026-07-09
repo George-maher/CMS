@@ -13,11 +13,17 @@ class VerseRepository implements VerseRepositoryInterface
         return DailyVerse::with('creator')->find($id);
     }
 
+    /**
+     * @param array<string, mixed> $data
+     */
     public function create(array $data): DailyVerse
     {
         return DailyVerse::create($data);
     }
 
+    /**
+     * @param array<string, mixed> $data
+     */
     public function update(int $id, array $data): bool
     {
         $verse = $this->findById($id);
@@ -29,9 +35,13 @@ class VerseRepository implements VerseRepositoryInterface
     {
         $verse = $this->findById($id);
         if (!$verse) return false;
-        return $verse->delete();
+        return (bool) $verse->delete();
     }
 
+    /**
+     * @param array<string, mixed> $filters
+     * @return LengthAwarePaginator<int, DailyVerse>
+     */
     public function paginate(int $perPage, array $filters = []): LengthAwarePaginator
     {
         return DailyVerse::with('creator')

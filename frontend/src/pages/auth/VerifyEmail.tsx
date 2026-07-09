@@ -26,7 +26,7 @@ export default function VerifyEmail() {
         setMessage(axiosErr?.response?.data?.message || t('auth.verificationFailed'))
         setStatus('error')
       })
-  }, [token, email, navigate])
+  }, [token, email, navigate, t])
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-surface-secondary p-4">

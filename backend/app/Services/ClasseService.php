@@ -42,7 +42,10 @@ class ClasseService implements ClasseServiceInterface
     /** @param array<string, mixed> $data */
     public function create(array $data): array
     {
-        $data['church_id'] = auth()->user()->church_id;
+        /** @var \App\Models\User $user */
+        $user = auth()->user();
+        $data['church_id'] = $user->church_id;
+        /** @var int $maxOrder */
         $maxOrder = \App\Models\Classe::byChurch()
             ->where('stage_id', $data['stage_id'])
             ->max('display_order') ?? 0;
@@ -149,7 +152,7 @@ class ClasseService implements ClasseServiceInterface
         return ['message' => 'Servant removed from class.'];
     }
 
-    /** @param array<int> $orderedIds */
+    /** @param array<int, int> $orderedIds */
     public function updateOrder(array $orderedIds): bool
     {
         return $this->classeRepository->updateOrder($orderedIds);

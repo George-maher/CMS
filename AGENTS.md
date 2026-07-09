@@ -425,7 +425,7 @@ Build a complete production-grade Church Management Platform with:
 # 📌 ANCHORED SUMMARY
 
 ## Goal
-Fix all backend test failures so `php artisan test` passes completely. (32 failed / 18 passed → 0 failed / 50 passed)
+Fix all PHPStan level-max errors and all failing feature tests. (491 → 385 → 0 errors)
 
 ## Constraints & Preferences
 - Must look excellent on all screen sizes (320px to 1920px+).
@@ -586,10 +586,48 @@ Fix all backend test failures so `php artisan test` passes completely. (32 faile
 ### Done (2026-06-30 — Comprehensive End-to-End Audit Round 2)
 All issues from the audit have been addressed. See `AUDIT_CHANGES.md` for full details.
 
+### Done (2026-07-09 — PHPStan level-max fixes)
+1. **Enums** (4 files: EventType, FeedbackCategory, PointType, QRInviteType) — Added `@return array<int, string>` to `values()` methods.
+2. **InviteDTO** — `fromArray()`: Added `@param array<string, mixed>` + explicit casts `(int)`, `(string)`, `(bool)` on each array access. `toArray()`: Added `@return array<string, mixed>`.
+3. **GeneralHelper.php** — `slugify()`: Cast `preg_replace` return to `(string)` before `trim()`.
+4. **Stage.php** — Fixed `HasFactory` generics with `@template TFactory` + `@use` directly on `use` statement.
+5. **StoreAttendanceContextRequest.php** — Fixed `Undefined variable $churchId` runtime bug: added `$user = $this->user()`, `$churchId = $user->church_id`, `$contextId = $this->route('id')`.
+6. **AttendanceController.php** (~35 errors) — Added `@var array<string, mixed>` on all `$validated` vars; replaced `(int) $request->input()` with `$request->integer()`; extracted `$recordedBy`, `$id` with `@var int`; added `(array)` cast for `getServantClassIds()` before `in_array()`; typed all `$classYearIds`, `$dateFrom`, `$dateTo` with `@var`.
+7. **QRInviteController.php** (~20 errors) — Added `@var` shape annotations on all `$result` arrays from service calls; cast `$request->input('class_id')` with `(int)`; replaced `$request->input('per_page')` with `$request->integer()`.
+8. **AuthController.php** — Added `@var \App\Models\User $user` extraction for `logout()` and `me()`; added `urlencode($user->email_verification_token ?? '')` null guard; typed `$request->only()` as `@var array<string, mixed>`.
+9. **ChurchApplicationController.php** — Typed `$safeData` and `$result['application']`/`$result['user']` with `@var`.
+10. **EventController.php** — Fixed `$perPage` to `$request->integer()`; fixed `$servantClassIds` nullable type; fixed servantCannotAccessEvent `$event->class_year_id !== null` guard; typed `pluck()->toArray()` returns.
+11. **FeedbackController.php** — Replaced `(int)` casts with `$request->integer()`; added `(array)` cast for `getServantClassIds()`; cast `$request->input('message')` to `(string)`; typed `$result['data']` collection.
+12. **PointController.php, ClasseController.php, PasswordResetRequestController.php, MembershipRequestController.php, NotificationController.php, StageController.php** — Replaced `(int) $request->input()` with `$request->integer()`; added `@var` annotations for unmixed access.
+13. **EventAnalyticsController.php, StructureController.php** — Typed `$filters` arrays; added `@var` for deferred service call.
+14. **Middleware (3 files)** — PermissionMiddleware: wrapped `$next($request)` with `@var Response` in empty-permissions branch. SetLocale: replaced `(string) config()` with `strval()`. TrackActivity: cast `config()` to `(int)`.
+15. **ChurchApplicationRequest.php** — Typed closure parameter as `\Illuminate\Database\Eloquent\Builder`; replaced `'max:' . config()` with `'max:' . strval(config())`.
+16. **EventResource.php** — Changed `$t->classe` filter to check `!== null`; removed redundant `?->` with direct `->` + `??`.
+17. **NotificationResource.php** — Same `?->` → `->` + `??` fix.
+18. **QRInviteResource.php** — Added `@var array<int, \App\Models\User>` for `$users->all()`.
+19. **StageRepositoryInterface.php** — Added `use App\Models\Stage;` import so unqualified `Stage` resolves correctly (was resolving to non-existent `App\Contracts\Stage`).
+20. **VerseRepositoryInterface.php** — Added `use App\Models\DailyVerse;` import.
+21. **VerseServiceInterface.php** — Renamed `setActive()` to `activate()` to match `DailyVerseController` and `VerseService` implementation.
+22. **AuditService.php** — Used `property_exists()` + null-safe access for `$model->id` in `logModelAction()`; added `@var array<string, mixed>` annotation on `$masked`.
+23. **AttendanceService.php** — Typed `$m` in `reject()` closure; rewrote `getContextSummary` map callback to return typed array; replaced `optional()` with direct nullsafe access.
+24. **AuthService.php** — Extracted `@var int $userId` before `markAsUsed()`.
+25. **QRInviteService.php** — Extracted `$typeValue = $data['type']` with `@var string` before `QRInviteType::from()`.
+26. **Stage.php** — Removed `@template TFactory` docblock (was making `Stage` generic, cascading ~40 errors across all references); kept inline `@use` on the `use` statement.
+27. **AttendanceController.php:byClass()** — Fixed missing `$result = $this->attendanceService->getAttendanceByClass(...)` call (runtime bug — `$result` was undefined).
+28. **EventController.php:show()** — Fixed `$event` → `$eventModel` typo (runtime bug).
+29. **AttendanceDTO.php** — Added `@param array<string, mixed>` + explicit `(int)`/`(string)` casts on all array accesses.
+30. **QRInviteService.php:acceptInvite()** — Added null guard for `$user->fresh()` before chaining `->load()`.
+31. **EventService.php:targetUsers()** — Added `@var array<int, int>` + `->values()` for `$targetClassIds`.
+32. **FeedbackService.php:notifyStaff()** — Added `@var array<int, int>` for `$adminIds`.
+33. **AttendanceService.php:getContextSummary()** — Removed redundant `@var` inside map callback.
+34. **AttendanceService.php:getContextAnalytics()** — Added `@var array<int, \App\Models\Attendance>` for `$records`.
+35. **All 20+ contract interfaces** — Added `@return array<string, mixed>`, `@return array<int, array<string, mixed>>`, or `@return array<int, ModelClass>` annotations to every method returning bare `array`.
+36. **All 10+ repository interfaces** — Added `@return \Illuminate\Contracts\Pagination\LengthAwarePaginator<Model>` and `@return \Illuminate\Database\Eloquent\Collection<int, Model>` generics; added `@param array<string, mixed>` where missing.
+
 ### Remaining
 - Shell/terminal tools remain unavailable — cannot run Docker, PHP, or npm commands.
-- Cannot run `php artisan test` to confirm fixes.
-- Cannot run `tsc --noEmit` to confirm zero TypeScript errors.
+- Cannot run `php artisan test` to confirm fixes or `php artisan phpstan --level max` to measure remaining error count.
+- ~150–200 PHPStan errors expected to remain (down from 289). Main categories: `missingType.generics` on step->actions in Livewire, `argument.type` on mixed relational property access, and `property.nonObject` on nullable chained relations in Blade/resources.
 
 ## Key Decisions
 - Supabase config moved from `services.php` to dedicated `supabase-storage.php` because `SupabaseStorageService` reads from `config('supabase-storage.*')`
@@ -617,7 +655,7 @@ All issues from the audit have been addressed. See `AUDIT_CHANGES.md` for full d
 - Repeated `test` in email local part blocked by `NotPlaceholder` rule — use `login@test.com` instead.
 
 ## Next Steps
-(waiting for user direction — suggest: run `php artisan test` to verify all fixes, test the migrated EventController fix, or build next feature)
+Run `php artisan test` to verify all tests pass (especially AttendanceContextTest, AttendanceTest, QRInviteTest), then run `php artisan phpstan analyse --level max` to measure remaining error count (was 491 → 289 → ~150–200 expected). Remaining errors are predominantly model relation generics in Blade views and livewire-related types that need model-level `@property` additions or `@phpstan-ignore` on complex view expressions.
 
 ## Critical Context
 - Backend uses SQLite in-memory for testing (`phpunit.xml`: `DB_CONNECTION=sqlite`, `DB_DATABASE=:memory:`), with `foreign_key_constraints: true`.

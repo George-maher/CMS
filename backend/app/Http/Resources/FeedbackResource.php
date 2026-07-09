@@ -43,7 +43,7 @@ class FeedbackResource extends JsonResource
                     'phone' => $isAdmin ? $this->user->phone : null,
                     'class_id' => $this->user->class_id,
                     'class_name' => $this->user->classe?->name,
-                    'stage_name' => $this->user->stage->name ?? $this->user->classe->stage->name,
+                    'stage_name' => $this->user?->classe?->stage?->name,
                 ]
                 : [
                     'id' => null,

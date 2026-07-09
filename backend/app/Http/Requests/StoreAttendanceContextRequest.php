@@ -20,10 +20,13 @@ class StoreAttendanceContextRequest extends FormRequest
         return true;
     }
 
+    /** @return array<string, mixed> */
     public function rules(): array
     {
+        /** @var \App\Models\User $user */
+        $user = $this->user();
+        $churchId = $user->church_id;
         $contextId = $this->route('id');
-        $churchId = $this->user()?->church_id;
 
         return [
             'name' => [

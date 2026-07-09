@@ -2,6 +2,7 @@
 
 namespace App\Notifications;
 
+use App\Models\User;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -15,12 +16,13 @@ class PasswordResetRequestApprovedNotification extends Notification implements S
         private readonly string $resetUrl,
     ) {}
 
+    /** @return array<int, string> */
     public function via(object $notifiable): array
     {
         return ['mail'];
     }
 
-    public function toMail(object $notifiable): MailMessage
+    public function toMail(User $notifiable): MailMessage
     {
         $locale = $notifiable->preferredLocale();
 

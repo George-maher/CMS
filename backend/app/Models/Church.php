@@ -130,81 +130,97 @@ class Church extends Model
         return (int) now()->diffInDays($this->recoverable_until, false);
     }
 
+    /** @return BelongsTo<\App\Models\User, $this> */
     public function deletedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'deleted_by');
     }
 
+    /** @return HasMany<\App\Models\User, $this> */
     public function users(): HasMany
     {
         return $this->hasMany(User::class);
     }
 
+    /** @return HasMany<\App\Models\Event, $this> */
     public function events(): HasMany
     {
         return $this->hasMany(Event::class);
     }
 
+    /** @return HasMany<\App\Models\Attendance, $this> */
     public function attendances(): HasMany
     {
         return $this->hasMany(Attendance::class);
     }
 
+    /** @return HasMany<\App\Models\Point, $this> */
     public function points(): HasMany
     {
         return $this->hasMany(Point::class);
     }
 
+    /** @return HasMany<\App\Models\QRInvite, $this> */
     public function qrInvites(): HasMany
     {
         return $this->hasMany(QRInvite::class);
     }
 
+    /** @return HasMany<\App\Models\Feedback, $this> */
     public function feedback(): HasMany
     {
         return $this->hasMany(Feedback::class);
     }
 
+    /** @return HasMany<\App\Models\DailyVerse, $this> */
     public function dailyVerses(): HasMany
     {
         return $this->hasMany(DailyVerse::class);
     }
 
+    /** @return HasMany<\App\Models\AttendanceContext, $this> */
     public function attendanceContexts(): HasMany
     {
         return $this->hasMany(AttendanceContext::class);
     }
 
+    /** @return HasMany<\App\Models\Stage, $this> */
     public function stages(): HasMany
     {
         return $this->hasMany(Stage::class);
     }
 
+    /** @return HasMany<\App\Models\Classe, $this> */
     public function classes(): HasMany
     {
         return $this->hasMany(Classe::class);
     }
 
+    /** @return HasMany<\App\Models\MembershipRequest, $this> */
     public function membershipRequests(): HasMany
     {
         return $this->hasMany(MembershipRequest::class);
     }
 
+    /** @return HasMany<\App\Models\Notification, $this> */
     public function notifications(): HasMany
     {
         return $this->hasMany(Notification::class);
     }
 
+    /** @return HasMany<\App\Models\EventView, $this> */
     public function eventViews(): HasMany
     {
         return $this->hasMany(EventView::class);
     }
 
+    /** @return HasMany<\App\Models\EventTarget, $this> */
     public function eventTargets(): HasMany
     {
         return $this->hasMany(EventTarget::class);
     }
 
+    /** @return HasMany<\App\Models\AuditLog, $this> */
     public function auditLogs(): HasMany
     {
         return $this->hasMany(AuditLog::class);

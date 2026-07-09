@@ -58,22 +58,25 @@ class Event extends Model
         ];
     }
 
+    /** @return BelongsTo<\App\Models\User, $this> */
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
     }
 
+    /** @return BelongsTo<\App\Models\Classe, $this> */
     public function classe(): BelongsTo
     {
         return $this->belongsTo(Classe::class, 'class_year_id');
     }
 
+    /** @return HasMany<\App\Models\EventTarget, $this> */
     public function targets(): HasMany
     {
         return $this->hasMany(EventTarget::class);
     }
 
-    /** @return HasMany<\App\Models\EventView> */
+    /** @return HasMany<\App\Models\EventView, $this> */
     public function views(): HasMany
     {
         return $this->hasMany(EventView::class);

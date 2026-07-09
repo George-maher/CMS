@@ -24,6 +24,7 @@ class ChurchScope implements Scope
     private function resolveChurchId(): ?int
     {
         // 1. Authenticated user
+        /** @var \App\Models\User|null $user */
         $user = Auth::user();
         if ($user) {
             if ($user->role === UserRole::PlatformAdmin) {
@@ -42,7 +43,9 @@ class ChurchScope implements Scope
 
         $request = request();
         if ($request && $request->hasHeader('X-Church-ID')) {
-            return (int) $request->header('X-Church-ID');
+            /** @var string $headerValue */
+            $headerValue = $request->header('X-Church-ID');
+            return (int) $headerValue;
         }
 
         // 3. No tenant context available

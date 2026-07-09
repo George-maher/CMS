@@ -9,8 +9,8 @@ use Illuminate\Http\Resources\Json\JsonResource;
 /** @mixin \App\Models\QRInvite */
 class QRInviteResource extends JsonResource
 {
+    /** @var array<int, \App\Models\User>|null */
     private static ?array $liveUsersCache = null;
-    private static ?int $resourceChurchId = null;
 
     /** @return array<string, mixed> */
     public function toArray(Request $request): array
@@ -35,42 +35,62 @@ class QRInviteResource extends JsonResource
 
         return [
             'id' => $this->id,
-            'url' => config('app.frontend_url') . '/invite/' . urlencode($this->token),
+            'url' => (function () {
+                /** @var string $frontendUrl */
+                $frontendUrl = config('app.frontend_url');
+                return $frontendUrl;
+            })() . '/invite/' . urlencode($this->token),
             'type' => $this->type?->value,
             'type_label' => $this->type?->label(),
             'status' => $status,
-            'creator' => $this->when($this->creator !== null, fn() => [
-                'id' => $this->creator->id,
-                'name' => $this->creator->name,
-                'role' => $this->creator->role?->value,
-                'phone' => $this->creator->phone,
-            ]),
-            'used_by' => $this->when($this->usedBy !== null, fn() => [
-                'id' => $this->usedBy->id,
-                'name' => $this->usedBy->name,
-                'role' => $this->usedBy->role?->value,
-                'phone' => $this->usedBy->phone,
-                'member_id' => $this->usedBy->member_id,
-                'class_id' => $this->usedBy->class_id,
-                'class_name' => $this->usedBy->classe?->name,
-                'stage_name' => $this->usedBy->classe?->stage?->name,
-                'created_at' => $this->usedBy->created_at?->toISOString(),
-            ]),
+            'creator' => $this->when($this->creator !== null, function () {
+                /** @var \App\Models\User $creator */
+                $creator = $this->creator;
+                return [
+                    'id' => $creator->id,
+                    'name' => $creator->name,
+                    'role' => $creator->role?->value,
+                    'phone' => $creator->phone,
+                ];
+            }),
+            'used_by' => $this->when($this->usedBy !== null, function () {
+                /** @var \App\Models\User $usedBy */
+                $usedBy = $this->usedBy;
+                return [
+                    'id' => $usedBy->id,
+                    'name' => $usedBy->name,
+                    'role' => $usedBy->role?->value,
+                    'phone' => $usedBy->phone,
+                    'member_id' => $usedBy->member_id,
+                    'class_id' => $usedBy->class_id,
+                    'class_name' => $usedBy->classe?->name,
+                    'stage_name' => $usedBy->classe?->stage?->name,
+                    'created_at' => $usedBy->created_at?->toISOString(),
+                ];
+            }),
             'used_by_users' => $enrichedUsedByUsers,
             'expires_at' => $this->expires_at,
             'created_at' => $this->created_at,
             'used_at' => $this->used_at,
-            'classe' => $this->when($this->classe !== null, fn() => [
-                'id' => $this->classe->id,
-                'name' => $this->classe->name,
-                'stage_id' => $this->classe->stage?->id,
-                'stage_name' => $this->classe->stage?->name,
-            ]),
-            'attendance_context' => $this->when($this->attendanceContext !== null, fn() => [
-                'id' => $this->attendanceContext->id,
-                'name' => $this->attendanceContext->name,
-                'slug' => $this->attendanceContext->slug,
-            ]),
+            'classe' => $this->when($this->classe !== null, function () {
+                /** @var \App\Models\Classe $classe */
+                $classe = $this->classe;
+                return [
+                    'id' => $classe->id,
+                    'name' => $classe->name,
+                    'stage_id' => $classe->stage?->id,
+                    'stage_name' => $classe->stage?->name,
+                ];
+            }),
+            'attendance_context' => $this->when($this->attendanceContext !== null, function () {
+                /** @var \App\Models\AttendanceContext $attendanceContext */
+                $attendanceContext = $this->attendanceContext;
+                return [
+                    'id' => $attendanceContext->id,
+                    'name' => $attendanceContext->name,
+                    'slug' => $attendanceContext->slug,
+                ];
+            }),
             'is_revoked' => $this->is_revoked,
             'is_valid' => $this->isValid(),
             'is_expired' => $this->isExpired(),
@@ -85,6 +105,10 @@ class QRInviteResource extends JsonResource
         ];
     }
 
+    /**
+     * @param array<int, array{id: int, name: string, role: string|null, phone: string|null, member_id: string|null, class_id: int|null, class_name: string|null, stage_name: string|null, used_at: string}>|null $usedByUsers
+     * @return array<int, array{id: int, name: string, role: string|null, phone: string|null, member_id: string|null, class_id: int|null, class_name: string|null, stage_name: string|null, used_at: string}>|null
+     */
     private function enrichUsedByUsers(?array $usedByUsers): ?array
     {
         if (empty($usedByUsers)) {
@@ -92,12 +116,17 @@ class QRInviteResource extends JsonResource
         }
 
         if (self::$liveUsersCache === null) {
-            self::loadUsedByUsersBatch([$this->resource]);
+            /** @var \App\Models\QRInvite $invite */
+            $invite = $this->resource;
+            self::loadUsedByUsersBatch([$invite]);
         }
 
-        return collect($usedByUsers)->map(function (array $entry) {
+        /** @var array<int, array{id: int, name: string, role: string|null, phone: string|null, member_id: string|null, class_id: int|null, class_name: string|null, stage_name: string|null, used_at: string}> $enriched */
+        $enriched = collect($usedByUsers)->map(function (array $entry) {
+            /** @var int $entryId */
+            $entryId = $entry['id'];
             /** @var \App\Models\User|null $liveUser */
-            $liveUser = self::$liveUsersCache[$entry['id']] ?? null;
+            $liveUser = self::$liveUsersCache[$entryId] ?? null;
             if ($liveUser) {
                 $entry['name'] = $liveUser->name;
                 $entry['role'] = $liveUser->role?->value;
@@ -107,12 +136,20 @@ class QRInviteResource extends JsonResource
             }
             return $entry;
         })->values()->toArray();
+        return $enriched;
     }
 
+    /**
+     * @param \Illuminate\Support\Collection<int, \App\Models\QRInvite>|array<int, \App\Models\QRInvite> $invites
+     */
     public static function loadUsedByUsersBatch(\Illuminate\Support\Collection|array $invites): void
     {
-        $userIds = collect($invites)
-            ->flatMap(fn($invite) => $invite->used_by_users ?? [])
+        /** @var \Illuminate\Support\Collection<int, \App\Models\QRInvite> $collection */
+        $collection = collect($invites);
+        $userIds = $collection
+            ->flatMap(function (\App\Models\QRInvite $invite): array {
+                return $invite->used_by_users ?? [];
+            })
             ->pluck('id')
             ->unique()
             ->toArray();
@@ -123,9 +160,10 @@ class QRInviteResource extends JsonResource
         }
 
         $users = User::whereIn('id', $userIds)->with('classe.stage')->get()->keyBy('id');
-        self::$liveUsersCache = $users->all();
+        /** @var array<int, \App\Models\User> $allUsers */
+        $allUsers = $users->all();
+        self::$liveUsersCache = $allUsers;
 
         $firstInvite = $invites instanceof \Illuminate\Support\Collection ? $invites->first() : ($invites[array_key_first($invites)] ?? null);
-        self::$resourceChurchId = $firstInvite?->church_id;
     }
 }

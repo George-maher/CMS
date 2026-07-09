@@ -50,7 +50,7 @@ export default function InviteRegister() {
       const axiosErr = err as { response?: { data?: { message?: string } } }
       setError(axiosErr?.response?.data?.message || t('auth.inviteExpired'))
     }).finally(() => setValidating(false))
-  }, [token])
+  }, [token, t])
 
   const validatePhone = (phone: string): string => {
     if (!phone) return ''

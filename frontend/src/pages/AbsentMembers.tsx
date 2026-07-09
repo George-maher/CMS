@@ -58,7 +58,7 @@ export default function AbsentMembers() {
       setLoading(false)
       setLoaded(true)
     }
-  }, [isServant, effectiveClassId, filterValues.contextId, filterValues.date, filterValues.dateFrom, filterValues.dateTo])
+  }, [isServant, effectiveClassId, filterValues.contextId, filterValues.date, filterValues.dateFrom, filterValues.dateTo, t])
 
   useEffect(() => {
     if (!isServant) return
@@ -72,7 +72,7 @@ export default function AbsentMembers() {
         }
       })
       .catch(() => toast.error(t('common.failedToLoad')))
-  }, [])
+  }, [fetchAbsentMembers, isServant, t])
 
   const handleCopyPhone = (phone: string) => {
     navigator.clipboard.writeText(phone).then(() => toast.success(t('common.copied')))

@@ -20,5 +20,6 @@ interface StorageServiceInterface
 
     public function fileExists(string $key, string $bucket): bool;
 
+    /** @return array<string, mixed>|null */
     public function getFileMetadata(string $key, string $bucket): ?array;
 }

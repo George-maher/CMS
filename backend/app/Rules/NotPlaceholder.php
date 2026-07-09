@@ -22,8 +22,10 @@ class NotPlaceholder implements ValidationRule
         'MBR-123456',
     ];
 
+    /** @var array<int, string> */
     private array $extraForbidden;
 
+    /** @param array<int, string> $extraForbidden */
     public function __construct(array $extraForbidden = [])
     {
         $this->extraForbidden = $extraForbidden;

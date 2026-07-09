@@ -33,8 +33,22 @@ class AuditService implements AuditServiceInterface
             return;
         }
 
-        $userId = $userId ?? auth()->id();
-        $churchId = $churchId ?? auth()->user()?->church_id;
+        if ($userId === null) {
+            /** @var int|null $authId */
+            $authId = auth()->id();
+            $userId = $authId;
+        }
+
+        if ($churchId === null) {
+            /** @var \App\Models\User|null $authUser */
+            $authUser = auth()->user();
+            $churchId = $authUser?->church_id;
+        }
+
+        /** @var string|null $ip */
+        $ip = request()->ip();
+        /** @var string|null $agent */
+        $agent = request()->userAgent();
 
         AuditLog::create([
             'church_id' => $churchId,
@@ -44,8 +58,8 @@ class AuditService implements AuditServiceInterface
             'resource_id' => $resourceId,
             'old_values' => $this->maskPii($oldValues),
             'new_values' => $this->maskPii($newValues),
-            'ip_address' => request()->ip(),
-            'user_agent' => request()->userAgent(),
+            'ip_address' => $ip,
+            'user_agent' => $agent,
         ]);
     }
 
@@ -57,18 +71,28 @@ class AuditService implements AuditServiceInterface
         ?array $oldValues = null,
         ?array $newValues = null,
     ): void {
-        $churchId = auth()->user()?->church_id;
+        /** @var \App\Models\User|null $authUser */
+        $authUser = auth()->user();
+        $churchId = $authUser?->church_id;
+
         if (!$churchId && isset($model->church_id)) {
             $churchId = $model->church_id;
         }
 
+        /** @var int|string|null $modelId */
+        $modelId = property_exists($model, 'id') ? $model->id ?? null : null;
+        /** @var int|null $resourceId */
+        $resourceId = $modelId !== null ? intval($modelId) : null;
+
+        /** @var int|null $auditChurchId */
+        $auditChurchId = $churchId ?? null;
         $this->log(
             action: $action,
             resourceType: get_class($model),
-            resourceId: $model->id ?? null,
+            resourceId: $resourceId,
             oldValues: $oldValues,
             newValues: $newValues,
-            churchId: $churchId,
+            churchId: $auditChurchId,
         );
     }
 
@@ -89,6 +113,7 @@ class AuditService implements AuditServiceInterface
             }
         }
 
+        /** @var array<string, mixed> $masked */
         return $masked;
     }
 
@@ -100,10 +125,10 @@ class AuditService implements AuditServiceInterface
 
         return match ($field) {
             'password' => '***masked***',
-            'email' => $this->maskEmail($value),
-            'phone' => $this->maskPhone($value),
+            'email' => $this->maskEmail((string) $value),
+            'phone' => $this->maskPhone((string) $value),
             'attendance_qr_token', 'email_verification_token', 'remember_token' => '***masked***',
-            'address', 'member_address' => strlen($value) > 10 ? substr($value, 0, 5) . '...' : '***masked***',
+            'address', 'member_address' => strlen((string) $value) > 10 ? substr((string) $value, 0, 5) . '...' : '***masked***',
             default => '***masked***',
         };
     }
@@ -122,11 +147,12 @@ class AuditService implements AuditServiceInterface
     private function maskPhone(string $phone): string
     {
         $cleaned = preg_replace('/[^0-9]/', '', $phone);
-        $len = strlen($cleaned);
+        $cleanedStr = strval($cleaned);
+        $len = strlen($cleanedStr);
         if ($len <= 6) {
             return str_repeat('*', $len);
         }
 
-        return substr($cleaned, 0, 3) . str_repeat('*', $len - 6) . substr($cleaned, -3);
+        return substr($cleanedStr, 0, 3) . str_repeat('*', $len - 6) . substr($cleanedStr, -3);
     }
 }

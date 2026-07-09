@@ -35,11 +35,13 @@ class EventTarget extends Model
         ];
     }
 
+    /** @return BelongsTo<\App\Models\Event, $this> */
     public function event(): BelongsTo
     {
         return $this->belongsTo(Event::class);
     }
 
+    /** @return BelongsTo<\App\Models\Classe, $this> */
     public function classe(): BelongsTo
     {
         return $this->belongsTo(Classe::class, 'class_id');

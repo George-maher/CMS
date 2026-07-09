@@ -89,12 +89,14 @@ class AttendanceService implements AttendanceServiceInterface
 
         try {
             return DB::transaction(function () use ($member, $recordedBy, $eventId, $contextId, $context, $method) {
+                /** @var int $memberId */
+                $memberId = $member->id;
                 User::byChurch()
-                    ->where('id', $member->id)
+                    ->where('id', $memberId)
                     ->lockForUpdate()
                     ->first();
 
-                if ($this->attendanceRepository->hasAttendanceToday($member->id, $eventId, $contextId)) {
+                if ($this->attendanceRepository->hasAttendanceToday($memberId, $eventId, $contextId)) {
                     $contextName = $context->name ?? 'this session';
                     throw ValidationException::withMessages([
                         'attendance' => [__('attendance.duplicate_context', ['context' => $contextName])],
@@ -113,7 +115,7 @@ class AttendanceService implements AttendanceServiceInterface
                 ]);
 
                 $this->pointService->addPoints(
-                    userId: $member->id,
+                    userId: $memberId,
                     points: self::POINTS_PER_ATTENDANCE,
                     type: PointType::Attendance->value,
                     description: $eventId ? __('attendance.points_earned_event') : __('attendance.points_earned'),
@@ -158,7 +160,9 @@ class AttendanceService implements AttendanceServiceInterface
     /** @return array<string, mixed> */
     public function getTodayAttendance(array|int|null $classYearIds = null, int $perPage = 15): array
     {
-        $churchId = auth()->user()?->church_id;
+        /** @var \App\Models\User|null $user */
+        $user = auth()->user();
+        $churchId = $user?->church_id;
 
         if ($classYearIds !== null) {
             $classYearIds = is_array($classYearIds) ? $classYearIds : [$classYearIds];
@@ -230,7 +234,7 @@ class AttendanceService implements AttendanceServiceInterface
     }
 
     /** @return array<string, mixed> */
-    public function getAttendanceStats(int $userId = null): array
+    public function getAttendanceStats(?int $userId = null): array
     {
         if (!$userId) {
             return ['total_attendances' => 0, 'this_month' => 0];
@@ -256,6 +260,7 @@ class AttendanceService implements AttendanceServiceInterface
     public function getAbsentMembers(int $classYearId, ?int $eventId = null, ?int $contextId = null, ?string $date = null, ?string $dateFrom = null, ?string $dateTo = null): array
     {
         $members = $this->attendanceRepository->getMembersByClassYear($classYearId);
+        /** @var array<int, int> $attendedUserIds */
         $attendedUserIds = $this->attendanceRepository->getAttendedUserIds(
             $classYearId, $eventId, $contextId, $date, $dateFrom, $dateTo
         );
@@ -268,7 +273,8 @@ class AttendanceService implements AttendanceServiceInterface
         $presentCount = count($attendedUserIds);
         $absentCount = $totalMembers - $presentCount;
 
-        $absentMembers = $members->reject(fn($m) => isset($attendedSet[$m->id]))->values();
+        /** @var \Illuminate\Support\Collection<int, \App\Models\User> $absentMembers */
+        $absentMembers = $members->reject(fn(\App\Models\User $m) => isset($attendedSet[$m->id]))->values();
         $absentUserIds = $absentMembers->pluck('id')->toArray();
 
         $totalSessions = $this->attendanceRepository->getTotalSessionsCount($contextIdForStats, $classYearId);
@@ -282,16 +288,23 @@ class AttendanceService implements AttendanceServiceInterface
             $absentUserIds, $contextIdForStats, (int) now()->year, (int) now()->month
         );
 
-        $memberDetails = $absentMembers->map(function ($member) use (
+        $memberDetails = $absentMembers->map(function (\App\Models\User $member) use (
             $lastAttendances, $attendanceCounts, $totalSessions,
             $consecutiveAbsences, $monthAbsences
         ) {
-            $lastAttendanceDate = $lastAttendances->get($member->id)?->last_attended_at;
+            /** @var object{last_attended_at: string|null}|null $lastAttendance */
+            $lastAttendance = $lastAttendances->get($member->id);
+            $lastAttendanceDate = $lastAttendance?->last_attended_at;
+            /** @var object{count: int}|null $attendanceObj */
             $attendanceObj = $attendanceCounts->get($member->id);
             $attendanceCount = (int) ($attendanceObj ? $attendanceObj->count : 0);
             $attendancePercentage = $totalSessions > 0
                 ? round(($attendanceCount / $totalSessions) * 100, 1)
                 : 0;
+            /** @var object{consecutive_absences: int}|null $consecutiveObj */
+            $consecutiveObj = $consecutiveAbsences->get($member->id);
+            /** @var object{month_absences: int}|null $monthObj */
+            $monthObj = $monthAbsences->get($member->id);
 
             return [
                 'id' => $member->id,
@@ -301,14 +314,12 @@ class AttendanceService implements AttendanceServiceInterface
                     'id' => $member->classe->id,
                     'name' => $member->classe->name,
                 ] : null,
-                'last_attendance_date' => $lastAttendanceDate
-                    ? (is_string($lastAttendanceDate) ? $lastAttendanceDate : $lastAttendanceDate->toISOString())
-                    : null,
+                'last_attendance_date' => $lastAttendanceDate !== null ? $lastAttendanceDate : null,
                 'attendance_count' => $attendanceCount,
                 'total_sessions' => $totalSessions,
                 'attendance_percentage' => $attendancePercentage,
-                'consecutive_absences' => (int) optional($consecutiveAbsences->get($member->id))->consecutive_absences,
-                'month_absences' => (int) optional($monthAbsences->get($member->id))->month_absences,
+                'consecutive_absences' => (int) ($consecutiveObj->consecutive_absences ?? 0),
+                'month_absences' => (int) ($monthObj->month_absences ?? 0),
             ];
         });
 
@@ -325,26 +336,33 @@ class AttendanceService implements AttendanceServiceInterface
         ];
     }
 
-    /** @param array<int>|int|null $classYearIds */
+    /** @param array<int, int>|int|null $classYearIds */
     /** @return array<string, mixed> */
     public function getContextSummary(?string $dateFrom = null, ?string $dateTo = null, array|int|null $classYearIds = null): array
     {
-        $churchId = auth()->user()?->church_id;
+        /** @var \App\Models\User|null $user */
+        $user = auth()->user();
+        $churchId = $user?->church_id;
         $classYearId = is_array($classYearIds) ? null : $classYearIds;
 
         return $this->cacheService->rememberContextSummary($churchId, $dateFrom, $dateTo, $classYearId, function () use ($dateFrom, $dateTo, $classYearIds) {
             $rows = $this->attendanceRepository->getContextSummary($dateFrom, $dateTo, $classYearIds);
 
-            /** @var \Illuminate\Support\Collection<(int|string), array{context: array{id: mixed, name: mixed, slug: mixed}|null, total_attendances: int, unique_members: int}> $summary */
-            $summary = $rows->map(fn($row) => [
+            $summary = $rows->map(function (\App\Models\Attendance $row): array {
+                /** @var int $total */
+                $total = $row->total_attendances ?? 0;
+                /** @var int $unique */
+                $unique = $row->unique_members ?? 0;
+            return [
+                'total_attendances' => $total,
+                'unique_members' => $unique,
                 'context' => $row->attendanceContext ? [
                     'id' => $row->attendanceContext->id,
                     'name' => $row->attendanceContext->name,
                     'slug' => $row->attendanceContext->slug,
                 ] : null,
-                'total_attendances' => (int) $row->total_attendances,
-                'unique_members' => (int) $row->unique_members,
-            ]);
+            ];
+        });
 
             return [
                 'data' => $summary,
@@ -352,7 +370,7 @@ class AttendanceService implements AttendanceServiceInterface
         });
     }
 
-    /** @param array<int>|int|null $classYearId */
+    /** @param array<int, int>|int|null $classYearId */
     /** @return array<string, mixed> */
     public function getContextAnalytics(int $contextId, array|int|null $classYearId = null, ?int $servantId = null, ?string $dateFrom = null, ?string $dateTo = null, int $perPage = 15): array
     {
@@ -365,13 +383,18 @@ class AttendanceService implements AttendanceServiceInterface
             $dateTo
         );
 
+        /** @var array<int, \App\Models\Attendance> $records */
         $records = $paginator->items();
         $uniqueMemberIds = collect($records)->pluck('user_id')->unique();
-        $classCounts = collect($records)->groupBy('class_year_id')->map(fn($group) => [
-            'class_year_id' => $group->first()->classe?->id,
-            'class_name' => optional($group->first()->classe)->name ?? 'Unknown',
-            'count' => $group->count(),
-        ])->values();
+        $classCounts = collect($records)->groupBy('class_year_id')->map(function (\Illuminate\Support\Collection $group) {
+            /** @var \App\Models\Attendance|null $first */
+            $first = $group->first();
+            return [
+                'class_year_id' => $first?->classe?->id,
+                'class_name' => $first?->classe->name ?? 'Unknown',
+                'count' => $group->count(),
+            ];
+        })->values();
 
         $mostActiveClass = $classCounts->sortByDesc('count')->first();
 

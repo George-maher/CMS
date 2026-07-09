@@ -2,212 +2,222 @@
 
 namespace App\Modules\User\Controllers;
 
-use App\Contracts\UserServiceInterface;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Modules\User\Requests\CreateUserRequest;
-use App\Modules\User\Requests\RoleRequest;
 use App\Modules\User\Requests\UpdateUserRequest;
-use App\Modules\User\Resources\UserResource;
+use App\Modules\User\Requests\RoleRequest;
+use App\Modules\User\Services\UserService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class UserController extends Controller
 {
     public function __construct(
-        private readonly UserServiceInterface $userService,
+        private readonly UserService $userService,
     ) {}
 
     public function index(Request $request): JsonResponse
     {
-        $result = $this->userService->listUsers(
-            perPage: $request->input('per_page', 15),
-            filters: $request->only(['role', 'class_year_id', 'class_id', 'is_active', 'search', 'created_by'])
-        );
+        /** @var int|string $perPage */
+        $perPage = $request->input('per_page', 15);
+        $perPage = (int) $perPage;
 
-        return response()->json([
-            'data' => UserResource::collection($result['data']),
-            'meta' => $result['meta'],
-        ]);
+        /** @var array<string, mixed> $filters */
+        $filters = $request->only(['role', 'class_id', 'search', 'stage_id', 'membership_status', 'is_active']);
+
+        $result = $this->userService->listUsers($perPage, $filters);
+
+        return response()->json($result);
     }
 
     public function show(int $id): JsonResponse
     {
-        $result = $this->userService->getUser($id);
+        $user = $this->userService->findById($id);
 
-        return response()->json([
-            'data' => new UserResource($result['user']),
-        ]);
+        if (!$user) {
+            return response()->json(['message' => 'User not found.'], 404);
+        }
+
+        return response()->json($user);
     }
 
     public function store(CreateUserRequest $request): JsonResponse
     {
-        $result = $this->userService->createUser($request->validated());
+        /** @var array<string, mixed> $data */
+        $data = $request->validated();
+        $authUser = $request->user();
 
-        return response()->json([
-            'message' => 'User created successfully.',
-            'data' => new UserResource($result['user']),
-        ], 201);
+        $result = $this->userService->create($data, $authUser?->id);
+
+        return response()->json($result, 201);
     }
 
     public function update(UpdateUserRequest $request, int $id): JsonResponse
     {
-        $result = $this->userService->updateUser($id, $request->validated());
+        /** @var array<string, mixed> $data */
+        $data = $request->validated();
 
-        return response()->json([
-            'message' => 'User updated successfully.',
-            'data' => new UserResource($result['user']),
-        ]);
+        $result = $this->userService->update($id, $data);
+
+        if (!$result) {
+            return response()->json(['message' => 'User not found.'], 404);
+        }
+
+        return response()->json($result);
     }
 
     public function destroy(int $id): JsonResponse
     {
-        $this->userService->deleteUser($id);
+        $deleted = $this->userService->delete($id);
 
-        return response()->json([
-            'message' => 'User deleted successfully.',
-        ]);
+        if (!$deleted) {
+            return response()->json(['message' => 'User not found.'], 404);
+        }
+
+        return response()->json(['message' => 'User deleted successfully.']);
     }
 
-    public function servants(int $id): JsonResponse
+    public function servants(Request $request): JsonResponse
     {
-        $result = $this->userService->getServants($id);
+        $authUser = $request->user();
+        $churchId = $authUser?->church_id;
 
-        return response()->json([
-            'data' => UserResource::collection($result['data']),
-        ]);
+        if ($churchId === null) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
+        $result = $this->userService->servants($churchId);
+
+        return response()->json($result);
     }
 
-    public function servantsMe(Request $request): JsonResponse
+    public function members(Request $request): JsonResponse
     {
-        return $this->servants($request->user()->id);
+        $authUser = $request->user();
+        $servantId = $authUser?->id;
+
+        if ($servantId === null) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
+        $result = $this->userService->getMembers($servantId);
+
+        return response()->json($result);
     }
 
-    public function members(Request $request, int $servantId = null): JsonResponse
+    public function servantsMembers(Request $request, int $servantId): JsonResponse
     {
+        $result = $this->userService->getMembers($servantId);
+
+        return response()->json($result);
+    }
+
+    private function getAuthId(Request $request): int
+    {
+        /** @var \App\Models\User|null $user */
         $user = $request->user();
+        if ($user === null) {
+            throw new \Symfony\Component\HttpKernel\Exception\HttpException(401, 'Unauthenticated.');
+        }
+        /** @var int $userId */
+        $userId = $user->id;
+        return $userId;
+    }
 
-        if ($user->role === UserRole::Servant) {
-            $classId = $user->class_id ?? $user->class_year_id;
-            $result = $this->userService->getMembers(
-                servantId: $user->id,
-                classYearId: $classId
-            );
-        } else {
-            $id = $servantId ?? $user->id;
-            $result = $this->userService->getMembers($id);
+    public function promote(RoleRequest $request): JsonResponse
+    {
+        /** @var array<string, mixed> $data */
+        $data = $request->validated();
+        $authId = $this->getAuthId($request);
+
+        /** @var int|string $rawUserId */
+        $rawUserId = $data['user_id'] ?? 0;
+        $userId = (int) $rawUserId;
+        /** @var string $newRole */
+        $newRole = $data['role'] ?? '';
+
+        $result = $this->userService->promote($userId, $authId, $newRole);
+
+        return response()->json($result);
+    }
+
+    public function demote(Request $request): JsonResponse
+    {
+        /** @var int|string $rawUserId */
+        $rawUserId = $request->input('user_id', 0);
+        $userId = (int) $rawUserId;
+        $authId = $this->getAuthId($request);
+
+        $result = $this->userService->demoteFromAdmin($userId, $authId);
+
+        return response()->json($result);
+    }
+
+    public function attendanceHistory(Request $request, int $userId): JsonResponse
+    {
+        /** @var int|string $perPage */
+        $perPage = $request->input('per_page', 15);
+        $perPage = (int) $perPage;
+        $result = $this->userService->getAttendanceHistory($userId, $perPage);
+
+        return response()->json($result);
+    }
+
+    public function availablePermissions(Request $request, int $userId): JsonResponse
+    {
+        $result = $this->userService->getAvailablePermissions($userId);
+
+        return response()->json($result);
+    }
+
+    public function updatePermissions(Request $request, int $userId): JsonResponse
+    {
+        /** @var array<string, mixed> $data */
+        $data = $request->validate([
+            'permissions' => 'required|array',
+            'permissions.*' => 'string',
+        ]);
+
+        $authId = $this->getAuthId($request);
+
+        /** @var array<int, string> $permissions */
+        $permissions = $data['permissions'];
+        $result = $this->userService->updatePermissions($userId, $permissions, $authId);
+
+        return response()->json($result);
+    }
+
+    public function bulkUpdatePermissions(Request $request): JsonResponse
+    {
+        /** @var array{user_ids: array<int, int>, permissions: array<int, string>} $data */
+        $data = $request->validate([
+            'user_ids' => 'required|array',
+            'user_ids.*' => 'integer|exists:users,id',
+            'permissions' => 'required|array',
+            'permissions.*' => 'string',
+        ]);
+
+        $authId = $this->getAuthId($request);
+
+        $userIds = array_values(array_unique($data['user_ids']));
+
+        $result = $this->userService->bulkUpdatePermissions($userIds, $data['permissions'], $authId);
+
+        return response()->json($result);
+    }
+
+    public function regenerateAttendanceToken(Request $request, int $userId): JsonResponse
+    {
+        $authUser = $request->user();
+        $authId = $authUser?->id;
+
+        if ($authId === null) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
         }
 
-        return response()->json([
-            'data' => UserResource::collection($result['data']),
-        ]);
-    }
+        $result = $this->userService->regenerateAttendanceToken($userId);
 
-    public function promote(int $id): JsonResponse
-    {
-        $result = $this->userService->promoteToAdmin($id);
-
-        return response()->json([
-            'message' => 'User promoted to admin successfully.',
-            'data' => $result['data'],
-        ]);
-    }
-
-    public function demote(RoleRequest $request, int $id): JsonResponse
-    {
-        $result = $this->userService->demoteFromAdmin($id, $request->validated()['role']);
-
-        return response()->json([
-            'message' => 'Admin demoted successfully.',
-            'data' => $result['data'],
-        ]);
-    }
-
-    public function myClassServants(Request $request): JsonResponse
-    {
-        $user = $request->user();
-        $churchId = $user->church_id;
-        $classId = $user->class_id;
-
-        $contacts = [];
-
-        // 1. Fetch servants assigned to this class (pivot + direct)
-        if ($classId) {
-            $pivotIds = \App\Models\Classe::find($classId)?->servants()
-                ->pluck('users.id')
-                ->toArray() ?? [];
-
-            $directIds = \App\Models\User::byChurch($churchId)
-                ->where('role', UserRole::Servant)
-                ->where('class_id', $classId)
-                ->whereNotIn('id', $pivotIds)
-                ->pluck('id')
-                ->toArray();
-
-            $allServantIds = array_unique(array_merge($pivotIds, $directIds));
-
-            if (!empty($allServantIds)) {
-                $servants = \App\Models\User::whereIn('id', $allServantIds)
-                    ->get(['id', 'name', 'phone', 'avatar', 'role']);
-
-                foreach ($servants as $s) {
-                    $contacts[] = [
-                        'id' => $s->id,
-                        'name' => $s->name,
-                        'phone' => $s->phone,
-                        'avatar' => $s->avatar,
-                        'role' => $s->role?->value,
-                        'role_label' => $s->role?->label(),
-                        'type' => 'servant',
-                    ];
-                }
-            }
-        }
-
-        // 2. Always include Admin + AssistantAdmin from the church
-        if ($churchId) {
-            $admins = \App\Models\User::byChurch($churchId)
-                ->whereIn('role', [UserRole::Admin, UserRole::AssistantAdmin])
-                ->get(['id', 'name', 'phone', 'avatar', 'role']);
-
-            foreach ($admins as $a) {
-                $exists = collect($contacts)->first(fn($c) => $c['id'] === $a->id);
-                if ($exists) continue;
-
-                $contacts[] = [
-                    'id' => $a->id,
-                    'name' => $a->name,
-                    'phone' => $a->phone,
-                    'avatar' => $a->avatar,
-                    'role' => $a->role?->value,
-                    'role_label' => $a->role?->label(),
-                    'type' => $a->role === UserRole::Admin ? 'admin' : 'assistant_admin',
-                ];
-            }
-        }
-
-        return response()->json([
-            'data' => $contacts,
-        ]);
-    }
-
-    public function regenerateOwnQrToken(Request $request): JsonResponse
-    {
-        $result = $this->userService->regenerateAttendanceToken($request->user()->id);
-
-        return response()->json([
-            'message' => 'Attendance QR token regenerated successfully.',
-            'data' => $result,
-        ]);
-    }
-
-    public function regenerateUserQrToken(int $id): JsonResponse
-    {
-        $result = $this->userService->regenerateAttendanceToken($id);
-
-        return response()->json([
-            'message' => 'Attendance QR token regenerated successfully.',
-            'data' => $result,
-        ]);
+        return response()->json($result);
     }
 }

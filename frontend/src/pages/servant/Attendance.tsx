@@ -52,7 +52,7 @@ export default function AttendancePage() {
         }
       })
       .catch(() => {})
-  }, [])
+  }, [isServant])
 
   useEffect(() => {
     const params: Record<string, string | number> = { per_page: 15, page }

@@ -2,7 +2,6 @@
 
 namespace App\Notifications;
 
-use App\Models\ChurchApplication;
 use App\Models\User;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -14,11 +13,11 @@ class ApplicationApprovedNotification extends Notification implements ShouldQueu
     use Queueable;
 
     public function __construct(
-        ChurchApplication $application,
         private readonly User $applicant,
         private readonly string $churchName,
     ) {}
 
+    /** @return array<int, string> */
     public function via(object $notifiable): array
     {
         return ['mail'];
@@ -26,9 +25,11 @@ class ApplicationApprovedNotification extends Notification implements ShouldQueu
 
     public function toMail(object $notifiable): MailMessage
     {
+        /** @var string $dashboardUrl */
+        $dashboardUrl = config('app.frontend_url');
         return (new MailMessage)
             ->subject('Your Church Registration Has Been Approved - ' . $this->churchName)
-            ->greeting('Congratulations, ' . $this->applicant->name . '!')
+            ->greeting('Congratulations, ' . ($this->applicant->name ?? '') . '!')
             ->line('Your church registration for **' . $this->churchName . '** has been approved.')
             ->line('')
             ->line('You can now log in to your church\'s admin dashboard to start managing your community.')
@@ -39,7 +40,7 @@ class ApplicationApprovedNotification extends Notification implements ShouldQueu
             ->line('- Create events and daily verses')
             ->line('- View analytics and reports')
             ->line('')
-            ->action('Go to Dashboard', config('app.frontend_url') . '/login')
+            ->action('Go to Dashboard', $dashboardUrl . '/login')
             ->line('Thank you for choosing our platform to serve your church community.')
             ->salutation('Best regards, The Church Management Team');
     }

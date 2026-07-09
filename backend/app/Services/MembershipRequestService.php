@@ -7,6 +7,7 @@ use App\Contracts\MembershipRequestRepositoryInterface;
 use App\Contracts\MembershipRequestServiceInterface;
 use App\Contracts\NotificationServiceInterface;
 use App\Models\User;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -23,7 +24,10 @@ class MembershipRequestService implements MembershipRequestServiceInterface
     /** @return array<string, mixed> */
     public function submit(array $data, int $churchId): array
     {
-        $existing = $this->repository->findByEmailChurch($data['email'], $churchId);
+        /** @var string $email */
+        $email = $data['email'];
+
+        $existing = $this->repository->findByEmailChurch($email, $churchId);
 
         if ($existing && $existing->isPending()) {
             throw ValidationException::withMessages([
@@ -31,7 +35,7 @@ class MembershipRequestService implements MembershipRequestServiceInterface
             ]);
         }
 
-        $existingUser = User::where('email', $data['email'])
+        $existingUser = User::where('email', $email)
             ->where('church_id', $churchId)
             ->first();
 
@@ -42,15 +46,16 @@ class MembershipRequestService implements MembershipRequestServiceInterface
         }
 
         $fileUrl = null;
-        if (!empty($data['file']) && $data['file'] instanceof \Illuminate\Http\UploadedFile) {
-            $path = $this->fileUploadService->upload($data['file'], 'uploads/join-requests');
+        $file = $data['file'] ?? null;
+        if ($file instanceof UploadedFile) {
+            $path = $this->fileUploadService->upload($file, 'uploads/join-requests');
             $fileUrl = $this->fileUploadService->url($path);
         }
 
         $request = $this->repository->create([
             'church_id' => $churchId,
             'name' => $data['name'],
-            'email' => $data['email'],
+            'email' => $email,
             'phone' => $data['phone'] ?? null,
             'birthday' => $data['birthday'] ?? null,
             'address' => $data['address'] ?? null,
@@ -112,8 +117,10 @@ class MembershipRequestService implements MembershipRequestServiceInterface
             ]);
         });
 
+        /** @var int $memUserId */
+        $memUserId = $user->id;
         $this->notificationService->create(
-            userId: $user->id,
+            userId: $memUserId,
             churchId: $request->church_id,
             title: 'Request Approved',
             body: 'Your request to join has been approved. You can now log in to the system.',
