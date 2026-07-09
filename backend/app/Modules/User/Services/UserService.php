@@ -21,10 +21,6 @@ class UserService implements UserServiceInterface
         private readonly AttendanceServiceInterface $attendanceService,
     ) {}
 
-    /**
-     * @param  array<string, mixed>  $filters
-     * @return array{data: LengthAwarePaginator<int, User>, meta: array{current_page: int, last_page: int, per_page: int, total: int}}
-     */
     /** @param array<string, mixed> $filters */
     public function listUsers(int $perPage = 15, array $filters = []): array
     {
