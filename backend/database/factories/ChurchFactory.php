@@ -15,13 +15,14 @@ class ChurchFactory extends Factory
 
     public function definition(): array
     {
-        $name = fake()->unique()->company() . ' Church';
+        $name = fake()->unique()->company().' Church';
+
         return [
             'name' => $name,
-            'slug' => Str::slug($name) . '-' . Str::random(6),
+            'slug' => Str::slug($name).'-'.Str::random(6),
             'priest_name' => fake()->name(),
-            'priest_phone' => '01' . fake()->numerify('#########'),
-            'phone' => '01' . fake()->numerify('#########'),
+            'priest_phone' => '01'.fake()->numerify('#########'),
+            'phone' => '01'.fake()->numerify('#########'),
             'is_active' => true,
             'is_suspended' => false,
         ];

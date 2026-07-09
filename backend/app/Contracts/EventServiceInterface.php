@@ -2,7 +2,6 @@
 
 namespace App\Contracts;
 
-use App\Models\Event;
 use Illuminate\Database\Eloquent\Collection;
 
 interface EventServiceInterface

@@ -76,7 +76,7 @@ class FeedbackService implements FeedbackServiceInterface
     {
         $updated = $this->feedbackRepository->markAsResolved($id);
 
-        if (!$updated) {
+        if (! $updated) {
             throw ValidationException::withMessages([
                 'feedback' => ['Feedback not found.'],
             ]);
@@ -92,7 +92,7 @@ class FeedbackService implements FeedbackServiceInterface
     {
         $feedback = $this->feedbackRepository->findById($feedbackId);
 
-        if (!$feedback) {
+        if (! $feedback) {
             throw ValidationException::withMessages([
                 'feedback' => ['Feedback not found.'],
             ]);
@@ -131,7 +131,7 @@ class FeedbackService implements FeedbackServiceInterface
     {
         $feedback = $this->feedbackRepository->findById($feedbackId);
 
-        if (!$feedback) {
+        if (! $feedback) {
             throw ValidationException::withMessages([
                 'feedback' => ['Feedback not found.'],
             ]);
@@ -157,7 +157,7 @@ class FeedbackService implements FeedbackServiceInterface
     /** @param int|null $churchId */
     private function notifyStaff($churchId, ?int $classId, string $title, string $body, string $type, ?int $excludeUserId = null): void
     {
-        if (!$churchId) {
+        if (! $churchId) {
             return;
         }
 

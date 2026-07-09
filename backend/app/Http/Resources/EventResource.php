@@ -4,10 +4,13 @@ namespace App\Http\Resources;
 
 use App\Contracts\FileUploadServiceInterface;
 use App\Enums\UserRole;
+use App\Models\Classe;
+use App\Models\Event;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
-/** @mixin \App\Models\Event */
+/** @mixin Event */
 class EventResource extends JsonResource
 {
     public bool $isDetailView = false;
@@ -22,8 +25,8 @@ class EventResource extends JsonResource
         $targetClasses = null;
         if ($this->relationLoaded('targets')) {
             $targetClasses = $this->targets
-                ->filter(fn($t) => !$t->is_all_classes && $t->classe !== null)
-                ->map(fn($t) => ['id' => $t->classe?->id, 'name' => $t->classe?->name])
+                ->filter(fn ($t) => ! $t->is_all_classes && $t->classe !== null)
+                ->map(fn ($t) => ['id' => $t->classe?->id, 'name' => $t->classe?->name])
                 ->values();
         }
 
@@ -44,7 +47,7 @@ class EventResource extends JsonResource
                 : null,
             'description' => $this->when(
                 $this->isDetailView || $isAdminOrServant,
-                fn() => $this->description,
+                fn () => $this->description,
             ),
             'preview' => $this->truncateDescription($this->description, 100),
             'event_date' => $this->event_date,
@@ -53,8 +56,9 @@ class EventResource extends JsonResource
             'is_all_classes' => $isAllClasses,
             'target_classes' => $targetClasses,
             'classe' => $this->when($this->relationLoaded('classe') && $this->classe, function () {
-                /** @var \App\Models\Classe $classe */
+                /** @var Classe $classe */
                 $classe = $this->classe;
+
                 return [
                     'id' => $classe->id,
                     'name' => $classe->name,
@@ -63,19 +67,19 @@ class EventResource extends JsonResource
             'class_id' => $this->class_year_id ?? ($targetClasses && $targetClasses->isNotEmpty() ? $targetClasses->first()['id'] : null),
             'class_year_id' => $this->class_year_id,
             'creator' => $this->when($this->creator !== null, function () {
-                /** @var \App\Models\User $creator */
+                /** @var User $creator */
                 $creator = $this->creator;
+
                 return [
                     'id' => $creator->id,
                     'name' => $creator->name,
                 ];
             }),
-            'view_count' => $this->when($isAdminOrServant, fn() => $this->viewCount()),
-            'views' => $this->when($isAdminOrServant && $this->relationLoaded('views'), fn() =>
-                $this->views->map(fn($v) => [
-                    'user' => ['id' => $v->user_id, 'name' => ($v->user->name ?? 'Unknown')],
-                    'viewed_at' => $v->viewed_at,
-                ])
+            'view_count' => $this->when($isAdminOrServant, fn () => $this->viewCount()),
+            'views' => $this->when($isAdminOrServant && $this->relationLoaded('views'), fn () => $this->views->map(fn ($v) => [
+                'user' => ['id' => $v->user_id, 'name' => ($v->user->name ?? 'Unknown')],
+                'viewed_at' => $v->viewed_at,
+            ])
             ),
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,

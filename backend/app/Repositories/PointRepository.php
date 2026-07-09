@@ -14,7 +14,7 @@ class PointRepository implements PointRepositoryInterface
     }
 
     /**
-     * @param array<string, mixed> $data
+     * @param  array<string, mixed>  $data
      */
     public function create(array $data): Point
     {
@@ -24,25 +24,26 @@ class PointRepository implements PointRepositoryInterface
     public function delete(int $id): bool
     {
         $point = $this->findById($id);
-        if (!$point) {
+        if (! $point) {
             return false;
         }
+
         return (bool) $point->delete();
     }
 
     /**
-     * @param array<string, mixed> $filters
+     * @param  array<string, mixed>  $filters
      * @return LengthAwarePaginator<int, Point>
      */
     public function paginate(int $perPage = 15, array $filters = []): LengthAwarePaginator
     {
         $query = Point::query()->with(['user']);
 
-        if (!empty($filters['user_id'])) {
+        if (! empty($filters['user_id'])) {
             $query->where('user_id', $filters['user_id']);
         }
 
-        if (!empty($filters['type'])) {
+        if (! empty($filters['type'])) {
             $query->where('type', $filters['type']);
         }
 

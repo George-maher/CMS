@@ -19,7 +19,7 @@ class PointController extends Controller
 
     public function balance(Request $request): JsonResponse
     {
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = $request->user();
         /** @var int $userId */
         $userId = $user->id;
@@ -34,7 +34,7 @@ class PointController extends Controller
 
     public function history(Request $request): JsonResponse
     {
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = $request->user();
         /** @var int $perPage */
         $perPage = $request->integer('per_page', 15);
@@ -91,12 +91,12 @@ class PointController extends Controller
 
     public function addBonusPoints(AddBonusPointsRequest $request): JsonResponse
     {
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = $request->user();
         $targetUserId = $request->integer('user_id');
         $targetUser = User::byChurch()->find($targetUserId);
 
-        if (!$targetUser) {
+        if (! $targetUser) {
             throw ValidationException::withMessages([
                 'user_id' => ['User not found in your church.'],
             ]);

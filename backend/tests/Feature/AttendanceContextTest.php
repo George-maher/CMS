@@ -17,10 +17,15 @@ class AttendanceContextTest extends TestCase
     use RefreshDatabase;
 
     private Church $church1;
+
     private Church $church2;
+
     private User $admin;
+
     private User $assistantAdmin;
+
     private User $servant;
+
     private User $member;
 
     protected function setUp(): void
@@ -62,6 +67,7 @@ class AttendanceContextTest extends TestCase
     private function actingAsUser(User $user): self
     {
         $token = $user->createToken('test')->plainTextToken;
+
         return $this->withHeader('Authorization', "Bearer $token");
     }
 

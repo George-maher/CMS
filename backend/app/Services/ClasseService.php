@@ -8,6 +8,7 @@ use App\Enums\UserRole;
 use App\Http\Resources\ClasseDetailResource;
 use App\Http\Resources\ClasseResource;
 use App\Http\Resources\UserResource;
+use App\Models\Classe;
 use App\Models\User;
 use Illuminate\Validation\ValidationException;
 
@@ -32,7 +33,9 @@ class ClasseService implements ClasseServiceInterface
     {
         $classe = $this->classeRepository->findById($id);
 
-        if (!$classe) return null;
+        if (! $classe) {
+            return null;
+        }
 
         return [
             'data' => new ClasseResource($classe),
@@ -42,11 +45,11 @@ class ClasseService implements ClasseServiceInterface
     /** @param array<string, mixed> $data */
     public function create(array $data): array
     {
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = auth()->user();
         $data['church_id'] = $user->church_id;
         /** @var int $maxOrder */
-        $maxOrder = \App\Models\Classe::byChurch()
+        $maxOrder = Classe::byChurch()
             ->where('stage_id', $data['stage_id'])
             ->max('display_order') ?? 0;
         $data['display_order'] = $maxOrder + 1;
@@ -62,7 +65,7 @@ class ClasseService implements ClasseServiceInterface
     public function update(int $id, array $data): bool
     {
         $classe = $this->classeRepository->findById($id);
-        if (!$classe) {
+        if (! $classe) {
             throw ValidationException::withMessages([
                 'class' => ['Class not found.'],
             ]);
@@ -74,7 +77,7 @@ class ClasseService implements ClasseServiceInterface
     public function delete(int $id): bool
     {
         $classe = $this->classeRepository->findById($id);
-        if (!$classe) {
+        if (! $classe) {
             throw ValidationException::withMessages([
                 'class' => ['Class not found.'],
             ]);
@@ -88,7 +91,7 @@ class ClasseService implements ClasseServiceInterface
     {
         $classe = $this->classeRepository->findById($id);
 
-        if (!$classe) {
+        if (! $classe) {
             throw ValidationException::withMessages([
                 'class' => ['Class not found.'],
             ]);
@@ -117,14 +120,14 @@ class ClasseService implements ClasseServiceInterface
     public function assignServant(int $classeId, int $servantId): array
     {
         $classe = $this->classeRepository->findById($classeId);
-        if (!$classe) {
+        if (! $classe) {
             throw ValidationException::withMessages([
                 'class' => ['Class not found.'],
             ]);
         }
 
         $servant = User::byChurch()->find($servantId);
-        if (!$servant || $servant->role !== UserRole::Servant) {
+        if (! $servant || $servant->role !== UserRole::Servant) {
             throw ValidationException::withMessages([
                 'servant' => ['Invalid servant.'],
             ]);
@@ -141,7 +144,7 @@ class ClasseService implements ClasseServiceInterface
     public function removeServant(int $classeId, int $servantId): array
     {
         $classe = $this->classeRepository->findById($classeId);
-        if (!$classe) {
+        if (! $classe) {
             throw ValidationException::withMessages([
                 'class' => ['Class not found.'],
             ]);
@@ -162,7 +165,7 @@ class ClasseService implements ClasseServiceInterface
     public function getMembers(int $classeId, int $perPage = 15): array
     {
         $classe = $this->classeRepository->findById($classeId);
-        if (!$classe) {
+        if (! $classe) {
             throw ValidationException::withMessages([
                 'class' => ['Class not found.'],
             ]);
@@ -189,7 +192,7 @@ class ClasseService implements ClasseServiceInterface
     public function getServants(int $classeId, int $perPage = 15): array
     {
         $classe = $this->classeRepository->findById($classeId);
-        if (!$classe) {
+        if (! $classe) {
             throw ValidationException::withMessages([
                 'class' => ['Class not found.'],
             ]);

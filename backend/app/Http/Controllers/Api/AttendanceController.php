@@ -9,7 +9,9 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\RecordAttendanceRequest;
 use App\Http\Resources\AttendanceResource;
 use App\Http\Resources\UserResource;
+use App\Models\AttendanceContext;
 use App\Models\QRInvite;
+use App\Models\Scopes\ChurchScope;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -31,7 +33,7 @@ class AttendanceController extends Controller
             'method' => ['sometimes', 'string', 'in:qr,token,id'],
         ]);
 
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = $request->user();
         /** @var int $recordedBy */
         $recordedBy = $user->id;
@@ -60,7 +62,7 @@ class AttendanceController extends Controller
 
     public function record(RecordAttendanceRequest $request): JsonResponse
     {
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = $request->user();
         /** @var int $recordedBy */
         $recordedBy = $user->id;
@@ -88,7 +90,7 @@ class AttendanceController extends Controller
 
     public function contextSummary(Request $request): JsonResponse
     {
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = $request->user();
         /** @var array<int, int>|null $classYearIds */
         $classYearIds = $user->role === UserRole::Servant
@@ -121,7 +123,7 @@ class AttendanceController extends Controller
             'date_to' => ['sometimes', 'date'],
         ]);
 
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = $request->user();
         /** @var int|null $classYearId */
         $classYearId = $validated['class_id'] ?? null;
@@ -130,7 +132,7 @@ class AttendanceController extends Controller
         if ($user->role === UserRole::Servant) {
             /** @var array<int, int>|null $servantClassIds */
             $servantClassIds = $user->getServantClassIds();
-            if ($classYearId !== null && !in_array($classYearId, (array) $servantClassIds)) {
+            if ($classYearId !== null && ! in_array($classYearId, (array) $servantClassIds)) {
                 $classYearId = null; // ignore unauthorized value, fall through to enforce servant's classes
             }
             if ($classYearId === null) {
@@ -164,7 +166,7 @@ class AttendanceController extends Controller
     {
         $member = User::byChurch()->byMemberId($memberId)->first();
 
-        if (!$member) {
+        if (! $member) {
             throw ValidationException::withMessages([
                 'member_id' => ['Member not found.'],
             ]);
@@ -184,7 +186,7 @@ class AttendanceController extends Controller
         $attendanceContextId = null;
 
         // If no user found, try invite token lookup (supports attendance_qr invite URLs)
-        if (!$member) {
+        if (! $member) {
             $inviteToken = $qrToken;
             // Extract token from URL pattern: {base}/qr/validate/{token}
             if (preg_match('#/qr/validate/([A-Za-z0-9]+)$#', $qrToken, $matches)) {
@@ -202,7 +204,7 @@ class AttendanceController extends Controller
             }
         }
 
-        if (!$member && !$attendanceContextId) {
+        if (! $member && ! $attendanceContextId) {
             return response()->json(['message' => 'Member not found.'], 404);
         }
 
@@ -214,7 +216,7 @@ class AttendanceController extends Controller
 
         if ($attendanceContextId) {
             $responseData['attendance_context_id'] = $attendanceContextId;
-            $ctx = \App\Models\AttendanceContext::withoutGlobalScope(\App\Models\Scopes\ChurchScope::class)->find($attendanceContextId);
+            $ctx = AttendanceContext::withoutGlobalScope(ChurchScope::class)->find($attendanceContextId);
             $responseData['attendance_context'] = $ctx ? [
                 'id' => $ctx->id,
                 'name' => $ctx->name,
@@ -227,9 +229,9 @@ class AttendanceController extends Controller
         ]);
     }
 
-    public function history(Request $request, int $userId = null): JsonResponse
+    public function history(Request $request, ?int $userId = null): JsonResponse
     {
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = $request->user();
         /** @var int $id */
         $id = $userId ?? (int) $user->id;
@@ -238,7 +240,7 @@ class AttendanceController extends Controller
             $member = User::byChurch()->find($id);
             /** @var array<int, int>|null $servantClassIds */
             $servantClassIds = $user->getServantClassIds();
-            if (!$member || !in_array($member->class_id, (array) $servantClassIds)) {
+            if (! $member || ! in_array($member->class_id, (array) $servantClassIds)) {
                 $id = (int) $user->id;
             }
         } elseif ($user->role === UserRole::Member) {
@@ -260,12 +262,12 @@ class AttendanceController extends Controller
 
     public function byClass(Request $request, int $classYearId): JsonResponse
     {
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = $request->user();
         if ($user->role === UserRole::Servant) {
             /** @var array<int, int>|null $servantClassIds */
             $servantClassIds = $user->getServantClassIds();
-            if (!in_array($classYearId, (array) $servantClassIds)) {
+            if (! in_array($classYearId, (array) $servantClassIds)) {
                 $classYearId = ($servantClassIds[0] ?? $classYearId);
             }
         }
@@ -292,7 +294,7 @@ class AttendanceController extends Controller
 
     public function today(Request $request): JsonResponse
     {
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = $request->user();
         /** @var array<int, int>|null $classYearIds */
         $classYearIds = $user->role === UserRole::Servant ? $user->getServantClassIds() : null;
@@ -322,7 +324,7 @@ class AttendanceController extends Controller
             'per_page' => ['sometimes', 'integer', 'min:1', 'max:100'],
         ]);
 
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = $request->user();
 
         // Servants: silently fix class_id instead of rejecting
@@ -334,7 +336,7 @@ class AttendanceController extends Controller
             }
             /** @var int|null $validatedClassId */
             $validatedClassId = $validated['class_id'] ?? null;
-            if ($validatedClassId !== null && !in_array($validatedClassId, $servantClassIds)) {
+            if ($validatedClassId !== null && ! in_array($validatedClassId, $servantClassIds)) {
                 unset($validated['class_id']);
             }
             $validated['class_ids'] = $servantClassIds;
@@ -350,10 +352,10 @@ class AttendanceController extends Controller
 
     public function absentMembers(Request $request): JsonResponse
     {
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = $request->user();
 
-        if (!$request->has('class_id')) {
+        if (! $request->has('class_id')) {
             return response()->json([
                 'success' => false,
                 'message' => 'Validation failed.',
@@ -376,7 +378,7 @@ class AttendanceController extends Controller
         if ($user->role === UserRole::Servant) {
             /** @var array<int, int>|null $servantClassIds */
             $servantClassIds = $user->getServantClassIds();
-            if (!empty($servantClassIds) && ($classYearId === 0 || !in_array($classYearId, $servantClassIds))) {
+            if (! empty($servantClassIds) && ($classYearId === 0 || ! in_array($classYearId, $servantClassIds))) {
                 $classYearId = $servantClassIds[0];
             } elseif (empty($servantClassIds)) {
                 return response()->json(['data' => ['summary' => ['total_members' => 0, 'present_count' => 0, 'absent_count' => 0], 'absent_members' => []]]);
@@ -395,9 +397,9 @@ class AttendanceController extends Controller
         return response()->json(['data' => $result]);
     }
 
-    public function stats(Request $request, int $userId = null): JsonResponse
+    public function stats(Request $request, ?int $userId = null): JsonResponse
     {
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = $request->user();
         /** @var int $id */
         $id = $userId ?? (int) $user->id;
@@ -406,7 +408,7 @@ class AttendanceController extends Controller
             $member = User::byChurch()->find($id);
             /** @var array<int, int>|null $servantClassIds */
             $servantClassIds = $user->getServantClassIds();
-            if (!$member || !in_array($member->class_id, (array) $servantClassIds)) {
+            if (! $member || ! in_array($member->class_id, (array) $servantClassIds)) {
                 $id = (int) $user->id;
             }
         } elseif ($user->role === UserRole::Member) {

@@ -2,9 +2,9 @@
 
 namespace Tests\Feature;
 
+use App\Enums\UserRole;
 use App\Models\ChurchApplication;
 use App\Models\User;
-use App\Enums\UserRole;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -13,6 +13,7 @@ class PlatformApplicationRejectionTest extends TestCase
     use RefreshDatabase;
 
     private User $platformAdmin;
+
     private ChurchApplication $application;
 
     protected function setUp(): void

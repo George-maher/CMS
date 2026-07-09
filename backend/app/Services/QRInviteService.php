@@ -8,8 +8,8 @@ use App\Enums\QRInviteType;
 use App\Enums\UserRole;
 use App\Models\Classe;
 use App\Models\QRInvite;
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -17,6 +17,7 @@ use Illuminate\Validation\ValidationException;
 class QRInviteService implements QRInviteServiceInterface
 {
     private const INVITE_EXPIRY_HOURS = 24;
+
     private const TOKEN_LENGTH = 64;
 
     public function __construct(
@@ -74,13 +75,13 @@ class QRInviteService implements QRInviteServiceInterface
     {
         $invite = $this->qrInviteRepository->findByToken($token);
 
-        if (!$invite) {
+        if (! $invite) {
             throw ValidationException::withMessages([
                 'token' => [__('invite.invalid_token')],
             ]);
         }
 
-        if (!$invite->isValid()) {
+        if (! $invite->isValid()) {
             if ($invite->isExpired()) {
                 throw ValidationException::withMessages([
                     'token' => [__('invite.expired')],
@@ -116,13 +117,13 @@ class QRInviteService implements QRInviteServiceInterface
     /** @return array<string, mixed> */
     public function validateTokenForRegistration(string $token): array
     {
-        /** @var array{valid: bool, invite: \App\Models\QRInvite, type: \App\Enums\QRInviteType} $validation */
+        /** @var array{valid: bool, invite: QRInvite, type: QRInviteType} $validation */
         $validation = $this->validateToken($token);
-        /** @var \App\Models\QRInvite $invite */
+        /** @var QRInvite $invite */
         $invite = $validation['invite'];
 
         $role = $invite->type->targetRole();
-        if (!$role) {
+        if (! $role) {
             throw ValidationException::withMessages([
                 'token' => [__('invite.role_mismatch')],
             ]);
@@ -141,7 +142,7 @@ class QRInviteService implements QRInviteServiceInterface
     {
         $invite = $this->qrInviteRepository->findByToken($token);
 
-        if (!$invite) {
+        if (! $invite) {
             throw ValidationException::withMessages([
                 'token' => [__('invite.not_found')],
             ]);
@@ -177,13 +178,13 @@ class QRInviteService implements QRInviteServiceInterface
     /** @return array<string, mixed> */
     public function acceptInvite(string $token, int $userId, ?int $classId = null): array
     {
-        /** @var array{valid: bool, invite: \App\Models\QRInvite, type: \App\Enums\QRInviteType} $validation */
+        /** @var array{valid: bool, invite: QRInvite, type: QRInviteType} $validation */
         $validation = $this->validateToken($token);
-        /** @var \App\Models\QRInvite $invite */
+        /** @var QRInvite $invite */
         $invite = $validation['invite'];
         $role = $invite->type->targetRole();
 
-        if (!$role) {
+        if (! $role) {
             throw ValidationException::withMessages([
                 'invite' => [__('invite.role_mismatch')],
             ]);
@@ -194,7 +195,7 @@ class QRInviteService implements QRInviteServiceInterface
                 ->lockForUpdate()
                 ->first();
 
-            if (!$freshInvite || !$freshInvite->isValid()) {
+            if (! $freshInvite || ! $freshInvite->isValid()) {
                 $msg = $freshInvite && $freshInvite->max_uses !== null && $freshInvite->use_count >= $freshInvite->max_uses
                     ? __('invite.max_uses_reached')
                     : __('invite.already_used');
@@ -203,8 +204,8 @@ class QRInviteService implements QRInviteServiceInterface
                 ]);
             }
 
-            $user = \App\Models\User::find($userId);
-            if (!$user) {
+            $user = User::find($userId);
+            if (! $user) {
                 throw ValidationException::withMessages([
                     'user' => ['User not found.'],
                 ]);
@@ -212,7 +213,7 @@ class QRInviteService implements QRInviteServiceInterface
 
             if ($user->role->value === $role->value) {
                 throw ValidationException::withMessages([
-                    'invite' => ['You are already registered as a ' . $role->label() . '.'],
+                    'invite' => ['You are already registered as a '.$role->label().'.'],
                 ]);
             }
 
@@ -238,7 +239,7 @@ class QRInviteService implements QRInviteServiceInterface
             $user->update($updateData);
 
             $used = $freshInvite->markAsUsed($userId);
-            if (!$used) {
+            if (! $used) {
                 throw ValidationException::withMessages([
                     'invite' => [__('invite.max_uses_reached')],
                 ]);
@@ -254,11 +255,12 @@ class QRInviteService implements QRInviteServiceInterface
             ]);
 
             $freshUser = $user->fresh();
-            if (!$freshUser) {
+            if (! $freshUser) {
                 throw ValidationException::withMessages([
                     'user' => ['User not found after update.'],
                 ]);
             }
+
             return [
                 'user' => $freshUser->load(['classe', 'servant']),
                 'role' => $role,
@@ -267,7 +269,7 @@ class QRInviteService implements QRInviteServiceInterface
         });
     }
 
-    public function findById(int $id): ?\App\Models\QRInvite
+    public function findById(int $id): ?QRInvite
     {
         return $this->qrInviteRepository->findById($id);
     }
@@ -281,7 +283,8 @@ class QRInviteService implements QRInviteServiceInterface
     {
         /** @var string $frontendUrl */
         $frontendUrl = config('app.frontend_url');
-        return $frontendUrl . '/invite/' . urlencode($token);
+
+        return $frontendUrl.'/invite/'.urlencode($token);
     }
 
     /** @param array<string, mixed> $filters */

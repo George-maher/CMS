@@ -8,8 +8,10 @@ use App\Http\Requests\MembershipRequestReviewRequest;
 use App\Http\Requests\MembershipRequestSubmitRequest;
 use App\Http\Resources\MembershipRequestResource;
 use App\Models\Church;
+use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 
 class MembershipRequestController extends Controller
 {
@@ -23,14 +25,14 @@ class MembershipRequestController extends Controller
         $churchId = $request->input('church_id');
         $church = Church::find($churchId);
 
-        if (!$church) {
+        if (! $church) {
             return response()->json(['message' => 'Church not found.'], 404);
         }
 
         $data = $request->validated();
 
         if ($request->hasFile('file')) {
-            /** @var \Illuminate\Http\UploadedFile $uploadedFile */
+            /** @var UploadedFile $uploadedFile */
             $uploadedFile = $request->file('file');
             $data['file'] = $uploadedFile;
         }
@@ -48,7 +50,7 @@ class MembershipRequestController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = $request->user();
         /** @var int $churchId */
         $churchId = $user->church_id;
@@ -70,7 +72,7 @@ class MembershipRequestController extends Controller
 
     public function show(Request $request, int $id): JsonResponse
     {
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = $request->user();
 
         /** @var int $churchId */
@@ -80,7 +82,7 @@ class MembershipRequestController extends Controller
             churchId: $churchId,
         );
 
-        if (!$membershipRequest) {
+        if (! $membershipRequest) {
             return response()->json(['message' => 'Request not found.'], 404);
         }
 
@@ -91,7 +93,7 @@ class MembershipRequestController extends Controller
 
     public function approve(Request $request, int $id): JsonResponse
     {
-        /** @var \App\Models\User $admin */
+        /** @var User $admin */
         $admin = $request->user();
         /** @var int $adminId */
         $adminId = $admin->id;
@@ -107,7 +109,7 @@ class MembershipRequestController extends Controller
 
     public function reject(MembershipRequestReviewRequest $request, int $id): JsonResponse
     {
-        /** @var \App\Models\User $admin */
+        /** @var User $admin */
         $admin = $request->user();
         /** @var int $adminId */
         $adminId = $admin->id;

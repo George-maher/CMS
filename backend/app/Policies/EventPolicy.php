@@ -14,9 +14,16 @@ class EventPolicy
 
     public function view(User $user, Event $event): bool
     {
-        if ($user->isAdmin()) return true;
-        if ($user->isServant() && (!$event->class_year_id || $event->class_year_id === $user->class_year_id)) return true;
-        if ($user->isMember() && $event->is_active) return true;
+        if ($user->isAdmin()) {
+            return true;
+        }
+        if ($user->isServant() && (! $event->class_year_id || $event->class_year_id === $user->class_year_id)) {
+            return true;
+        }
+        if ($user->isMember() && $event->is_active) {
+            return true;
+        }
+
         return false;
     }
 
@@ -27,15 +34,25 @@ class EventPolicy
 
     public function update(User $user, Event $event): bool
     {
-        if ($user->isAdmin()) return true;
-        if ($user->isServant() && $event->class_year_id === $user->class_year_id) return true;
+        if ($user->isAdmin()) {
+            return true;
+        }
+        if ($user->isServant() && $event->class_year_id === $user->class_year_id) {
+            return true;
+        }
+
         return false;
     }
 
     public function delete(User $user, Event $event): bool
     {
-        if ($user->isAdmin()) return true;
-        if ($user->isServant() && $event->class_year_id === $user->class_year_id) return true;
+        if ($user->isAdmin()) {
+            return true;
+        }
+        if ($user->isServant() && $event->class_year_id === $user->class_year_id) {
+            return true;
+        }
+
         return false;
     }
 }

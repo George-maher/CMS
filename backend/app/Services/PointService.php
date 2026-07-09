@@ -44,7 +44,7 @@ class PointService implements PointServiceInterface
     public function addBonusPoints(int $userId, int $points, int $addedBy, ?string $reason = null): array
     {
         $member = User::byChurch()->find($userId);
-        if (!$member) {
+        if (! $member) {
             throw ValidationException::withMessages([
                 'user_id' => ['Member not found.'],
             ]);
@@ -65,7 +65,7 @@ class PointService implements PointServiceInterface
             userId: $userId,
             churchId: $pointChurchId,
             title: 'Bonus Points Added',
-            body: "You received {$points} bonus points." . ($reason ? " Reason: {$reason}" : ''),
+            body: "You received {$points} bonus points.".($reason ? " Reason: {$reason}" : ''),
         );
 
         $this->cacheService->invalidatePoints($member->church_id);
@@ -110,6 +110,7 @@ class PointService implements PointServiceInterface
             ->map(function ($user, $index) {
                 /** @var int $totalPoints */
                 $totalPoints = $user->total_points;
+
                 return [
                     'rank' => $index + 1,
                     'user_id' => $user->id,

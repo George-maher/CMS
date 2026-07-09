@@ -29,18 +29,18 @@ class PasswordResetRequestRejectedNotification extends Notification implements S
         if ($locale === 'ar') {
             return (new MailMessage)
                 ->subject('تم رفض طلب إعادة تعيين كلمة المرور')
-                ->greeting('مرحباً ' . ($notifiable->name ?? '') . '!')
+                ->greeting('مرحباً '.($notifiable->name ?? '').'!')
                 ->line('تم رفض طلب إعادة تعيين كلمة المرور.')
-                ->line('السبب: ' . $this->reason)
+                ->line('السبب: '.$this->reason)
                 ->line('إذا كان لديك أي استفسار، يرجى التواصل مع المسؤول.')
                 ->salutation('مع تحيات فريق الكنيسة');
         }
 
         return (new MailMessage)
             ->subject('Your Password Reset Request Was Rejected')
-            ->greeting('Hello ' . ($notifiable->name ?? '') . '!')
+            ->greeting('Hello '.($notifiable->name ?? '').'!')
             ->line('Your password reset request was rejected.')
-            ->line('Reason: ' . $this->reason)
+            ->line('Reason: '.$this->reason)
             ->line('If you have any questions, please contact an administrator.')
             ->salutation('Best regards, The Church Team');
     }

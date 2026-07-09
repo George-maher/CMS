@@ -2,7 +2,6 @@
 
 namespace App\Modules\User\Policies;
 
-use App\Enums\UserRole;
 use App\Models\User;
 
 class UserPolicy
@@ -14,11 +13,14 @@ class UserPolicy
 
     public function view(User $user, User $target): bool
     {
-        if ($user->isAdmin()) return true;
+        if ($user->isAdmin()) {
+            return true;
+        }
         if ($user->isServant() && $target->isMember()) {
             return $target->church_id === $user->church_id
                 && $target->class_year_id === $user->class_year_id;
         }
+
         return $user->id === $target->id;
     }
 
@@ -29,14 +31,22 @@ class UserPolicy
 
     public function update(User $user, User $target): bool
     {
-        if ($user->isAdmin()) return true;
+        if ($user->isAdmin()) {
+            return true;
+        }
+
         return $user->id === $target->id;
     }
 
     public function delete(User $user, User $target): bool
     {
-        if (!$user->isAdmin()) return false;
-        if ($target->isAdmin()) return false;
+        if (! $user->isAdmin()) {
+            return false;
+        }
+        if ($target->isAdmin()) {
+            return false;
+        }
+
         return true;
     }
 
@@ -52,8 +62,13 @@ class UserPolicy
 
     public function viewMembers(User $user, ?User $servant = null): bool
     {
-        if ($user->isAdmin()) return true;
-        if ($user->isServant() && $servant && $user->id === $servant->id) return true;
+        if ($user->isAdmin()) {
+            return true;
+        }
+        if ($user->isServant() && $servant && $user->id === $servant->id) {
+            return true;
+        }
+
         return false;
     }
 
@@ -64,7 +79,10 @@ class UserPolicy
 
     public function regenerateQrToken(User $user, User $target): bool
     {
-        if ($user->isAdmin()) return true;
+        if ($user->isAdmin()) {
+            return true;
+        }
+
         return $user->id === $target->id;
     }
 }

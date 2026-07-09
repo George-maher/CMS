@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\BulkCreateStagesRequest;
 use App\Http\Requests\StoreStageRequest;
 use App\Http\Requests\UpdateStageRequest;
+use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -20,6 +21,7 @@ class StageController extends Controller
     {
         /** @var string|null $search */
         $search = $request->input('search');
+
         return response()->json($this->stageService->all($search));
     }
 
@@ -35,7 +37,7 @@ class StageController extends Controller
 
     public function bulkCreate(BulkCreateStagesRequest $request): JsonResponse
     {
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = $request->user();
         /** @var int $churchId */
         $churchId = $user->church_id;
@@ -52,7 +54,7 @@ class StageController extends Controller
     {
         $result = $this->stageService->findById($id);
 
-        if (!$result) {
+        if (! $result) {
             return response()->json(['message' => 'Stage not found.'], 404);
         }
 
@@ -85,6 +87,7 @@ class StageController extends Controller
     {
         /** @var string|null $search */
         $search = $request->input('search');
+
         return response()->json($this->stageService->getClasses($id, $search));
     }
 }

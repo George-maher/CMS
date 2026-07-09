@@ -27,16 +27,18 @@ class CleanAuditLogs extends Command
         $count = DB::table('audit_logs')->where('created_at', '<', $cutoffDate)->count();
 
         if ($count === 0) {
-            $this->info('No audit logs found older than ' . $cutoffDate->toDateString() . '.');
+            $this->info('No audit logs found older than '.$cutoffDate->toDateString().'.');
+
             return self::SUCCESS;
         }
 
         $this->line("Found {$count} audit log entries older than {$cutoffDate->toDateString()}.");
         $this->newLine();
 
-        if (!$isDryRun && !$this->option('force')) {
-            if (!$this->confirm("Are you sure you want to archive {$count} audit log entries?")) {
+        if (! $isDryRun && ! $this->option('force')) {
+            if (! $this->confirm("Are you sure you want to archive {$count} audit log entries?")) {
                 $this->info('Operation cancelled.');
+
                 return self::FAILURE;
             }
         }
@@ -51,6 +53,7 @@ class CleanAuditLogs extends Command
                     ['Action', 'Dry run — no changes made'],
                 ]
             );
+
             return self::SUCCESS;
         }
 
@@ -66,7 +69,7 @@ class CleanAuditLogs extends Command
             ->orderBy('id')
             ->chunk($chunkSize, function ($logs) use (&$archivedCount, $bar) {
                 $timestamp = now()->format('Y-m-d_H-i-s');
-                $filename = "audit-archive-{$timestamp}-chunk-" . uniqid() . '.json';
+                $filename = "audit-archive-{$timestamp}-chunk-".uniqid().'.json';
 
                 $data = $logs->map(function ($log) {
                     return [
@@ -90,6 +93,7 @@ class CleanAuditLogs extends Command
                     );
                 } catch (\Exception $e) {
                     $this->error("Failed to write archive file: {$e->getMessage()}");
+
                     return false;
                 }
 

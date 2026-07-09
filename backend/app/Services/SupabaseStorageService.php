@@ -12,7 +12,9 @@ use Illuminate\Support\Str;
 class SupabaseStorageService implements StorageServiceInterface
 {
     private string $projectUrl;
+
     private string $serviceRoleKey;
+
     private string $baseUrl;
 
     /** @var array<int, string> */
@@ -84,8 +86,9 @@ class SupabaseStorageService implements StorageServiceInterface
         try {
             $key = $this->extractKeyFromUrl($url);
 
-            if (!$key) {
+            if (! $key) {
                 Log::warning('Could not extract storage key from URL', ['url' => $url]);
+
                 return false;
             }
 
@@ -101,6 +104,7 @@ class SupabaseStorageService implements StorageServiceInterface
                     'bucket' => $bucket,
                     'key' => $key,
                 ]);
+
                 return true;
             }
 
@@ -109,6 +113,7 @@ class SupabaseStorageService implements StorageServiceInterface
                     'bucket' => $bucket,
                     'key' => $key,
                 ]);
+
                 return false;
             }
 
@@ -125,12 +130,14 @@ class SupabaseStorageService implements StorageServiceInterface
                 'url' => $url,
                 'error' => $e->getMessage(),
             ]);
+
             return false;
         } catch (\Exception $e) {
             Log::warning('Failed to delete file from storage', [
                 'url' => $url,
                 'error' => $e->getMessage(),
             ]);
+
             return false;
         }
     }
@@ -145,7 +152,7 @@ class SupabaseStorageService implements StorageServiceInterface
     public function generatePublicUrl(string $key, string $bucket): string
     {
         if ($this->baseUrl) {
-            return $this->baseUrl . '/' . $bucket . '/' . $this->stripBucketFromKey($key, $bucket);
+            return $this->baseUrl.'/'.$bucket.'/'.$this->stripBucketFromKey($key, $bucket);
         }
 
         return "{$this->projectUrl}/storage/v1/object/public/{$bucket}/{$this->stripBucketFromKey($key, $bucket)}";
@@ -154,7 +161,7 @@ class SupabaseStorageService implements StorageServiceInterface
     public function getBucketUrl(string $bucket): string
     {
         if ($this->baseUrl) {
-            return $this->baseUrl . '/' . $bucket;
+            return $this->baseUrl.'/'.$bucket;
         }
 
         return "{$this->projectUrl}/storage/v1/object/public/{$bucket}";
@@ -176,6 +183,7 @@ class SupabaseStorageService implements StorageServiceInterface
                 'key' => $key,
                 'error' => $e->getMessage(),
             ]);
+
             return false;
         }
     }
@@ -193,6 +201,7 @@ class SupabaseStorageService implements StorageServiceInterface
             if ($response->successful()) {
                 /** @var array<string, mixed> $metadata */
                 $metadata = $response->json();
+
                 return $metadata;
             }
 
@@ -203,6 +212,7 @@ class SupabaseStorageService implements StorageServiceInterface
                 'key' => $key,
                 'error' => $e->getMessage(),
             ]);
+
             return null;
         }
     }
@@ -231,6 +241,7 @@ class SupabaseStorageService implements StorageServiceInterface
                     'bucket' => $name,
                     'public' => $public,
                 ]);
+
                 return true;
             }
 
@@ -246,6 +257,7 @@ class SupabaseStorageService implements StorageServiceInterface
                 'bucket' => $name,
                 'error' => $e->getMessage(),
             ]);
+
             return false;
         }
     }
@@ -263,6 +275,7 @@ class SupabaseStorageService implements StorageServiceInterface
                 'bucket' => $name,
                 'error' => $e->getMessage(),
             ]);
+
             return false;
         }
     }
@@ -290,7 +303,7 @@ class SupabaseStorageService implements StorageServiceInterface
             )
             ->post("{$this->storageApiUrl()}/object/{$bucket}/{$objectPath}");
 
-        if (!$response->successful()) {
+        if (! $response->successful()) {
             $status = $response->status();
             $body = $response->body();
 
@@ -325,13 +338,13 @@ class SupabaseStorageService implements StorageServiceInterface
     {
         $uuid = (string) Str::uuid();
         $extension = $file->getClientOriginalExtension();
-        $filename = $uuid . '.' . $extension;
+        $filename = $uuid.'.'.$extension;
 
         if ($path) {
-            return trim($bucket, '/') . '/' . trim($path, '/') . '/' . $filename;
+            return trim($bucket, '/').'/'.trim($path, '/').'/'.$filename;
         }
 
-        return trim($bucket, '/') . '/' . $filename;
+        return trim($bucket, '/').'/'.$filename;
     }
 
     protected function extractKeyFromUrl(string $url): ?string
@@ -339,10 +352,10 @@ class SupabaseStorageService implements StorageServiceInterface
         $prefixes = [];
 
         if ($this->baseUrl) {
-            $prefixes[] = $this->baseUrl . '/';
+            $prefixes[] = $this->baseUrl.'/';
         }
 
-        $prefixes[] = $this->projectUrl . '/storage/v1/object/public/';
+        $prefixes[] = $this->projectUrl.'/storage/v1/object/public/';
 
         foreach ($prefixes as $prefix) {
             if (str_starts_with($url, $prefix)) {
@@ -355,7 +368,7 @@ class SupabaseStorageService implements StorageServiceInterface
 
         $knownBuckets = ['profiles/', 'events/', 'documents/', 'ids/', 'attachments/'];
         foreach ($knownBuckets as $bp) {
-            $pos = strpos($path, '/' . $bp);
+            $pos = strpos($path, '/'.$bp);
             if ($pos !== false) {
                 return substr($path, $pos + 1);
             }
@@ -382,6 +395,7 @@ class SupabaseStorageService implements StorageServiceInterface
     protected function extractBucketFromKey(string $key): string
     {
         $parts = explode('/', $key);
+
         return $parts[0];
     }
 
@@ -389,12 +403,13 @@ class SupabaseStorageService implements StorageServiceInterface
     {
         $parts = explode('/', $key);
         array_shift($parts);
+
         return implode('/', $parts);
     }
 
     protected function stripBucketFromKey(string $key, string $bucket): string
     {
-        if (str_starts_with($key, $bucket . '/')) {
+        if (str_starts_with($key, $bucket.'/')) {
             return substr($key, strlen($bucket) + 1);
         }
 
@@ -417,7 +432,7 @@ class SupabaseStorageService implements StorageServiceInterface
 
     protected function validateImage(UploadedFile $file): void
     {
-        if (!in_array($file->getMimeType(), $this->allowedImageMimes)) {
+        if (! in_array($file->getMimeType(), $this->allowedImageMimes)) {
             throw new \InvalidArgumentException(
                 sprintf(
                     'Invalid image type. Allowed: %s. Got: %s.',
@@ -451,7 +466,7 @@ class SupabaseStorageService implements StorageServiceInterface
 
     protected function validateDocument(UploadedFile $file): void
     {
-        if (!in_array($file->getMimeType(), $this->allowedDocumentMimes)) {
+        if (! in_array($file->getMimeType(), $this->allowedDocumentMimes)) {
             throw new \InvalidArgumentException(
                 sprintf(
                     'Invalid document type. Allowed: %s. Got: %s.',

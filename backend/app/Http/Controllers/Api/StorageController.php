@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\ReplaceFileRequest;
 use App\Http\Requests\UploadRequest;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
 
 class StorageController extends Controller
@@ -19,7 +20,7 @@ class StorageController extends Controller
 
     public function upload(UploadRequest $request, string $bucket): JsonResponse
     {
-        /** @var \Illuminate\Http\UploadedFile $file */
+        /** @var UploadedFile $file */
         $file = $request->file('file');
         /** @var string|null $path */
         $path = $request->input('path');
@@ -49,7 +50,7 @@ class StorageController extends Controller
 
     public function uploadProfileImage(UploadRequest $request): JsonResponse
     {
-        /** @var \Illuminate\Http\UploadedFile $file */
+        /** @var UploadedFile $file */
         $file = $request->file('file');
         $key = $this->storageService->uploadImage($file, 'profiles');
         $url = $this->fileUploadService->url($key);
@@ -62,7 +63,7 @@ class StorageController extends Controller
 
     public function uploadEventImage(UploadRequest $request): JsonResponse
     {
-        /** @var \Illuminate\Http\UploadedFile $file */
+        /** @var UploadedFile $file */
         $file = $request->file('file');
         $key = $this->storageService->uploadImage($file, 'events');
         $url = $this->fileUploadService->url($key);
@@ -77,7 +78,7 @@ class StorageController extends Controller
     {
         /** @var string $bucket */
         $bucket = $request->input('bucket', 'documents');
-        /** @var \Illuminate\Http\UploadedFile $file */
+        /** @var UploadedFile $file */
         $file = $request->file('file');
         $key = $this->storageService->uploadDocument($file, $bucket);
         $url = $this->fileUploadService->url($key);
@@ -92,7 +93,7 @@ class StorageController extends Controller
     {
         /** @var string $oldUrl */
         $oldUrl = $request->input('old_url');
-        /** @var \Illuminate\Http\UploadedFile $newFile */
+        /** @var UploadedFile $newFile */
         $newFile = $request->file('file');
         $key = $this->storageService->replaceFile(
             oldUrl: $oldUrl,
@@ -124,7 +125,7 @@ class StorageController extends Controller
         $fileUrl = $request->input('url');
         $deleted = $this->storageService->deleteFile($fileUrl);
 
-        if (!$deleted) {
+        if (! $deleted) {
             return response()->json([
                 'message' => 'File not found or could not be deleted.',
             ], 404);

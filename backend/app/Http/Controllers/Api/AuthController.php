@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Notifications\VerifyEmailNotification;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class AuthController extends Controller
@@ -49,7 +50,7 @@ class AuthController extends Controller
 
     public function logout(Request $request): JsonResponse
     {
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = $request->user();
         $this->authService->logout($user);
 
@@ -72,7 +73,7 @@ class AuthController extends Controller
 
     public function me(Request $request): JsonResponse
     {
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = $request->user();
         $result = $this->authService->getAuthenticatedUser($user);
 
@@ -94,7 +95,7 @@ class AuthController extends Controller
             ->where('email_verification_token', $request->input('token'))
             ->first();
 
-        if (!$user) {
+        if (! $user) {
             return response()->json(['message' => 'Invalid or expired verification link.'], 422);
         }
 
@@ -120,7 +121,7 @@ class AuthController extends Controller
 
         $user = User::where('email', $request->input('email'))->first();
 
-        if (!$user) {
+        if (! $user) {
             return response()->json([
                 'message' => 'If that email exists in our system, a verification email has been sent.',
             ]);
@@ -137,12 +138,12 @@ class AuthController extends Controller
 
         /** @var string $frontendUrl */
         $frontendUrl = config('app.frontend_url');
-        $verificationUrl = $frontendUrl . '/verify-email?token=' . urlencode($user->email_verification_token ?? '') . '&email=' . urlencode($user->email);
+        $verificationUrl = $frontendUrl.'/verify-email?token='.urlencode($user->email_verification_token ?? '').'&email='.urlencode($user->email);
 
         try {
             $user->notify(new VerifyEmailNotification($user, $verificationUrl));
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::warning('Failed to resend verification email', [
+            Log::warning('Failed to resend verification email', [
                 'user_id' => $user->id,
                 'error' => $e->getMessage(),
             ]);

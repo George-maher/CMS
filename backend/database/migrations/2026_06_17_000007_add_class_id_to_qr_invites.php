@@ -17,14 +17,16 @@ return new class extends Migration
 
         QRInvite::whereNotNull('class_year_id')->chunk(100, function ($invites) {
             foreach ($invites as $invite) {
-                $classYear = \DB::table('class_years')->find($invite->class_year_id);
-                if (!$classYear) continue;
-                $classe = \DB::table('classes')
+                $classYear = DB::table('class_years')->find($invite->class_year_id);
+                if (! $classYear) {
+                    continue;
+                }
+                $classe = DB::table('classes')
                     ->where('name', $classYear->name)
                     ->where('church_id', $invite->church_id)
                     ->first();
                 if ($classe) {
-                    \DB::table('qr_invites')
+                    DB::table('qr_invites')
                         ->where('id', $invite->id)
                         ->update(['class_id' => $classe->id]);
                 }

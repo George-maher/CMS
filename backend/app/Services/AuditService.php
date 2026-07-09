@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Contracts\AuditServiceInterface;
 use App\Models\AuditLog;
+use App\Models\User;
 
 class AuditService implements AuditServiceInterface
 {
@@ -29,7 +30,7 @@ class AuditService implements AuditServiceInterface
         ?int $userId = null,
         ?int $churchId = null,
     ): void {
-        if (app()->runningInConsole() && !app()->runningUnitTests()) {
+        if (app()->runningInConsole() && ! app()->runningUnitTests()) {
             return;
         }
 
@@ -40,7 +41,7 @@ class AuditService implements AuditServiceInterface
         }
 
         if ($churchId === null) {
-            /** @var \App\Models\User|null $authUser */
+            /** @var User|null $authUser */
             $authUser = auth()->user();
             $churchId = $authUser?->church_id;
         }
@@ -71,11 +72,11 @@ class AuditService implements AuditServiceInterface
         ?array $oldValues = null,
         ?array $newValues = null,
     ): void {
-        /** @var \App\Models\User|null $authUser */
+        /** @var User|null $authUser */
         $authUser = auth()->user();
         $churchId = $authUser?->church_id;
 
-        if (!$churchId && isset($model->church_id)) {
+        if (! $churchId && isset($model->church_id)) {
             $churchId = $model->church_id;
         }
 
@@ -119,7 +120,7 @@ class AuditService implements AuditServiceInterface
 
     private function maskValue(string $field, mixed $value): string
     {
-        if (!is_string($value) || strlen($value) === 0) {
+        if (! is_string($value) || strlen($value) === 0) {
             return '***masked***';
         }
 
@@ -128,7 +129,7 @@ class AuditService implements AuditServiceInterface
             'email' => $this->maskEmail((string) $value),
             'phone' => $this->maskPhone((string) $value),
             'attendance_qr_token', 'email_verification_token', 'remember_token' => '***masked***',
-            'address', 'member_address' => strlen((string) $value) > 10 ? substr((string) $value, 0, 5) . '...' : '***masked***',
+            'address', 'member_address' => strlen((string) $value) > 10 ? substr((string) $value, 0, 5).'...' : '***masked***',
             default => '***masked***',
         };
     }
@@ -139,9 +140,9 @@ class AuditService implements AuditServiceInterface
         $name = $parts[0] ?? '';
         $domain = $parts[1] ?? '';
         $visible = min(2, (int) ceil(strlen($name) / 3));
-        $masked = substr($name, 0, $visible) . str_repeat('*', strlen($name) - $visible);
+        $masked = substr($name, 0, $visible).str_repeat('*', strlen($name) - $visible);
 
-        return $masked . '@' . $domain;
+        return $masked.'@'.$domain;
     }
 
     private function maskPhone(string $phone): string
@@ -153,6 +154,6 @@ class AuditService implements AuditServiceInterface
             return str_repeat('*', $len);
         }
 
-        return substr($cleanedStr, 0, 3) . str_repeat('*', $len - 6) . substr($cleanedStr, -3);
+        return substr($cleanedStr, 0, 3).str_repeat('*', $len - 6).substr($cleanedStr, -3);
     }
 }

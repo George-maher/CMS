@@ -6,8 +6,11 @@ use App\Contracts\ChurchApplicationServiceInterface;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ChurchApplicationRequest;
 use App\Http\Resources\ChurchApplicationResource;
+use App\Models\ChurchApplication;
+use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 
 class ChurchApplicationController extends Controller
 {
@@ -17,11 +20,11 @@ class ChurchApplicationController extends Controller
 
     public function store(ChurchApplicationRequest $request): JsonResponse
     {
-        /** @var \Illuminate\Http\UploadedFile|null $frontId */
+        /** @var UploadedFile|null $frontId */
         $frontId = $request->file('front_id');
-        /** @var \Illuminate\Http\UploadedFile|null $backId */
+        /** @var UploadedFile|null $backId */
         $backId = $request->file('back_id');
-        /** @var \Illuminate\Http\UploadedFile|null $permissionDoc */
+        /** @var UploadedFile|null $permissionDoc */
         $permissionDoc = $request->file('church_permission_doc');
         /** @var string $email */
         $email = $request->input('email');
@@ -43,9 +46,9 @@ class ChurchApplicationController extends Controller
             ? 'Application updated successfully.'
             : 'Application submitted successfully. You can now login to track your application status.';
 
-        /** @var \App\Models\ChurchApplication $application */
+        /** @var ChurchApplication $application */
         $application = $result['application'];
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = $result['user'];
 
         return response()->json([
@@ -67,7 +70,7 @@ class ChurchApplicationController extends Controller
         $email = $request->input('email');
         $application = $this->churchApplicationService->findByEmail($email);
 
-        if (!$application) {
+        if (! $application) {
             return response()->json(['data' => null]);
         }
 

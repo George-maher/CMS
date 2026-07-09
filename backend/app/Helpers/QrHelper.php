@@ -15,11 +15,11 @@ class QrHelper
 
     public static function generateInviteUrl(string $token): string
     {
-        return url('/invite/' . $token);
+        return url('/invite/'.$token);
     }
 
     public static function generateAttendanceUrl(string $token): string
     {
-        return url('/attendance/' . $token);
+        return url('/attendance/'.$token);
     }
 }

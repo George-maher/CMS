@@ -4,7 +4,9 @@ namespace App\Models;
 
 use App\Enums\UserRole;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 
 /**
  * @property int $id
@@ -12,8 +14,8 @@ use Illuminate\Support\Facades\Cache;
  * @property string $name
  * @property string|null $group
  * @property string|null $description
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
  */
 class Permission extends Model
 {
@@ -31,11 +33,12 @@ class Permission extends Model
     /** @return array<int, string> */
     public static function getPermissionsForRole(string $roleName): array
     {
-        $result = \Illuminate\Support\Facades\DB::table('role_permission as rp')
+        $result = DB::table('role_permission as rp')
             ->join('permissions as p', 'rp.permission_key', '=', 'p.key')
             ->where('rp.role_name', $roleName)
             ->pluck('p.key')
             ->toArray();
+
         /** @var array<int, string> $result */
         return $result;
     }

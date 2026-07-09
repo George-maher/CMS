@@ -20,9 +20,10 @@ class ResetApplicationData extends Command
 
     public function handle(): int
     {
-        if (!$this->option('force')) {
-            if (!$this->confirm('WARNING: This will delete ALL application data. Are you sure?')) {
+        if (! $this->option('force')) {
+            if (! $this->confirm('WARNING: This will delete ALL application data. Are you sure?')) {
                 $this->info('Operation cancelled.');
+
                 return self::FAILURE;
             }
         }
@@ -38,25 +39,25 @@ class ResetApplicationData extends Command
 
         /** @var array<string, string> $tables */
         $tables = [
-            'points'                 => 'Points',
-            'attendances'            => 'Attendances',
-            'feedback'               => 'Feedback',
-            'daily_verses'           => 'Daily Verses',
-            'events'                 => 'Events',
-            'attendance_contexts'    => 'Attendance Contexts',
-            'qr_invites'             => 'QR Invites',
-            'class_years'            => 'Class Years',
-            'audit_logs'             => 'Audit Logs',
-            'churches'               => 'Churches',
-            'church_applications'    => 'Church Applications',
+            'points' => 'Points',
+            'attendances' => 'Attendances',
+            'feedback' => 'Feedback',
+            'daily_verses' => 'Daily Verses',
+            'events' => 'Events',
+            'attendance_contexts' => 'Attendance Contexts',
+            'qr_invites' => 'QR Invites',
+            'class_years' => 'Class Years',
+            'audit_logs' => 'Audit Logs',
+            'churches' => 'Churches',
+            'church_applications' => 'Church Applications',
             'personal_access_tokens' => 'Personal Access Tokens',
-            'sessions'               => 'Sessions',
-            'cache'                  => 'Cache',
-            'cache_locks'            => 'Cache Locks',
-            'jobs'                   => 'Jobs',
-            'job_batches'            => 'Job Batches',
-            'failed_jobs'            => 'Failed Jobs',
-            'password_reset_tokens'  => 'Password Reset Tokens',
+            'sessions' => 'Sessions',
+            'cache' => 'Cache',
+            'cache_locks' => 'Cache Locks',
+            'jobs' => 'Jobs',
+            'job_batches' => 'Job Batches',
+            'failed_jobs' => 'Failed Jobs',
+            'password_reset_tokens' => 'Password Reset Tokens',
         ];
 
         foreach ($tables as $table => $label) {
@@ -97,7 +98,7 @@ class ResetApplicationData extends Command
         $deletedUsers = 0;
         if ($userCount > 0) {
             DB::table('users')->update([
-                'invite_id'  => null,
+                'invite_id' => null,
                 'servant_id' => null,
                 'created_by' => null,
             ]);
@@ -118,13 +119,13 @@ class ResetApplicationData extends Command
         $platformPassword = $this->option('platform-password');
 
         User::create([
-            'name'               => 'Platform Admin',
-            'email'              => $platformEmail,
-            'password'           => Hash::make($platformPassword),
-            'role'               => UserRole::PlatformAdmin,
-            'is_active'          => true,
+            'name' => 'Platform Admin',
+            'email' => $platformEmail,
+            'password' => Hash::make($platformPassword),
+            'role' => UserRole::PlatformAdmin,
+            'is_active' => true,
             'application_status' => 'approved',
-            'attendance_qr_token'=> User::generateAttendanceQrToken(),
+            'attendance_qr_token' => User::generateAttendanceQrToken(),
         ]);
 
         $this->newLine();
@@ -146,7 +147,7 @@ class ResetApplicationData extends Command
             AttendanceContext::create($context);
         }
         $this->line('  Attendance Contexts: 6 defaults seeded.');
-        $this->line('  Migrations table: preserved (' . DB::table('migrations')->count() . ' migrations).');
+        $this->line('  Migrations table: preserved ('.DB::table('migrations')->count().' migrations).');
 
         $duration = round(microtime(true) - $startTime, 2);
 
@@ -157,15 +158,15 @@ class ResetApplicationData extends Command
         $this->line('');
         $this->line("  Duration: {$duration}s");
         $this->line('');
-        $this->line('  Tables cleaned:        ' . count($deleted));
-        $this->line('  Total records removed: ' . array_sum($deleted));
+        $this->line('  Tables cleaned:        '.count($deleted));
+        $this->line('  Total records removed: '.array_sum($deleted));
         $this->line('');
         $this->line('  Platform Admin:');
         $this->line("    Email:    {$platformEmail}");
         $this->line("    Password: {$platformPassword}");
         $this->line('');
         $this->line('  Remaining system records:');
-        $this->line('    Migrations: ' . DB::table('migrations')->count());
+        $this->line('    Migrations: '.DB::table('migrations')->count());
         $this->line('    Platform Admins: 1');
         $this->line('');
         $this->info('  System is fully operational.');

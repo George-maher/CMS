@@ -18,11 +18,17 @@ class AbsentMemberTest extends TestCase
     use RefreshDatabase;
 
     private Church $church;
+
     private Church $church2;
+
     private Classe $classe;
+
     private User $admin;
+
     private User $servant;
+
     private User $servantOtherClass;
+
     private User $member;
 
     protected function setUp(): void
@@ -69,6 +75,7 @@ class AbsentMemberTest extends TestCase
     private function actingAsUser(User $user): self
     {
         $token = $user->createToken('test')->plainTextToken;
+
         return $this->withHeader('Authorization', "Bearer $token");
     }
 
@@ -109,7 +116,7 @@ class AbsentMemberTest extends TestCase
 
         $this->actingAsUser($this->admin);
 
-        $response = $this->getJson('/api/v1/attendances/absent-members?class_id=' . $this->classe->id);
+        $response = $this->getJson('/api/v1/attendances/absent-members?class_id='.$this->classe->id);
 
         $response->assertStatus(200);
 
@@ -160,7 +167,7 @@ class AbsentMemberTest extends TestCase
 
         $this->actingAsUser($this->admin);
 
-        $response = $this->getJson('/api/v1/attendances/absent-members?class_id=' . $this->classe->id);
+        $response = $this->getJson('/api/v1/attendances/absent-members?class_id='.$this->classe->id);
 
         $response->assertStatus(200);
 
@@ -192,7 +199,7 @@ class AbsentMemberTest extends TestCase
 
         $this->actingAsUser($this->admin);
 
-        $response = $this->getJson('/api/v1/attendances/absent-members?class_id=' . $this->classe->id);
+        $response = $this->getJson('/api/v1/attendances/absent-members?class_id='.$this->classe->id);
 
         $response->assertStatus(200);
 
@@ -234,7 +241,7 @@ class AbsentMemberTest extends TestCase
         $this->actingAsUser($this->admin);
 
         // Query only classe A
-        $response = $this->getJson('/api/v1/attendances/absent-members?class_id=' . $this->classe->id);
+        $response = $this->getJson('/api/v1/attendances/absent-members?class_id='.$this->classe->id);
 
         $response->assertStatus(200);
 
@@ -265,7 +272,7 @@ class AbsentMemberTest extends TestCase
 
         $this->actingAsUser($this->servant);
 
-        $response = $this->getJson('/api/v1/attendances/absent-members?class_id=' . $this->classe->id);
+        $response = $this->getJson('/api/v1/attendances/absent-members?class_id='.$this->classe->id);
 
         $response->assertStatus(200);
 
@@ -291,7 +298,7 @@ class AbsentMemberTest extends TestCase
         $this->actingAsUser($this->servant);
 
         // Servant tries to access a class they are not assigned to
-        $response = $this->getJson('/api/v1/attendances/absent-members?class_id=' . $otherClasse->id);
+        $response = $this->getJson('/api/v1/attendances/absent-members?class_id='.$otherClasse->id);
 
         $response->assertStatus(200);
 
@@ -334,7 +341,7 @@ class AbsentMemberTest extends TestCase
     {
         $this->actingAsUser($this->member);
 
-        $response = $this->getJson('/api/v1/attendances/absent-members?class_id=' . $this->classe->id);
+        $response = $this->getJson('/api/v1/attendances/absent-members?class_id='.$this->classe->id);
 
         $response->assertStatus(403);
     }
@@ -366,7 +373,7 @@ class AbsentMemberTest extends TestCase
         // Admin from church 1 attempts to access church 2's absent members
         $this->actingAsUser($this->admin);
 
-        $response = $this->getJson('/api/v1/attendances/absent-members?class_id=' . $classeChurch2->id);
+        $response = $this->getJson('/api/v1/attendances/absent-members?class_id='.$classeChurch2->id);
 
         $response->assertStatus(200);
 
@@ -432,8 +439,8 @@ class AbsentMemberTest extends TestCase
 
         // Filter by context A: only 2 present
         $response = $this->getJson(
-            '/api/v1/attendances/absent-members?class_id=' . $this->classe->id
-            . '&context_id=' . $contextA->id
+            '/api/v1/attendances/absent-members?class_id='.$this->classe->id
+            .'&context_id='.$contextA->id
         );
 
         $response->assertStatus(200);
@@ -484,8 +491,8 @@ class AbsentMemberTest extends TestCase
         // Filter by today — should show all as absent
         $today = now()->format('Y-m-d');
         $response = $this->getJson(
-            '/api/v1/attendances/absent-members?class_id=' . $this->classe->id
-            . '&date=' . $today
+            '/api/v1/attendances/absent-members?class_id='.$this->classe->id
+            .'&date='.$today
         );
 
         $response->assertStatus(200);
@@ -515,7 +522,7 @@ class AbsentMemberTest extends TestCase
 
         $this->actingAsUser($this->admin);
 
-        $response = $this->getJson('/api/v1/attendances/absent-members?class_id=' . $this->classe->id);
+        $response = $this->getJson('/api/v1/attendances/absent-members?class_id='.$this->classe->id);
 
         $response->assertStatus(200);
 
@@ -584,8 +591,8 @@ class AbsentMemberTest extends TestCase
         $this->actingAsUser($this->admin);
 
         $response = $this->getJson(
-            '/api/v1/attendances/absent-members?class_id=' . $this->classe->id
-            . '&context_id=' . $context->id
+            '/api/v1/attendances/absent-members?class_id='.$this->classe->id
+            .'&context_id='.$context->id
         );
 
         $response->assertStatus(200);
@@ -634,8 +641,8 @@ class AbsentMemberTest extends TestCase
         $this->actingAsUser($this->admin);
 
         $response = $this->getJson(
-            '/api/v1/attendances/absent-members?class_id=' . $this->classe->id
-            . '&context_id=' . $context->id
+            '/api/v1/attendances/absent-members?class_id='.$this->classe->id
+            .'&context_id='.$context->id
         );
 
         $response->assertStatus(200);
@@ -727,8 +734,8 @@ class AbsentMemberTest extends TestCase
         $this->actingAsUser($this->admin);
 
         $response = $this->getJson(
-            '/api/v1/attendances/absent-members?class_id=' . $this->classe->id
-            . '&context_id=' . $context->id
+            '/api/v1/attendances/absent-members?class_id='.$this->classe->id
+            .'&context_id='.$context->id
         );
 
         $response->assertStatus(200);

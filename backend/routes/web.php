@@ -1,5 +1,6 @@
 <?php
 
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -8,9 +9,9 @@ Route::get('/', function () {
 
 Route::get('/health', function () {
     try {
-        \Illuminate\Support\Facades\DB::connection()->getPdo();
+        DB::connection()->getPdo();
         $dbStatus = 'connected';
-    } catch (\Exception $e) {
+    } catch (Exception $e) {
         $dbStatus = 'disconnected';
     }
 
@@ -39,9 +40,9 @@ Route::get('/health', function () {
 |
 */
 Route::get('/storage/{path}', function (string $path) {
-    $fullPath = storage_path('app/public/' . $path);
+    $fullPath = storage_path('app/public/'.$path);
 
-    if (!file_exists($fullPath) || is_dir($fullPath)) {
+    if (! file_exists($fullPath) || is_dir($fullPath)) {
         abort(404);
     }
 

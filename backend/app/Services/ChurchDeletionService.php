@@ -22,7 +22,11 @@ use App\Models\QRInvite;
 use App\Models\Stage;
 use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class ChurchDeletionService
 {
@@ -71,7 +75,7 @@ class ChurchDeletionService
     public function softDelete(Church $church, User $admin): Church
     {
         if ($church->trashed()) {
-            throw \Illuminate\Validation\ValidationException::withMessages([
+            throw ValidationException::withMessages([
                 'church' => [__('church_deletion.already_deleted')],
             ]);
         }
@@ -121,14 +125,14 @@ class ChurchDeletionService
 
     public function restore(Church $church, User $admin): Church
     {
-        if (!$church->trashed()) {
-            throw \Illuminate\Validation\ValidationException::withMessages([
+        if (! $church->trashed()) {
+            throw ValidationException::withMessages([
                 'church' => [__('church_deletion.not_deleted')],
             ]);
         }
 
-        if (!$church->isRecoverable()) {
-            throw \Illuminate\Validation\ValidationException::withMessages([
+        if (! $church->isRecoverable()) {
+            throw ValidationException::withMessages([
                 'church' => [__('church_deletion.recovery_window_expired')],
             ]);
         }
@@ -173,17 +177,17 @@ class ChurchDeletionService
         $perPage = min($perPage, 100);
         $query = Church::onlyTrashed()
             ->with(['deletedBy' => function ($q) {
-                /** @var \Illuminate\Database\Eloquent\Relations\BelongsTo<\App\Models\User, \App\Models\Church> $q */
+                /** @var BelongsTo<User, Church> $q */
                 $q->select('id', 'name', 'email');
             }])
             ->withCount('users');
 
         if ($search) {
-            $query->where(function (\Illuminate\Database\Eloquent\Builder $q) use ($search) {
+            $query->where(function (Builder $q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('priest_name', 'like', "%{$search}%")
-                  ->orWhere('contact_email', 'like', "%{$search}%")
-                  ->orWhere('slug', 'like', "%{$search}%");
+                    ->orWhere('priest_name', 'like', "%{$search}%")
+                    ->orWhere('contact_email', 'like', "%{$search}%")
+                    ->orWhere('slug', 'like', "%{$search}%");
             });
         }
 
@@ -211,11 +215,11 @@ class ChurchDeletionService
         $church = Church::onlyTrashed()
             ->with([
                 'deletedBy' => function ($q) {
-                    /** @var \Illuminate\Database\Eloquent\Relations\BelongsTo<\App\Models\User, \App\Models\Church> $q */
+                    /** @var BelongsTo<User, Church> $q */
                     $q->select('id', 'name', 'email');
                 },
                 'users' => function ($q) {
-                    /** @var \Illuminate\Database\Eloquent\Relations\HasMany<\App\Models\User, \App\Models\Church> $q */
+                    /** @var HasMany<User, Church> $q */
                     $q->select('id', 'name', 'email', 'role', 'is_active');
                 },
             ])

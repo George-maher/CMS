@@ -30,7 +30,7 @@ class EventService implements EventServiceInterface
             $user = User::find($userId);
             $classIds = $user?->getServantClassIds();
 
-            if (!empty($classIds)) {
+            if (! empty($classIds)) {
                 $queryFilters['class_year_ids'] = $classIds;
             } else {
                 $queryFilters['class_year_ids'] = [0];
@@ -47,7 +47,7 @@ class EventService implements EventServiceInterface
             }
         }
 
-        /** @var \App\Models\User|null $authUser */
+        /** @var User|null $authUser */
         $authUser = auth()->user();
         $churchId = $authUser?->church_id;
 
@@ -77,7 +77,7 @@ class EventService implements EventServiceInterface
     {
         $event = $this->eventRepository->findById($id);
 
-        if (!$event) {
+        if (! $event) {
             return null;
         }
 
@@ -98,12 +98,12 @@ class EventService implements EventServiceInterface
     public function create(array $data, int $creatorId, ?string $creatorRole = null, ?int $creatorClassYearId = null): array
     {
         /** @var array<string, mixed> $data */
-        if (!isset($data['type'])) {
+        if (! isset($data['type'])) {
             $data['type'] = 'service';
         }
 
         if ($creatorRole === UserRole::Servant->value && $creatorClassYearId) {
-            if (!isset($data['class_year_id']) && !isset($data['target_class_ids']) && empty($data['is_all_classes'])) {
+            if (! isset($data['class_year_id']) && ! isset($data['target_class_ids']) && empty($data['is_all_classes'])) {
                 $data['class_year_id'] = $creatorClassYearId;
             }
         }
@@ -133,7 +133,7 @@ class EventService implements EventServiceInterface
 
         if ($hasAllClasses) {
             // Send to all active members — no additional class filter needed
-        } elseif (!empty($targetClassIds)) {
+        } elseif (! empty($targetClassIds)) {
             $query->whereIn('class_id', $targetClassIds);
         } elseif ($event->class_year_id) {
             $query->where('class_year_id', $event->class_year_id);
@@ -148,7 +148,7 @@ class EventService implements EventServiceInterface
 
         $churchId = $event->church_id ?? 0;
         $title = 'New Event Available';
-        $body = strval($event->name) . ' — ' . ($event->event_date ? $event->event_date->format('M j, Y g:i A') : 'Check it out!');
+        $body = strval($event->name).' — '.($event->event_date ? $event->event_date->format('M j, Y g:i A') : 'Check it out!');
 
         $this->notificationService->createForEvent(
             targetUserIds: $targetUserIds,
@@ -166,7 +166,7 @@ class EventService implements EventServiceInterface
         /** @var array<string, mixed> $data */
         $updated = $this->eventRepository->update($id, $data);
 
-        if (!$updated) {
+        if (! $updated) {
             throw ValidationException::withMessages([
                 'event' => ['Event not found.'],
             ]);
@@ -174,7 +174,7 @@ class EventService implements EventServiceInterface
 
         $event = $this->eventRepository->findById($id);
 
-        if (!$event) {
+        if (! $event) {
             throw ValidationException::withMessages([
                 'event' => ['Event not found after update.'],
             ]);
@@ -190,7 +190,7 @@ class EventService implements EventServiceInterface
     public function delete(int $id): void
     {
         $event = $this->eventRepository->findById($id);
-        if (!$event) {
+        if (! $event) {
             throw ValidationException::withMessages([
                 'event' => ['Event not found.'],
             ]);
@@ -207,7 +207,7 @@ class EventService implements EventServiceInterface
     {
         $event = $this->eventRepository->findById($eventId);
 
-        if (!$event) {
+        if (! $event) {
             throw ValidationException::withMessages([
                 'event' => ['Event not found.'],
             ]);
@@ -241,12 +241,12 @@ class EventService implements EventServiceInterface
 
     /** @param array<string, mixed> $filters */
     /** @param array<int>|int|null $servantClassIds */
-    /** @return Collection<int, \App\Models\User> */
+    /** @return Collection<int, User> */
     public function viewedUsers(int $eventId, array $filters = [], array|int|null $servantClassIds = null): Collection
     {
         $event = $this->eventRepository->findById($eventId);
 
-        if (!$event) {
+        if (! $event) {
             throw ValidationException::withMessages([
                 'event' => ['Event not found.'],
             ]);
@@ -255,7 +255,7 @@ class EventService implements EventServiceInterface
         $viewedUserIds = $event->views()->pluck('user_id');
 
         if ($viewedUserIds->isEmpty()) {
-            return new Collection();
+            return new Collection;
         }
 
         $query = User::query()->byChurch()->whereIn('id', $viewedUserIds)->with('classe');
@@ -265,21 +265,21 @@ class EventService implements EventServiceInterface
             $query->whereIn('class_id', $servantClassIds);
         }
 
-        if (!empty($filters['class_id'])) {
+        if (! empty($filters['class_id'])) {
             $query->where('class_id', $filters['class_id']);
         }
 
-        if (!empty($filters['search'])) {
+        if (! empty($filters['search'])) {
             /** @var string $searchTerm */
             $searchTerm = $filters['search'];
-            $query->where('name', 'like', '%' . $searchTerm . '%');
+            $query->where('name', 'like', '%'.$searchTerm.'%');
         }
 
         $users = $query->get();
 
         $viewedUserIds = $users->pluck('id')->toArray();
         $viewedAtMap = [];
-        if (!empty($viewedUserIds)) {
+        if (! empty($viewedUserIds)) {
             $views = $event->views()->whereIn('user_id', $viewedUserIds)->get(['user_id', 'viewed_at']);
             foreach ($views as $view) {
                 $viewedAtMap[$view->user_id] = $view->viewed_at;
@@ -295,12 +295,12 @@ class EventService implements EventServiceInterface
 
     /** @param array<string, mixed> $filters */
     /** @param array<int>|int|null $servantClassIds */
-    /** @return \Illuminate\Database\Eloquent\Collection<int, \App\Models\User> */
+    /** @return Collection<int, User> */
     public function notViewedUsers(int $eventId, ?int $churchId = null, array $filters = [], array|int|null $servantClassIds = null): Collection
     {
         $event = $this->eventRepository->findById($eventId);
 
-        if (!$event) {
+        if (! $event) {
             throw ValidationException::withMessages([
                 'event' => ['Event not found.'],
             ]);
@@ -316,11 +316,11 @@ class EventService implements EventServiceInterface
             $query = $query->whereIn('class_id', $servantClassIds);
         }
 
-        if (!empty($filters['class_id'])) {
+        if (! empty($filters['class_id'])) {
             $query = $query->where('class_id', $filters['class_id']);
         }
 
-        if (!empty($filters['search'])) {
+        if (! empty($filters['search'])) {
             /** @var string $searchTerm */
             $searchTerm = $filters['search'];
             $query = $query->filter(function (User $user) use ($searchTerm) {
@@ -340,7 +340,7 @@ class EventService implements EventServiceInterface
     {
         $event = $this->eventRepository->findById($eventId);
 
-        if (!$event) {
+        if (! $event) {
             throw ValidationException::withMessages([
                 'event' => ['Event not found.'],
             ]);
@@ -349,7 +349,7 @@ class EventService implements EventServiceInterface
         $event->trackView($userId, $ipAddress, $userAgent);
     }
 
-    /** @return \Illuminate\Database\Eloquent\Collection<int, \App\Models\User> */
+    /** @return Collection<int, User> */
     private function targetUsers(Event $event): Collection
     {
         $query = User::query()->byChurch()->byRole(UserRole::Member)->active();
@@ -360,7 +360,7 @@ class EventService implements EventServiceInterface
 
         if ($hasAllClasses) {
             // All members
-        } elseif (!empty($targetClassIds)) {
+        } elseif (! empty($targetClassIds)) {
             $query->whereIn('class_id', $targetClassIds);
         } elseif ($event->class_year_id) {
             $query->where('class_year_id', $event->class_year_id);

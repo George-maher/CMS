@@ -3,6 +3,7 @@
 namespace App\Models\Scopes;
 
 use App\Enums\UserRole;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Scope;
@@ -18,13 +19,13 @@ class ChurchScope implements Scope
             return;
         }
 
-        $builder->where($model->getTable() . '.church_id', $churchId);
+        $builder->where($model->getTable().'.church_id', $churchId);
     }
 
     private function resolveChurchId(): ?int
     {
         // 1. Authenticated user
-        /** @var \App\Models\User|null $user */
+        /** @var User|null $user */
         $user = Auth::user();
         if ($user) {
             if ($user->role === UserRole::PlatformAdmin) {
@@ -33,6 +34,7 @@ class ChurchScope implements Scope
             if ($user->church_id) {
                 return (int) $user->church_id;
             }
+
             return null;
         }
 
@@ -45,6 +47,7 @@ class ChurchScope implements Scope
         if ($request && $request->hasHeader('X-Church-ID')) {
             /** @var string $headerValue */
             $headerValue = $request->header('X-Church-ID');
+
             return (int) $headerValue;
         }
 

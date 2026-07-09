@@ -2,14 +2,18 @@
 
 namespace App\Http\Resources;
 
+use App\Models\AttendanceContext;
+use App\Models\Classe;
+use App\Models\QRInvite;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Collection;
 
-/** @mixin \App\Models\QRInvite */
+/** @mixin QRInvite */
 class QRInviteResource extends JsonResource
 {
-    /** @var array<int, \App\Models\User>|null */
+    /** @var array<int, User>|null */
     private static ?array $liveUsersCache = null;
 
     /** @return array<string, mixed> */
@@ -38,14 +42,16 @@ class QRInviteResource extends JsonResource
             'url' => (function () {
                 /** @var string $frontendUrl */
                 $frontendUrl = config('app.frontend_url');
+
                 return $frontendUrl;
-            })() . '/invite/' . urlencode($this->token),
+            })().'/invite/'.urlencode($this->token),
             'type' => $this->type?->value,
             'type_label' => $this->type?->label(),
             'status' => $status,
             'creator' => $this->when($this->creator !== null, function () {
-                /** @var \App\Models\User $creator */
+                /** @var User $creator */
                 $creator = $this->creator;
+
                 return [
                     'id' => $creator->id,
                     'name' => $creator->name,
@@ -54,8 +60,9 @@ class QRInviteResource extends JsonResource
                 ];
             }),
             'used_by' => $this->when($this->usedBy !== null, function () {
-                /** @var \App\Models\User $usedBy */
+                /** @var User $usedBy */
                 $usedBy = $this->usedBy;
+
                 return [
                     'id' => $usedBy->id,
                     'name' => $usedBy->name,
@@ -73,8 +80,9 @@ class QRInviteResource extends JsonResource
             'created_at' => $this->created_at,
             'used_at' => $this->used_at,
             'classe' => $this->when($this->classe !== null, function () {
-                /** @var \App\Models\Classe $classe */
+                /** @var Classe $classe */
                 $classe = $this->classe;
+
                 return [
                     'id' => $classe->id,
                     'name' => $classe->name,
@@ -83,8 +91,9 @@ class QRInviteResource extends JsonResource
                 ];
             }),
             'attendance_context' => $this->when($this->attendanceContext !== null, function () {
-                /** @var \App\Models\AttendanceContext $attendanceContext */
+                /** @var AttendanceContext $attendanceContext */
                 $attendanceContext = $this->attendanceContext;
+
                 return [
                     'id' => $attendanceContext->id,
                     'name' => $attendanceContext->name,
@@ -100,13 +109,13 @@ class QRInviteResource extends JsonResource
             'max_uses' => $this->max_uses,
             'remaining_uses' => $remaining,
             'usage_label' => $this->max_uses
-                ? ($this->use_count . ' / ' . $this->max_uses)
+                ? ($this->use_count.' / '.$this->max_uses)
                 : null,
         ];
     }
 
     /**
-     * @param array<int, array{id: int, name: string, role: string|null, phone: string|null, member_id: string|null, class_id: int|null, class_name: string|null, stage_name: string|null, used_at: string}>|null $usedByUsers
+     * @param  array<int, array{id: int, name: string, role: string|null, phone: string|null, member_id: string|null, class_id: int|null, class_name: string|null, stage_name: string|null, used_at: string}>|null  $usedByUsers
      * @return array<int, array{id: int, name: string, role: string|null, phone: string|null, member_id: string|null, class_id: int|null, class_name: string|null, stage_name: string|null, used_at: string}>|null
      */
     private function enrichUsedByUsers(?array $usedByUsers): ?array
@@ -116,7 +125,7 @@ class QRInviteResource extends JsonResource
         }
 
         if (self::$liveUsersCache === null) {
-            /** @var \App\Models\QRInvite $invite */
+            /** @var QRInvite $invite */
             $invite = $this->resource;
             self::loadUsedByUsersBatch([$invite]);
         }
@@ -125,7 +134,7 @@ class QRInviteResource extends JsonResource
         $enriched = collect($usedByUsers)->map(function (array $entry) {
             /** @var int $entryId */
             $entryId = $entry['id'];
-            /** @var \App\Models\User|null $liveUser */
+            /** @var User|null $liveUser */
             $liveUser = self::$liveUsersCache[$entryId] ?? null;
             if ($liveUser) {
                 $entry['name'] = $liveUser->name;
@@ -134,20 +143,22 @@ class QRInviteResource extends JsonResource
                 $entry['class_name'] = $liveUser->classe?->name;
                 $entry['stage_name'] = $liveUser->classe?->stage?->name;
             }
+
             return $entry;
         })->values()->toArray();
+
         return $enriched;
     }
 
     /**
-     * @param \Illuminate\Support\Collection<int, \App\Models\QRInvite>|array<int, \App\Models\QRInvite> $invites
+     * @param  Collection<int, QRInvite>|array<int, QRInvite>  $invites
      */
-    public static function loadUsedByUsersBatch(\Illuminate\Support\Collection|array $invites): void
+    public static function loadUsedByUsersBatch(Collection|array $invites): void
     {
-        /** @var \Illuminate\Support\Collection<int, \App\Models\QRInvite> $collection */
+        /** @var Collection<int, QRInvite> $collection */
         $collection = collect($invites);
         $userIds = $collection
-            ->flatMap(function (\App\Models\QRInvite $invite): array {
+            ->flatMap(function (QRInvite $invite): array {
                 return $invite->used_by_users ?? [];
             })
             ->pluck('id')
@@ -156,14 +167,15 @@ class QRInviteResource extends JsonResource
 
         if (empty($userIds)) {
             self::$liveUsersCache = [];
+
             return;
         }
 
         $users = User::whereIn('id', $userIds)->with('classe.stage')->get()->keyBy('id');
-        /** @var array<int, \App\Models\User> $allUsers */
+        /** @var array<int, User> $allUsers */
         $allUsers = $users->all();
         self::$liveUsersCache = $allUsers;
 
-        $firstInvite = $invites instanceof \Illuminate\Support\Collection ? $invites->first() : ($invites[array_key_first($invites)] ?? null);
+        $firstInvite = $invites instanceof Collection ? $invites->first() : ($invites[array_key_first($invites)] ?? null);
     }
 }

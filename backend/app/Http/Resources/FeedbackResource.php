@@ -3,10 +3,11 @@
 namespace App\Http\Resources;
 
 use App\Enums\UserRole;
+use App\Models\Feedback;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
-/** @mixin \App\Models\Feedback */
+/** @mixin Feedback */
 class FeedbackResource extends JsonResource
 {
     /** @return array<string, mixed> */
@@ -17,7 +18,7 @@ class FeedbackResource extends JsonResource
         $isOwner = $authUser && $this->user_id === $authUser->id;
 
         // Servants cannot identify anonymous senders; admins and owners always can
-        $canSeeIdentity = $isAdmin || $isOwner || !$this->is_anonymous;
+        $canSeeIdentity = $isAdmin || $isOwner || ! $this->is_anonymous;
 
         $userLoaded = $this->relationLoaded('user') && $this->user;
 
@@ -57,16 +58,15 @@ class FeedbackResource extends JsonResource
             // Badge for admins: this feedback was submitted anonymously
             'is_anonymous_to_servants' => $this->when($isAdmin, $this->is_anonymous),
 
-            'replies' => $this->when($this->relationLoaded('replies'), fn() =>
-                $this->replies->map(fn($reply) => [
-                    'id' => $reply->id,
-                    'message' => $reply->message,
-                    'user' => [
-                        'id' => $reply->user_id,
-                        'name' => $reply->user->name ?? 'Unknown',
-                    ],
-                    'created_at' => $reply->created_at,
-                ])
+            'replies' => $this->when($this->relationLoaded('replies'), fn () => $this->replies->map(fn ($reply) => [
+                'id' => $reply->id,
+                'message' => $reply->message,
+                'user' => [
+                    'id' => $reply->user_id,
+                    'name' => $reply->user->name ?? 'Unknown',
+                ],
+                'created_at' => $reply->created_at,
+            ])
             ),
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,

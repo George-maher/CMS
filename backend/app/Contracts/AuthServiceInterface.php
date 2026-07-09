@@ -2,6 +2,8 @@
 
 namespace App\Contracts;
 
+use App\Models\User;
+
 interface AuthServiceInterface
 {
     /** @param array<string, mixed> $credentials */
@@ -12,14 +14,14 @@ interface AuthServiceInterface
     /** @return array<string, mixed> */
     public function platformLogin(array $credentials): array;
 
-    public function logout(\App\Models\User $user): void;
+    public function logout(User $user): void;
 
     /** @param array<string, mixed> $data */
     /** @return array<string, mixed> */
     public function register(array $data): array;
 
     /** @return array<string, mixed> */
-    public function getAuthenticatedUser(\App\Models\User $user): array;
+    public function getAuthenticatedUser(User $user): array;
 
     /** @param array<string, mixed> $data */
     /** @return array<string, mixed> */

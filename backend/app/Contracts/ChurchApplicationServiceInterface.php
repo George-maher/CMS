@@ -5,6 +5,7 @@ namespace App\Contracts;
 use App\Models\Church;
 use App\Models\ChurchApplication;
 use App\Models\User;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\UploadedFile;
 
 interface ChurchApplicationServiceInterface
@@ -19,7 +20,7 @@ interface ChurchApplicationServiceInterface
 
     public function reject(ChurchApplication $application, User $platformAdmin, string $reason): ChurchApplication;
 
-    /** @return \Illuminate\Contracts\Pagination\LengthAwarePaginator<int, \App\Models\ChurchApplication> */
+    /** @return LengthAwarePaginator<int, ChurchApplication> */
     public function listApplications(?string $status = null, int $perPage = 15);
 
     public function uploadIdImage(ChurchApplication $application, string $side, UploadedFile $image): ChurchApplication;

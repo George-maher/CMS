@@ -1,5 +1,6 @@
 <?php
 
+use App\Console\Commands\ResetApplicationData;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -9,7 +10,7 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Artisan::command('app:reset-data', function () {
-    $this->call(\App\Console\Commands\ResetApplicationData::class);
+    $this->call(ResetApplicationData::class);
 })->purpose('Delete ALL application data, preserve schema, create fresh Platform Admin');
 
 // ──────────────────────────────────────────────

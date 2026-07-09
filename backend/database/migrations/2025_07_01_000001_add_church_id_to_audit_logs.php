@@ -8,7 +8,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        if (!Schema::hasColumn('audit_logs', 'church_id')) {
+        if (! Schema::hasColumn('audit_logs', 'church_id')) {
             Schema::table('audit_logs', function (Blueprint $table) {
                 $table->foreignId('church_id')
                     ->nullable()

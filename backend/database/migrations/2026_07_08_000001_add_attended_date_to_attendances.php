@@ -16,7 +16,7 @@ return new class extends Migration
 
         // 2. Backfill from attended_at
         $driver = DB::connection()->getDriverName();
-        $dateExpr = $driver === 'sqlite' ? "date(attended_at)" : "attended_at::date";
+        $dateExpr = $driver === 'sqlite' ? 'date(attended_at)' : 'attended_at::date';
         DB::statement("UPDATE attendances SET attended_date = {$dateExpr}");
 
         // 3. Drop old expression-based unique indexes
@@ -29,23 +29,23 @@ return new class extends Migration
         DB::statement('DROP INDEX IF EXISTS attendances_user_date_event_unique');
 
         // 4. Create new unique indexes using attended_date column
-        DB::statement("
+        DB::statement('
             CREATE UNIQUE INDEX attendances_user_context_date_unique
             ON attendances (church_id, user_id, attendance_context_id, attended_date)
             WHERE attendance_context_id IS NOT NULL
-        ");
+        ');
 
-        DB::statement("
+        DB::statement('
             CREATE UNIQUE INDEX attendances_user_event_date_unique
             ON attendances (church_id, user_id, event_id, attended_date)
             WHERE event_id IS NOT NULL
-        ");
+        ');
 
-        DB::statement("
+        DB::statement('
             CREATE UNIQUE INDEX attendances_user_date_plain_unique
             ON attendances (church_id, user_id, attended_date)
             WHERE event_id IS NULL AND attendance_context_id IS NULL
-        ");
+        ');
     }
 
     public function down(): void

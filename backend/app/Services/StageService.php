@@ -4,10 +4,14 @@ namespace App\Services;
 
 use App\Contracts\StageRepositoryInterface;
 use App\Contracts\StageServiceInterface;
+use App\Enums\UserRole;
 use App\Http\Resources\ClasseResource;
 use App\Http\Resources\StageResource;
+use App\Models\Classe;
 use App\Models\Stage;
-use Illuminate\Support\Facades\Auth;
+use App\Models\User;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Validation\ValidationException;
 
 class StageService implements StageServiceInterface
@@ -32,7 +36,7 @@ class StageService implements StageServiceInterface
         $stages = $this->stageRepository->structure($search);
 
         return [
-            'data' => $stages->map(fn(Stage $stage) => [
+            'data' => $stages->map(fn (Stage $stage) => [
                 'id' => $stage->id,
                 'name' => $stage->name,
                 'display_order' => $stage->display_order,
@@ -47,10 +51,10 @@ class StageService implements StageServiceInterface
     {
         $stages = $this->stageRepository->structure($search);
 
-        return $stages->map(fn(Stage $stage) => [
+        return $stages->map(fn (Stage $stage) => [
             'stage_id' => $stage->id,
             'stage_name' => $stage->name,
-            'classes' => $stage->classes->map(fn(\App\Models\Classe $classe) => [
+            'classes' => $stage->classes->map(fn (Classe $classe) => [
                 'id' => $classe->id,
                 'name' => $classe->name,
             ])->values()->all(),
@@ -62,7 +66,9 @@ class StageService implements StageServiceInterface
     {
         $stage = $this->stageRepository->findById($id);
 
-        if (!$stage) return null;
+        if (! $stage) {
+            return null;
+        }
 
         return [
             'data' => new StageResource($stage),
@@ -74,7 +80,7 @@ class StageService implements StageServiceInterface
     public function create(array $data): array
     {
         /** @var array<string, mixed> $data */
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = auth()->user();
         $data['church_id'] = $user->church_id;
         /** @var int $maxOrder */
@@ -113,7 +119,7 @@ class StageService implements StageServiceInterface
     public function update(int $id, array $data): bool
     {
         $stage = $this->stageRepository->findById($id);
-        if (!$stage) {
+        if (! $stage) {
             throw ValidationException::withMessages([
                 'stage' => ['Stage not found.'],
             ]);
@@ -125,7 +131,7 @@ class StageService implements StageServiceInterface
     public function delete(int $id): bool
     {
         $stage = $this->stageRepository->findById($id);
-        if (!$stage) {
+        if (! $stage) {
             throw ValidationException::withMessages([
                 'stage' => ['Stage not found.'],
             ]);
@@ -138,16 +144,16 @@ class StageService implements StageServiceInterface
     public function getClasses(int $stageId, ?string $search = null): array
     {
         $stage = $this->stageRepository->findById($stageId);
-        if (!$stage) {
+        if (! $stage) {
             throw ValidationException::withMessages([
                 'stage' => ['Stage not found.'],
             ]);
         }
 
-        /** @var \Illuminate\Database\Eloquent\Relations\HasMany<\App\Models\Classe, \App\Models\Stage> $classesQuery */
+        /** @var HasMany<Classe, Stage> $classesQuery */
         $classesQuery = $stage->classes();
         $classesQuery = $classesQuery->withCount([
-            'allUsers as member_count' => fn(\Illuminate\Database\Eloquent\Builder $q) => $q->where('role', \App\Enums\UserRole::Member),
+            'allUsers as member_count' => fn (Builder $q) => $q->where('role', UserRole::Member),
             'servants as servant_count',
         ]);
 

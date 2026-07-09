@@ -14,7 +14,7 @@ class SystemMail extends Mailable
     use Queueable, SerializesModels;
 
     /**
-     * @param array<string, mixed> $viewData
+     * @param  array<string, mixed>  $viewData
      */
     public function __construct(
         public User $user,

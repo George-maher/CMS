@@ -29,7 +29,7 @@ class PasswordResetRequestApprovedNotification extends Notification implements S
         if ($locale === 'ar') {
             return (new MailMessage)
                 ->subject('تمت الموافقة على طلب إعادة تعيين كلمة المرور')
-                ->greeting('مرحباً ' . ($notifiable->name ?? '') . '!')
+                ->greeting('مرحباً '.($notifiable->name ?? '').'!')
                 ->line('تمت الموافقة على طلب إعادة تعيين كلمة المرور.')
                 ->line('يمكنك الآن تعيين كلمة مرور جديدة باستخدام الرابط أدناه.')
                 ->action('تعيين كلمة مرور جديدة', $this->resetUrl)
@@ -40,7 +40,7 @@ class PasswordResetRequestApprovedNotification extends Notification implements S
 
         return (new MailMessage)
             ->subject('Your Password Reset Request Has Been Approved')
-            ->greeting('Hello ' . ($notifiable->name ?? '') . '!')
+            ->greeting('Hello '.($notifiable->name ?? '').'!')
             ->line('Your password reset request has been approved.')
             ->line('You may now set a new password using the link below.')
             ->action('Set New Password', $this->resetUrl)

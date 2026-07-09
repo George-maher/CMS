@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\PasswordResetRequestStatus;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 
 /**
@@ -12,17 +13,17 @@ use Illuminate\Support\Str;
  * @property int $user_id
  * @property string $email
  * @property string|null $notes
- * @property \App\Enums\PasswordResetRequestStatus $status
+ * @property PasswordResetRequestStatus $status
  * @property string|null $token
  * @property string|null $rejection_reason
  * @property int|null $reviewed_by
- * @property \Illuminate\Support\Carbon|null $reviewed_at
- * @property \Illuminate\Support\Carbon|null $token_expires_at
- * @property \Illuminate\Support\Carbon|null $used_at
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
- * @property-read \App\Models\User|null $user
- * @property-read \App\Models\User|null $reviewer
+ * @property Carbon|null $reviewed_at
+ * @property Carbon|null $token_expires_at
+ * @property Carbon|null $used_at
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
+ * @property-read User|null $user
+ * @property-read User|null $reviewer
  */
 class PasswordResetRequest extends Model
 {
@@ -49,13 +50,13 @@ class PasswordResetRequest extends Model
         ];
     }
 
-    /** @return BelongsTo<\App\Models\User, $this> */
+    /** @return BelongsTo<User, $this> */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
-    /** @return BelongsTo<\App\Models\User, $this> */
+    /** @return BelongsTo<User, $this> */
     public function reviewer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'reviewed_by');

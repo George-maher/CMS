@@ -7,7 +7,7 @@ use Illuminate\Http\JsonResponse;
 trait ApiResponseTrait
 {
     /** @param array<string, mixed>|null $meta */
-    protected function success(mixed $data = null, string $message = 'Success.', int $status = 200, array $meta = null): JsonResponse
+    protected function success(mixed $data = null, string $message = 'Success.', int $status = 200, ?array $meta = null): JsonResponse
     {
         $response = [
             'success' => true,
@@ -77,7 +77,7 @@ trait ApiResponseTrait
     }
 
     /** @param array<string, mixed>|null $meta */
-    protected function respondWithResource(mixed $resource, string $message = 'Success.', int $status = 200, array $meta = null): JsonResponse
+    protected function respondWithResource(mixed $resource, string $message = 'Success.', int $status = 200, ?array $meta = null): JsonResponse
     {
         $response = [
             'success' => true,

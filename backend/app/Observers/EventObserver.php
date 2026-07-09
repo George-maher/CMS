@@ -20,7 +20,7 @@ class EventObserver
 
     private function cleanupFiles(Event $event): void
     {
-        if (!$event->image) {
+        if (! $event->image) {
             return;
         }
 

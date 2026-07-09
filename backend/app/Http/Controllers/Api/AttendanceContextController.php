@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreAttendanceContextRequest;
 use App\Models\AttendanceContext;
 use App\Models\Scopes\ChurchScope;
+use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -39,7 +40,7 @@ class AttendanceContextController extends Controller
     {
         $this->authorize('create', AttendanceContext::class);
 
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = $request->user();
         $result = $this->contextService->create(
             data: $request->validated(),
@@ -59,7 +60,7 @@ class AttendanceContextController extends Controller
 
         $result = $this->contextService->findById($id);
 
-        if (!$result) {
+        if (! $result) {
             return response()->json(['message' => 'Attendance context not found.'], 404);
         }
 
@@ -71,7 +72,7 @@ class AttendanceContextController extends Controller
         $context = AttendanceContext::withoutGlobalScope(ChurchScope::class)->findOrFail($id);
         $this->authorize('update', $context);
 
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = $request->user();
         $result = $this->contextService->update(
             id: $id,
@@ -102,11 +103,11 @@ class AttendanceContextController extends Controller
         $context = AttendanceContext::withoutGlobalScope(ChurchScope::class)->findOrFail($id);
         $this->authorize('toggleActive', $context);
 
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = request()->user();
         $result = $this->contextService->update(
             id: $id,
-            data: ['is_active' => !$context->is_active],
+            data: ['is_active' => ! $context->is_active],
             updaterId: $user->id,
         );
 

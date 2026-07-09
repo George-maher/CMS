@@ -15,10 +15,10 @@ class ChurchApplicationFactory extends Factory
     public function definition(): array
     {
         return [
-            'church_name' => fake()->company() . ' Church',
+            'church_name' => fake()->company().' Church',
             'priest_name' => fake()->name(),
-            'priest_phone' => '01' . fake()->numerify('#########'),
-            'phone' => '01' . fake()->numerify('#########'),
+            'priest_phone' => '01'.fake()->numerify('#########'),
+            'phone' => '01'.fake()->numerify('#########'),
             'contact_email' => fake()->safeEmail(),
             'status' => 'pending',
         ];

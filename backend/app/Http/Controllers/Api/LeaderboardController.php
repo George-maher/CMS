@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Contracts\LeaderboardServiceInterface;
 use App\Http\Controllers\Controller;
 use App\Models\Classe;
+use App\Models\User;
 use Illuminate\Http\JsonResponse;
 
 class LeaderboardController extends Controller
@@ -24,14 +25,14 @@ class LeaderboardController extends Controller
 
     public function byClass(int $classId): JsonResponse
     {
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = request()->user();
 
         $classe = Classe::byChurch()->findOrFail($classId);
 
         if ($user->isServant()) {
             $servantClassIds = $user->getServantClassIds() ?? [];
-            if (!in_array($classId, $servantClassIds)) {
+            if (! in_array($classId, $servantClassIds)) {
                 abort(403, 'You can only view leaderboards for your assigned classes.');
             }
         }
@@ -54,10 +55,10 @@ class LeaderboardController extends Controller
 
     public function myClass(): JsonResponse
     {
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = request()->user();
 
-        if (!$user->class_id) {
+        if (! $user->class_id) {
             return response()->json([
                 'data' => [
                     'class' => null,
@@ -76,7 +77,7 @@ class LeaderboardController extends Controller
 
     public function myClasses(): JsonResponse
     {
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = request()->user();
 
         $classIds = $user->getServantClassIds() ?? [];

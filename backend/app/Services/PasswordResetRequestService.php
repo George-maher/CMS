@@ -6,9 +6,11 @@ use App\Contracts\PasswordResetRequestServiceInterface;
 use App\Enums\PasswordResetRequestStatus;
 use App\Models\PasswordResetRequest;
 use App\Models\User;
+use App\Notifications\PasswordChangedNotification;
 use App\Notifications\PasswordResetRequestApprovedNotification;
 use App\Notifications\PasswordResetRequestRejectedNotification;
 use App\Notifications\PasswordResetRequestSubmittedNotification;
+use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
@@ -24,7 +26,7 @@ class PasswordResetRequestService implements PasswordResetRequestServiceInterfac
     {
         $user = User::where('email', $data['email'])->first();
 
-        if (!$user || $user->isPlatformAdmin()) {
+        if (! $user || $user->isPlatformAdmin()) {
             return [
                 'message' => __('password_reset_requests.submitted'),
             ];
@@ -88,13 +90,13 @@ class PasswordResetRequestService implements PasswordResetRequestServiceInterfac
                 ->lockForUpdate()
                 ->first();
 
-            if (!$request) {
+            if (! $request) {
                 throw ValidationException::withMessages([
                     'request' => [__('password_reset_requests.not_found')],
                 ]);
             }
 
-            if (!$request->isPending()) {
+            if (! $request->isPending()) {
                 throw ValidationException::withMessages([
                     'request' => [__('password_reset_requests.already_processed')],
                 ]);
@@ -120,7 +122,7 @@ class PasswordResetRequestService implements PasswordResetRequestServiceInterfac
 
             /** @var string $frontendUrl */
             $frontendUrl = config('app.frontend_url');
-            $resetUrl = $frontendUrl . '/reset-password-request?' . http_build_query([
+            $resetUrl = $frontendUrl.'/reset-password-request?'.http_build_query([
                 'token' => $token,
                 'email' => $user->email,
             ]);
@@ -159,13 +161,13 @@ class PasswordResetRequestService implements PasswordResetRequestServiceInterfac
                 ->lockForUpdate()
                 ->first();
 
-            if (!$request) {
+            if (! $request) {
                 throw ValidationException::withMessages([
                     'request' => [__('password_reset_requests.not_found')],
                 ]);
             }
 
-            if (!$request->isPending()) {
+            if (! $request->isPending()) {
                 throw ValidationException::withMessages([
                     'request' => [__('password_reset_requests.already_processed')],
                 ]);
@@ -220,7 +222,7 @@ class PasswordResetRequestService implements PasswordResetRequestServiceInterfac
                 ->lockForUpdate()
                 ->first();
 
-            if (!$request || !$request->isValidToken()) {
+            if (! $request || ! $request->isValidToken()) {
                 throw ValidationException::withMessages([
                     'token' => [__('password_reset_requests.invalid_token')],
                 ]);
@@ -242,10 +244,10 @@ class PasswordResetRequestService implements PasswordResetRequestServiceInterfac
 
             $request->markAsUsed();
 
-            event(new \Illuminate\Auth\Events\PasswordReset($user));
+            event(new PasswordReset($user));
 
             try {
-                $user->notify(new \App\Notifications\PasswordChangedNotification());
+                $user->notify(new PasswordChangedNotification);
             } catch (\Exception $e) {
                 Log::warning('Failed to send password changed notification', [
                     'user_id' => $user->id,
@@ -273,7 +275,7 @@ class PasswordResetRequestService implements PasswordResetRequestServiceInterfac
                 $q->where('church_id', $churchId);
             });
 
-        if (!empty($filters['status'])) {
+        if (! empty($filters['status'])) {
             $query->where('status', $filters['status']);
         }
 

@@ -2,6 +2,8 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\User;
+use Carbon\Carbon;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -11,16 +13,16 @@ class TrackActivity
 {
     public function handle(Request $request, Closure $next): Response
     {
-        /** @var \App\Models\User|null $user */
+        /** @var User|null $user */
         $user = $request->user();
         if ($user) {
-            $cacheKey = 'user-last-active-' . $user->id;
+            $cacheKey = 'user-last-active-'.$user->id;
             $lastActivity = Cache::get($cacheKey);
 
             /** @var int $inactivityLimit */
             $inactivityLimit = config('session.inactivity_timeout', 60);
 
-            if ($lastActivity instanceof \Carbon\Carbon && now()->diffInMinutes($lastActivity) > $inactivityLimit) {
+            if ($lastActivity instanceof Carbon && now()->diffInMinutes($lastActivity) > $inactivityLimit) {
                 $user->tokens()->where('id', $user->currentAccessToken()->id)->delete();
 
                 return response()->json([

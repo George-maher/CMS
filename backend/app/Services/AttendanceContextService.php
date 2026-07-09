@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Contracts\AttendanceContextRepositoryInterface;
 use App\Contracts\AttendanceContextServiceInterface;
 use App\Http\Resources\AttendanceContextResource;
+use App\Models\User;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
@@ -17,7 +18,7 @@ class AttendanceContextService implements AttendanceContextServiceInterface
     /** @return array<string, mixed> */
     public function list(int $perPage = 15): array
     {
-        /** @var \App\Models\User|null $user */
+        /** @var User|null $user */
         $user = auth()->user();
         $churchId = $user?->church_id;
 
@@ -42,7 +43,7 @@ class AttendanceContextService implements AttendanceContextServiceInterface
     /** @return array<string, mixed> */
     public function listActive(): array
     {
-        /** @var \App\Models\User|null $user */
+        /** @var User|null $user */
         $user = auth()->user();
         $churchId = $user?->church_id;
 
@@ -80,7 +81,9 @@ class AttendanceContextService implements AttendanceContextServiceInterface
     public function findById(int $id): ?array
     {
         $context = $this->contextRepository->findById($id);
-        if (!$context) return null;
+        if (! $context) {
+            return null;
+        }
 
         return [
             'data' => new AttendanceContextResource($context),
@@ -90,7 +93,7 @@ class AttendanceContextService implements AttendanceContextServiceInterface
     /** @param array<string, mixed> $data */
     public function create(array $data, int $creatorId): array
     {
-        /** @var \App\Models\User|null $authUser */
+        /** @var User|null $authUser */
         $authUser = auth()->user();
         $churchId = $authUser?->church_id;
 
@@ -112,18 +115,28 @@ class AttendanceContextService implements AttendanceContextServiceInterface
     public function update(int $id, array $data, ?int $updaterId = null): array
     {
         $context = $this->contextRepository->findById($id);
-        if (!$context) {
+        if (! $context) {
             throw ValidationException::withMessages([
                 'id' => ['Attendance context not found.'],
             ]);
         }
 
         $updateData = [];
-        if (isset($data['name'])) $updateData['name'] = $data['name'];
-        if (array_key_exists('name_ar', $data)) $updateData['name_ar'] = $data['name_ar'];
-        if (array_key_exists('description', $data)) $updateData['description'] = $data['description'];
-        if (array_key_exists('is_active', $data)) $updateData['is_active'] = $data['is_active'];
-        if ($updaterId) $updateData['updated_by'] = $updaterId;
+        if (isset($data['name'])) {
+            $updateData['name'] = $data['name'];
+        }
+        if (array_key_exists('name_ar', $data)) {
+            $updateData['name_ar'] = $data['name_ar'];
+        }
+        if (array_key_exists('description', $data)) {
+            $updateData['description'] = $data['description'];
+        }
+        if (array_key_exists('is_active', $data)) {
+            $updateData['is_active'] = $data['is_active'];
+        }
+        if ($updaterId) {
+            $updateData['updated_by'] = $updaterId;
+        }
 
         $this->contextRepository->update($id, $updateData);
 
@@ -135,7 +148,7 @@ class AttendanceContextService implements AttendanceContextServiceInterface
     public function delete(int $id): void
     {
         $context = $this->contextRepository->findById($id);
-        if (!$context) {
+        if (! $context) {
             throw ValidationException::withMessages([
                 'id' => ['Attendance context not found.'],
             ]);

@@ -10,12 +10,12 @@ return new class extends Migration
     public function up(): void
     {
         // Only run backfill if the old class_years table still exists
-        if (!Schema::hasTable('class_years')) {
+        if (! Schema::hasTable('class_years')) {
             goto fix_fks;
         }
 
         // --- Backfill attendances.class_year_id ---
-        DB::statement("
+        DB::statement('
             UPDATE attendances
             SET class_year_id = (
                 SELECT c.id
@@ -29,10 +29,10 @@ return new class extends Migration
                 INNER JOIN classes c ON c.church_id = cy.church_id AND c.name = cy.name
                 WHERE cy.id = attendances.class_year_id
             )
-        ");
+        ');
 
         // --- Backfill events.class_year_id ---
-        DB::statement("
+        DB::statement('
             UPDATE events
             SET class_year_id = (
                 SELECT c.id
@@ -46,10 +46,10 @@ return new class extends Migration
                 INNER JOIN classes c ON c.church_id = cy.church_id AND c.name = cy.name
                 WHERE cy.id = events.class_year_id
             )
-        ");
+        ');
 
         // --- Backfill qr_invites.class_year_id ---
-        DB::statement("
+        DB::statement('
             UPDATE qr_invites
             SET class_year_id = (
                 SELECT c.id
@@ -63,7 +63,7 @@ return new class extends Migration
                 INNER JOIN classes c ON c.church_id = cy.church_id AND c.name = cy.name
                 WHERE cy.id = qr_invites.class_year_id
             )
-        ");
+        ');
 
         fix_fks:
 

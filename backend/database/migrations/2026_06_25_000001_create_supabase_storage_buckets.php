@@ -13,8 +13,9 @@ return new class extends Migration
         $projectUrl = config('supabase-storage.project_url');
         $serviceRoleKey = config('supabase-storage.service_role_key');
 
-        if (!$projectUrl || !$serviceRoleKey) {
+        if (! $projectUrl || ! $serviceRoleKey) {
             Log::warning('Skipped Supabase bucket creation: SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY not set.');
+
             return;
         }
 
@@ -31,7 +32,7 @@ return new class extends Migration
                     Log::warning("Could not create Supabase bucket '{$name}'.");
                 }
             }
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error('Failed to create Supabase storage buckets via migration.', [
                 'error' => $e->getMessage(),
             ]);
@@ -47,8 +48,8 @@ return new class extends Migration
             $name = $config['name'] ?? $key;
             try {
                 $service->deleteBucket($name);
-            } catch (\Exception $e) {
-                Log::warning("Could not delete Supabase bucket '{$name}': " . $e->getMessage());
+            } catch (Exception $e) {
+                Log::warning("Could not delete Supabase bucket '{$name}': ".$e->getMessage());
             }
         }
     }

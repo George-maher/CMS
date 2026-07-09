@@ -12,7 +12,5 @@ return new class extends Migration
         // No data migration is needed for fresh installs.
     }
 
-    public function down(): void
-    {
-    }
+    public function down(): void {}
 };

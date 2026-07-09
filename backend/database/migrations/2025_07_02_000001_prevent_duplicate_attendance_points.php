@@ -1,9 +1,7 @@
 <?php
 
 use Illuminate\Database\Migrations\Migration;
-use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
@@ -18,12 +16,12 @@ return new class extends Migration
             ? DB::selectOne("SELECT 1 FROM sqlite_master WHERE type='index' AND name='points_reference_unique'")
             : DB::selectOne("SELECT 1 FROM pg_class WHERE relname = 'points_reference_unique'");
 
-        if (!$indexExists) {
-            DB::statement("
+        if (! $indexExists) {
+            DB::statement('
                 CREATE UNIQUE INDEX points_reference_unique
                 ON points (reference_type, reference_id)
                 WHERE reference_type IS NOT NULL AND reference_id IS NOT NULL
-            ");
+            ');
         }
 
         // ── 2. Fix attendance unique constraints ────────────────────

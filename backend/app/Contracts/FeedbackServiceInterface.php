@@ -16,8 +16,10 @@ interface FeedbackServiceInterface
 
     /** @return array<string, mixed> */
     public function markAsResolved(int $id): array;
+
     /** @return array<string, mixed> */
     public function reply(int $feedbackId, int $userId, string $message): array;
+
     /** @return array<string, mixed> */
     public function markAsSeen(int $feedbackId, int $userId): array;
 }

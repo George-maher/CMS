@@ -14,7 +14,7 @@ class UserRepository implements UserRepositoryInterface
     {
         $query = User::query();
 
-        if (auth()->check() && !auth()->user()?->isPlatformAdmin()) {
+        if (auth()->check() && ! auth()->user()?->isPlatformAdmin()) {
             $query->byChurch();
         }
 
@@ -32,7 +32,7 @@ class UserRepository implements UserRepositoryInterface
     }
 
     /**
-     * @param array<string, mixed> $data
+     * @param  array<string, mixed>  $data
      */
     public function create(array $data): User
     {
@@ -40,55 +40,57 @@ class UserRepository implements UserRepositoryInterface
     }
 
     /**
-     * @param array<string, mixed> $data
+     * @param  array<string, mixed>  $data
      */
     public function update(int $id, array $data): bool
     {
         $user = $this->findById($id);
-        if (!$user) {
+        if (! $user) {
             return false;
         }
+
         return $user->update($data);
     }
 
     public function delete(int $id): bool
     {
         $user = $this->findById($id);
-        if (!$user) {
+        if (! $user) {
             return false;
         }
+
         return (bool) $user->delete();
     }
 
     /**
-     * @param array<string, mixed> $filters
+     * @param  array<string, mixed>  $filters
      * @return LengthAwarePaginator<int, User>
      */
     public function paginate(int $perPage = 15, array $filters = []): LengthAwarePaginator
     {
         $query = User::query()->byChurch();
 
-        if (!empty($filters['role'])) {
+        if (! empty($filters['role'])) {
             $query->where('role', $filters['role']);
         }
 
-        if (!empty($filters['class_id'])) {
+        if (! empty($filters['class_id'])) {
             $query->where('class_id', $filters['class_id']);
-        } elseif (!empty($filters['class_year_id'])) {
+        } elseif (! empty($filters['class_year_id'])) {
             $query->where('class_year_id', $filters['class_year_id']);
         }
 
-        if (!empty($filters['is_active'])) {
+        if (! empty($filters['is_active'])) {
             $query->where('is_active', $filters['is_active'] === 'true' || $filters['is_active'] === true);
         }
 
-        if (!empty($filters['search'])) {
+        if (! empty($filters['search'])) {
             /** @var string $search */
             $search = $filters['search'];
             $query->search($search);
         }
 
-        if (!empty($filters['created_by'])) {
+        if (! empty($filters['created_by'])) {
             $query->where('created_by', $filters['created_by']);
         }
 
@@ -113,7 +115,9 @@ class UserRepository implements UserRepositoryInterface
     public function findMembersByServant(int $servantId): Collection
     {
         $servant = $this->findById($servantId);
-        if (!$servant) return new Collection();
+        if (! $servant) {
+            return new Collection;
+        }
 
         $classIds = $servant->classes()->pluck('classes.id');
 
@@ -124,12 +128,13 @@ class UserRepository implements UserRepositoryInterface
                     ->byRole(UserRole::Member)
                     ->where(function ($q) use ($fallbackClassId) {
                         $q->where('class_id', $fallbackClassId)
-                          ->orWhere('class_year_id', $fallbackClassId);
+                            ->orWhere('class_year_id', $fallbackClassId);
                     })
                     ->active()
                     ->get();
             }
-            return new Collection();
+
+            return new Collection;
         }
 
         return User::byChurch()
@@ -148,7 +153,7 @@ class UserRepository implements UserRepositoryInterface
             ->byRole(UserRole::Member)
             ->where(function ($q) use ($classYearId) {
                 $q->where('class_id', $classYearId)
-                  ->orWhere('class_year_id', $classYearId);
+                    ->orWhere('class_year_id', $classYearId);
             })
             ->active()
             ->with(['servant', 'classe'])
@@ -164,7 +169,7 @@ class UserRepository implements UserRepositoryInterface
             ->byRole(UserRole::Member)
             ->where(function ($q) use ($classYearId) {
                 $q->where('class_id', $classYearId)
-                  ->orWhere('class_year_id', $classYearId);
+                    ->orWhere('class_year_id', $classYearId);
             })
             ->active()
             ->with(['servant', 'classe'])
@@ -179,49 +184,51 @@ class UserRepository implements UserRepositoryInterface
     public function updateRole(int $id, string $role): bool
     {
         $user = $this->findById($id);
-        if (!$user) {
+        if (! $user) {
             return false;
         }
+
         return $user->update(['role' => $role]);
     }
 
     /**
-     * @return \Illuminate\Database\Eloquent\Collection<int, \App\Models\User>
+     * @return Collection<int, User>
      */
-    public function getServantsByChurch(int $churchId): \Illuminate\Database\Eloquent\Collection
+    public function getServantsByChurch(int $churchId): Collection
     {
         return $this->findServantsByAdmin($churchId);
     }
 
     /**
-     * @return \Illuminate\Database\Eloquent\Collection<int, \App\Models\User>
+     * @return Collection<int, User>
      */
-    public function getMembersByServant(int $servantId): \Illuminate\Database\Eloquent\Collection
+    public function getMembersByServant(int $servantId): Collection
     {
         return $this->findMembersByServant($servantId);
     }
 
     public function demoteFromAdmin(int $id): bool
     {
-        return $this->updateRole($id, \App\Enums\UserRole::Member->value);
+        return $this->updateRole($id, UserRole::Member->value);
     }
 
     /**
-     * @param array<int, int> $ids
-     * @return \Illuminate\Support\Collection<int, \App\Models\User>
+     * @param  array<int, int>  $ids
+     * @return \Illuminate\Support\Collection<int, User>
      */
-    /** @return \Illuminate\Support\Collection<int, \App\Models\User> */
+    /** @return \Illuminate\Support\Collection<int, User> */
     public function findByIds(array $ids): \Illuminate\Support\Collection
     {
         if (empty($ids)) {
-            /** @var \Illuminate\Support\Collection<int, \App\Models\User> $empty */
+            /** @var \Illuminate\Support\Collection<int, User> $empty */
             $empty = collect();
+
             return $empty;
         }
 
         $query = User::query();
 
-        if (auth()->check() && !auth()->user()?->isPlatformAdmin()) {
+        if (auth()->check() && ! auth()->user()?->isPlatformAdmin()) {
             $query->byChurch();
         }
 

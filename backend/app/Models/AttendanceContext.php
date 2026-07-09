@@ -4,9 +4,11 @@ namespace App\Models;
 
 use App\Traits\BelongsToChurch;
 use Database\Factories\AttendanceContextFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 
 /**
@@ -19,16 +21,17 @@ use Illuminate\Support\Str;
  * @property bool $is_active
  * @property int|null $created_by
  * @property int|null $updated_by
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
- * @property-read \App\Models\User|null $creator
- * @property-read \App\Models\User|null $updater
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
+ * @property-read User|null $creator
+ * @property-read User|null $updater
+ *
  * @method static \Illuminate\Database\Eloquent\Builder|\App\Models\AttendanceContext active()
  */
 class AttendanceContext extends Model
 {
     /** @use HasFactory<AttendanceContextFactory> */
-    use HasFactory, BelongsToChurch;
+    use BelongsToChurch, HasFactory;
 
     protected $fillable = [
         'church_id',
@@ -57,23 +60,23 @@ class AttendanceContext extends Model
         });
     }
 
-    /** @return BelongsTo<\App\Models\User, $this> */
+    /** @return BelongsTo<User, $this> */
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
     }
 
-    /** @return BelongsTo<\App\Models\User, $this> */
+    /** @return BelongsTo<User, $this> */
     public function updater(): BelongsTo
     {
         return $this->belongsTo(User::class, 'updated_by');
     }
 
     /**
-     * @param \Illuminate\Database\Eloquent\Builder<\App\Models\AttendanceContext> $query
-     * @return \Illuminate\Database\Eloquent\Builder<\App\Models\AttendanceContext>
+     * @param  Builder<AttendanceContext>  $query
+     * @return Builder<AttendanceContext>
      */
-    public function scopeActive($query): \Illuminate\Database\Eloquent\Builder
+    public function scopeActive($query): Builder
     {
         return $query->where('is_active', true);
     }

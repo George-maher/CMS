@@ -25,7 +25,7 @@ class EventRequest extends FormRequest
         $rules = [
             'name' => $isUpdate ? ['sometimes', 'string', 'max:255', new NotPlaceholder] : ['required', 'string', 'max:255', new NotPlaceholder],
             'type' => $isUpdate ? ['sometimes', Rule::in(EventType::values())] : ['required', Rule::in(EventType::values())],
-            'image' => $isUpdate ? ['sometimes', 'nullable', 'file', 'max:' . $maxImageSize, $this->imageRule()] : ['nullable', 'file', 'max:' . $maxImageSize, $this->imageRule()],
+            'image' => $isUpdate ? ['sometimes', 'nullable', 'file', 'max:'.$maxImageSize, $this->imageRule()] : ['nullable', 'file', 'max:'.$maxImageSize, $this->imageRule()],
             'description' => $isUpdate ? ['sometimes', 'nullable', 'string'] : ['nullable', 'string'],
             'event_date' => ['nullable', 'date'],
             'location' => ['nullable', 'string', 'max:255', new NotPlaceholder],
@@ -49,12 +49,12 @@ class EventRequest extends FormRequest
     private function imageRule(): callable
     {
         return function (string $attribute, mixed $value, \Closure $fail) {
-            if (!$value instanceof UploadedFile) {
+            if (! $value instanceof UploadedFile) {
                 return;
             }
             $ext = strtolower($value->getClientOriginalExtension());
             $allowed = ['jpg', 'jpeg', 'jpe', 'png', 'gif', 'webp', 'avif'];
-            if (!in_array($ext, $allowed, true)) {
+            if (! in_array($ext, $allowed, true)) {
                 $fail("The {$attribute} must be a file of type: jpeg, png, jpg, gif, webp.");
             }
             $allowedMimes = [
@@ -65,7 +65,7 @@ class EventRequest extends FormRequest
                 'image/avif',
             ];
             $mime = $value->getMimeType();
-            if (!in_array($mime, $allowedMimes, true)) {
+            if (! in_array($mime, $allowedMimes, true)) {
                 $fail("The {$attribute} has an invalid file type.");
             }
         };

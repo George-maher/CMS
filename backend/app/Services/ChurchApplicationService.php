@@ -11,9 +11,11 @@ use App\Models\User;
 use App\Notifications\ApplicationApprovedNotification;
 use App\Notifications\ApplicationRejectedNotification;
 use App\Notifications\NewChurchApplicationNotification;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -217,6 +219,7 @@ class ChurchApplicationService implements ChurchApplicationServiceInterface
         }
         $path = $this->fileUploadService->uploadIdImage($image, (string) $application->id);
         $application->update([$field => $path]);
+
         return $application->fresh() ?? $application;
     }
 
@@ -233,7 +236,7 @@ class ChurchApplicationService implements ChurchApplicationServiceInterface
 
             $church = Church::create([
                 'name' => $application->church_name,
-                'slug' => Str::slug($application->church_name) . '-' . Str::random(6),
+                'slug' => Str::slug($application->church_name).'-'.Str::random(6),
                 'priest_name' => $application->priest_name,
                 'main_servant_name' => $application->main_servant_name,
                 'priest_phone' => $application->priest_phone ?? $application->phone,
@@ -250,7 +253,7 @@ class ChurchApplicationService implements ChurchApplicationServiceInterface
                 'status' => 'approved',
                 'reviewed_by' => $platformAdmin->id,
                 'reviewed_at' => now(),
-                'admin_notes' => $notes ? ($existingNotes ? $existingNotes . "\n" . $notes : $notes) : $existingNotes,
+                'admin_notes' => $notes ? ($existingNotes ? $existingNotes."\n".$notes : $notes) : $existingNotes,
             ]);
 
             $admin = User::where('church_application_id', $application->id)->first();
@@ -280,7 +283,7 @@ class ChurchApplicationService implements ChurchApplicationServiceInterface
                 try {
                     $admin->notify(new ApplicationApprovedNotification($admin, $church->name));
                 } catch (\Exception $e) {
-                    \Illuminate\Support\Facades\Log::warning('Failed to notify applicant of approval', [
+                    Log::warning('Failed to notify applicant of approval', [
                         'application_id' => $application->id,
                         'user_id' => $admin->id,
                         'error' => $e->getMessage(),
@@ -330,7 +333,7 @@ class ChurchApplicationService implements ChurchApplicationServiceInterface
                 try {
                     $applicant->notify(new ApplicationRejectedNotification($application, $applicant, $reason));
                 } catch (\Exception $e) {
-                    \Illuminate\Support\Facades\Log::warning('Failed to notify applicant of rejection', [
+                    Log::warning('Failed to notify applicant of rejection', [
                         'application_id' => $application->id,
                         'user_id' => $applicant->id,
                         'error' => $e->getMessage(),
@@ -342,8 +345,8 @@ class ChurchApplicationService implements ChurchApplicationServiceInterface
         });
     }
 
-    /** @return \Illuminate\Contracts\Pagination\LengthAwarePaginator<int, \App\Models\ChurchApplication> */
-    public function listApplications(?string $status = null, int $perPage = 15): \Illuminate\Contracts\Pagination\LengthAwarePaginator
+    /** @return LengthAwarePaginator<int, ChurchApplication> */
+    public function listApplications(?string $status = null, int $perPage = 15): LengthAwarePaginator
     {
         $query = ChurchApplication::query();
 
@@ -362,7 +365,7 @@ class ChurchApplicationService implements ChurchApplicationServiceInterface
                 $admin->notify(new NewChurchApplicationNotification($application));
             }
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::warning('Failed to notify platform admins', [
+            Log::warning('Failed to notify platform admins', [
                 'application_id' => $application->id,
                 'error' => $e->getMessage(),
             ]);

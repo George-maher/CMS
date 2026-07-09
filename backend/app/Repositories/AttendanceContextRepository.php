@@ -22,7 +22,7 @@ class AttendanceContextRepository implements AttendanceContextRepositoryInterfac
     }
 
     /**
-     * @param array<string, mixed> $data
+     * @param  array<string, mixed>  $data
      */
     public function create(array $data): AttendanceContext
     {
@@ -30,24 +30,30 @@ class AttendanceContextRepository implements AttendanceContextRepositoryInterfac
     }
 
     /**
-     * @param array<string, mixed> $data
+     * @param  array<string, mixed>  $data
      */
     public function update(int $id, array $data): bool
     {
         $context = $this->findById($id);
-        if (!$context) return false;
+        if (! $context) {
+            return false;
+        }
+
         return $context->update($data);
     }
 
     public function delete(int $id): bool
     {
         $context = $this->findById($id);
-        if (!$context) return false;
+        if (! $context) {
+            return false;
+        }
+
         return (bool) $context->delete();
     }
 
     /**
-     * @param array<string, mixed> $filters
+     * @param  array<string, mixed>  $filters
      * @return LengthAwarePaginator<int, AttendanceContext>
      */
     public function paginate(int $perPage, array $filters = []): LengthAwarePaginator
@@ -61,10 +67,10 @@ class AttendanceContextRepository implements AttendanceContextRepositoryInterfac
             $query->with('updater');
         }
 
-        if (!empty($filters['church_id'])) {
+        if (! empty($filters['church_id'])) {
             $query->where(function ($q) use ($filters) {
                 $q->where('church_id', $filters['church_id'])
-                  ->orWhereNull('church_id');
+                    ->orWhereNull('church_id');
             });
         }
 
@@ -84,7 +90,7 @@ class AttendanceContextRepository implements AttendanceContextRepositoryInterfac
         if ($churchId) {
             $query->where(function ($q) use ($churchId) {
                 $q->where('church_id', $churchId)
-                  ->orWhereNull('church_id');
+                    ->orWhereNull('church_id');
             });
         }
 
@@ -109,7 +115,7 @@ class AttendanceContextRepository implements AttendanceContextRepositoryInterfac
         return AttendanceContext::withoutGlobalScope(ChurchScope::class)
             ->where(function ($q) use ($churchId) {
                 $q->where('church_id', $churchId)
-                  ->orWhereNull('church_id');
+                    ->orWhereNull('church_id');
             })
             ->active()
             ->orderBy('name')

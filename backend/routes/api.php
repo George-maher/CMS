@@ -4,24 +4,26 @@ use App\Enums\UserRole;
 use App\Http\Controllers\Api\AttendanceContextController;
 use App\Http\Controllers\Api\AttendanceController;
 use App\Http\Controllers\Api\AuthController;
-use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\ChurchApplicationController;
 use App\Http\Controllers\Api\ChurchDeletionController;
 use App\Http\Controllers\Api\ClasseController;
 use App\Http\Controllers\Api\DailyVerseController;
+use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\EventAnalyticsController;
 use App\Http\Controllers\Api\EventController;
 use App\Http\Controllers\Api\FeedbackController;
+use App\Http\Controllers\Api\LeaderboardController;
 use App\Http\Controllers\Api\MembershipRequestController;
-use App\Http\Controllers\Api\PasswordResetRequestController;
 use App\Http\Controllers\Api\NotificationController;
+use App\Http\Controllers\Api\PasswordResetRequestController;
 use App\Http\Controllers\Api\PendingDashboardController;
 use App\Http\Controllers\Api\PlatformController;
-use App\Http\Controllers\Api\StorageController;
 use App\Http\Controllers\Api\PointController;
 use App\Http\Controllers\Api\QRInviteController;
 use App\Http\Controllers\Api\StageController;
+use App\Http\Controllers\Api\StorageController;
 use App\Http\Controllers\Api\StructureController;
+use App\Models\Church;
 use App\Modules\User\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 
@@ -40,7 +42,7 @@ Route::prefix('v1')->group(function () {
     | Platform Admin Secret Login — path configured via PLATFORM_ADMIN_LOGIN_PATH env
     */
     $platformAdminPath = config('services.platform_admin_login_path', 'platform-secure-admin-login');
-    Route::post('/auth/' . $platformAdminPath, [AuthController::class, 'platformLogin'])
+    Route::post('/auth/'.$platformAdminPath, [AuthController::class, 'platformLogin'])
         ->middleware('throttle:login')
         ->name('platform.admin.login');
 
@@ -91,7 +93,7 @@ Route::prefix('v1')->group(function () {
     | Active churches — public listing for join request form
     */
     Route::get('/churches/active', function () {
-        $churches = \App\Models\Church::where('is_active', true)
+        $churches = Church::where('is_active', true)
             ->where('is_suspended', false)
             ->get(['id', 'name', 'slug', 'address']);
 
@@ -157,15 +159,15 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:api'])->group(functio
     /*
     | Leaderboards — read heavy
     */
-    Route::get('/leaderboard/global', [\App\Http\Controllers\Api\LeaderboardController::class, 'global'])
+    Route::get('/leaderboard/global', [LeaderboardController::class, 'global'])
         ->middleware('throttle:points-read');
-    Route::get('/leaderboard/my-class', [\App\Http\Controllers\Api\LeaderboardController::class, 'myClass'])
+    Route::get('/leaderboard/my-class', [LeaderboardController::class, 'myClass'])
         ->middleware('throttle:points-read');
-    Route::get('/leaderboard/my-classes', [\App\Http\Controllers\Api\LeaderboardController::class, 'myClasses'])
+    Route::get('/leaderboard/my-classes', [LeaderboardController::class, 'myClasses'])
         ->middleware(['permission:view_users', 'throttle:points-read']);
-    Route::get('/leaderboard/stages', [\App\Http\Controllers\Api\LeaderboardController::class, 'stages'])
+    Route::get('/leaderboard/stages', [LeaderboardController::class, 'stages'])
         ->middleware(['permission:view_users', 'throttle:points-read']);
-    Route::get('/leaderboard/class/{classId}', [\App\Http\Controllers\Api\LeaderboardController::class, 'byClass'])
+    Route::get('/leaderboard/class/{classId}', [LeaderboardController::class, 'byClass'])
         ->middleware(['permission:view_users', 'throttle:points-read']);
 
     /*
@@ -179,29 +181,29 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:api'])->group(functio
     /*
         | Stages + Classes — read
         */
-        Route::get('/stages', [StageController::class, 'index'])
-            ->middleware('throttle:structure-read');
-        Route::get('/stages/{id}', [StageController::class, 'show'])
-            ->middleware('throttle:structure-read');
-        Route::get('/stages/{id}/classes', [StageController::class, 'classes'])
-            ->middleware('throttle:structure-read');
+    Route::get('/stages', [StageController::class, 'index'])
+        ->middleware('throttle:structure-read');
+    Route::get('/stages/{id}', [StageController::class, 'show'])
+        ->middleware('throttle:structure-read');
+    Route::get('/stages/{id}/classes', [StageController::class, 'classes'])
+        ->middleware('throttle:structure-read');
 
-        Route::get('/classes', [ClasseController::class, 'index'])
-            ->middleware('throttle:structure-read');
-        Route::get('/classes/{id}', [ClasseController::class, 'show'])
-            ->middleware('throttle:structure-read');
+    Route::get('/classes', [ClasseController::class, 'index'])
+        ->middleware('throttle:structure-read');
+    Route::get('/classes/{id}', [ClasseController::class, 'show'])
+        ->middleware('throttle:structure-read');
 
-        /*
-        | Structure — unified stages with classes grouped
-        */
-        Route::get('/structure/classes', [StructureController::class, 'classes'])
-            ->middleware('throttle:structure-read');
-        Route::get('/structure/my-classes', [StructureController::class, 'myClasses'])
-            ->middleware('throttle:structure-read');
-        Route::get('/structure/my-class-servants', [StructureController::class, 'myClassServants'])
-            ->middleware('throttle:structure-read');
-        Route::get('/structure/stages-with-classes', [StructureController::class, 'stagesWithClasses'])
-            ->middleware('throttle:structure-read');
+    /*
+    | Structure — unified stages with classes grouped
+    */
+    Route::get('/structure/classes', [StructureController::class, 'classes'])
+        ->middleware('throttle:structure-read');
+    Route::get('/structure/my-classes', [StructureController::class, 'myClasses'])
+        ->middleware('throttle:structure-read');
+    Route::get('/structure/my-class-servants', [StructureController::class, 'myClassServants'])
+        ->middleware('throttle:structure-read');
+    Route::get('/structure/stages-with-classes', [StructureController::class, 'stagesWithClasses'])
+        ->middleware('throttle:structure-read');
 
     /*
     | Events — read
@@ -236,8 +238,8 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:api'])->group(functio
     */
     Route::get('/attendance-contexts', [AttendanceContextController::class, 'active']);
 
-        /*
-        | Daily Verse — read
+    /*
+    | Daily Verse — read
     */
     Route::get('/verses', [DailyVerseController::class, 'index'])
         ->middleware('throttle:verse-read');
@@ -371,12 +373,12 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:api'])->group(functio
             ->middleware('throttle:attendance-context-crud');
     });
 
-        /*
-        | My Class Servants — any authenticated user (members need this to see contacts)
-        | Placed here before manage_users group to avoid /users/{id} catching it.
-        */
-        Route::get('/users/my-class-servants', [UserController::class, 'myClassServants'])
-            ->middleware('throttle:user-list');
+    /*
+    | My Class Servants — any authenticated user (members need this to see contacts)
+    | Placed here before manage_users group to avoid /users/{id} catching it.
+    */
+    Route::get('/users/my-class-servants', [UserController::class, 'myClassServants'])
+        ->middleware('throttle:user-list');
 
     /*
     |--------------------------------------------------------------------------
@@ -475,14 +477,14 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:api'])->group(functio
         Route::get('/churches', function () {
             $user = request()->user();
 
-            $query = \App\Models\Church::withCount('users');
+            $query = Church::withCount('users');
 
-            if (!$user->isPlatformAdmin()) {
+            if (! $user->isPlatformAdmin()) {
                 $query->where('id', $user->church_id);
             }
 
             return response()->json([
-                'data' => $query->get()->map(fn($c) => [
+                'data' => $query->get()->map(fn ($c) => [
                     'id' => $c->id,
                     'name' => $c->name,
                     'slug' => $c->slug,
@@ -515,12 +517,12 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:api'])->group(functio
     Route::post('/points/bonus', [PointController::class, 'addBonusPoints'])
         ->middleware(['permission:manage_users', 'approved', 'throttle:attendance-record']);
 
-        /*
-        | Own QR token regeneration — user scoped
-        */
-        Route::post('/users/regenerate-qr-token', [UserController::class, 'regenerateOwnQrToken'])
-            ->middleware('throttle:qr-regenerate');
-    });
+    /*
+    | Own QR token regeneration — user scoped
+    */
+    Route::post('/users/regenerate-qr-token', [UserController::class, 'regenerateOwnQrToken'])
+        ->middleware('throttle:qr-regenerate');
+});
 
 /*
 |--------------------------------------------------------------------------
@@ -552,7 +554,7 @@ Route::prefix('v1')->group(function () {
 |--------------------------------------------------------------------------
 */
 
-Route::prefix('v1')->middleware(['auth:sanctum', 'role:' . UserRole::PlatformAdmin->value, 'throttle:api'])->group(function () {
+Route::prefix('v1')->middleware(['auth:sanctum', 'role:'.UserRole::PlatformAdmin->value, 'throttle:api'])->group(function () {
 
     Route::get('/platform/dashboard', [PlatformController::class, 'dashboard']);
 
@@ -563,10 +565,10 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'role:' . UserRole::PlatformAdm
     Route::get('/platform/churches/{id}/deleted-detail', [ChurchDeletionController::class, 'deletedDetail']);
 
     Route::get('/platform/churches', function () {
-        $churches = \App\Models\Church::withTrashed()->withCount('users')->get();
+        $churches = Church::withTrashed()->withCount('users')->get();
 
         return response()->json([
-            'data' => $churches->map(fn($c) => [
+            'data' => $churches->map(fn ($c) => [
                 'id' => $c->id,
                 'name' => $c->name,
                 'slug' => $c->slug,
@@ -604,5 +606,3 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'role:' . UserRole::PlatformAdm
         ->middleware('throttle:sensitive');
 
 });
-
-

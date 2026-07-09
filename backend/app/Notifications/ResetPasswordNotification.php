@@ -26,7 +26,7 @@ class ResetPasswordNotification extends Notification implements ShouldQueue
     {
         /** @var string $frontendUrl */
         $frontendUrl = config('app.frontend_url');
-        $resetUrl = $frontendUrl . '/reset-password?' . http_build_query([
+        $resetUrl = $frontendUrl.'/reset-password?'.http_build_query([
             'token' => $this->token,
             'email' => $notifiable->getEmailForPasswordReset(),
         ]);
@@ -36,7 +36,7 @@ class ResetPasswordNotification extends Notification implements ShouldQueue
         if ($locale === 'ar') {
             return (new MailMessage)
                 ->subject('إعادة تعيين كلمة المرور')
-                ->greeting('مرحباً ' . ($notifiable->name ?? '') . '!')
+                ->greeting('مرحباً '.($notifiable->name ?? '').'!')
                 ->line('لقد تلقينا طلباً لإعادة تعيين كلمة المرور لحسابك.')
                 ->action('إعادة تعيين كلمة المرور', $resetUrl)
                 ->line('سينتهي صلاحية رابط إعادة التعيين خلال 60 دقيقة.')
@@ -46,7 +46,7 @@ class ResetPasswordNotification extends Notification implements ShouldQueue
 
         return (new MailMessage)
             ->subject('Reset Your Password')
-            ->greeting('Hello ' . ($notifiable->name ?? '') . '!')
+            ->greeting('Hello '.($notifiable->name ?? '').'!')
             ->line('You are receiving this email because we received a password reset request for your account.')
             ->action('Reset Password', $resetUrl)
             ->line('This password reset link will expire in 60 minutes.')

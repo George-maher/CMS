@@ -2,10 +2,12 @@
 
 namespace App\Http\Resources;
 
+use App\Models\PasswordResetRequest;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
-/** @mixin \App\Models\PasswordResetRequest */
+/** @mixin PasswordResetRequest */
 class PasswordResetRequestResource extends JsonResource
 {
     /** @return array<string, mixed> */
@@ -22,8 +24,9 @@ class PasswordResetRequestResource extends JsonResource
             'status_label' => $this->status?->label(),
             'rejection_reason' => $this->rejection_reason,
             'reviewer' => $this->when($this->relationLoaded('reviewer') && $this->reviewer, function () {
-                /** @var \App\Models\User $reviewer */
+                /** @var User $reviewer */
                 $reviewer = $this->reviewer;
+
                 return [
                     'id' => $reviewer->id,
                     'name' => $reviewer->name,
@@ -35,7 +38,7 @@ class PasswordResetRequestResource extends JsonResource
             'created_at' => $this->created_at?->toISOString(),
             'updated_at' => $this->updated_at?->toISOString(),
             'user' => $this->when($this->relationLoaded('user') && $user, function () use ($user) {
-                /** @var \App\Models\User $user */
+                /** @var User $user */
                 return [
                     'id' => $user->id,
                     'member_id' => $user->member_id,

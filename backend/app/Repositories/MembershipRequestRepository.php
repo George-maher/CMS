@@ -9,7 +9,7 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 class MembershipRequestRepository implements MembershipRequestRepositoryInterface
 {
     /**
-     * @param array<string, mixed> $data
+     * @param  array<string, mixed>  $data
      */
     public function create(array $data): MembershipRequest
     {
@@ -22,18 +22,18 @@ class MembershipRequestRepository implements MembershipRequestRepositoryInterfac
     }
 
     /**
-     * @param array<string, mixed> $filters
+     * @param  array<string, mixed>  $filters
      * @return LengthAwarePaginator<int, MembershipRequest>
      */
     public function paginate(int $perPage = 15, array $filters = []): LengthAwarePaginator
     {
         $query = MembershipRequest::query();
 
-        if (!empty($filters['church_id'])) {
+        if (! empty($filters['church_id'])) {
             $query->where('church_id', $filters['church_id']);
         }
 
-        if (!empty($filters['status'])) {
+        if (! empty($filters['status'])) {
             $query->where('status', $filters['status']);
         }
 
@@ -41,12 +41,15 @@ class MembershipRequestRepository implements MembershipRequestRepositoryInterfac
     }
 
     /**
-     * @param array<string, mixed> $data
+     * @param  array<string, mixed>  $data
      */
     public function update(int $id, array $data): bool
     {
         $request = $this->findById($id);
-        if (!$request) return false;
+        if (! $request) {
+            return false;
+        }
+
         return $request->update($data);
     }
 

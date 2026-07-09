@@ -5,18 +5,19 @@ namespace App\Models;
 use App\Traits\BelongsToChurch;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
 /**
  * @property int $id
  * @property int|null $church_id
  * @property int $event_id
  * @property int $user_id
- * @property \Illuminate\Support\Carbon|null $viewed_at
+ * @property Carbon|null $viewed_at
  * @property string|null $ip_address
  * @property string|null $user_agent
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property-read \App\Models\Event|null $event
- * @property-read \App\Models\User|null $user
+ * @property Carbon|null $created_at
+ * @property-read Event|null $event
+ * @property-read User|null $user
  */
 class EventView extends Model
 {
@@ -42,13 +43,13 @@ class EventView extends Model
         ];
     }
 
-    /** @return BelongsTo<\App\Models\Event, $this> */
+    /** @return BelongsTo<Event, $this> */
     public function event(): BelongsTo
     {
         return $this->belongsTo(Event::class);
     }
 
-    /** @return BelongsTo<\App\Models\User, $this> */
+    /** @return BelongsTo<User, $this> */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);

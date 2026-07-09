@@ -5,6 +5,7 @@ namespace App\Http\Requests;
 use App\Models\ChurchApplication;
 use App\Rules\NotPlaceholder;
 use App\Rules\PhoneRule;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -23,7 +24,7 @@ class ChurchApplicationRequest extends FormRequest
         $isUpdate = $existingApplication !== null;
 
         $userUniqueRule = $isUpdate
-            ? Rule::unique('users', 'email')->where(function (\Illuminate\Database\Eloquent\Builder $query) use ($existingApplication) {
+            ? Rule::unique('users', 'email')->where(function (Builder $query) use ($existingApplication) {
                 $query->where('church_application_id', '!=', $existingApplication->id);
             })
             : 'unique:users,email';
@@ -44,16 +45,16 @@ class ChurchApplicationRequest extends FormRequest
             'address' => ['required', 'string', 'max:1000', new NotPlaceholder],
             'id_type' => ['required', 'string', Rule::in(['national_id', 'church_permission'])],
             'front_id' => [
-                Rule::requiredIf(fn () => $this->input('id_type') === 'national_id' && !$isUpdate),
-                'nullable', 'image', 'mimes:jpg,jpeg,png', 'max:' . $maxImageSize,
+                Rule::requiredIf(fn () => $this->input('id_type') === 'national_id' && ! $isUpdate),
+                'nullable', 'image', 'mimes:jpg,jpeg,png', 'max:'.$maxImageSize,
             ],
             'back_id' => [
-                Rule::requiredIf(fn () => $this->input('id_type') === 'national_id' && !$isUpdate),
-                'nullable', 'image', 'mimes:jpg,jpeg,png', 'max:' . $maxImageSize,
+                Rule::requiredIf(fn () => $this->input('id_type') === 'national_id' && ! $isUpdate),
+                'nullable', 'image', 'mimes:jpg,jpeg,png', 'max:'.$maxImageSize,
             ],
             'church_permission_doc' => [
-                Rule::requiredIf(fn () => $this->input('id_type') === 'church_permission' && !$isUpdate),
-                'nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:' . $maxDocSize,
+                Rule::requiredIf(fn () => $this->input('id_type') === 'church_permission' && ! $isUpdate),
+                'nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:'.$maxDocSize,
             ],
         ];
     }

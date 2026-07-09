@@ -5,7 +5,6 @@ namespace App\Jobs;
 use App\Mail\SystemMail;
 use App\Models\User;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -24,7 +23,7 @@ class SendEmailJob implements ShouldQueue
     public ?int $retryUntil = null;
 
     /**
-     * @param array<string, mixed> $viewData
+     * @param  array<string, mixed>  $viewData
      */
     public function __construct(
         private readonly User $user,
@@ -37,10 +36,11 @@ class SendEmailJob implements ShouldQueue
 
     public function handle(): void
     {
-        if (!$this->user->email) {
+        if (! $this->user->email) {
             Log::warning('Cannot send email: user has no email address', [
                 'user_id' => $this->user->id,
             ]);
+
             return;
         }
 

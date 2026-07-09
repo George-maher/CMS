@@ -2,14 +2,15 @@
 
 namespace App\Modules\User\Controllers;
 
-use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use App\Modules\User\Requests\CreateUserRequest;
-use App\Modules\User\Requests\UpdateUserRequest;
 use App\Modules\User\Requests\RoleRequest;
+use App\Modules\User\Requests\UpdateUserRequest;
 use App\Modules\User\Services\UserService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class UserController extends Controller
 {
@@ -35,7 +36,7 @@ class UserController extends Controller
     {
         $user = $this->userService->findById($id);
 
-        if (!$user) {
+        if (! $user) {
             return response()->json(['message' => 'User not found.'], 404);
         }
 
@@ -60,7 +61,7 @@ class UserController extends Controller
 
         $result = $this->userService->update($id, $data);
 
-        if (!$result) {
+        if (! $result) {
             return response()->json(['message' => 'User not found.'], 404);
         }
 
@@ -71,7 +72,7 @@ class UserController extends Controller
     {
         $deleted = $this->userService->delete($id);
 
-        if (!$deleted) {
+        if (! $deleted) {
             return response()->json(['message' => 'User not found.'], 404);
         }
 
@@ -115,13 +116,14 @@ class UserController extends Controller
 
     private function getAuthId(Request $request): int
     {
-        /** @var \App\Models\User|null $user */
+        /** @var User|null $user */
         $user = $request->user();
         if ($user === null) {
-            throw new \Symfony\Component\HttpKernel\Exception\HttpException(401, 'Unauthenticated.');
+            throw new HttpException(401, 'Unauthenticated.');
         }
         /** @var int $userId */
         $userId = $user->id;
+
         return $userId;
     }
 

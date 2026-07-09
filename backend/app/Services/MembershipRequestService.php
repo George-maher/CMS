@@ -6,6 +6,8 @@ use App\Contracts\FileUploadServiceInterface;
 use App\Contracts\MembershipRequestRepositoryInterface;
 use App\Contracts\MembershipRequestServiceInterface;
 use App\Contracts\NotificationServiceInterface;
+use App\Enums\UserRole;
+use App\Models\MembershipRequest;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -74,7 +76,7 @@ class MembershipRequestService implements MembershipRequestServiceInterface
     public function approve(int $id, int $adminId): array
     {
         $admin = User::find($adminId);
-        if (!$admin) {
+        if (! $admin) {
             throw ValidationException::withMessages([
                 'admin' => ['Admin not found.'],
             ]);
@@ -82,7 +84,7 @@ class MembershipRequestService implements MembershipRequestServiceInterface
 
         $request = $this->repository->findById($id);
 
-        if (!$request || !$request->isPending()) {
+        if (! $request || ! $request->isPending()) {
             throw ValidationException::withMessages([
                 'request' => ['This request is not pending.'],
             ]);
@@ -108,7 +110,7 @@ class MembershipRequestService implements MembershipRequestServiceInterface
                 'name' => $request->name,
                 'email' => $request->email,
                 'password' => bcrypt($tmpPassword),
-                'role' => $request->preferred_role === 'servant' ? \App\Enums\UserRole::Servant : \App\Enums\UserRole::Member,
+                'role' => $request->preferred_role === 'servant' ? UserRole::Servant : UserRole::Member,
                 'application_status' => 'approved',
                 'is_active' => true,
                 'phone' => $request->phone,
@@ -137,7 +139,7 @@ class MembershipRequestService implements MembershipRequestServiceInterface
     public function reject(int $id, int $adminId, string $reason): array
     {
         $admin = User::find($adminId);
-        if (!$admin) {
+        if (! $admin) {
             throw ValidationException::withMessages([
                 'admin' => ['Admin not found.'],
             ]);
@@ -145,7 +147,7 @@ class MembershipRequestService implements MembershipRequestServiceInterface
 
         $request = $this->repository->findById($id);
 
-        if (!$request || !$request->isPending()) {
+        if (! $request || ! $request->isPending()) {
             throw ValidationException::withMessages([
                 'request' => ['This request is not pending.'],
             ]);
@@ -182,11 +184,11 @@ class MembershipRequestService implements MembershipRequestServiceInterface
         ];
     }
 
-    public function findById(int $id, int $churchId): ?\App\Models\MembershipRequest
+    public function findById(int $id, int $churchId): ?MembershipRequest
     {
         $request = $this->repository->findById($id);
 
-        if (!$request || $request->church_id !== $churchId) {
+        if (! $request || $request->church_id !== $churchId) {
             return null;
         }
 

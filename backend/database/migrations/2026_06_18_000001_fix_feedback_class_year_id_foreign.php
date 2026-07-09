@@ -13,7 +13,7 @@ return new class extends Migration
         // Old feedback stores class_years.id; new classes have different IDs.
         // Map by church_id + name (one Classe per ClassYear per church).
         if (Schema::hasTable('class_years')) {
-            DB::statement("
+            DB::statement('
                 UPDATE feedback
                 SET class_year_id = (
                     SELECT c.id
@@ -27,7 +27,7 @@ return new class extends Migration
                     INNER JOIN classes c ON c.church_id = cy.church_id AND c.name = cy.name
                     WHERE cy.id = feedback.class_year_id
                 )
-            ");
+            ');
         }
 
         // --- Step 2: Switch FK from class_years.id to classes.id ---

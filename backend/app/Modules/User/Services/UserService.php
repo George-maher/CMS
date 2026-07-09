@@ -2,16 +2,13 @@
 
 namespace App\Modules\User\Services;
 
+use App\Contracts\AttendanceServiceInterface;
 use App\Contracts\UserRepositoryInterface;
 use App\Contracts\UserServiceInterface;
-use App\Contracts\AttendanceServiceInterface;
-use App\Contracts\PointServiceInterface;
 use App\Enums\UserRole;
 use App\Models\User;
 use App\Modules\User\Resources\UserResource;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
-use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 
@@ -23,8 +20,7 @@ class UserService implements UserServiceInterface
     ) {}
 
     /**
-     * @param int $perPage
-     * @param array<string, mixed> $filters
+     * @param  array<string, mixed>  $filters
      * @return array{data: LengthAwarePaginator<int, User>, meta: array{current_page: int, last_page: int, per_page: int, total: int}}
      */
     /** @param array<string, mixed> $filters */
@@ -98,7 +94,7 @@ class UserService implements UserServiceInterface
         /** @var User|null $user */
         $user = $this->userRepository->findById($id);
 
-        if (!$user) {
+        if (! $user) {
             return null;
         }
 
@@ -123,7 +119,7 @@ class UserService implements UserServiceInterface
         /** @var User|null $user */
         $user = $this->userRepository->findById($id);
 
-        if (!$user) {
+        if (! $user) {
             return false;
         }
 
@@ -156,7 +152,7 @@ class UserService implements UserServiceInterface
         /** @var User|null $user */
         $user = $this->userRepository->findById($userId);
 
-        if (!$user) {
+        if (! $user) {
             throw ValidationException::withMessages(['user' => ['User not found.']]);
         }
 
@@ -174,7 +170,7 @@ class UserService implements UserServiceInterface
     {
         $result = $this->userRepository->demoteFromAdmin($userId);
 
-        if (!$result) {
+        if (! $result) {
             throw ValidationException::withMessages(['user' => ['User not found or cannot be demoted.']]);
         }
 
@@ -186,6 +182,7 @@ class UserService implements UserServiceInterface
     {
         /** @var array<string, mixed> $result */
         $result = $this->attendanceService->getAttendanceHistory($userId, $perPage);
+
         return $result;
     }
 
@@ -195,7 +192,7 @@ class UserService implements UserServiceInterface
         /** @var User|null $user */
         $user = $this->userRepository->findById($userId);
 
-        if (!$user) {
+        if (! $user) {
             throw ValidationException::withMessages(['user' => ['User not found.']]);
         }
 
@@ -211,7 +208,7 @@ class UserService implements UserServiceInterface
         /** @var User|null $user */
         $user = $this->userRepository->findById($userId);
 
-        if (!$user) {
+        if (! $user) {
             throw ValidationException::withMessages(['user' => ['User not found.']]);
         }
 
@@ -223,8 +220,8 @@ class UserService implements UserServiceInterface
     }
 
     /**
-     * @param array<int, int> $userIds
-     * @param array<int, string> $permissions
+     * @param  array<int, int>  $userIds
+     * @param  array<int, string>  $permissions
      * @return array<string, mixed>
      */
     public function bulkUpdatePermissions(array $userIds, array $permissions, int $authUserId): array
@@ -236,7 +233,7 @@ class UserService implements UserServiceInterface
             $user->syncPermissions($permissions);
         }
 
-        return ['message' => 'Permissions updated successfully for ' . $users->count() . ' users.'];
+        return ['message' => 'Permissions updated successfully for '.$users->count().' users.'];
     }
 
     /** @return array<string, mixed> */
@@ -245,7 +242,7 @@ class UserService implements UserServiceInterface
         /** @var User|null $user */
         $user = $this->userRepository->findById($userId);
 
-        if (!$user) {
+        if (! $user) {
             throw ValidationException::withMessages(['user' => ['User not found.']]);
         }
 

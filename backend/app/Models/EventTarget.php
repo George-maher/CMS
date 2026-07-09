@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Traits\BelongsToChurch;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
 /**
  * @property int $id
@@ -12,10 +13,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int|null $class_id
  * @property bool $is_all_classes
  * @property int|null $church_id
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
- * @property-read \App\Models\Event|null $event
- * @property-read \App\Models\Classe|null $classe
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
+ * @property-read Event|null $event
+ * @property-read Classe|null $classe
  */
 class EventTarget extends Model
 {
@@ -35,13 +36,13 @@ class EventTarget extends Model
         ];
     }
 
-    /** @return BelongsTo<\App\Models\Event, $this> */
+    /** @return BelongsTo<Event, $this> */
     public function event(): BelongsTo
     {
         return $this->belongsTo(Event::class);
     }
 
-    /** @return BelongsTo<\App\Models\Classe, $this> */
+    /** @return BelongsTo<Classe, $this> */
     public function classe(): BelongsTo
     {
         return $this->belongsTo(Classe::class, 'class_id');

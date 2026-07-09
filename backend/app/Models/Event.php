@@ -5,34 +5,37 @@ namespace App\Models;
 use App\Enums\EventType;
 use App\Traits\AuditableTrait;
 use App\Traits\BelongsToChurch;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\QueryException;
+use Illuminate\Support\Carbon;
 
 /**
  * @property int $id
  * @property string $name
- * @property \App\Enums\EventType $type
+ * @property EventType $type
  * @property string|null $image
  * @property string|null $description
- * @property \Illuminate\Support\Carbon|null $event_date
+ * @property Carbon|null $event_date
  * @property string|null $location
  * @property int|null $created_by
  * @property bool $is_active
  * @property bool $is_all_classes
  * @property int|null $class_year_id
  * @property int|null $church_id
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
- * @property-read \App\Models\User|null $creator
- * @property-read \App\Models\Classe|null $classe
- * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\EventTarget> $targets
- * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\EventView> $views
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
+ * @property-read User|null $creator
+ * @property-read Classe|null $classe
+ * @property-read Collection<int, EventTarget> $targets
+ * @property-read Collection<int, EventView> $views
  * @property-read int|null $views_count
  */
 class Event extends Model
 {
-    use BelongsToChurch, AuditableTrait;
+    use AuditableTrait, BelongsToChurch;
 
     protected $fillable = [
         'name',
@@ -58,25 +61,25 @@ class Event extends Model
         ];
     }
 
-    /** @return BelongsTo<\App\Models\User, $this> */
+    /** @return BelongsTo<User, $this> */
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
     }
 
-    /** @return BelongsTo<\App\Models\Classe, $this> */
+    /** @return BelongsTo<Classe, $this> */
     public function classe(): BelongsTo
     {
         return $this->belongsTo(Classe::class, 'class_year_id');
     }
 
-    /** @return HasMany<\App\Models\EventTarget, $this> */
+    /** @return HasMany<EventTarget, $this> */
     public function targets(): HasMany
     {
         return $this->hasMany(EventTarget::class);
     }
 
-    /** @return HasMany<\App\Models\EventView, $this> */
+    /** @return HasMany<EventView, $this> */
     public function views(): HasMany
     {
         return $this->hasMany(EventView::class);
@@ -95,7 +98,7 @@ class Event extends Model
                     'user_agent' => $userAgent,
                 ]
             );
-        } catch (\Illuminate\Database\QueryException $e) {
+        } catch (QueryException $e) {
             if ($e->getCode() !== '23505') {
                 throw $e;
             }

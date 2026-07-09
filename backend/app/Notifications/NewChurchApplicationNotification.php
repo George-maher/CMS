@@ -26,19 +26,20 @@ class NewChurchApplicationNotification extends Notification implements ShouldQue
     {
         /** @var string $reviewUrl */
         $reviewUrl = config('app.frontend_url');
+
         return (new MailMessage)
-            ->subject('New Church Application: ' . ($this->application->church_name ?? ''))
+            ->subject('New Church Application: '.($this->application->church_name ?? ''))
             ->greeting('New Church Application Received')
             ->line('A new church has applied to join the platform:')
             ->line('')
-            ->line('**Church Name:** ' . ($this->application->church_name ?? ''))
-            ->line('**Priest Name:** ' . ($this->application->priest_name ?? ''))
-            ->line('**Main Servant:** ' . ($this->application->main_servant_name ?? 'N/A'))
-            ->line('**Phone:** ' . ($this->application->phone ?? $this->application->priest_phone ?? ''))
-            ->line('**Email:** ' . ($this->application->contact_email ?? ''))
-            ->line('**Address:** ' . ($this->application->address ?? 'N/A'))
+            ->line('**Church Name:** '.($this->application->church_name ?? ''))
+            ->line('**Priest Name:** '.($this->application->priest_name ?? ''))
+            ->line('**Main Servant:** '.($this->application->main_servant_name ?? 'N/A'))
+            ->line('**Phone:** '.($this->application->phone ?? $this->application->priest_phone ?? ''))
+            ->line('**Email:** '.($this->application->contact_email ?? ''))
+            ->line('**Address:** '.($this->application->address ?? 'N/A'))
             ->line('')
-            ->action('Review Application', $reviewUrl . '/platform/applications/' . $this->application->id)
+            ->action('Review Application', $reviewUrl.'/platform/applications/'.$this->application->id)
             ->line('Please review this application at your earliest convenience.')
             ->salutation('Best regards, The Church Management System');
     }

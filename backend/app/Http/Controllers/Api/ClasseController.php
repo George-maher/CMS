@@ -6,6 +6,9 @@ use App\Contracts\ClasseServiceInterface;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreClasseRequest;
 use App\Http\Requests\UpdateClasseRequest;
+use App\Http\Resources\ClasseResource;
+use App\Http\Resources\UserResource;
+use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -19,6 +22,7 @@ class ClasseController extends Controller
     {
         /** @var string|null $search */
         $search = $request->input('search');
+
         return response()->json($this->classeService->all($search));
     }
 
@@ -36,7 +40,7 @@ class ClasseController extends Controller
     {
         $result = $this->classeService->findById($id);
 
-        if (!$result) {
+        if (! $result) {
             return response()->json(['message' => 'Class not found.'], 404);
         }
 
@@ -47,7 +51,7 @@ class ClasseController extends Controller
     {
         $this->classeService->update($id, $request->validated());
 
-        /** @var array{data: \App\Http\Resources\ClasseResource}|null $updated */
+        /** @var array{data: ClasseResource}|null $updated */
         $updated = $this->classeService->findById($id);
 
         return response()->json([
@@ -143,8 +147,8 @@ class ClasseController extends Controller
 
         /** @var int $memberId */
         $memberId = $request->input('user_id');
-        $user = \App\Models\User::byChurch()->find($memberId);
-        if (!$user) {
+        $user = User::byChurch()->find($memberId);
+        if (! $user) {
             return response()->json(['message' => 'User not found.'], 404);
         }
 
@@ -152,7 +156,7 @@ class ClasseController extends Controller
 
         return response()->json([
             'message' => 'Member assigned to class successfully.',
-            'data' => new \App\Http\Resources\UserResource($user->fresh()),
+            'data' => new UserResource($user->fresh()),
         ]);
     }
 }

@@ -9,8 +9,10 @@ interface StageRepositoryInterface
 {
     /** @return Collection<int, Stage> */
     public function all(?string $search = null): Collection;
+
     /** @return Collection<int, Stage> */
     public function structure(?string $search = null): Collection;
+
     public function findById(int $id): ?Stage;
 
     /** @param array<string, mixed> $data */
@@ -20,5 +22,6 @@ interface StageRepositoryInterface
     public function update(int $id, array $data): bool;
 
     public function delete(int $id): bool;
+
     public function count(): int;
 }

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\DeleteChurchRequest;
 use App\Http\Resources\ChurchResource;
 use App\Models\Church;
+use App\Models\User;
 use App\Services\ChurchDeletionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -69,8 +70,9 @@ class ChurchDeletionController extends Controller
     {
         $church = Church::withTrashed()->findOrFail($id);
 
-        if (!$church->trashed()) {
+        if (! $church->trashed()) {
             $summary = $this->churchDeletionService->getDeletionSummary($church);
+
             return response()->json(['data' => $summary]);
         }
 
@@ -93,7 +95,7 @@ class ChurchDeletionController extends Controller
     {
         $church = Church::findOrFail($id);
 
-        /** @var \App\Models\User $admin */
+        /** @var User $admin */
         $admin = $request->user();
         $this->churchDeletionService->softDelete($church, $admin);
 
@@ -107,7 +109,7 @@ class ChurchDeletionController extends Controller
     {
         $church = Church::onlyTrashed()->findOrFail($id);
 
-        /** @var \App\Models\User $admin */
+        /** @var User $admin */
         $admin = $request->user();
         $restored = $this->churchDeletionService->restore($church, $admin);
 
@@ -121,7 +123,7 @@ class ChurchDeletionController extends Controller
     {
         $church = Church::withTrashed()->findOrFail($id);
 
-        /** @var \App\Models\User $admin */
+        /** @var User $admin */
         $admin = $request->user();
         $this->churchDeletionService->hardDelete($church, $admin);
 

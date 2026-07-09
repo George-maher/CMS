@@ -2,16 +2,16 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Contracts\ChurchApplicationServiceInterface;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\ChurchApplicationResource;
-use App\Contracts\ChurchApplicationServiceInterface;
 use App\Http\Resources\ChurchResource;
 use App\Models\Church;
 use App\Models\ChurchApplication;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 
 class PlatformController extends Controller
 {
@@ -34,7 +34,7 @@ class PlatformController extends Controller
                 ->latest()
                 ->take(10)
                 ->get()
-                ->map(fn($app) => [
+                ->map(fn ($app) => [
                     'id' => $app->id,
                     'church_name' => $app->church_name,
                     'priest_name' => $app->priest_name,
@@ -97,7 +97,7 @@ class PlatformController extends Controller
             return response()->json(['message' => 'Application is not pending.'], 422);
         }
 
-        /** @var \App\Models\User $admin */
+        /** @var User $admin */
         $admin = $request->user();
         /** @var string|null $notes */
         $notes = $request->input('notes');
@@ -128,7 +128,7 @@ class PlatformController extends Controller
             return response()->json(['message' => 'Application is not pending.'], 422);
         }
 
-        /** @var \App\Models\User $admin */
+        /** @var User $admin */
         $admin = $request->user();
         /** @var string $rejectionReason */
         $rejectionReason = $request->input('rejection_reason');
@@ -145,5 +145,4 @@ class PlatformController extends Controller
             'data' => new ChurchApplicationResource($application->fresh()),
         ]);
     }
-
 }

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Traits\BelongsToChurch;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -20,12 +21,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int|null $church_id
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
- * @property-read \App\Models\User|null $user
- * @property-read \App\Models\User|null $recorder
- * @property-read \App\Models\Classe|null $classe
- * @property-read \App\Models\QRInvite|null $qrInvite
- * @property-read \App\Models\Event|null $event
- * @property-read \App\Models\AttendanceContext|null $attendanceContext
+ * @property-read User|null $user
+ * @property-read User|null $recorder
+ * @property-read Classe|null $classe
+ * @property-read QRInvite|null $qrInvite
+ * @property-read Event|null $event
+ * @property-read AttendanceContext|null $attendanceContext
  * @property-read string|null $last_attended_at
  * @property-read int $attended_days
  * @property-read int $count
@@ -51,8 +52,8 @@ class Attendance extends Model
     protected static function booted(): void
     {
         static::creating(function (Attendance $attendance) {
-            if ($attendance->attended_at && !$attendance->attended_date) {
-                $attendance->attended_date = $attendance->attended_at instanceof \Carbon\Carbon
+            if ($attendance->attended_at && ! $attendance->attended_date) {
+                $attendance->attended_date = $attendance->attended_at instanceof Carbon
                     ? $attendance->attended_at->toDateString()
                     : $attendance->attended_at;
             }
@@ -68,37 +69,37 @@ class Attendance extends Model
         ];
     }
 
-    /** @return BelongsTo<\App\Models\User, $this> */
+    /** @return BelongsTo<User, $this> */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
-    /** @return BelongsTo<\App\Models\User, $this> */
+    /** @return BelongsTo<User, $this> */
     public function recorder(): BelongsTo
     {
         return $this->belongsTo(User::class, 'recorded_by');
     }
 
-    /** @return BelongsTo<\App\Models\Classe, $this> */
+    /** @return BelongsTo<Classe, $this> */
     public function classe(): BelongsTo
     {
         return $this->belongsTo(Classe::class, 'class_year_id');
     }
 
-    /** @return BelongsTo<\App\Models\QRInvite, $this> */
+    /** @return BelongsTo<QRInvite, $this> */
     public function qrInvite(): BelongsTo
     {
         return $this->belongsTo(QRInvite::class);
     }
 
-    /** @return BelongsTo<\App\Models\Event, $this> */
+    /** @return BelongsTo<Event, $this> */
     public function event(): BelongsTo
     {
         return $this->belongsTo(Event::class);
     }
 
-    /** @return BelongsTo<\App\Models\AttendanceContext, $this> */
+    /** @return BelongsTo<AttendanceContext, $this> */
     public function attendanceContext(): BelongsTo
     {
         return $this->belongsTo(AttendanceContext::class);

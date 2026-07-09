@@ -33,7 +33,7 @@ class NotPlaceholder implements ValidationRule
 
     public function validate(string $attribute, mixed $value, Closure $fail): void
     {
-        if (!is_string($value)) {
+        if (! is_string($value)) {
             return;
         }
 
@@ -45,17 +45,20 @@ class NotPlaceholder implements ValidationRule
 
         if (in_array($trimmed, self::EXACT_MATCHES, true)) {
             $fail(__('validation.placeholder', ['attribute' => $attribute]));
+
             return;
         }
 
         if (in_array($trimmed, $this->extraForbidden, true)) {
             $fail(__('validation.placeholder', ['attribute' => $attribute]));
+
             return;
         }
 
         foreach (self::PATTERNS as $pattern) {
             if (preg_match($pattern, $trimmed)) {
                 $fail(__('validation.placeholder', ['attribute' => $attribute]));
+
                 return;
             }
         }
@@ -64,6 +67,7 @@ class NotPlaceholder implements ValidationRule
             $localPart = explode('@', $trimmed)[0] ?? '';
             if (in_array(strtolower($localPart), ['example', 'user', 'your', 'test', 'placeholder', 'name'], true)) {
                 $fail(__('validation.placeholder_email', ['attribute' => $attribute]));
+
                 return;
             }
         }

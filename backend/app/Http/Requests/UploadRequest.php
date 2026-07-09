@@ -27,7 +27,7 @@ class UploadRequest extends FormRequest
                     'required',
                     'file',
                     'mimes:pdf,doc,docx,jpg,jpeg,png',
-                    'max:' . $maxDocumentSize,
+                    'max:'.$maxDocumentSize,
                 ],
             ];
         }
@@ -37,7 +37,7 @@ class UploadRequest extends FormRequest
                 'required',
                 'file',
                 'mimes:jpg,jpeg,png,gif,webp',
-                'max:' . $maxImageSize,
+                'max:'.$maxImageSize,
             ],
         ];
     }

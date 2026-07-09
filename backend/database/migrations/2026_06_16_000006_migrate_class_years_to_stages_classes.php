@@ -1,8 +1,8 @@
 <?php
 
 use App\Enums\UserRole;
-use App\Models\Stage;
 use App\Models\Classe;
+use App\Models\Stage;
 use App\Models\User;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
@@ -16,7 +16,9 @@ return new class extends Migration
         $grouped = $classYears->groupBy('church_id');
 
         foreach ($grouped as $churchId => $years) {
-            if (!$churchId) continue;
+            if (! $churchId) {
+                continue;
+            }
 
             $stage = Stage::create([
                 'church_id' => $churchId,
@@ -40,9 +42,9 @@ return new class extends Migration
 
                 User::withoutGlobalScopes()
                     ->where('class_year_id', $year->id)
-                    ->where('role' , UserRole::Servant)
+                    ->where('role', UserRole::Servant)
                     ->where('church_id', $churchId)
-                    ->each(fn(User $u) => $u->classes()->syncWithoutDetaching([$classe->id]));
+                    ->each(fn (User $u) => $u->classes()->syncWithoutDetaching([$classe->id]));
             }
         }
     }

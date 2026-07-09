@@ -9,10 +9,14 @@ use App\Enums\UserRole;
 use App\Models\Church;
 use App\Models\Classe;
 use App\Models\QRInvite;
+use App\Models\User;
+use App\Notifications\PasswordChangedNotification;
 use App\Notifications\VerifyEmailNotification;
 use Illuminate\Auth\Events\PasswordReset;
+use Illuminate\Contracts\Auth\CanResetPassword;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -34,7 +38,7 @@ class AuthService implements AuthServiceInterface
 
         $user = $this->userRepository->findByEmail($email);
 
-        if (!$user || !Hash::check($password, $user->password)) {
+        if (! $user || ! Hash::check($password, $user->password)) {
             throw ValidationException::withMessages([
                 'email' => [__('auth.failed')],
             ]);
@@ -86,19 +90,19 @@ class AuthService implements AuthServiceInterface
 
         $user = $this->userRepository->findByEmail($email);
 
-        if (!$user || !Hash::check($password, $user->password)) {
+        if (! $user || ! Hash::check($password, $user->password)) {
             throw ValidationException::withMessages([
                 'email' => [__('auth.failed')],
             ]);
         }
 
-        if (!$user->isPlatformAdmin()) {
+        if (! $user->isPlatformAdmin()) {
             throw ValidationException::withMessages([
                 'email' => [__('auth.failed')],
             ]);
         }
 
-        if (!$user->is_active) {
+        if (! $user->is_active) {
             throw ValidationException::withMessages([
                 'email' => [__('auth.inactive')],
             ]);
@@ -125,7 +129,7 @@ class AuthService implements AuthServiceInterface
         ];
     }
 
-    public function logout(\App\Models\User $user): void
+    public function logout(User $user): void
     {
         $user->currentAccessToken()->delete();
     }
@@ -135,13 +139,13 @@ class AuthService implements AuthServiceInterface
     {
         /** @var string|null $inviteToken */
         $inviteToken = $data['invite_token'] ?? null;
-        if (!$inviteToken) {
+        if (! $inviteToken) {
             throw ValidationException::withMessages([
                 'invite_token' => [__('invite.not_found')],
             ]);
         }
 
-        /** @var array{invite: \App\Models\QRInvite, role: \App\Enums\UserRole} $validation */
+        /** @var array{invite: QRInvite, role: UserRole} $validation */
         $validation = $this->qrInviteService->validateTokenForRegistration($inviteToken);
         $invite = $validation['invite'];
         $role = $validation['role'];
@@ -151,7 +155,7 @@ class AuthService implements AuthServiceInterface
                 ->lockForUpdate()
                 ->first();
 
-            if (!$freshInvite || !$freshInvite->isValid()) {
+            if (! $freshInvite || ! $freshInvite->isValid()) {
                 $msg = $freshInvite && $freshInvite->max_uses !== null && $freshInvite->use_count >= $freshInvite->max_uses
                     ? __('invite.max_uses_reached')
                     : __('invite.already_used');
@@ -173,13 +177,13 @@ class AuthService implements AuthServiceInterface
                 $data['servant_id'] = $invite->created_by;
             }
 
-            if (!empty($data['class_id'])) {
+            if (! empty($data['class_id'])) {
                 /** @var int $classId */
                 $classId = $data['class_id'];
                 $classe = Classe::where('id', $classId)
                     ->where('church_id', $invite->church_id)
                     ->first();
-                if (!$classe) {
+                if (! $classe) {
                     throw ValidationException::withMessages([
                         'class_id' => [__('invite.class_not_found')],
                     ]);
@@ -193,11 +197,11 @@ class AuthService implements AuthServiceInterface
 
             /** @var string $frontendUrl */
             $frontendUrl = config('app.frontend_url');
-            $verificationUrl = $frontendUrl . '/verify-email?token=' . urlencode($user->email_verification_token) . '&email=' . urlencode($user->email);
+            $verificationUrl = $frontendUrl.'/verify-email?token='.urlencode($user->email_verification_token).'&email='.urlencode($user->email);
             try {
                 $user->notify(new VerifyEmailNotification($user, $verificationUrl));
             } catch (\Exception $e) {
-                \Illuminate\Support\Facades\Log::warning('Failed to send verification email', [
+                Log::warning('Failed to send verification email', [
                     'user_id' => $user->id,
                     'error' => $e->getMessage(),
                 ]);
@@ -206,13 +210,13 @@ class AuthService implements AuthServiceInterface
             /** @var int $userId */
             $userId = $user->id;
             $used = $freshInvite->markAsUsed($userId);
-            if (!$used) {
+            if (! $used) {
                 throw ValidationException::withMessages([
                     'invite_token' => [__('invite.max_uses_reached')],
                 ]);
             }
 
-            \Illuminate\Support\Facades\Log::info('Invite consumed via registration', [
+            Log::info('Invite consumed via registration', [
                 'invite_id' => $freshInvite->id,
                 'token' => $inviteToken,
                 'user_id' => $user->id,
@@ -227,7 +231,7 @@ class AuthService implements AuthServiceInterface
     }
 
     /** @return array<string, mixed> */
-    public function getAuthenticatedUser(\App\Models\User $user): array
+    public function getAuthenticatedUser(User $user): array
     {
         return [
             'user' => $user->load(['classe', 'createdBy', 'invite', 'servant']),
@@ -255,8 +259,8 @@ class AuthService implements AuthServiceInterface
         /** @var string|null $status */
         $status = Password::reset(
             $data,
-            function (\Illuminate\Contracts\Auth\CanResetPassword $user, string $password) {
-                /** @var \App\Models\User $user */
+            function (CanResetPassword $user, string $password) {
+                /** @var User $user */
                 $user->forceFill([
                     'password' => Hash::make($password),
                 ])->setRememberToken(Str::random(60));
@@ -266,9 +270,9 @@ class AuthService implements AuthServiceInterface
                 $user->tokens()->delete();
 
                 try {
-                    $user->notify(new \App\Notifications\PasswordChangedNotification());
+                    $user->notify(new PasswordChangedNotification);
                 } catch (\Exception $e) {
-                    \Illuminate\Support\Facades\Log::warning('Failed to send password changed notification', [
+                    Log::warning('Failed to send password changed notification', [
                         'user_id' => $user->id,
                         'error' => $e->getMessage(),
                     ]);

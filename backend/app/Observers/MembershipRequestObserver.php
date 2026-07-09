@@ -20,7 +20,7 @@ class MembershipRequestObserver
 
     private function cleanupFiles(MembershipRequest $request): void
     {
-        if (!$request->file_url) {
+        if (! $request->file_url) {
             return;
         }
 
