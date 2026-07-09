@@ -11,6 +11,7 @@ use App\Enums\UserRole;
 use App\Models\User;
 use App\Modules\User\Resources\UserResource;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 
@@ -224,7 +225,7 @@ class UserService implements UserServiceInterface
      */
     public function bulkUpdatePermissions(array $userIds, array $permissions, int $authUserId): array
     {
-        /** @var \Illuminate\Support\Collection<int, User> $users */
+        /** @var Collection<int, User> $users */
         $users = $this->userRepository->findByIds($userIds);
 
         foreach ($users as $user) {
