@@ -88,39 +88,65 @@ class AuthService implements AuthServiceInterface
         /** @var string $password */
         $password = $credentials['password'];
 
+        Log::info('[DEBUG] AuthService::platformLogin — lookup by email', ['email' => $email]);
         $user = $this->userRepository->findByEmail($email);
+        Log::info('[DEBUG] AuthService::platformLogin — user found', [
+            'found' => $user !== null,
+            'user_id' => $user?->id,
+            'user_role' => $user?->role?->value,
+            'is_active' => $user?->is_active,
+            'application_status' => $user?->application_status,
+        ]);
 
         if (! $user || ! Hash::check($password, $user->password)) {
+            Log::warning('[DEBUG] AuthService::platformLogin — invalid credentials', [
+                'user_exists' => $user !== null,
+                'password_match' => $user ? Hash::check($password, $user->password) : false,
+            ]);
             throw ValidationException::withMessages([
                 'email' => [__('auth.failed')],
             ]);
         }
+
+        Log::info('[DEBUG] AuthService::platformLogin — credentials valid');
 
         if (! $user->isPlatformAdmin()) {
+            Log::warning('[DEBUG] AuthService::platformLogin — not platform admin', [
+                'role' => $user->role->value,
+            ]);
             throw ValidationException::withMessages([
                 'email' => [__('auth.failed')],
             ]);
         }
 
+        Log::info('[DEBUG] AuthService::platformLogin — role verified as platform_admin');
+
         if (! $user->is_active) {
+            Log::warning('[DEBUG] AuthService::platformLogin — inactive account');
             throw ValidationException::withMessages([
                 'email' => [__('auth.inactive')],
             ]);
         }
 
         if ($user->application_status === 'pending') {
+            Log::warning('[DEBUG] AuthService::platformLogin — pending application');
             throw ValidationException::withMessages([
                 'email' => [__('auth.pending')],
             ]);
         }
 
         if ($user->application_status === 'rejected') {
+            Log::warning('[DEBUG] AuthService::platformLogin — rejected application');
             throw ValidationException::withMessages([
                 'email' => [__('auth.rejected')],
             ]);
         }
 
+        Log::info('[DEBUG] AuthService::platformLogin — generating token');
         $token = $user->createToken('auth-token', [$user->role->value])->plainTextToken;
+        Log::info('[DEBUG] AuthService::platformLogin — token generated', [
+            'token_prefix' => substr($token, 0, 10).'...',
+        ]);
 
         return [
             'user' => $user->load(['classe', 'servant']),

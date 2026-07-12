@@ -1,10 +1,32 @@
 import axios from 'axios'
 import { logAxiosError } from '@/lib/debug'
 
+/*
+ * VITE_API_URL handling:
+ *   In production (Vercel + Railway), set VITE_API_URL to your Railway backend URL
+ *   WITHOUT a trailing slash, WITHOUT the /api prefix:
+ *     VITE_API_URL=https://your-railway-app.up.railway.app
+ *   For Docker dev, leave as default:
+ *     VITE_API_URL=/api
+ *
+ * The code below always appends /api/v1 to construct the final baseURL,
+ * regardless of whether VITE_API_URL already includes /api or not.
+ * This guarantees the URL always matches Laravel's automatic /api prefix.
+ */
 const API_URL = import.meta.env.VITE_API_URL || '/api'
 
+function buildBaseUrl(rawUrl: string): string {
+  if (rawUrl.startsWith('http')) {
+    const url = new URL(rawUrl.replace(/\/+$/, ''))
+    url.pathname = '/api/v1'
+    return url.toString().replace(/\/+$/, '')
+  }
+  const normalized = rawUrl.replace(/\/+$/, '') || '/api'
+  return `${normalized}/v1`
+}
+
 const client = axios.create({
-  baseURL: `${API_URL}/v1`,
+  baseURL: buildBaseUrl(API_URL),
   headers: { Accept: 'application/json' },
 })
 
