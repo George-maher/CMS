@@ -57,6 +57,7 @@ RUN chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache && \
 RUN sed -i 's/^listen = .*/listen = 127.0.0.1:9000/' /usr/local/etc/php-fpm.d/www.conf && \
     sed -i 's/^;listen.allowed_clients/listen.allowed_clients/' /usr/local/etc/php-fpm.d/www.conf && \
     sed -i 's/^listen.allowed_clients = .*/listen.allowed_clients = 127.0.0.1/' /usr/local/etc/php-fpm.d/www.conf && \
+    sed -i 's/^;catch_workers_output = no/catch_workers_output = yes/' /usr/local/etc/php-fpm.d/www.conf && \
     # Ensure PHP-FPM runs in foreground under Supervisor
     sed -i 's/^;daemonize = yes/daemonize = no/' /usr/local/etc/php-fpm.conf
 
