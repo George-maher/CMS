@@ -12,6 +12,10 @@ import { logAxiosError } from '@/lib/debug'
  * The code below always appends /api/v1 to construct the final baseURL,
  * regardless of whether VITE_API_URL already includes /api or not.
  * This guarantees the URL always matches Laravel's automatic /api prefix.
+ *
+ * withCredentials: true is required for cross-origin requests (Vercel → Railway)
+ * to send cookies for Sanctum SPA authentication and ensure CORS credentials flow.
+ * It also forces the browser to include Origin header on every request.
  */
 const API_URL = import.meta.env.VITE_API_URL || '/api'
 
@@ -27,6 +31,7 @@ function buildBaseUrl(rawUrl: string): string {
 
 const client = axios.create({
   baseURL: buildBaseUrl(API_URL),
+  withCredentials: true,
   headers: { Accept: 'application/json' },
 })
 
