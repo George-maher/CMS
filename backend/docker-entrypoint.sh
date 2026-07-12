@@ -39,14 +39,28 @@ rm -f /var/www/bootstrap/cache/config.php \
     /var/www/bootstrap/cache/services.php
 
 # ──────────────────────────────────────────────────────
-# Phase 4: Generate APP_KEY if missing
+# Phase 4: Ensure APP_KEY is Set
 # ──────────────────────────────────────────────────────
-if [ -f /var/www/.env ]; then
-    APP_KEY=$(grep '^APP_KEY=' /var/www/.env | cut -d= -f2-)
-    if [ -z "$APP_KEY" ] || [ "$APP_KEY" = "APP_KEY=" ] || [ "$APP_KEY" = "base64:" ]; then
-        echo "Generating APP_KEY..."
+# Priority: Railway env var > .env file > generate new
+ENV_APP_KEY="${APP_KEY:-}"
+if [ -n "$ENV_APP_KEY" ]; then
+    echo "APP_KEY found in environment (Railway) — ensuring .env is in sync"
+    if [ -f /var/www/.env ]; then
+        if grep -q '^APP_KEY=' /var/www/.env; then
+            sed -i "s|^APP_KEY=.*|APP_KEY=$ENV_APP_KEY|" /var/www/.env
+        else
+            echo "APP_KEY=$ENV_APP_KEY" >> /var/www/.env
+        fi
+    fi
+elif [ -f /var/www/.env ]; then
+    FILE_APP_KEY=$(grep '^APP_KEY=' /var/www/.env | cut -d= -f2-)
+    if [ -z "$FILE_APP_KEY" ] || [ "$FILE_APP_KEY" = "APP_KEY=" ] || [ "$FILE_APP_KEY" = "base64:" ]; then
+        echo "No APP_KEY in environment or .env — generating..."
         php /var/www/artisan key:generate --force
     fi
+else
+    echo "No .env file found — generating APP_KEY..."
+    php /var/www/artisan key:generate --force
 fi
 
 # ──────────────────────────────────────────────────────
@@ -75,9 +89,10 @@ if echo "$@" | grep -q "supervisord"; then
     sed -i "s/listen 8080;/listen ${PORT};/g" /etc/nginx/conf.d/default.conf
 
     # Cache Laravel config for optimal performance
-    php /var/www/artisan config:cache 2>/dev/null || true
-    php /var/www/artisan route:cache 2>/dev/null || true
-    php /var/www/artisan view:cache 2>/dev/null || true
+    # NOT silenced — failures must surface in container logs
+    php /var/www/artisan config:cache || echo "WARNING: config:cache failed"
+    php /var/www/artisan route:cache || echo "WARNING: route:cache failed"
+    php /var/www/artisan view:cache || echo "WARNING: view:cache failed"
 fi
 
 echo "Application is ready."
