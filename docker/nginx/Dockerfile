@@ -1,6 +1,6 @@
 FROM nginx:1.25-alpine
 
-RUN apk add --no-cache openssl
+RUN apk add --no-cache openssl curl
 
 RUN rm /docker-entrypoint.d/10-listen-on-ipv6-by-default.sh
 
