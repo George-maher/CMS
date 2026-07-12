@@ -22,15 +22,6 @@ class AdminUserSeeder extends Seeder
             ]
         );
 
-        User::updateOrCreate(
-            ['email' => 'admin@churchmanager.app'],
-            [
-                'name' => 'System Admin',
-                'password' => Hash::make('password'),
-                'role' => UserRole::Admin,
-                'is_active' => true,
-                'application_status' => 'approved',
-            ]
-        );
+       
     }
 }
