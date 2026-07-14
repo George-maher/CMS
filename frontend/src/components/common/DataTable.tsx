@@ -35,6 +35,8 @@ export default function DataTable<T extends { id: number }>({
 
   if (isLoading) return <LoadingSpinner className="py-12" />
 
+  const rows = Array.isArray(data) ? data : []
+
   const renderCell = (item: T, col: Column<T>) =>
     col.render ? col.render(item) : (item[col.key as keyof T] as ReactNode) ?? '-'
 
@@ -53,21 +55,21 @@ export default function DataTable<T extends { id: number }>({
             </tr>
           </thead>
           <tbody>
-            {data.length === 0 ? (
+            {rows.length === 0 ? (
               <tr>
                 <td colSpan={columns.length} className="px-4 py-12 text-center text-sm text-muted">
                   {emptyMessage || t('common.noData')}
                 </td>
               </tr>
             ) : (
-              data.map((item, i) => (
+              rows.map((item, i) => (
                 <tr
                   key={item.id ?? i}
                   onClick={() => onRowClick?.(item)}
                   className={`transition-colors ${
                     onRowClick ? 'cursor-pointer' : ''
                   } ${i % 2 === 1 ? 'bg-surface-tertiary/30' : ''} hover:bg-surface-secondary`}
-                  style={{ borderBottom: i < data.length - 1 ? '1px solid var(--color-border)' : 'none' }}
+                  style={{ borderBottom: i < rows.length - 1 ? '1px solid var(--color-border)' : 'none' }}
                 >
                   {columns.map((col) => (
                     <td key={col.key} className="table-cell px-4 py-3">
@@ -83,12 +85,12 @@ export default function DataTable<T extends { id: number }>({
 
       {/* Mobile card view */}
       <div className="sm:hidden space-y-3 p-3">
-        {data.length === 0 ? (
+        {rows.length === 0 ? (
           <div className="py-12 text-center text-sm text-muted">
             {emptyMessage || t('common.noData')}
           </div>
         ) : (
-          data.map((item, i) => (
+          rows.map((item, i) => (
             <div
               key={item.id ?? i}
               onClick={() => onRowClick?.(item)}

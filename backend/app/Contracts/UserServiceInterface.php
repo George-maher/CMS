@@ -2,14 +2,11 @@
 
 namespace App\Contracts;
 
-use App\Models\User;
-use Illuminate\Contracts\Pagination\LengthAwarePaginator;
-
 interface UserServiceInterface
 {
     /**
      * @param  array<string, mixed>  $filters
-     * @return array{data: LengthAwarePaginator<int, User>, meta: array{current_page: int, last_page: int, per_page: int, total: int}}
+     * @return array{data: \Illuminate\Http\Resources\Json\AnonymousResourceCollection, meta: array{current_page: int, last_page: int, per_page: int, total: int}}
      */
     public function listUsers(int $perPage = 15, array $filters = []): array;
 

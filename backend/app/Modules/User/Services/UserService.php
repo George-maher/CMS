@@ -28,10 +28,8 @@ class UserService implements UserServiceInterface
         /** @var LengthAwarePaginator<int, User> $paginator */
         $paginator = $this->userRepository->paginate($perPage, $filters);
 
-        $data = UserResource::collection($paginator->items());
-
         return [
-            'data' => $paginator,
+            'data' => UserResource::collection($paginator->items()),
             'meta' => [
                 'current_page' => $paginator->currentPage(),
                 'last_page' => $paginator->lastPage(),
