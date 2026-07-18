@@ -602,8 +602,8 @@ export default function AdminUsers() {
               />
             </div>
 
-            <div className="space-y-1.5 flex items-end pb-2">
-              <label className="relative inline-flex items-center cursor-pointer gap-3">
+            <div className="flex items-end pb-2">
+              <label className="relative inline-flex items-center cursor-pointer gap-3 group">
                 <input
                   type="checkbox"
                   checked={form.is_active ?? true}
@@ -611,8 +611,10 @@ export default function AdminUsers() {
                   className="sr-only peer"
                   disabled={submitting}
                 />
-                <div className="w-9 h-5 bg-gray-300 dark:bg-gray-600 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary/30 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
-                <span className="text-sm font-medium">{t('common.active')}</span>
+                <div className="peer w-11 h-6 rounded-full border-2 bg-gray-300 dark:bg-gray-600 border-gray-400 dark:border-gray-500 peer-checked:bg-success peer-checked:border-success relative transition-all duration-300 ease-in-out after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:rounded-full after:h-[18px] after:w-[18px] after:shadow-sm after:transition-all after:duration-300 after:ease-in-out peer-checked:after:translate-x-[18px] rtl:peer-checked:after:-translate-x-[18px] group-hover:opacity-80 peer-disabled:opacity-50 peer-disabled:cursor-not-allowed peer-focus-visible:ring-2 peer-focus-visible:ring-success/30 peer-focus-visible:outline-none"></div>
+                <span className={`text-sm font-medium select-none transition-colors duration-300 ${(form.is_active ?? true) ? 'text-success' : 'text-muted'}`}>
+                  {(form.is_active ?? true) ? t('common.active') : t('common.inactive')}
+                </span>
               </label>
             </div>
           </div>
