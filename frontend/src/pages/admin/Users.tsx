@@ -195,6 +195,10 @@ export default function AdminUsers() {
       newErrors.password_confirmation = t('auth.passwordsDoNotMatch')
     }
 
+    if (!form.role) {
+      newErrors.role = t('validation.required')
+    }
+
     if (form.role === 'member') {
       if (!form.class_id) {
         newErrors.class_id = t('validation.required')
@@ -260,6 +264,7 @@ export default function AdminUsers() {
           else if (field === 'email') serverErrors.email = messages[0]
           else if (field === 'name') serverErrors.name = messages[0]
           else if (field === 'phone') serverErrors.phone = messages[0]
+          else if (field === 'role') serverErrors.role = messages[0]
           else if (field === 'class_id') serverErrors.class_id = messages[0]
           else if (field === 'member_id') serverErrors.member_id = messages[0]
           else serverErrors.server = messages[0]
@@ -440,15 +445,18 @@ export default function AdminUsers() {
               <select
                 id="create-user-role"
                 value={form.role}
-                onChange={(e) => setForm({ ...form, role: e.target.value as UserRole })}
-                className="input-field w-full"
+                onChange={(e) => { setForm({ ...form, role: e.target.value as UserRole }); setErrors((prev) => ({ ...prev, role: undefined })) }}
+                className={`input-field w-full ${errors.role ? 'error' : ''}`}
                 disabled={submitting}
+                aria-invalid={!!errors.role}
+                aria-describedby={errors.role ? 'create-user-role-error' : undefined}
               >
                 <option value="member">{t('users.roleMember')}</option>
                 <option value="servant">{t('users.roleServant')}</option>
                 <option value="assistant_admin">{t('users.roleAssistantAdmin')}</option>
                 <option value="admin">{t('users.roleAdmin')}</option>
               </select>
+              {errors.role && <p id="create-user-role-error" className="form-error text-xs">{errors.role}</p>}
             </div>
 
             <div className="space-y-1.5">
