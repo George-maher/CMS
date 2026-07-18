@@ -49,7 +49,7 @@ export async function getMembers(servantId?: number): Promise<User[]> {
 }
 
 export async function promoteToAdmin(userId: number): Promise<User> {
-  const { data } = await client.post<{ data: User }>(`/users/${userId}/promote`)
+  const { data } = await client.post<{ data: User }>(`/users/${userId}/promote`, { role: 'admin' })
   return data.data
 }
 

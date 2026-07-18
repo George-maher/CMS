@@ -127,19 +127,16 @@ class UserController extends Controller
         return $userId;
     }
 
-    public function promote(RoleRequest $request): JsonResponse
+    public function promote(RoleRequest $request, int $id): JsonResponse
     {
         /** @var array<string, mixed> $data */
         $data = $request->validated();
         $authId = $this->getAuthId($request);
 
-        /** @var int|string $rawUserId */
-        $rawUserId = $data['user_id'] ?? 0;
-        $userId = (int) $rawUserId;
         /** @var string $newRole */
         $newRole = $data['role'] ?? '';
 
-        $result = $this->userService->promote($userId, $authId, $newRole);
+        $result = $this->userService->promote($id, $authId, $newRole);
 
         return response()->json($result);
     }
