@@ -141,14 +141,14 @@ class UserController extends Controller
         return response()->json($result);
     }
 
-    public function demote(Request $request): JsonResponse
+    public function demote(Request $request, int $id): JsonResponse
     {
-        /** @var int|string $rawUserId */
-        $rawUserId = $request->input('user_id', 0);
-        $userId = (int) $rawUserId;
         $authId = $this->getAuthId($request);
 
-        $result = $this->userService->demoteFromAdmin($userId, $authId);
+        /** @var string $newRole */
+        $newRole = $request->input('role', 'member');
+
+        $result = $this->userService->demoteFromAdmin($id, $authId, $newRole);
 
         return response()->json($result);
     }

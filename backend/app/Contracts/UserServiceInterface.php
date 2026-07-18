@@ -33,7 +33,7 @@ interface UserServiceInterface
     public function promote(int $userId, int $authUserId, string $newRole): array;
 
     /** @return array<string, mixed> */
-    public function demoteFromAdmin(int $userId, int $authUserId): array;
+    public function demoteFromAdmin(int $userId, int $authUserId, string $newRole = 'member'): array;
 
     /** @return array<string, mixed> */
     public function getAttendanceHistory(int $userId, int $perPage = 15): array;

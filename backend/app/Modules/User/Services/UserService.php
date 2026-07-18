@@ -171,9 +171,9 @@ class UserService implements UserServiceInterface
     }
 
     /** @return array<string, mixed> */
-    public function demoteFromAdmin(int $userId, int $authUserId): array
+    public function demoteFromAdmin(int $userId, int $authUserId, string $newRole = 'member'): array
     {
-        $result = $this->userRepository->demoteFromAdmin($userId);
+        $result = $this->userRepository->demoteFromAdmin($userId, $newRole);
 
         if (! $result) {
             throw ValidationException::withMessages(['user' => ['User not found or cannot be demoted.']]);

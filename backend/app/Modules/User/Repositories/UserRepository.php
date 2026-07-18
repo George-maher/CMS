@@ -207,9 +207,9 @@ class UserRepository implements UserRepositoryInterface
         return $this->findMembersByServant($servantId);
     }
 
-    public function demoteFromAdmin(int $id): bool
+    public function demoteFromAdmin(int $id, string $newRole = 'member'): bool
     {
-        return $this->updateRole($id, UserRole::Member->value);
+        return $this->updateRole($id, $newRole);
     }
 
     /**
