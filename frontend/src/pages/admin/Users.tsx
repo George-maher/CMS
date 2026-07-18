@@ -187,6 +187,8 @@ export default function AdminUsers() {
       newErrors.password = t('auth.passwordRequired')
     } else if (form.password.length < 8) {
       newErrors.password = t('auth.passwordMin')
+    } else if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#^()_\-+=]).+$/.test(form.password)) {
+      newErrors.password = t('auth.passwordFormat')
     }
 
     if (!form.password_confirmation) {
@@ -406,6 +408,7 @@ export default function AdminUsers() {
                 </button>
               </div>
               {errors.password && <p id="create-user-password-error" className="form-error text-xs">{errors.password}</p>}
+              <p className="text-xs text-muted mt-1 leading-relaxed">{t('auth.passwordMin')} — {t('auth.passwordFormat')}</p>
             </div>
 
             <div className="space-y-1.5">

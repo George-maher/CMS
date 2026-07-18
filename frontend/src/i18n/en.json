@@ -130,6 +130,7 @@
     "failedAccept": "Failed to accept invite.",
     "passwordMinLength": "Password must contain at least 8 characters.",
     "passwordMin": "Password must contain at least 8 characters.",
+    "passwordFormat": "Must include uppercase, lowercase, number, and special character (@$!%*?&#^()_-+=).",
     "confirmPassword": "Confirm Password",
     "invitedAsServant": "You are invited to register as a Servant",
     "invitedAsMember": "You are invited to register as a Member",
