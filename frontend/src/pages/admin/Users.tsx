@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import toast from 'react-hot-toast'
@@ -9,9 +9,9 @@ import DataTable from '@/components/common/DataTable'
 import Modal from '@/components/common/Modal'
 import { useTheme } from '@/hooks/useTheme'
 import type { Column } from '@/components/common/DataTable'
-import type { CreateUserPayload, StageWithClasses, User, UserRole } from '@/types'
+import type { Classe, CreateUserPayload, User, UserRole } from '@/types'
 import { listUsers, createUser } from '@/api/users'
-import { listStructureClasses } from '@/api/structure'
+import { listFlatClasses } from '@/api/structure'
 import { roleBadgeVariant, roleTranslationKey } from '@/lib/roles'
 import { validatePhone as validatePhoneUtil, filterPhoneInput } from '@/lib/phoneValidation'
 import { logCatch } from '@/lib/debug'
@@ -24,7 +24,6 @@ interface FormErrors {
   password_confirmation?: string
   role?: string
   phone?: string
-  stage_id?: string
   class_id?: string
   member_id?: string
   server?: string
@@ -37,7 +36,6 @@ const initialForm: CreateUserPayload = {
   password_confirmation: '',
   role: 'member',
   birthday: null,
-  stage_id: null,
   class_id: null,
   phone: null,
   address: null,
@@ -54,7 +52,9 @@ export default function AdminUsers() {
   const [meta, setMeta] = useState({ current_page: 1, last_page: 1, per_page: 15, total: 0 })
   const [loading, setLoading] = useState(true)
   const [showCreate, setShowCreate] = useState(false)
-  const [structureData, setStructureData] = useState<StageWithClasses[]>([])
+  const [classes, setClasses] = useState<Classe[]>([])
+  const [classesLoading, setClassesLoading] = useState(false)
+  const [classesError, setClassesError] = useState<string | null>(null)
   const [form, setForm] = useState<CreateUserPayload>({ ...initialForm })
   const [errors, setErrors] = useState<FormErrors>({})
   const [submitting, setSubmitting] = useState(false)
@@ -63,12 +63,6 @@ export default function AdminUsers() {
   const [search, setSearch] = useState('')
   const searchTimeout = useRef<ReturnType<typeof setTimeout>>(undefined)
   const nameRef = useRef<HTMLInputElement>(null)
-
-  const selectedStageClasses = useMemo(() => {
-    if (!form.stage_id) return []
-    const stage = structureData.find((s) => s.id === form.stage_id)
-    return stage?.classes ?? []
-  }, [structureData, form.stage_id])
 
   const columns: Column<User>[] = [
     { key: 'member_id', header: t('users.memberIdLabel'), render: (u) => u.member_id ? (
@@ -114,7 +108,21 @@ export default function AdminUsers() {
     return () => { if (searchTimeout.current) clearTimeout(searchTimeout.current) }
   }, [search, fetchUsers])
 
-  useEffect(() => { listStructureClasses().then(setStructureData).catch((e) => logCatch('AdminUsers.listStructureClasses', e)) }, [])
+  const fetchClasses = useCallback(async () => {
+    setClassesLoading(true)
+    setClassesError(null)
+    try {
+      const data = await listFlatClasses()
+      setClasses(data)
+    } catch (e) {
+      logCatch('AdminUsers.listFlatClasses', e)
+      setClassesError(t('common.failedToLoad'))
+    } finally {
+      setClassesLoading(false)
+    }
+  }, [t])
+
+  useEffect(() => { fetchClasses() }, [fetchClasses])
 
   useEffect(() => {
     if (showCreate && nameRef.current) {
@@ -163,9 +171,6 @@ export default function AdminUsers() {
     }
 
     if (form.role === 'member') {
-      if (!form.stage_id) {
-        newErrors.stage_id = t('validation.required')
-      }
       if (!form.class_id) {
         newErrors.class_id = t('validation.required')
       }
@@ -202,7 +207,6 @@ export default function AdminUsers() {
         password_confirmation: form.password_confirmation,
         role: form.role,
         birthday: form.birthday || null,
-        stage_id: form.stage_id,
         class_id: form.class_id,
         phone: form.phone || null,
         address: form.address || null,
@@ -210,6 +214,34 @@ export default function AdminUsers() {
         member_address: form.member_address || null,
         is_active: form.is_active,
       }
+
+      await createUser(payload)
+      setShowCreate(false)
+      setForm({ ...initialForm })
+      setErrors({})
+      toast.success(t('users.created'))
+      fetchUsers()
+    } catch (err) {
+      const axiosErr = err as AxiosError<{ message?: string; errors?: Record<string, string[]> }>
+      if (axiosErr.response?.data?.errors) {
+        const serverErrors: FormErrors = {}
+        const errData = axiosErr.response.data.errors
+        for (const [field, messages] of Object.entries(errData)) {
+          if (field === 'password') serverErrors.password = messages[0]
+          else if (field === 'email') serverErrors.email = messages[0]
+          else if (field === 'name') serverErrors.name = messages[0]
+          else if (field === 'phone') serverErrors.phone = messages[0]
+          else if (field === 'class_id') serverErrors.class_id = messages[0]
+          else if (field === 'member_id') serverErrors.member_id = messages[0]
+          else serverErrors.server = messages[0]
+        }
+        setErrors(serverErrors)
+      } else {
+        setErrors({ server: axiosErr.response?.data?.message || t('common.failedToSave') })
+      }
+    } finally {
+      setSubmitting(false)
+    }
 
       await createUser(payload)
       setShowCreate(false)
@@ -451,38 +483,22 @@ export default function AdminUsers() {
             </div>
 
             <div className="space-y-1.5">
-              <label htmlFor="create-user-stage" className="label">
-                {t('structure.stage')} {form.role === 'member' ? <span className="text-danger">*</span> : <span className="text-xs text-muted">({t('common.optional')})</span>}
-              </label>
-              {structureData.length > 0 ? (
-                <select
-                  id="create-user-stage"
-                  value={form.stage_id ?? ''}
-                  onChange={(e) => {
-                    const stageId = e.target.value ? Number(e.target.value) : null
-                    setForm({ ...form, stage_id: stageId, class_id: null })
-                    setErrors((prev) => ({ ...prev, stage_id: undefined, class_id: undefined }))
-                  }}
-                  className={`input-field w-full ${errors.stage_id ? 'error' : ''}`}
-                  disabled={submitting}
-                  aria-invalid={!!errors.stage_id}
-                >
-                  <option value="">{t('structure.selectStage')}</option>
-                  {structureData.map((s) => (<option key={s.id} value={s.id}>{s.name}</option>))}
-                </select>
-              ) : (
-                <p className="text-sm text-secondary">{t('structure.noStages')}</p>
-              )}
-              {errors.stage_id && <p className="form-error text-xs">{errors.stage_id}</p>}
-            </div>
-
-            <div className="space-y-1.5">
               <label htmlFor="create-user-class" className="label">
                 {t('users.class')} {form.role === 'member' ? <span className="text-danger">*</span> : <span className="text-xs text-muted">({t('common.optional')})</span>}
               </label>
-              {!form.stage_id ? (
-                <p className="text-sm text-secondary">{t('structure.selectStageFirst')}</p>
-              ) : selectedStageClasses.length > 0 ? (
+              {classesLoading ? (
+                <div className="input-field w-full flex items-center gap-2 text-muted text-sm">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  {t('common.loading')}
+                </div>
+              ) : classesError ? (
+                <div className="flex items-center gap-2">
+                  <p className="text-sm text-danger">{classesError}</p>
+                  <button onClick={fetchClasses} className="text-xs text-primary underline hover:no-underline" type="button">
+                    {t('common.retry')}
+                  </button>
+                </div>
+              ) : classes.length > 0 ? (
                 <select
                   id="create-user-class"
                   value={form.class_id ?? ''}
@@ -492,7 +508,7 @@ export default function AdminUsers() {
                   aria-invalid={!!errors.class_id}
                 >
                   <option value="">{t('absentMembers.selectClass')}</option>
-                  {selectedStageClasses.map((c) => (<option key={c.id} value={c.id}>{c.name}</option>))}
+                  {classes.map((c) => (<option key={c.id} value={c.id}>{c.name}</option>))}
                 </select>
               ) : (
                 <p className="text-sm text-secondary">{t('structure.noClasses')}</p>

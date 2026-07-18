@@ -1,9 +1,15 @@
-import type { StageWithClasses } from '@/types'
+import type { Classe, StageWithClasses } from '@/types'
 import client from './client'
 
 export async function listStructureClasses(search?: string): Promise<StageWithClasses[]> {
   const params = search ? { search } : {}
   const { data } = await client.get<{ data: StageWithClasses[] }>('/structure/classes', { params })
+  return data.data
+}
+
+export async function listFlatClasses(search?: string): Promise<Classe[]> {
+  const params = search ? { search } : {}
+  const { data } = await client.get<{ data: Classe[] }>('/classes', { params })
   return data.data
 }
 
