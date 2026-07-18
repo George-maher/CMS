@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import toast from 'react-hot-toast'
@@ -9,9 +9,9 @@ import DataTable from '@/components/common/DataTable'
 import Modal from '@/components/common/Modal'
 import { useTheme } from '@/hooks/useTheme'
 import type { Column } from '@/components/common/DataTable'
-import type { CreateUserPayload, User, UserRole } from '@/types'
+import type { CreateUserPayload, StageWithClasses, User, UserRole } from '@/types'
 import { listUsers, createUser } from '@/api/users'
-import { listAllClasses } from '@/api/structure'
+import { listStructureClasses } from '@/api/structure'
 import { roleBadgeVariant, roleTranslationKey } from '@/lib/roles'
 import { validatePhone as validatePhoneUtil, filterPhoneInput } from '@/lib/phoneValidation'
 import { logCatch } from '@/lib/debug'
@@ -24,6 +24,7 @@ interface FormErrors {
   password_confirmation?: string
   role?: string
   phone?: string
+  stage_id?: string
   class_id?: string
   member_id?: string
   server?: string
@@ -36,6 +37,7 @@ const initialForm: CreateUserPayload = {
   password_confirmation: '',
   role: 'member',
   birthday: null,
+  stage_id: null,
   class_id: null,
   phone: null,
   address: null,
@@ -52,7 +54,7 @@ export default function AdminUsers() {
   const [meta, setMeta] = useState({ current_page: 1, last_page: 1, per_page: 15, total: 0 })
   const [loading, setLoading] = useState(true)
   const [showCreate, setShowCreate] = useState(false)
-  const [classes, setClasses] = useState<{ id: number; name: string }[]>([])
+  const [structureData, setStructureData] = useState<StageWithClasses[]>([])
   const [form, setForm] = useState<CreateUserPayload>({ ...initialForm })
   const [errors, setErrors] = useState<FormErrors>({})
   const [submitting, setSubmitting] = useState(false)
@@ -61,6 +63,12 @@ export default function AdminUsers() {
   const [search, setSearch] = useState('')
   const searchTimeout = useRef<ReturnType<typeof setTimeout>>(undefined)
   const nameRef = useRef<HTMLInputElement>(null)
+
+  const selectedStageClasses = useMemo(() => {
+    if (!form.stage_id) return []
+    const stage = structureData.find((s) => s.id === form.stage_id)
+    return stage?.classes ?? []
+  }, [structureData, form.stage_id])
 
   const columns: Column<User>[] = [
     { key: 'member_id', header: t('users.memberIdLabel'), render: (u) => u.member_id ? (
@@ -106,7 +114,7 @@ export default function AdminUsers() {
     return () => { if (searchTimeout.current) clearTimeout(searchTimeout.current) }
   }, [search, fetchUsers])
 
-  useEffect(() => { listAllClasses().then(setClasses).catch((e) => logCatch('AdminUsers.listAllClasses', e)) }, [])
+  useEffect(() => { listStructureClasses().then(setStructureData).catch((e) => logCatch('AdminUsers.listStructureClasses', e)) }, [])
 
   useEffect(() => {
     if (showCreate && nameRef.current) {
@@ -154,6 +162,15 @@ export default function AdminUsers() {
       newErrors.password_confirmation = t('auth.passwordsDoNotMatch')
     }
 
+    if (form.role === 'member') {
+      if (!form.stage_id) {
+        newErrors.stage_id = t('validation.required')
+      }
+      if (!form.class_id) {
+        newErrors.class_id = t('validation.required')
+      }
+    }
+
     const phoneErr = validatePhone(form.phone)
     if (phoneErr) {
       newErrors.phone = phoneErr
@@ -185,6 +202,7 @@ export default function AdminUsers() {
         password_confirmation: form.password_confirmation,
         role: form.role,
         birthday: form.birthday || null,
+        stage_id: form.stage_id,
         class_id: form.class_id,
         phone: form.phone || null,
         address: form.address || null,
@@ -209,6 +227,7 @@ export default function AdminUsers() {
           else if (field === 'email') serverErrors.email = messages[0]
           else if (field === 'name') serverErrors.name = messages[0]
           else if (field === 'phone') serverErrors.phone = messages[0]
+          else if (field === 'stage_id') serverErrors.stage_id = messages[0]
           else if (field === 'class_id') serverErrors.class_id = messages[0]
           else if (field === 'member_id') serverErrors.member_id = messages[0]
           else serverErrors.server = messages[0]
@@ -432,10 +451,38 @@ export default function AdminUsers() {
             </div>
 
             <div className="space-y-1.5">
-              <label htmlFor="create-user-class" className="label">
-                {t('users.class')} <span className="text-xs text-muted">({t('common.optional')})</span>
+              <label htmlFor="create-user-stage" className="label">
+                {t('structure.stage')} {form.role === 'member' ? <span className="text-danger">*</span> : <span className="text-xs text-muted">({t('common.optional')})</span>}
               </label>
-              {classes.length > 0 ? (
+              {structureData.length > 0 ? (
+                <select
+                  id="create-user-stage"
+                  value={form.stage_id ?? ''}
+                  onChange={(e) => {
+                    const stageId = e.target.value ? Number(e.target.value) : null
+                    setForm({ ...form, stage_id: stageId, class_id: null })
+                    setErrors((prev) => ({ ...prev, stage_id: undefined, class_id: undefined }))
+                  }}
+                  className={`input-field w-full ${errors.stage_id ? 'error' : ''}`}
+                  disabled={submitting}
+                  aria-invalid={!!errors.stage_id}
+                >
+                  <option value="">{t('structure.selectStage')}</option>
+                  {structureData.map((s) => (<option key={s.id} value={s.id}>{s.name}</option>))}
+                </select>
+              ) : (
+                <p className="text-sm text-secondary">{t('structure.noStages')}</p>
+              )}
+              {errors.stage_id && <p className="form-error text-xs">{errors.stage_id}</p>}
+            </div>
+
+            <div className="space-y-1.5">
+              <label htmlFor="create-user-class" className="label">
+                {t('users.class')} {form.role === 'member' ? <span className="text-danger">*</span> : <span className="text-xs text-muted">({t('common.optional')})</span>}
+              </label>
+              {!form.stage_id ? (
+                <p className="text-sm text-secondary">{t('structure.selectStageFirst')}</p>
+              ) : selectedStageClasses.length > 0 ? (
                 <select
                   id="create-user-class"
                   value={form.class_id ?? ''}
@@ -445,7 +492,7 @@ export default function AdminUsers() {
                   aria-invalid={!!errors.class_id}
                 >
                   <option value="">{t('absentMembers.selectClass')}</option>
-                  {classes.map((c) => (<option key={c.id} value={c.id}>{c.name}</option>))}
+                  {selectedStageClasses.map((c) => (<option key={c.id} value={c.id}>{c.name}</option>))}
                 </select>
               ) : (
                 <p className="text-sm text-secondary">{t('structure.noClasses')}</p>

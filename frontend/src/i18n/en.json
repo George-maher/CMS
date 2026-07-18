@@ -489,6 +489,7 @@
   "structure": {
     "title": "Structure Management",
     "subtitle": "Manage stages and classes for your church",
+    "stage": "Stage",
     "stages": "Stages",
     "classes": "Classes",
     "members": "Members",
@@ -503,6 +504,9 @@
     "stageDeleted": "Stage deleted successfully.",
     "deleteStageConfirm": "Delete this stage? All classes under it will also be deleted.",
     "noStages": "No stages yet.",
+    "selectStage": "Select a stage",
+    "selectStageFirst": "Select a stage first",
+    "noClasses": "No classes in this stage.",
     "createFirstStage": "Create your first stage",
     "classesCount": "classes",
     "openStage": "Open",
@@ -597,6 +601,8 @@
     "referenceHint": "Book name followed by chapter and verse number (e.g. John 3:16)."
   },
   "validation": {
+    "nameRequired": "Name is required.",
+    "required": "This field is required.",
     "phoneExact11": "Phone number must contain exactly 11 digits.",
     "phoneOnlyNumbers": "Only numbers are allowed."
   },

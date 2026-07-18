@@ -228,6 +228,7 @@ export interface CreateUserPayload {
   password_confirmation: string
   role: UserRole
   birthday?: string | null
+  stage_id?: number | null
   class_id?: number | null
   phone?: string | null
   address?: string | null
