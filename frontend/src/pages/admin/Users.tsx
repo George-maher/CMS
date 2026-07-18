@@ -9,9 +9,9 @@ import DataTable from '@/components/common/DataTable'
 import Modal from '@/components/common/Modal'
 import { useTheme } from '@/hooks/useTheme'
 import type { Column } from '@/components/common/DataTable'
-import type { Classe, CreateUserPayload, User, UserRole } from '@/types'
+import type { Classe, CreateUserPayload, Stage, User, UserRole } from '@/types'
 import { listUsers, createUser } from '@/api/users'
-import { listFlatClasses } from '@/api/structure'
+import { listStages, getStageClasses } from '@/api/stages'
 import { roleBadgeVariant, roleTranslationKey } from '@/lib/roles'
 import { validatePhone as validatePhoneUtil, filterPhoneInput } from '@/lib/phoneValidation'
 import { logCatch } from '@/lib/debug'
@@ -24,6 +24,7 @@ interface FormErrors {
   password_confirmation?: string
   role?: string
   phone?: string
+  stage_id?: string
   class_id?: string
   member_id?: string
   server?: string
@@ -52,6 +53,10 @@ export default function AdminUsers() {
   const [meta, setMeta] = useState({ current_page: 1, last_page: 1, per_page: 15, total: 0 })
   const [loading, setLoading] = useState(true)
   const [showCreate, setShowCreate] = useState(false)
+  const [stages, setStages] = useState<Stage[]>([])
+  const [stagesLoading, setStagesLoading] = useState(false)
+  const [stagesError, setStagesError] = useState<string | null>(null)
+  const [selectedStageId, setSelectedStageId] = useState<number | null>(null)
   const [classes, setClasses] = useState<Classe[]>([])
   const [classesLoading, setClassesLoading] = useState(false)
   const [classesError, setClassesError] = useState<string | null>(null)
@@ -108,21 +113,41 @@ export default function AdminUsers() {
     return () => { if (searchTimeout.current) clearTimeout(searchTimeout.current) }
   }, [search, fetchUsers])
 
-  const fetchClasses = useCallback(async () => {
+  const fetchStages = useCallback(async () => {
+    setStagesLoading(true)
+    setStagesError(null)
+    try {
+      const data = await listStages()
+      setStages(data)
+    } catch (e) {
+      logCatch('AdminUsers.listStages', e)
+      setStagesError(t('common.failedToLoad'))
+    } finally {
+      setStagesLoading(false)
+    }
+  }, [t])
+
+  useEffect(() => { fetchStages() }, [fetchStages])
+
+  const handleStageChange = useCallback(async (stageId: number | null) => {
+    setSelectedStageId(stageId)
+    setForm((prev) => ({ ...prev, class_id: null }))
+    if (!stageId) {
+      setClasses([])
+      return
+    }
     setClassesLoading(true)
     setClassesError(null)
     try {
-      const data = await listFlatClasses()
+      const data = await getStageClasses(stageId)
       setClasses(data)
     } catch (e) {
-      logCatch('AdminUsers.listFlatClasses', e)
+      logCatch('AdminUsers.getStageClasses', e)
       setClassesError(t('common.failedToLoad'))
     } finally {
       setClassesLoading(false)
     }
   }, [t])
-
-  useEffect(() => { fetchClasses() }, [fetchClasses])
 
   useEffect(() => {
     if (showCreate && nameRef.current) {
@@ -191,6 +216,8 @@ export default function AdminUsers() {
     setSubmitting(false)
     setShowPassword(false)
     setShowPasswordConfirmation(false)
+    setSelectedStageId(null)
+    setClasses([])
     setShowCreate(true)
   }
 
@@ -219,6 +246,8 @@ export default function AdminUsers() {
       setShowCreate(false)
       setForm({ ...initialForm })
       setErrors({})
+      setSelectedStageId(null)
+      setClasses([])
       toast.success(t('users.created'))
       fetchUsers()
     } catch (err) {
@@ -231,35 +260,6 @@ export default function AdminUsers() {
           else if (field === 'email') serverErrors.email = messages[0]
           else if (field === 'name') serverErrors.name = messages[0]
           else if (field === 'phone') serverErrors.phone = messages[0]
-          else if (field === 'class_id') serverErrors.class_id = messages[0]
-          else if (field === 'member_id') serverErrors.member_id = messages[0]
-          else serverErrors.server = messages[0]
-        }
-        setErrors(serverErrors)
-      } else {
-        setErrors({ server: axiosErr.response?.data?.message || t('common.failedToSave') })
-      }
-    } finally {
-      setSubmitting(false)
-    }
-
-      await createUser(payload)
-      setShowCreate(false)
-      setForm({ ...initialForm })
-      setErrors({})
-      toast.success(t('users.created'))
-      fetchUsers()
-    } catch (err) {
-      const axiosErr = err as AxiosError<{ message?: string; errors?: Record<string, string[]> }>
-      if (axiosErr.response?.data?.errors) {
-        const serverErrors: FormErrors = {}
-        const errData = axiosErr.response.data.errors
-        for (const [field, messages] of Object.entries(errData)) {
-          if (field === 'password') serverErrors.password = messages[0]
-          else if (field === 'email') serverErrors.email = messages[0]
-          else if (field === 'name') serverErrors.name = messages[0]
-          else if (field === 'phone') serverErrors.phone = messages[0]
-          else if (field === 'stage_id') serverErrors.stage_id = messages[0]
           else if (field === 'class_id') serverErrors.class_id = messages[0]
           else if (field === 'member_id') serverErrors.member_id = messages[0]
           else serverErrors.server = messages[0]
@@ -483,10 +483,44 @@ export default function AdminUsers() {
             </div>
 
             <div className="space-y-1.5">
+              <label htmlFor="create-user-stage" className="label">
+                {t('structure.stage')} <span className="text-xs text-muted">({t('common.optional')})</span>
+              </label>
+              {stagesLoading ? (
+                <div className="input-field w-full flex items-center gap-2 text-muted text-sm">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  {t('common.loading')}
+                </div>
+              ) : stagesError ? (
+                <div className="flex items-center gap-2">
+                  <p className="text-sm text-danger">{stagesError}</p>
+                  <button onClick={fetchStages} className="text-xs text-primary underline hover:no-underline" type="button">
+                    {t('common.retry')}
+                  </button>
+                </div>
+              ) : stages.length > 0 ? (
+                <select
+                  id="create-user-stage"
+                  value={selectedStageId ?? ''}
+                  onChange={(e) => handleStageChange(e.target.value ? Number(e.target.value) : null)}
+                  className="input-field w-full"
+                  disabled={submitting}
+                >
+                  <option value="">{t('structure.selectStage')}</option>
+                  {stages.map((s) => (<option key={s.id} value={s.id}>{s.name}</option>))}
+                </select>
+              ) : (
+                <p className="text-sm text-secondary">{t('structure.noStages')}</p>
+              )}
+            </div>
+
+            <div className="space-y-1.5">
               <label htmlFor="create-user-class" className="label">
                 {t('users.class')} {form.role === 'member' ? <span className="text-danger">*</span> : <span className="text-xs text-muted">({t('common.optional')})</span>}
               </label>
-              {classesLoading ? (
+              {!selectedStageId ? (
+                <p className="text-sm text-secondary">{t('structure.selectStageFirst')}</p>
+              ) : classesLoading ? (
                 <div className="input-field w-full flex items-center gap-2 text-muted text-sm">
                   <Loader2 className="h-4 w-4 animate-spin" />
                   {t('common.loading')}
@@ -494,7 +528,7 @@ export default function AdminUsers() {
               ) : classesError ? (
                 <div className="flex items-center gap-2">
                   <p className="text-sm text-danger">{classesError}</p>
-                  <button onClick={fetchClasses} className="text-xs text-primary underline hover:no-underline" type="button">
+                  <button onClick={() => handleStageChange(selectedStageId)} className="text-xs text-primary underline hover:no-underline" type="button">
                     {t('common.retry')}
                   </button>
                 </div>

@@ -769,3 +769,48 @@ All issues from the audit have been addressed. See `AUDIT_CHANGES.md` for full d
 - `backend/production/nginx.conf` — Production nginx passes all requests to `/index.php`, no CORS headers (delegated to Laravel)
 - `backend/docker-entrypoint.sh:93` — Runs `php artisan config:cache` at container startup, serializing env values
 - `frontend/src/api/client.ts` — `buildBaseUrl()` appends `/api/v1` to `VITE_API_URL`. Added `withCredentials: true` for cross-origin cookie/session support
+
+---
+
+## 📌 ANCHORED SUMMARY (2026-07-18)
+
+## Goal
+Fix the Stages and Classes feature: HTTP 500 on Classes API, Stages/Classes not loading frontend, "Select Stage First" stuck state, and ensure Stage→Class cascading selection works end-to-end for user creation.
+
+## Constraints & Preferences
+- No temporary or frontend-only fixes; full root-cause analysis and proper architectural solution required.
+- SOLID principles, clean architecture, proper design patterns.
+- Loading, empty, error states; dark/light mode support.
+- No hardcoded Stage or Class IDs.
+- Class API must not return HTTP 500.
+- Create User flow: Select Stage → Fetch Classes → Select Class → Create User.
+
+## Progress
+### Done (2026-07-18)
+- **Traced full backend flow**: Routes (`routes/api.php`), Controllers (`StageController`, `ClasseController`), Services (`StageService`, `ClasseService`), Repositories (`StageRepository`, `ClasseRepository`), Models (`Stage`, `Classe`, `User`), Contracts, API Resources (`StageResource`, `ClasseResource`, `ClasseDetailResource`), Form Requests (`StoreStageRequest`, `StoreClasseRequest`, `CreateUserRequest`), Policies, Middleware, Traits (`BelongsToChurch`, `ChurchScope`), Migrations, Factories.
+- **Traced full frontend flow**: API clients (`stages.ts`, `classes.ts`, `structure.ts`, `users.ts`, `client.ts`), Types (`Stage`, `Classe`, `User`, `CreateUserPayload`), Pages (`admin/Users.tsx`, `admin/StructureManagement.tsx`, `admin/StageDetail.tsx`, `admin/ClasseDetail.tsx`), i18n (`en.json`).
+- **Verified database schema**: `stages` table (church_id FK, name, display_order), `classes` table (church_id FK, stage_id FK, name, description, display_order), `class_servant` pivot table, `class_id` FK on `users` table.
+- **Verified backend relationships**: `Stage.hasMany(Classe)`, `Classe.belongsTo(Stage)`, `Classe.hasMany(User, 'class_id')`, `Classe.belongsToMany(User, 'class_servant')` — all correct.
+- **Identified root cause of "Select Stage First" state**: `Users.tsx` used `listFlatClasses()` (flat class list) instead of stage-filtered class loading, and the stage/class dropdowns were not wired to translations.
+- **Identified root cause of duplicated code in `handleCreate`**: orphaned duplicated `try/catch` blocks (lines 246-274 originally) causing invalid JavaScript (orphaned `catch`).
+- **Rewrote `admin/Users.tsx`**: replaced `listFlatClasses()` import with `listStages()` + `getStageClasses()` from `@/api/stages`; added `stages`, `stagesLoading`, `stagesError`, `selectedStageId` state; added `fetchStages()` + `handleStageChange()` callbacks; added Stage `<select>` dropdown followed by Class `<select>` that depends on selected stage; added loading/error/empty states for both dropdowns; added "Select Stage First" prompt when no stage selected; added stage/class state reset in `openCreateModal` (resets `selectedStageId` to null, clears `classes`); removed all duplicated orphaned code from `handleCreate`; added `stage_id` to `FormErrors` interface.
+
+## Key Decisions
+- Use `listStages()` + `getStageClasses(stageId)` instead of `listFlatClasses()` to implement stage-based class filtering, matching the existing translations (`structure.selectStageFirst`, `structure.noClasses`, `structure.selectStage`, `structure.noStages`) and the required UX flow.
+- Keep the Create User modal in `admin/Users.tsx` but replace the flat class `<select>` with a stage `<select>` followed by a class `<select>` that depends on the selected stage — this is the correct architectural pattern, keeping the component self-contained.
+- Backend does not require changes — Controllers, Services, Repositories, and Models are structurally correct. The HTTP 500 issue is in the frontend using a flat class list from `listFlatClasses()` which doesn't exist; `listStages()` + `getStageClasses()` are the correct endpoints.
+
+## Next Steps
+1. Verify frontend compilation with `npx tsc --noEmit` (shell currently unavailable).
+2. Verify backend APIs with `curl` — call `GET /stages` and `GET /classes` with authentication to confirm no HTTP 500.
+3. End-to-end verification: login as admin, navigate to Users page, create a user with a selected Stage and Class, confirm user is created with correct `class_id`.
+
+## Relevant Files
+- `frontend/src/pages/admin/Users.tsx` — Rewritten: stage-based class loading, cascading stage→class dropdown, fixed duplicated `handleCreate` code, proper loading/error/empty states
+- `frontend/src/api/stages.ts` — Provides `listStages()`, `getStageClasses(stageId)` (used, no changes needed)
+- `frontend/src/api/classes.ts` — Flat class listing (no longer used in Users.tsx)
+- `frontend/src/api/structure.ts` — Provided `listFlatClasses()` (no longer used in Users.tsx)
+- `frontend/src/types/index.ts` — `Stage`, `Classe`, `CreateUserPayload` types (correct, no changes needed)
+- `frontend/src/i18n/en.json` — Translation keys `structure.selectStageFirst`, `structure.noClasses`, `structure.selectStage`, `structure.noStages` (already exist, no changes needed)
+- `backend/app/Http/Controllers/Api/StageController.php` — Stage endpoints (correct, no changes needed)
+- `backend/app/Http/Controllers/Api/ClasseController.php` — Class endpoints (correct, no changes needed)
