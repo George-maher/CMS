@@ -641,3 +641,14 @@
   .stagger-children > *:nth-child(8) { animation-delay: 0.4s; }
   .stagger-children > *:nth-child(n+9) { animation-delay: 0.45s; }
 }
+
+/* ─── Toast Notifications Dark Mode ─── */
+.dark .react-hot-toast {
+  background: var(--color-surface) !important;
+  color: var(--color-text-primary) !important;
+  border: 1px solid var(--color-border) !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4) !important;
+}
+.dark .react-hot-toast > div {
+  color: var(--color-text-primary) !important;
+}

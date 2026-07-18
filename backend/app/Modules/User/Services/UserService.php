@@ -57,9 +57,13 @@ class UserService implements UserServiceInterface
         /** @var string $password */
         $password = $data['password'] ?? '';
 
+        /** @var User|null $authUser */
+        $authUser = $authUserId ? User::find($authUserId) : null;
+
         /** @var array<string, mixed> $data */
         $data['password'] = Hash::make($password);
         $data['created_by'] = $authUserId;
+        $data['church_id'] = $authUser?->church_id ?? $data['church_id'] ?? null;
         $data['application_status'] = 'approved';
         $data['is_active'] = $data['is_active'] ?? true;
 
@@ -72,6 +76,10 @@ class UserService implements UserServiceInterface
             'class_year_id' => $data['class_year_id'] ?? null,
             'phone' => $data['phone'] ?? null,
             'address' => $data['address'] ?? null,
+            'birthday' => $data['birthday'] ?? null,
+            'member_id' => $data['member_id'] ?? null,
+            'member_address' => $data['member_address'] ?? null,
+            'church_id' => $data['church_id'],
             'is_active' => $data['is_active'],
             'application_status' => 'approved',
             'created_by' => $authUserId,

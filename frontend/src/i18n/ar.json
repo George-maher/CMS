@@ -243,7 +243,9 @@
     "emailPlaceholder": "مثال: george@example.com",
     "phonePlaceholder": "مثال: 01012345678",
     "addressPlaceholder": "مثال: المنيل، القاهرة",
-    "birthdayPlaceholder": "مثال: 2000-01-15"
+    "birthdayPlaceholder": "مثال: 2000-01-15",
+    "created": "تم إنشاء المستخدم بنجاح.",
+    "memberIdPlaceholder": "MBR-000001"
   },
   "events": {
     "events": "النشاطات ",
@@ -369,7 +371,7 @@
     "created": "تم إنشاء السياق بنجاح.",
     "updated": "تم تحديث السياق بنجاح.",
     "deleted": "تم حذف السياق بنجاح.",
-    "deleteConfirm": "حذف {name}؟ لا يمكن التراجع عن هذا.",
+    "deleteConfirm": "حذف {{name}}؟ لا يمكن التراجع عن هذا.",
     "from": "من",
     "to": "إلى",
     "apply": "تطبيق"
@@ -383,10 +385,10 @@
     "addBonusTitle": "منح نقاط مكافأة",
     "reason": "السبب",
     "reasonPlaceholder": "مثال: المشاركة في نشاط خاص",
-    "bonusAwarded": "تم منح {points} نقاط مكافأة لـ {name}!",
-    "bonusConfirm": "منح {points} نقاط مكافأة لـ {name}؟",
+    "bonusAwarded": "تم منح {{points}} نقاط مكافأة لـ {{name}}!",
+    "bonusConfirm": "منح {{points}} نقاط مكافأة لـ {{name}}؟",
     "bonusMinError": "يجب أن تكون النقاط 1 على الأقل.",
-    "bonusTarget": "منح نقاط مكافأة لـ {name}:"
+    "bonusTarget": "منح نقاط مكافأة لـ {{name}}:"
   },
   "qr": {
     "attendanceQR": "رمز QR للحضور",
@@ -1022,6 +1024,8 @@
   },
   "validation": {
     "phoneOnlyNumbers": "رقم الهاتف يجب أن يحتوي على أرقام فقط.",
-    "phoneExact11": "رقم الهاتف يجب أن يتكون من 11 رقماً بالضبط."
+    "phoneExact11": "رقم الهاتف يجب أن يتكون من 11 رقماً بالضبط.",
+    "required": "هذا الحقل مطلوب.",
+    "nameRequired": "الاسم مطلوب."
   }
 }

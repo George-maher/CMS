@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use App\Enums\PointType;
+use App\Enums\UserRole;
+use App\Models\User;
 use App\Traits\BelongsToChurch;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -46,6 +48,16 @@ class Point extends Model
             'points' => 'integer',
             'type' => PointType::class,
         ];
+    }
+
+    protected static function booted(): void
+    {
+        static::creating(function (Point $point) {
+            $user = User::find($point->user_id);
+            if (! $user || $user->role !== UserRole::Member) {
+                throw new \RuntimeException('Points can only be assigned to members.');
+            }
+        });
     }
 
     /**

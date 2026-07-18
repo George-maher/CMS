@@ -515,7 +515,7 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:api'])->group(functio
     |--------------------------------------------------------------------------
     */
     Route::post('/points/bonus', [PointController::class, 'addBonusPoints'])
-        ->middleware(['permission:manage_users', 'approved', 'throttle:attendance-record']);
+        ->middleware(['permission:manage_users,view_points', 'approved', 'throttle:attendance-record']);
 
     /*
     | Own QR token regeneration — user scoped

@@ -224,12 +224,14 @@ export interface RegisterPayload {
 export interface CreateUserPayload {
   name: string
   email: string
-  password?: string
+  password: string
+  password_confirmation: string
   role: UserRole
   birthday?: string | null
   class_id?: number | null
   phone?: string | null
   address?: string | null
+  member_id?: string | null
   member_address?: string | null
   is_active?: boolean
 }

@@ -243,7 +243,9 @@
     "emailPlaceholder": "Example: george@example.com",
     "phonePlaceholder": "Example: 01012345678",
     "addressPlaceholder": "Example: Al Manyal, Cairo",
-    "birthdayPlaceholder": "Example: 2000-01-15"
+    "birthdayPlaceholder": "Example: 2000-01-15",
+    "created": "User created successfully.",
+    "memberIdPlaceholder": "MBR-000001"
   },
   "events": {
     "events": "Events",
@@ -369,7 +371,7 @@
     "created": "Context created successfully.",
     "updated": "Context updated successfully.",
     "deleted": "Context deleted successfully.",
-    "deleteConfirm": "Delete {name}? This cannot be undone.",
+    "deleteConfirm": "Delete {{name}}? This cannot be undone.",
     "from": "From",
     "to": "To",
     "apply": "Apply"
@@ -383,10 +385,10 @@
     "addBonusTitle": "Award Bonus Points",
     "reason": "Reason",
     "reasonPlaceholder": "e.g. Participation in special event",
-    "bonusAwarded": "{points} bonus points awarded to {name}!",
-    "bonusConfirm": "Award {points} bonus points to {name}?",
+    "bonusAwarded": "{{points}} bonus points awarded to {{name}}!",
+    "bonusConfirm": "Award {{points}} bonus points to {{name}}?",
     "bonusMinError": "Points must be at least 1.",
-    "bonusTarget": "Award bonus points to {name}:"
+    "bonusTarget": "Award bonus points to {{name}}:"
   },
   "qr": {
     "attendanceQR": "Attendance QR Code",
@@ -1023,6 +1025,8 @@
   },
   "validation": {
     "phoneOnlyNumbers": "Phone number must contain only digits.",
-    "phoneExact11": "Phone number must be exactly 11 digits."
+    "phoneExact11": "Phone number must be exactly 11 digits.",
+    "required": "This field is required.",
+    "nameRequired": "Name is required."
   }
 }

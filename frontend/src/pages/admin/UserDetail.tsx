@@ -136,6 +136,10 @@ export default function AdminUserDetail() {
 
   const handleAddBonus = async () => {
     setBonusError('')
+    if (user.role !== 'member') {
+      setBonusError(t('points.memberOnly', 'Only members can receive points.'))
+      return
+    }
     if (!bonusPoints || Number(bonusPoints) < 1) {
       setBonusError(t('points.bonusMinError', 'Points must be at least 1.'))
       return
@@ -252,10 +256,12 @@ export default function AdminUserDetail() {
       </div>
 
       <div className="flex flex-wrap gap-2">
-        <button onClick={() => { setBonusPoints(''); setBonusReason(''); setBonusError(''); setShowBonusModal(true) }}
-          className="btn-primary btn-md">
-          <Award className="h-4 w-4" /> {t('points.addBonus')}
-        </button>
+        {user.role === 'member' && (
+          <button onClick={() => { setBonusPoints(''); setBonusReason(''); setBonusError(''); setShowBonusModal(true) }}
+            className="btn-primary btn-md">
+            <Award className="h-4 w-4" /> {t('points.addBonus')}
+          </button>
+        )}
       </div>
 
       {/* QR Code card — only shown if user has an attendance QR token */}

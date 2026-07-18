@@ -23,14 +23,7 @@ class UserRepository implements UserRepositoryInterface
 
     public function findByEmail(string $email): ?User
     {
-        $user = User::where('email', $email)->first();
-        \Illuminate\Support\Facades\Log::info('[DEBUG] UserRepository::findByEmail', [
-            'email' => $email,
-            'found' => $user !== null,
-            'user_id' => $user?->id,
-            'user_role' => $user?->role?->value,
-        ]);
-        return $user;
+        return User::where('email', $email)->first();
     }
 
     public function findByEmailByChurch(string $email): ?User

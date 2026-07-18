@@ -102,6 +102,12 @@ class PointController extends Controller
             ]);
         }
 
+        if (! $targetUser->isMember()) {
+            throw ValidationException::withMessages([
+                'user_id' => ['Only members can receive bonus points.'],
+            ]);
+        }
+
         /** @var int $points */
         $points = $request->integer('points');
         $reason = (string) $request->str('reason');

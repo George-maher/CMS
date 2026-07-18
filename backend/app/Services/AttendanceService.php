@@ -71,6 +71,12 @@ class AttendanceService implements AttendanceServiceInterface
             ]);
         }
 
+        if (! $member->isMember()) {
+            throw ValidationException::withMessages([
+                $errorField => ['Only members can record attendance.'],
+            ]);
+        }
+
         $context = AttendanceContext::withoutGlobalScope(ChurchScope::class)
             ->where('id', $contextId)
             ->where('is_active', true)

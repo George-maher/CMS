@@ -33,14 +33,16 @@ class Permission extends Model
     /** @return array<int, string> */
     public static function getPermissionsForRole(string $roleName): array
     {
-        $result = DB::table('role_permission as rp')
-            ->join('permissions as p', 'rp.permission_key', '=', 'p.key')
-            ->where('rp.role_name', $roleName)
-            ->pluck('p.key')
-            ->toArray();
+        return Cache::remember("permissions_role_{$roleName}", 86400 * 30, function () use ($roleName) {
+            $result = DB::table('role_permission as rp')
+                ->join('permissions as p', 'rp.permission_key', '=', 'p.key')
+                ->where('rp.role_name', $roleName)
+                ->pluck('p.key')
+                ->toArray();
 
-        /** @var array<int, string> $result */
-        return $result;
+            /** @var array<int, string> $result */
+            return $result;
+        });
     }
 
     public static function roleHasPermission(string $roleName, string $permissionKey): bool

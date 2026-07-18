@@ -36,42 +36,16 @@ class AuthController extends Controller
 
     public function platformLogin(LoginRequest $request): JsonResponse
     {
-        Log::info('[DEBUG] platformLogin called', [
-            'url' => $request->fullUrl(),
-            'method' => $request->method(),
-            'ip' => $request->ip(),
-            'headers' => $request->headers->all(),
-            'body' => $request->except('password'),
-            'path' => $request->path(),
+        $result = $this->authService->platformLogin($request->validated());
+
+        return response()->json([
+            'message' => 'Platform admin login successful.',
+            'data' => [
+                'user' => new UserResource($result['user']),
+                'token' => $result['token'],
+                'token_type' => $result['token_type'],
+            ],
         ]);
-
-        try {
-            $result = $this->authService->platformLogin($request->validated());
-
-            Log::info('[DEBUG] platformLogin success', [
-                'user_id' => $result['user']->id,
-                'user_role' => $result['user']->role->value,
-                'token_prefix' => substr($result['token'], 0, 10).'...',
-            ]);
-
-            return response()->json([
-                'message' => 'Platform admin login successful.',
-                'data' => [
-                    'user' => new UserResource($result['user']),
-                    'token' => $result['token'],
-                    'token_type' => $result['token_type'],
-                ],
-            ]);
-        } catch (\Throwable $e) {
-            Log::error('[DEBUG] platformLogin failed', [
-                'exception' => get_class($e),
-                'message' => $e->getMessage(),
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
-                'trace' => $e->getTraceAsString(),
-            ]);
-            throw $e;
-        }
     }
 
     public function logout(Request $request): JsonResponse

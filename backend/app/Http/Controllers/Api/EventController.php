@@ -86,34 +86,29 @@ class EventController extends Controller
 
     public function show(Request $request, int $id): JsonResponse
     {
-        try {
-            /** @var User $user */
-            $user = $request->user();
-            /** @var int $userId */
-            $userId = $user->id;
-            $result = $this->eventService->findById($id, $userId, $user->role->value);
+        /** @var User $user */
+        $user = $request->user();
+        /** @var int $userId */
+        $userId = $user->id;
+        $result = $this->eventService->findById($id, $userId, $user->role->value);
 
-            if (! $result) {
-                return response()->json(['message' => 'Event not found.'], 404);
-            }
-
-            /** @var array{data: EventResource, ...} $result */
-            /** @var Event $eventModel */
-            $eventModel = $result['data']->resource;
-
-            if ($this->servantCannotAccessEvent($user, $eventModel)) {
-                return response()->json(['message' => 'Forbidden.'], 403);
-            }
-
-            if ($user->role === UserRole::Member && ! $eventModel->is_active) {
-                return response()->json(['message' => 'Forbidden.'], 403);
-            }
-
-            return response()->json($result);
-        } catch (\Throwable $e) {
-            error_log('EVENT_SHOW_ERROR: '.$e->getMessage()."\n".$e->getTraceAsString());
-            throw $e;
+        if (! $result) {
+            return response()->json(['message' => 'Event not found.'], 404);
         }
+
+        /** @var array{data: EventResource, ...} $result */
+        /** @var Event $eventModel */
+        $eventModel = $result['data']->resource;
+
+        if ($this->servantCannotAccessEvent($user, $eventModel)) {
+            return response()->json(['message' => 'Forbidden.'], 403);
+        }
+
+        if ($user->role === UserRole::Member && ! $eventModel->is_active) {
+            return response()->json(['message' => 'Forbidden.'], 403);
+        }
+
+        return response()->json($result);
     }
 
     public function update(EventRequest $request, int $id): JsonResponse
