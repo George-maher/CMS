@@ -1,0 +1,37 @@
+NOTICE
+═══════════════════════════════════════════════════════════════════
+
+CHURCH MANAGEMENT SYSTEM (CMS)
+Copyright (c) 2026 Church Management System. All Rights Reserved.
+
+═══════════════════════════════════════════════════════════════════
+
+This Software is proprietary and confidential.
+
+Unauthorized copying, modification, distribution, or use of this
+Software, via any medium, is strictly prohibited without the express
+written permission of the Licensor.
+
+This product includes software developed by:
+
+  - Laravel Framework — Copyright (c) Taylor Otwell
+    Licensed under the MIT License
+    https://laravel.com
+
+  - React — Copyright (c) Meta Platforms, Inc.
+    Licensed under the MIT License
+    https://reactjs.org
+
+  - TailwindCSS — Copyright (c) Tailwind Labs, Inc.
+    Licensed under the MIT License
+    https://tailwindcss.com
+
+  - Other open-source dependencies as listed in composer.json and
+    package.json, each licensed under their respective licenses.
+
+These third-party components are used under the terms of their
+respective licenses. All other code, design, and intellectual property
+is proprietary and owned exclusively by the Church Management System.
+
+═══════════════════════════════════════════════════════════════════
+For licensing inquiries: legal@churchmanager.app

@@ -1,31 +1,99 @@
-# Root project ignores
+# ═══════════════════════════════════════════════════════════════
+#  CHURCH MANAGEMENT SYSTEM — INTELLECTUAL PROPERTY PROTECTION
+#  DO NOT COMMIT SENSITIVE DATA TO THIS REPOSITORY
+# ═══════════════════════════════════════════════════════════════
 
-# Environment files
+# ── Environment Files (ALL contain secrets) ───────────────────
 .env
 .env.local
 .env.*.local
+.env.production
+.env.staging
+.env.docker.local
+*.env
 
-# OS files
+# ── Application-Specific Ignore ───────────────────────────────
+backend/.env
+backend/.env.docker
+frontend/.env
+frontend/.env.production
+.env.docker
+
+# ── OS Files ──────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
+Desktop.ini
 *.swp
 *.swo
+*~
 
-# Editor files
+# ── Editor / IDE ──────────────────────────────────────────────
 .idea/
 .vscode/
 *.sublime-*
-
-# Logs
-*.log
-
-# NPM
-node_modules/
-
-# Docker volumes
-postgres_data/
-
-# IDE
 .fleet/
 .nova/
 .zed/
+.project
+.classpath
+.settings/
+.netbeans/
+
+# ── Logs ──────────────────────────────────────────────────────
+*.log
+logs/
+
+# ── Dependencies ──────────────────────────────────────────────
+node_modules/
+vendor/
+backend/vendor/
+frontend/node_modules/
+
+# ── Build Output ──────────────────────────────────────────────
+frontend/dist/
+backend/public/build/
+backend/public/hot/
+*.js.map
+
+# ── Docker ────────────────────────────────────────────────────
+postgres_data/
+docker/volumes/
+docker-compose.override.yml
+
+# ── PHP / Laravel ─────────────────────────────────────────────
+backend/.phpunit.result.cache
+backend/.phpunit.cache/
+backend/bootstrap/cache/*.php
+backend/storage/framework/cache/data/
+backend/storage/framework/sessions/
+backend/storage/framework/views/
+backend/storage/logs/*.log
+backend/storage/*.key
+backend/storage/pail
+backend/storage/app/public/
+backend/storage/app/private/
+backend/storage/debugbar/
+backend/.phpactor.json
+backend/auth.json
+backend/Homestead.yaml
+backend/Homestead.json
+backend/.lesshst
+
+# ── Secrets / Credentials ─────────────────────────────────────
+*.key
+*.pem
+*.cert
+*.crt
+*.p12
+*.pfx
+*.secret
+credentials.json
+service-account.json
+*.cred
+
+# ── Cache / Temp ──────────────────────────────────────────────
+.cache/
+tmp/
+temp/
+.phpunit.cache/
+.php-cs-fixer.cache

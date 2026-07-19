@@ -1,6 +1,32 @@
-# Church Management System
+# Church Management System (CMS)
 
-A production-grade church management platform with QR-based attendance tracking, role-based dashboards, and comprehensive member management.
+**PROPRIETARY SOFTWARE — All Rights Reserved**
+
+Copyright (c) 2026 Church Management System. Unauthorized copying,
+modification, distribution, or use of this software is strictly
+prohibited.
+
+---
+
+A production-grade church management platform with QR-based attendance
+tracking, role-based dashboards, and comprehensive member management.
+
+## ⚠️ Legal Notice
+
+This software is **proprietary and confidential**. It is protected by
+copyright law and international treaties. See the [LICENSE](LICENSE) file
+for complete terms.
+
+**You may NOT:**
+- Copy, modify, or distribute this software without written permission
+- Use this software for commercial purposes without a license agreement
+- Reverse engineer, decompile, or disassemble the software
+- Fork, republish, or host this as an open-source project
+- Use any portion of the source code in other projects
+
+**You MAY:**
+- Use the software as authorized by a valid license agreement
+- Evaluate the software for potential purchase under a trial license
 
 ## Tech Stack
 
@@ -8,18 +34,18 @@ A production-grade church management platform with QR-based attendance tracking,
 |-------|-----------|
 | **Backend** | Laravel 12 + PHP 8.3 |
 | **Frontend** | React 19 + TypeScript + TailwindCSS 4 |
-| **Database** | Supabase PostgreSQL 15 |
+| **Database** | PostgreSQL 15 |
 | **Storage** | Supabase Storage (native REST API) |
 | **Email** | Resend |
 | **Queue** | Laravel Database Queue |
-| **Auth** | Laravel Sanctum (SPA) |
+| **Auth** | Laravel Sanctum (token-based) |
 | **Infrastructure** | Docker + Nginx |
 
 ## Architecture
 
 ```
 ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│   Vercel    │────▶│   Render    │────▶│  Supabase   │
+│   Vercel    │────▶│   Railway   │────▶│  Supabase   │
 │  (Frontend) │     │  (Backend)  │     │ (PostgreSQL)│
 └─────────────┘     │  + Worker   │     │  + Storage  │
                     └─────────────┘     └─────────────┘
@@ -46,20 +72,36 @@ A production-grade church management platform with QR-based attendance tracking,
 - **Daily Verses**: Manage and activate daily bible verses
 - **Multi-language**: English and Arabic (RTL) support
 
-## Quick Start (Docker)
+## Commercial Licensing
+
+This software is **NOT open source**. It is proprietary commercial software.
+
+For licensing inquiries:
+- **Commercial License**: enterprise@churchmanager.app
+- **Evaluation License**: legal@churchmanager.app
+- **Partnerships**: partners@churchmanager.app
+
+### License Types Available
+
+| License Type | Use Case |
+|-------------|----------|
+| **Single Church** | One church, self-hosted |
+| **Multi-Church** | Multiple churches under one organization |
+| **Enterprise SaaS** | Hosted service for multiple customers |
+| **Evaluation** | 30-day trial for evaluation purposes |
+
+## Quick Start (Docker — Evaluation Only)
 
 ```bash
-# 1. Clone the repository
-git clone https://github.com/your-org/church-manager.git
+# 1. Clone the repository (authorized users only)
+git clone <repository-url>
 cd church-manager
 
 # 2. Copy environment files
 cp docker-compose.override.yml.example docker-compose.override.yml
 cp backend/.env.example backend/.env
 
-# 3. Set your SUPABASE credentials in backend/.env:
-#    SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY
-#    (optional: RESEND_API_KEY for email)
+# 3. Configure your environment in backend/.env
 
 # 4. Start the stack
 docker compose up -d
@@ -70,146 +112,23 @@ docker compose up -d
 #    Health:   http://localhost:8000/health
 ```
 
-## Local Development (Without Docker)
+## Security
 
-### Backend
+See [SECURITY.md](SECURITY.md) for our security policy and vulnerability
+reporting process.
 
-```bash
-cd backend
-cp .env.example .env
-# Edit .env with your Supabase database credentials
-composer install
-php artisan key:generate
-php artisan migrate --seed
-php artisan serve
-php artisan queue:work database &
-```
+## Intellectual Property
 
-### Frontend
+This project includes third-party open-source components under their
+respective licenses (see [NOTICE](NOTICE) for attribution). All original
+code, design, and intellectual property is proprietary.
 
-```bash
-cd frontend
-npm install
-npm run dev
-```
+## Support
 
-## Production Deployment
+- **Documentation**: Available to licensed customers
+- **Technical Support**: enterprise@churchmanager.app
+- **Security Issues**: security@churchmanager.app
 
-### Render (Backend)
+---
 
-1. Create a new **Web Service** on Render
-2. Connect your GitHub repository
-3. Set:
-   - **Root Directory**: `backend`
-   - **Build Command**: `composer install --no-dev --optimize-autoloader`
-   - **Start Command**: `php artisan serve --host=0.0.0.0 --port=10000`
-4. Add a **Cron Job** (for queue worker):
-   - **Command**: `php artisan queue:work database --sleep=3 --tries=3`
-5. Set environment variables:
-   - `APP_ENV=production`
-   - `APP_DEBUG=false`
-   - `APP_KEY` (generate with `php artisan key:generate --show`)
-   - `APP_URL=https://your-app.onrender.com`
-   - `FRONTEND_URL=https://your-frontend.vercel.app`
-   - `DB_CONNECTION=pgsql`
-   - `DATABASE_URL` (your Supabase connection string)
-   - `RESEND_API_KEY` (from Resend)
-   - `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
-
-### Vercel (Frontend)
-
-1. Install Vercel CLI: `npm i -g vercel`
-2. Deploy:
-   ```bash
-   cd frontend
-   vercel --prod
-   ```
-3. Set environment variable:
-   - `VITE_API_URL=https://your-app.onrender.com/api`
-4. The `vercel.json` file handles SPA routing automatically.
-
-### Supabase (Database & Storage)
-
-1. Create a new Supabase project
-2. Get your connection string from **Project Settings → Database**
-3. Use the **Connection Pooler** string for production
-4. Create storage buckets: `profiles`, `events`, `documents`, `ids`, `attachments`
-5. Set up Row Level Security (RLS) for storage:
-   - `profiles` bucket: public read, authenticated write
-   - `events` bucket: public read, authenticated write
-   - Other buckets: authenticated read/write only
-
-### Resend (Email)
-
-1. Create a Resend account
-2. Verify your domain
-3. Create an API key
-4. Set `RESEND_API_KEY` in your backend environment
-
-## Environment Variables
-
-### Backend (`backend/.env`)
-
-| Variable | Description | Required |
-|----------|-------------|----------|
-| `APP_KEY` | Laravel app key (32-char base64) | Yes |
-| `APP_ENV` | `production` or `development` | Yes |
-| `APP_DEBUG` | `false` in production | Yes |
-| `APP_URL` | Backend URL | Yes |
-| `FRONTEND_URL` | Frontend URL (for CORS) | Yes |
-| `DATABASE_URL` | Supabase connection string | Yes |
-| `RESEND_API_KEY` | Resend API key | For email |
-| `SUPABASE_URL` | Supabase project URL | For storage |
-| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key | For storage |
-| `SANCTUM_STATEFUL_DOMAINS` | Comma-separated frontend domains | Yes |
-| `QUEUE_CONNECTION` | `database` (default) or `redis` | Yes |
-
-### Frontend (`frontend/.env`)
-
-| Variable | Description | Required |
-|----------|-------------|----------|
-| `VITE_API_URL` | Backend API URL (e.g. `/api` or `https://api.example.com/api`) | Yes |
-
-## Docker Services
-
-| Service | Container | Port |
-|---------|-----------|------|
-| PostgreSQL | `church_postgres` | 5433 |
-| PHP-FPM | `church_app` | 9000 |
-| Nginx | `church_nginx` | 8000 (HTTP), 8443 (HTTPS) |
-| Queue Worker | `church_worker` | - |
-| Scheduler | `church_scheduler` | - |
-| Frontend (Vite) | `church_frontend` | 3000 |
-
-## API Documentation
-
-The API is versioned under `/api/v1/`. All responses are JSON.
-
-### Public Endpoints
-- `POST /api/v1/auth/login` — User login
-- `POST /api/v1/auth/register` — Registration with invite token
-- `POST /api/v1/auth/forgot-password` — Request password reset
-- `POST /api/v1/auth/reset-password` — Complete password reset
-- `GET /api/v1/qr/validate/{token}` — Validate QR token
-- `GET /api/v1/invite/{token}` — Get invite details
-- `GET /api/v1/verses/active` — Get active daily verse
-- `POST /api/v1/church-applications` — New church application
-- `GET /api/v1/churches/active` — List active churches
-- `GET /health` — Health check
-
-### Authenticated Endpoints
-All other endpoints require a Bearer token from login.
-
-## CI/CD
-
-The project includes GitHub Actions workflows:
-
-- **Backend**: Lint, static analysis, tests
-- **Frontend**: Lint, type check, build
-- **Docker**: Build check
-
-See `.github/workflows/ci.yml`.
-
-## License
-
-MIT
+© 2026 Church Management System. All Rights Reserved.
