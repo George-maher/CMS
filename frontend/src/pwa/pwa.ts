@@ -3,6 +3,16 @@ export interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>
 }
 
+export type Platform = 'ios' | 'android' | 'desktop' | 'unknown'
+
+export type DismissalType = 'close' | 'remind_later' | 'never_show'
+
+export const PWA_STORAGE_KEYS = {
+  NEVER_SHOW: 'pwa_never_show',
+  REMIND_LATER: 'pwa_remind_later',
+  IOS_GUIDE_DISMISSED: 'pwa_ios_guide_dismissed',
+} as const
+
 export function isIOS(): boolean {
   if (typeof window === 'undefined') return false
   const ua = navigator.userAgent
@@ -15,6 +25,21 @@ export function isSafari(): boolean {
   return ua.includes('safari') && !ua.includes('chrome') && !ua.includes('chromium')
 }
 
+export function isAndroid(): boolean {
+  if (typeof window === 'undefined') return false
+  return /android/i.test(navigator.userAgent)
+}
+
+export function isMobile(): boolean {
+  if (typeof window === 'undefined') return false
+  return isIOS() || isAndroid() || /Mobi|Mobile|Opera Mini/i.test(navigator.userAgent)
+}
+
+export function isDesktopBrowser(): boolean {
+  if (typeof window === 'undefined') return false
+  return !isMobile()
+}
+
 export function isStandalone(): boolean {
   if (typeof window === 'undefined') return false
   return (
@@ -23,21 +48,11 @@ export function isStandalone(): boolean {
   )
 }
 
-export function isInstalled(): boolean {
-  return isStandalone()
-}
-
-export function isOnline(): boolean {
-  return typeof navigator !== 'undefined' ? navigator.onLine : true
-}
-
-export function listenToOnlineStatus(onOnline: () => void, onOffline: () => void) {
-  window.addEventListener('online', onOnline)
-  window.addEventListener('offline', onOffline)
-  return () => {
-    window.removeEventListener('online', onOnline)
-    window.removeEventListener('offline', onOffline)
-  }
+export function getPlatform(): Platform {
+  if (isIOS()) return 'ios'
+  if (isAndroid()) return 'android'
+  if (isDesktopBrowser()) return 'desktop'
+  return 'unknown'
 }
 
 export function getIOSVersion(): number {
@@ -46,12 +61,43 @@ export function getIOSVersion(): number {
   return match?.[1] ? parseInt(match[1], 10) : 0
 }
 
-export function canInstallOnDesktop(): boolean {
+export function supportsBeforeInstallPrompt(): boolean {
   return 'BeforeInstallPromptEvent' in window || 'onbeforeinstallprompt' in window
 }
 
-export const PWA_STORAGE_KEYS = {
-  IOS_PROMPT_DISMISSED: 'pwa_ios_prompt_dismissed',
-  INSTALL_PROMPT_DISMISSED: 'pwa_install_prompt_dismissed',
-  INSTALL_PROMPT_DELAYED: 'pwa_install_prompt_delayed',
-} as const
+// ── localStorage helpers ──
+
+export function getStorageItem(key: string): string | null {
+  try {
+    return localStorage.getItem(key)
+  } catch {
+    return null
+  }
+}
+
+export function setStorageItem(key: string, value: string): void {
+  try {
+    localStorage.setItem(key, value)
+  } catch {}
+}
+
+export function isDismissedPermanently(): boolean {
+  return getStorageItem(PWA_STORAGE_KEYS.NEVER_SHOW) === 'true'
+}
+
+export function isRemindLaterActive(): boolean {
+  const val = getStorageItem(PWA_STORAGE_KEYS.REMIND_LATER)
+  if (!val) return false
+  const timestamp = parseInt(val, 10)
+  if (isNaN(timestamp)) return false
+  return Date.now() < timestamp
+}
+
+export function setRemindLater(days: number = 3): void {
+  const future = Date.now() + days * 24 * 60 * 60 * 1000
+  setStorageItem(PWA_STORAGE_KEYS.REMIND_LATER, String(future))
+}
+
+export function setNeverShowAgain(): void {
+  setStorageItem(PWA_STORAGE_KEYS.NEVER_SHOW, 'true')
+}

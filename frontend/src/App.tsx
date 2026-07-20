@@ -5,7 +5,6 @@ import { AuthProvider } from '@/contexts/AuthContext'
 import { ThemeProvider } from '@/contexts/ThemeContext'
 import AppLayout from '@/components/layout/AppLayout'
 import InstallPrompt from '@/pwa/InstallPrompt'
-import IOSInstallPrompt from '@/pwa/IOSInstallPrompt'
 import UpdatePrompt from '@/pwa/UpdatePrompt'
 
 const Landing = lazy(() => import('@/pages/Landing'))
@@ -72,7 +71,6 @@ export default function App() {
           }}
         />
         <InstallPrompt />
-        <IOSInstallPrompt />
         <UpdatePrompt />
         <AuthProvider>
           <Suspense fallback={<div className="flex min-h-screen items-center justify-center"><div className="h-8 w-8 animate-spin rounded-full border-2 border-primary-400 border-t-transparent" /></div>}>
