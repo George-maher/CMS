@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
@@ -5,9 +6,11 @@ import {
   BarChart3, MessageSquare, ChevronRight,
   ClipboardCheck, ShieldCheck, Rocket, BookMarked, Lock,
   LayoutDashboard, TrendingUp, Globe, Sparkles, Cross,
+  Download, Smartphone, Wifi,
 } from 'lucide-react'
 import PublicHeader from '@/components/layout/PublicHeader'
 import PublicFooter from '@/components/layout/PublicFooter'
+import InstallAppModal from '@/components/common/InstallAppModal'
 const features = [
   { icon: QrCode, key: 'attendanceManagement' },
   { icon: Users, key: 'memberManagement' },
@@ -36,10 +39,11 @@ const benefits = [
 export default function Landing() {
   const { t } = useTranslation()
   const navigate = useNavigate()
+  const [installOpen, setInstallOpen] = useState(false)
 
   return (
     <div className="min-h-screen bg-surface-secondary">
-      <PublicHeader />
+      <PublicHeader onInstallClick={() => setInstallOpen(true)} />
 
       {/* ─── Hero Section ─── */}
       <section className="relative overflow-hidden bg-gradient-to-br from-navy-800 via-navy-900 to-navy-950">
@@ -183,6 +187,80 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* ─── Install App ─── */}
+      <section className="mx-auto max-w-7xl px-4 py-24 sm:px-6 lg:px-8">
+        <div className="grid items-center gap-12 lg:grid-cols-2 stagger-children">
+          <div>
+            <div className="inline-flex items-center gap-2 rounded-full border border-glass-border bg-glass-bg backdrop-blur-sm px-4 py-1.5 text-sm gold-text mb-4">
+              <Download className="h-4 w-4" />
+              {t('landing.installApp', 'Install App')}
+            </div>
+            <h2 className="text-3xl sm:text-4xl font-bold">
+              {t('landing.installTitle', 'Use Church Manager on Any Device')}
+            </h2>
+            <p className="mt-4 text-lg text-secondary leading-relaxed">
+              {t('landing.installSubtitle', 'Install as a Progressive Web App on your phone, tablet, or computer. Works offline, loads instantly, and feels just like a native app.')}
+            </p>
+            <div className="mt-8 space-y-4">
+              {[
+                { icon: Download, text: t('landing.installFast', 'Fast loading — cached assets load instantly') },
+                { icon: Wifi, text: t('landing.installOffline', 'Offline support — record attendance without internet') },
+                { icon: Smartphone, text: t('landing.installHome', 'Add to home screen — access with one tap') },
+              ].map((item) => {
+                const Icon = item.icon
+                return (
+                  <div key={item.text} className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl gold-gradient">
+                      <Icon className="h-5 w-5 text-navy-900" />
+                    </div>
+                    <span className="text-sm sm:text-base text-secondary">{item.text}</span>
+                  </div>
+                )
+              })}
+            </div>
+            <div className="mt-10 flex flex-wrap gap-4">
+              <button
+                onClick={() => setInstallOpen(true)}
+                className="btn-gold btn-lg px-8 shadow-2xl shadow-gold-400/25"
+              >
+                <Download className="h-5 w-5" />
+                {t('landing.installCta', 'Install Now')}
+              </button>
+              <button
+                onClick={() => setInstallOpen(true)}
+                className="btn-lg rounded-xl border border-border px-8 font-semibold text-secondary hover:bg-surface-dark transition-all"
+              >
+                <Smartphone className="h-5 w-5" />
+                {t('landing.howToInstall', 'How to install')}
+              </button>
+            </div>
+          </div>
+          <div className="hidden lg:flex justify-center">
+            <div className="relative">
+              <div className="absolute -inset-4 rounded-3xl bg-gradient-to-br from-gold-400/20 to-navy-400/20 blur-2xl" />
+              <div className="relative flex h-[400px] w-[300px] flex-col items-center justify-center rounded-3xl border border-glass-border bg-surface/80 backdrop-blur-xl p-8 shadow-2xl">
+                <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl gold-gradient shadow-lg">
+                  <Church className="h-8 w-8 text-navy-900" />
+                </div>
+                <p className="text-center text-lg font-bold gold-text">{t('app.name')}</p>
+                <p className="mt-2 text-center text-sm text-secondary">{t('landing.installOnDevice', 'Install on your device')}</p>
+                <div className="mt-8 flex items-center gap-2 rounded-full bg-green-50 px-4 py-2 text-xs font-medium text-green-700 dark:bg-green-900/20 dark:text-green-300">
+                  <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+                  {t('landing.offlineReady', 'Offline ready')}
+                </div>
+                <div className="mt-6 grid grid-cols-3 gap-3 w-full">
+                  {[Download, Wifi, Smartphone].map((Icon, i) => (
+                    <div key={i} className="flex flex-col items-center gap-1 rounded-xl bg-gray-50 py-3 dark:bg-gray-800">
+                      <Icon className="h-5 w-5 text-primary-500" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* ─── CTA ─── */}
       <section className="relative overflow-hidden bg-gradient-to-br from-navy-800 via-navy-900 to-navy-950 py-20">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(212,175,55,0.08)_0%,transparent_60%)]" />
@@ -201,6 +279,7 @@ export default function Landing() {
       </section>
 
       <PublicFooter />
+      <InstallAppModal isOpen={installOpen} onClose={() => setInstallOpen(false)} />
     </div>
   )
 }

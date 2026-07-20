@@ -1,7 +1,8 @@
-import { useState } from 'react'
-import { X, Download, Smartphone, Monitor, Menu as MenuIcon, Apple, Chrome } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { X, Download, Smartphone, Monitor, Menu as MenuIcon, Apple, Chrome, QrCode, Share2 } from 'lucide-react'
 import { usePWAInstall } from '@/hooks/usePwaInstall'
 import { useDeviceDetection } from '@/hooks/useDeviceDetection'
+import QRCode from 'qrcode'
 import IOSInstallGuide from './IOSInstallGuide'
 
 interface InstallAppModalProps {
@@ -15,6 +16,25 @@ export default function InstallAppModal({ isOpen, onClose }: InstallAppModalProp
   const { isInstallable, isInstalled, install } = usePWAInstall()
   const { isIOS, isAndroid } = useDeviceDetection()
   const [tab, setTab] = useState<PlatformTab>(isIOS ? 'ios' : isAndroid ? 'android' : 'desktop')
+  const [showQR, setShowQR] = useState(false)
+  const [qrDataUrl, setQrDataUrl] = useState('')
+
+  useEffect(() => {
+    if (showQR) {
+      QRCode.toDataURL(window.location.origin, { width: 200, margin: 2, color: { dark: '#1e293b', light: '#ffffff' } })
+        .then((url) => setQrDataUrl(url))
+        .catch(() => {})
+    }
+  }, [showQR])
+
+  const handleShare = async () => {
+    const url = window.location.origin
+    if (typeof navigator.share === 'function') {
+      await navigator.share({ title: 'Church Manager', url })
+    } else {
+      await navigator.clipboard.writeText(url)
+    }
+  }
 
   if (!isOpen) return null
 
@@ -180,7 +200,44 @@ export default function InstallAppModal({ isOpen, onClose }: InstallAppModalProp
           </div>
         )}
 
-        <div className="mt-6 flex items-center justify-center gap-6 text-xs text-gray-400 dark:text-gray-500">
+        <div className="mt-4">
+          <button
+            onClick={() => setShowQR(!showQR)}
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-600 transition-colors hover:border-primary-300 hover:bg-primary-50 hover:text-primary-700 dark:border-gray-600 dark:text-gray-400 dark:hover:border-primary-500 dark:hover:bg-primary-900/20 dark:hover:text-primary-300"
+          >
+            <QrCode className="h-4 w-4" />
+            {showQR ? 'Hide QR code' : 'Open on another device'}
+          </button>
+
+          {showQR && (
+            <div className="mt-3 rounded-xl border border-gray-200 bg-gray-50 p-4 text-center dark:border-gray-700 dark:bg-gray-700/50">
+              <p className="mb-3 text-sm font-medium text-gray-700 dark:text-gray-200">
+                Scan with your other device to open the app
+              </p>
+              <div className="mx-auto mb-3 flex justify-center">
+                {qrDataUrl ? (
+                  <img src={qrDataUrl} alt="QR Code" className="h-44 w-44 rounded-lg border-4 border-white shadow-sm dark:border-gray-600" />
+                ) : (
+                  <div className="flex h-44 w-44 items-center justify-center rounded-lg bg-white dark:bg-gray-600">
+                    <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary-400 border-t-transparent" />
+                  </div>
+                )}
+              </div>
+              <p className="mb-3 text-xs text-gray-400 dark:text-gray-500">
+                {window.location.origin}
+              </p>
+              <button
+                onClick={handleShare}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-primary-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-primary-700"
+              >
+                <Share2 className="h-3.5 w-3.5" />
+                {typeof navigator.share === 'function' ? 'Share link' : 'Copy link'}
+              </button>
+            </div>
+          )}
+        </div>
+
+        <div className="mt-4 flex items-center justify-center gap-6 text-xs text-gray-400 dark:text-gray-500">
           <span className="flex items-center gap-1">
             <Smartphone className="h-3.5 w-3.5" /> Offline support
           </span>

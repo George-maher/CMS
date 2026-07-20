@@ -2,9 +2,13 @@ import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useTheme } from '@/hooks/useTheme'
 import { useTranslation } from 'react-i18next'
-import { Church, Menu, X, Sun, Moon, Languages, LogIn, Home } from 'lucide-react'
+import { Church, Menu, X, Sun, Moon, Languages, LogIn, Home, Download } from 'lucide-react'
 
-export default function PublicHeader() {
+interface PublicHeaderProps {
+  onInstallClick?: () => void
+}
+
+export default function PublicHeader({ onInstallClick }: PublicHeaderProps) {
   const { t } = useTranslation()
   const { theme, toggleTheme, language, setLanguage } = useTheme()
   const navigate = useNavigate()
@@ -42,6 +46,12 @@ export default function PublicHeader() {
             {theme === 'dark' ? <Sun className="h-5 w-5 text-gold-400" /> : <Moon className="h-5 w-5" />}
           </button>
 
+          {onInstallClick && (
+            <button onClick={onInstallClick} className="btn-icon btn-ghost rounded-lg" title={t('installApp.install', 'Install App')}>
+              <Download className="h-5 w-5 text-primary-500" />
+            </button>
+          )}
+
           <div className="mr-2 flex items-center gap-2">
             <button onClick={() => navigate('/login')} className="btn-ghost btn-sm border">
               <LogIn className="h-3.5 w-3.5" />
@@ -71,6 +81,14 @@ export default function PublicHeader() {
             <button onClick={() => { navigate('/join'); setMobileOpen(false) }} className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-white gold-gradient shadow-md">
               <Church className="h-4 w-4" /> {t('landing.heroCta')}
             </button>
+            {onInstallClick && (
+              <>
+                <hr className="border-border my-2" />
+                <button onClick={() => { onInstallClick(); setMobileOpen(false) }} className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-secondary hover:bg-gold-50/30 transition-colors">
+                  <Download className="h-4 w-4 text-primary-500" /> {t('installApp.install', 'Install App')}
+                </button>
+              </>
+            )}
             <hr className="border-border my-2" />
             <button onClick={() => { toggleLang(); setMobileOpen(false) }} className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-secondary hover:bg-gold-50/30 transition-colors">
               <Languages className="h-4 w-4" /> {language === 'en' ? 'العربية' : 'English'}
