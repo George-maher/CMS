@@ -62,11 +62,12 @@ export function useAppInstall(): UseAppInstallReturn {
       if (outcome === 'accepted') {
         setDeferredPrompt(null)
         setShowModal(false)
+        return
       }
     } catch {
-    } finally {
-      setIsInstalling(false)
     }
+    setShowModal(true)
+    setIsInstalling(false)
   }, [deferredPrompt])
 
   const handleAppClick = useCallback(() => {
