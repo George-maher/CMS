@@ -1,4 +1,4 @@
-import { type ButtonHTMLAttributes, useRef, useState } from 'react'
+import { type ButtonHTMLAttributes, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { AppWindow, Download, Smartphone } from 'lucide-react'
 import { usePwaInstall } from '@/hooks/usePwaInstall'
@@ -12,7 +12,7 @@ export default function AppButton({ variant = 'default', className = '', ...prop
   const { t } = useTranslation()
   const { isInstalled, showIOSGuide, handleAppClick, closeIOSGuide } = usePwaInstall()
   const [showTooltip, setShowTooltip] = useState(false)
-  const tooltipTimer = useRef<ReturnType<typeof setTimeout>>()
+  const tooltipTimer = useRef<number | null>(null)
 
   const isHero = variant === 'hero'
   const isHeader = variant === 'header'
@@ -39,13 +39,19 @@ export default function AppButton({ variant = 'default', className = '', ...prop
   const label = showOpen ? t('app.openApp') : t('app.downloadApp')
   const Icon = showOpen ? AppWindow : Download
 
+  useEffect(() => {
+    return () => {
+      if (tooltipTimer.current !== null) clearTimeout(tooltipTimer.current)
+    }
+  }, [])
+
   const classNameResult = [baseStyles, showOpen ? installedStyles : actionStyles, className].filter(Boolean).join(' ')
 
   const handleClick = async () => {
     if (isStandalone || isInstalled) {
       setShowTooltip(true)
-      clearTimeout(tooltipTimer.current)
-      tooltipTimer.current = setTimeout(() => setShowTooltip(false), 3000)
+      if (tooltipTimer.current !== null) clearTimeout(tooltipTimer.current)
+      tooltipTimer.current = window.setTimeout(() => setShowTooltip(false), 3000)
       return
     }
     await handleAppClick()
