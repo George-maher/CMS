@@ -13,20 +13,21 @@ import {
   Check,
   ExternalLink,
   AppWindow,
+  RefreshCw,
+  Info,
 } from 'lucide-react'
-import { getIOSVersion } from './pwa'
+import { getIOSVersion, isChrome, isEdge, isSafariDesktop } from './pwa'
 import type { UseAppInstallReturn } from './useAppInstall'
 
 export default function AppInstallModal({
-  showModal,
+  modalView,
   platform,
   isInstalling,
-  isStandalone,
   handleInstall,
   handleClose,
+  handleInstalledOnIOS,
   handleRemindLater,
   handleNeverShowAgain,
-  handleInstalledOnIOS,
 }: UseAppInstallReturn) {
   const { t } = useTranslation()
   const { theme } = useTheme()
@@ -34,26 +35,29 @@ export default function AppInstallModal({
   const iosVersion = getIOSVersion()
 
   useEffect(() => {
-    if (showModal) {
+    if (modalView) {
       const timer = setTimeout(() => {
         document.getElementById('app-modal-close')?.focus()
       }, 100)
       return () => clearTimeout(timer)
     }
-  }, [showModal])
+  }, [modalView])
 
   useEffect(() => {
-    if (!showModal) return
+    if (!modalView) return
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') handleClose()
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [showModal, handleClose])
+  }, [modalView, handleClose])
 
-  if (!showModal) return null
+  if (!modalView) return null
 
-  const isIOSGuide = platform === 'ios'
+  const isIOSGuide = modalView === 'ios_guide'
+  const isAlreadyInstalled = modalView === 'already_installed'
+  const isNotInstallable = modalView === 'not_installable'
+  const isInstall = modalView === 'install'
   const isDesktop = platform === 'desktop'
 
   const iosSteps = [
@@ -84,12 +88,173 @@ export default function AppInstallModal({
     },
   ]
 
+  const renderAlreadyInstalled = () => (
+    <div className={`p-6 text-center rounded-xl ${isDark ? 'bg-[#0f172a]/50 border border-[#334155]' : 'bg-[#faf9f6] border border-[#e8e5d9]'}`}>
+      <div className={`mx-auto flex h-16 w-16 items-center justify-center rounded-2xl mb-4 ${
+        isDark ? 'bg-[#10b981]/15' : 'bg-[#10b981]/10'
+      }`}>
+        <Check className={`h-8 w-8 ${isDark ? 'text-[#34d399]' : 'text-[#059669]'}`} />
+      </div>
+      <p className={`text-sm font-semibold mb-2 ${isDark ? 'text-white' : 'text-[#1a1a2e]'}`}>
+        {t('app.alreadyInstalled')}
+      </p>
+      <p className={`text-xs ${isDark ? 'text-[#94a3b8]' : 'text-[#5b5b6e]'}`}>
+        {t('app.alreadyInstalledDesc')}
+      </p>
+    </div>
+  )
+
+  const renderIOSGuide = () => (
+    <div className="space-y-2">
+      {iosSteps.map((step, i) => (
+        <div
+          key={i}
+          className={`flex items-center gap-3 p-3 rounded-xl ${
+            isDark ? 'bg-[#0f172a]/60 border border-[#334155]' : 'bg-[#faf9f6] border border-[#e8e5d9]'
+          }`}
+        >
+          <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-sm font-bold ${
+            isDark ? 'bg-[#d4af37]/15 text-[#d4af37]' : 'bg-[#d4af37]/10 text-[#c5a028]'
+          }`}>
+            {i + 1}
+          </div>
+          <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
+            isDark ? 'bg-[#1e293b] text-[#cbd5e1]' : 'bg-white text-[#5b5b6e]'
+          }`}>
+            {step.icon}
+          </div>
+          <p className={`text-sm leading-snug ${isDark ? 'text-[#e2e8f0]' : 'text-[#1a1a2e]'}`}>
+            {step.label}
+          </p>
+        </div>
+      ))}
+      <div className={`p-3 rounded-xl ${isDark ? 'bg-[#d4af37]/5 border border-[#d4af37]/10' : 'bg-[#fdf8e8] border border-[#d4af37]/20'}`}>
+        <div className="flex items-start gap-2">
+          <ExternalLink className={`h-4 w-4 mt-0.5 shrink-0 ${isDark ? 'text-[#d4af37]' : 'text-[#c5a028]'}`} />
+          <p className={`text-xs leading-relaxed ${isDark ? 'text-[#cbd5e1]' : 'text-[#5b5b6e]'}`}>
+            {t('pwa.iosTip')}
+          </p>
+        </div>
+      </div>
+    </div>
+  )
+
+  const renderInstallView = () => (
+    <div className={`p-4 rounded-xl ${isDark ? 'bg-[#0f172a]/50 border border-[#334155]' : 'bg-[#faf9f6] border border-[#e8e5d9]'}`}>
+      <div className="flex items-center gap-3 mb-3">
+        <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
+          isDesktop
+            ? isDark ? 'bg-[#3b82f6]/15 text-[#60a5fa]' : 'bg-[#3b82f6]/10 text-[#3b82f6]'
+            : isDark ? 'bg-[#10b981]/15 text-[#34d399]' : 'bg-[#10b981]/10 text-[#059669]'
+        }`}>
+          {isDesktop ? <Monitor className="h-4 w-4" /> : <Smartphone className="h-4 w-4" />}
+        </div>
+        <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-[#1a1a2e]'}`}>
+          {isDesktop ? t('pwa.desktopInstallDesc') : t('pwa.mobileInstallDesc')}
+        </p>
+      </div>
+      <div className="flex items-center gap-2">
+        <Shield className={`h-3.5 w-3.5 ${isDark ? 'text-[#34d399]' : 'text-[#059669]'}`} />
+        <span className={`text-xs ${isDark ? 'text-[#94a3b8]' : 'text-[#5b5b6e]'}`}>
+          {t('pwa.secureInstallDesc')}
+        </span>
+      </div>
+    </div>
+  )
+
+  const browserHints: Record<string, { title: string; steps: string[] }> = {
+    chrome: {
+      title: 'Install via Chrome',
+      steps: [
+        'Click the install icon (➕) in the address bar',
+        'Click "Install" in the popup',
+      ],
+    },
+    edge: {
+      title: 'Install via Edge',
+      steps: [
+        'Click the install icon (➕) in the address bar',
+        'Click "Install" in the popup',
+      ],
+    },
+    safari_desktop: {
+      title: 'Install via Safari',
+      steps: [
+        'Click the Share button in the toolbar',
+        'Click "Add to Dock"',
+      ],
+    },
+    other: {
+      title: 'Install the App',
+      steps: [
+        'Look for the install icon in your browser\'s address bar',
+        'Click "Install" or "Add to Home Screen" when prompted',
+      ],
+    },
+  }
+
+  function getBrowserHintData(): { title: string; steps: string[] } {
+    if (isSafariDesktop()) return browserHints.safari_desktop!
+    if (isChrome()) return browserHints.chrome!
+    if (isEdge()) return browserHints.edge!
+    return browserHints.other!
+  }
+
+  const renderNotInstallableView = () => {
+    const hintData = getBrowserHintData()
+
+    return (
+      <div className="space-y-3">
+        <div className={`p-4 rounded-xl ${isDark ? 'bg-[#0f172a]/50 border border-[#334155]' : 'bg-[#faf9f6] border border-[#e8e5d9]'}`}>
+          <div className="flex items-start gap-3 mb-3">
+            <Info className={`h-5 w-5 mt-0.5 shrink-0 ${isDark ? 'text-[#d4af37]' : 'text-[#c5a028]'}`} />
+            <div>
+              <p className={`text-sm font-medium mb-1 ${isDark ? 'text-white' : 'text-[#1a1a2e]'}`}>
+                {hintData.title}
+              </p>
+              <ol className={`text-xs space-y-1.5 ${isDark ? 'text-[#94a3b8]' : 'text-[#5b5b6e]'}`}>
+                {hintData.steps.map((step, i) => (
+                  <li key={i} className="flex items-start gap-2">
+                    <span className={`font-bold ${isDark ? 'text-[#d4af37]' : 'text-[#c5a028]'}`}>{i + 1}.</span>
+                    {step}
+                  </li>
+                ))}
+              </ol>
+            </div>
+          </div>
+        </div>
+        <div className={`p-3 rounded-xl ${isDark ? 'bg-[#d4af37]/5 border border-[#d4af37]/10' : 'bg-[#fdf8e8] border border-[#d4af37]/20'}`}>
+          <div className="flex items-start gap-2">
+            <RefreshCw className={`h-4 w-4 mt-0.5 shrink-0 ${isDark ? 'text-[#d4af37]' : 'text-[#c5a028]'}`} />
+            <p className={`text-xs leading-relaxed ${isDark ? 'text-[#cbd5e1]' : 'text-[#5b5b6e]'}`}>
+              {t('pwa.offlineDescription')}
+            </p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  const getTitle = () => {
+    if (isAlreadyInstalled) return t('app.alreadyInstalled')
+    if (isIOSGuide) return t('pwa.iosInstallTitle')
+    if (isNotInstallable) return 'Install App'
+    return t('pwa.installTitle')
+  }
+
+  const getDescription = () => {
+    if (isAlreadyInstalled) return t('app.alreadyInstalledDesc')
+    if (isIOSGuide) return t('pwa.iosInstallDescription')
+    if (isNotInstallable) return 'Add Church Manager to your device for the best experience.'
+    return t('pwa.installDescription')
+  }
+
   return (
     <div
       className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-3 sm:p-4"
       role="dialog"
       aria-modal="true"
-      aria-label={isIOSGuide ? t('pwa.iosInstallTitle') : t('pwa.installTitle')}
+      aria-label={getTitle()}
     >
       <div
         className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-fade-in"
@@ -105,7 +270,6 @@ export default function AppInstallModal({
         `}
         style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
       >
-        {/* ── Header ── */}
         <div className={`shrink-0 px-5 pt-5 pb-3 ${isDark ? 'bg-gradient-to-br from-[#1e3a8a]/20 to-[#0f1d3d]/20' : 'bg-gradient-to-br from-[#d4af37]/5 to-[#f9efc8]/10'}`}>
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-3 min-w-0">
@@ -114,18 +278,10 @@ export default function AppInstallModal({
               </div>
               <div className="min-w-0">
                 <h3 className={`text-base font-bold truncate ${isDark ? 'text-white' : 'text-[#1a1a2e]'}`}>
-                  {isStandalone
-                    ? t('app.alreadyInstalled')
-                    : isIOSGuide
-                      ? t('pwa.iosInstallTitle')
-                      : t('pwa.installTitle')}
+                  {getTitle()}
                 </h3>
                 <p className={`text-xs mt-0.5 truncate ${isDark ? 'text-[#94a3b8]' : 'text-[#5b5b6e]'}`}>
-                  {isStandalone
-                    ? t('app.alreadyInstalledDesc')
-                    : isIOSGuide
-                      ? t('pwa.iosInstallDescription')
-                      : t('pwa.installDescription')}
+                  {getDescription()}
                 </p>
               </div>
             </div>
@@ -142,82 +298,15 @@ export default function AppInstallModal({
           </div>
         </div>
 
-        {/* ── Scrollable Body ── */}
         <div className="flex-1 overflow-y-auto px-5 py-3 space-y-3">
-          {isStandalone ? (
-            <div className={`p-6 text-center rounded-xl ${isDark ? 'bg-[#0f172a]/50 border border-[#334155]' : 'bg-[#faf9f6] border border-[#e8e5d9]'}`}>
-              <div className={`mx-auto flex h-16 w-16 items-center justify-center rounded-2xl mb-4 ${
-                isDark ? 'bg-[#10b981]/15' : 'bg-[#10b981]/10'
-              }`}>
-                <Check className={`h-8 w-8 ${isDark ? 'text-[#34d399]' : 'text-[#059669]'}`} />
-              </div>
-              <p className={`text-sm font-semibold mb-2 ${isDark ? 'text-white' : 'text-[#1a1a2e]'}`}>
-                {t('app.alreadyInstalled')}
-              </p>
-              <p className={`text-xs ${isDark ? 'text-[#94a3b8]' : 'text-[#5b5b6e]'}`}>
-                {t('app.alreadyInstalledDesc')}
-              </p>
-            </div>
-          ) : isIOSGuide ? (
-            <div className="space-y-2">
-              {iosSteps.map((step, i) => (
-                <div
-                  key={i}
-                  className={`flex items-center gap-3 p-3 rounded-xl ${
-                    isDark ? 'bg-[#0f172a]/60 border border-[#334155]' : 'bg-[#faf9f6] border border-[#e8e5d9]'
-                  }`}
-                >
-                  <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-sm font-bold ${
-                    isDark ? 'bg-[#d4af37]/15 text-[#d4af37]' : 'bg-[#d4af37]/10 text-[#c5a028]'
-                  }`}>
-                    {i + 1}
-                  </div>
-                  <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
-                    isDark ? 'bg-[#1e293b] text-[#cbd5e1]' : 'bg-white text-[#5b5b6e]'
-                  }`}>
-                    {step.icon}
-                  </div>
-                  <p className={`text-sm leading-snug ${isDark ? 'text-[#e2e8f0]' : 'text-[#1a1a2e]'}`}>
-                    {step.label}
-                  </p>
-                </div>
-              ))}
-              <div className={`p-3 rounded-xl ${isDark ? 'bg-[#d4af37]/5 border border-[#d4af37]/10' : 'bg-[#fdf8e8] border border-[#d4af37]/20'}`}>
-                <div className="flex items-start gap-2">
-                  <ExternalLink className={`h-4 w-4 mt-0.5 shrink-0 ${isDark ? 'text-[#d4af37]' : 'text-[#c5a028]'}`} />
-                  <p className={`text-xs leading-relaxed ${isDark ? 'text-[#cbd5e1]' : 'text-[#5b5b6e]'}`}>
-                    {t('pwa.iosTip')}
-                  </p>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className={`p-4 rounded-xl ${isDark ? 'bg-[#0f172a]/50 border border-[#334155]' : 'bg-[#faf9f6] border border-[#e8e5d9]'}`}>
-              <div className="flex items-center gap-3 mb-3">
-                <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
-                  isDesktop
-                    ? isDark ? 'bg-[#3b82f6]/15 text-[#60a5fa]' : 'bg-[#3b82f6]/10 text-[#3b82f6]'
-                    : isDark ? 'bg-[#10b981]/15 text-[#34d399]' : 'bg-[#10b981]/10 text-[#059669]'
-                }`}>
-                  {isDesktop ? <Monitor className="h-4 w-4" /> : <Smartphone className="h-4 w-4" />}
-                </div>
-                <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-[#1a1a2e]'}`}>
-                  {isDesktop ? t('pwa.desktopInstallDesc') : t('pwa.mobileInstallDesc')}
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <Shield className={`h-3.5 w-3.5 ${isDark ? 'text-[#34d399]' : 'text-[#059669]'}`} />
-                <span className={`text-xs ${isDark ? 'text-[#94a3b8]' : 'text-[#5b5b6e]'}`}>
-                  {t('pwa.secureInstallDesc')}
-                </span>
-              </div>
-            </div>
-          )}
+          {isAlreadyInstalled && renderAlreadyInstalled()}
+          {isIOSGuide && renderIOSGuide()}
+          {isInstall && renderInstallView()}
+          {isNotInstallable && renderNotInstallableView()}
         </div>
 
-        {/* ── Footer ── */}
         <div className="shrink-0 px-5 pb-5 pt-2 space-y-2">
-          {isStandalone ? (
+          {isAlreadyInstalled ? (
             <button
               onClick={() => { window.location.href = '/'; handleClose() }}
               className={`
@@ -278,7 +367,7 @@ export default function AppInstallModal({
             </button>
           )}
 
-          {!isStandalone && (
+          {!isAlreadyInstalled && (
             <div className="flex items-center justify-center gap-4">
               <button
                 onClick={handleRemindLater}

@@ -7,6 +7,13 @@ export type Platform = 'ios' | 'android' | 'desktop' | 'unknown'
 
 export type DismissalType = 'close' | 'remind_later' | 'never_show'
 
+export interface PWAStatus {
+  isStandalone: boolean
+  isInstallable: boolean
+  swRegistered: boolean
+  swControlling: boolean
+}
+
 export const PWA_STORAGE_KEYS = {
   NEVER_SHOW: 'pwa_never_show',
   REMIND_LATER: 'pwa_remind_later',
@@ -44,7 +51,9 @@ export function isStandalone(): boolean {
   if (typeof window === 'undefined') return false
   return (
     window.matchMedia('(display-mode: standalone)').matches ||
-    (window.navigator as { standalone?: boolean }).standalone === true
+    (window.navigator as { standalone?: boolean }).standalone === true ||
+    window.matchMedia('(display-mode: fullscreen)').matches ||
+    window.matchMedia('(display-mode: minimal-ui)').matches
   )
 }
 
@@ -63,6 +72,68 @@ export function getIOSVersion(): number {
 
 export function supportsBeforeInstallPrompt(): boolean {
   return 'BeforeInstallPromptEvent' in window || 'onbeforeinstallprompt' in window
+}
+
+export function isSafariDesktop(): boolean {
+  return isSafari() && !isIOS() && !isAndroid()
+}
+
+export function isFirefox(): boolean {
+  if (typeof window === 'undefined') return false
+  return /firefox|fxios/i.test(navigator.userAgent)
+}
+
+export function isChrome(): boolean {
+  if (typeof window === 'undefined') return false
+  const ua = navigator.userAgent.toLowerCase()
+  return (ua.includes('chrome') || ua.includes('chromium')) && !ua.includes('edge') && !ua.includes('opr')
+}
+
+export function isEdge(): boolean {
+  if (typeof window === 'undefined') return false
+  return /edg/i.test(navigator.userAgent)
+}
+
+export function isSamsungBrowser(): boolean {
+  if (typeof window === 'undefined') return false
+  return /samsung/i.test(navigator.userAgent)
+}
+
+export function getPWAStatus(): PWAStatus {
+  const status: PWAStatus = {
+    isStandalone: isStandalone(),
+    isInstallable: false,
+    swRegistered: false,
+    swControlling: false,
+  }
+  if ('serviceWorker' in navigator) {
+    status.swControlling = navigator.serviceWorker.controller !== null
+  }
+  return status
+}
+
+export function checkSWRegistration(): Promise<boolean> {
+  if (!('serviceWorker' in navigator)) return Promise.resolve(false)
+  return navigator.serviceWorker.getRegistrations().then(regs => {
+    return regs.length > 0
+  }).catch(() => false)
+}
+
+export function registerFallbackSW(): Promise<boolean> {
+  if (!('serviceWorker' in navigator)) return Promise.resolve(false)
+  return navigator.serviceWorker.register('/sw.js').then(() => true).catch(() => false)
+}
+
+export function getBrowserInfo(): string {
+  if (typeof window === 'undefined') return 'ssr'
+  const ua = navigator.userAgent
+  if (isIOS()) return 'ios'
+  if (isSafariDesktop()) return 'safari-desktop'
+  if (isFirefox()) return 'firefox'
+  if (isEdge()) return 'edge'
+  if (isSamsungBrowser()) return 'samsung'
+  if (isChrome() || isAndroid()) return 'chrome'
+  return ua
 }
 
 // ── localStorage helpers ──

@@ -1,17 +1,22 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import {
   type BeforeInstallPromptEvent,
   type Platform as PwPlatform,
   getPlatform,
   isStandalone,
+  isFirefox,
+  isSafariDesktop,
+  isDesktopBrowser,
 } from './pwa'
 
 export type Platform = PwPlatform
 
+export type PwaModalView = 'install' | 'ios_guide' | 'already_installed' | 'not_installable' | null
+
 export interface UseAppInstallReturn {
   platform: Platform
   isStandalone: boolean
-  showModal: boolean
+  modalView: PwaModalView
   isInstalling: boolean
   hasPrompt: boolean
   handleAppClick: () => void
@@ -20,28 +25,40 @@ export interface UseAppInstallReturn {
   handleInstalledOnIOS: () => void
   handleRemindLater: () => void
   handleNeverShowAgain: () => void
+  handleFallbackInstall: () => void
 }
 
 export function useAppInstall(): UseAppInstallReturn {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null)
   const [isInstalling, setIsInstalling] = useState(false)
-  const [showModal, setShowModal] = useState(false)
+  const [modalView, setModalView] = useState<PwaModalView>(null)
+  const promptFiredRef = useRef(false)
+  const mountedRef = useRef(true)
+
+  useEffect(() => {
+    return () => { mountedRef.current = false }
+  }, [])
 
   const platform = getPlatform()
   const standalone = isStandalone()
   const hasPrompt = deferredPrompt !== null
+  const controlledPrompt = useRef<BeforeInstallPromptEvent | null>(null)
 
   useEffect(() => {
     if (standalone) return
 
     const handler = (e: Event) => {
       e.preventDefault()
-      setDeferredPrompt(e as BeforeInstallPromptEvent)
+      promptFiredRef.current = true
+      const event = e as BeforeInstallPromptEvent
+      setDeferredPrompt(event)
+      controlledPrompt.current = event
     }
 
     const installedHandler = () => {
       setDeferredPrompt(null)
-      setShowModal(false)
+      controlledPrompt.current = null
+      setModalView(null)
     }
 
     window.addEventListener('beforeinstallprompt', handler)
@@ -54,50 +71,78 @@ export function useAppInstall(): UseAppInstallReturn {
   }, [standalone])
 
   const handleInstall = useCallback(async () => {
-    if (!deferredPrompt) return
+    const prompt = deferredPrompt || controlledPrompt.current
+    if (!prompt) return
+
     setIsInstalling(true)
     try {
-      deferredPrompt.prompt()
-      const { outcome } = await deferredPrompt.userChoice
+      await prompt.prompt()
+      const { outcome } = await prompt.userChoice
       if (outcome === 'accepted') {
         setDeferredPrompt(null)
-        setShowModal(false)
+        controlledPrompt.current = null
+        setModalView(null)
         return
       }
     } catch {
+    } finally {
+      if (mountedRef.current) setIsInstalling(false)
     }
-    setShowModal(true)
-    setIsInstalling(false)
   }, [deferredPrompt])
+
+  const handleFallbackInstall = useCallback(() => {
+    if (platform === 'ios') {
+      setModalView('ios_guide')
+      return
+    }
+    if (isSafariDesktop()) {
+      setModalView('not_installable')
+      return
+    }
+    if (isFirefox()) {
+      setModalView('not_installable')
+      return
+    }
+    if (isDesktopBrowser()) {
+      setModalView('not_installable')
+      return
+    }
+    setModalView('not_installable')
+  }, [platform])
 
   const handleAppClick = useCallback(() => {
     if (standalone) {
-      window.location.href = '/'
+      setModalView('already_installed')
       return
     }
 
     if (platform === 'ios') {
-      setShowModal(true)
+      setModalView('ios_guide')
       return
     }
 
-    if (deferredPrompt) {
+    if (deferredPrompt || controlledPrompt.current) {
       handleInstall()
       return
     }
 
-    setShowModal(true)
-  }, [standalone, platform, deferredPrompt, handleInstall])
+    if (!promptFiredRef.current) {
+      setModalView('install')
+      return
+    }
 
-  const handleClose = useCallback(() => setShowModal(false), [])
-  const handleInstalledOnIOS = useCallback(() => setShowModal(false), [])
-  const handleRemindLater = useCallback(() => setShowModal(false), [])
-  const handleNeverShowAgain = useCallback(() => setShowModal(false), [])
+    handleFallbackInstall()
+  }, [standalone, platform, deferredPrompt, handleInstall, handleFallbackInstall])
+
+  const handleClose = useCallback(() => setModalView(null), [])
+  const handleInstalledOnIOS = useCallback(() => setModalView(null), [])
+  const handleRemindLater = useCallback(() => setModalView(null), [])
+  const handleNeverShowAgain = useCallback(() => setModalView(null), [])
 
   return {
     platform,
     isStandalone: standalone,
-    showModal,
+    modalView,
     isInstalling,
     hasPrompt,
     handleAppClick,
@@ -106,5 +151,6 @@ export function useAppInstall(): UseAppInstallReturn {
     handleInstalledOnIOS,
     handleRemindLater,
     handleNeverShowAgain,
+    handleFallbackInstall,
   }
 }
