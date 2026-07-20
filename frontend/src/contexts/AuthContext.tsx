@@ -3,6 +3,7 @@ import { createContext, useEffect, useRef, useState, type ReactNode } from 'reac
 import type { LoginPayload, RegisterPayload, User } from '@/types'
 import * as authApi from '@/api/auth'
 import { logCatch } from '@/lib/debug'
+import { clearAllData } from '@/lib/db'
 
 interface AuthContextType {
   user: User | null
@@ -91,6 +92,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null)
     localStorage.removeItem('auth_token')
     localStorage.removeItem('auth_user')
+    clearAllData().catch(e => logCatch('AuthContext.clearAllData', e))
   }
 
   const refreshUser = async () => {

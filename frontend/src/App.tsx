@@ -1,9 +1,15 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
-import { Suspense, lazy } from 'react'
+import { Suspense, lazy, useState } from 'react'
 import { Toaster } from 'react-hot-toast'
 import { AuthProvider } from '@/contexts/AuthContext'
 import { ThemeProvider } from '@/contexts/ThemeContext'
 import AppLayout from '@/components/layout/AppLayout'
+import OfflineBanner from '@/components/common/OfflineBanner'
+import InstallAppModal from '@/components/common/InstallAppModal'
+import { useOffline } from '@/contexts/OfflineContext'
+import { useSync } from '@/contexts/SyncContext'
+import { Download } from 'lucide-react'
+import { usePWAInstall } from '@/hooks/usePwaInstall'
 
 const Landing = lazy(() => import('@/pages/Landing'))
 const JoinNow = lazy(() => import('@/pages/JoinNow'))
@@ -57,7 +63,29 @@ const VerseManagement = lazy(() => import('@/pages/VerseManagement'))
 const AbsentMembers = lazy(() => import('@/pages/AbsentMembers'))
 const AttendanceContextManagement = lazy(() => import('@/pages/AttendanceContextManagement'))
 
+function OfflineBannerWrapper() {
+  const { isOnline } = useOffline()
+  const { pendingCount } = useSync()
+  return <OfflineBanner isOnline={isOnline} pendingCount={pendingCount} />
+}
+
+function FloatingInstallBtn({ onClick }: { onClick: () => void }) {
+  const { isInstallable, isIOS, isInstalled } = usePWAInstall()
+  if (isInstalled || (!isInstallable && !isIOS)) return null
+  return (
+    <button
+      onClick={onClick}
+      className="fixed bottom-6 end-6 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-primary-600 text-white shadow-lg transition-all hover:bg-primary-700 hover:scale-110 active:scale-95"
+      title="Install App"
+    >
+      <Download className="h-5 w-5" />
+    </button>
+  )
+}
+
 export default function App() {
+  const [showInstallModal, setShowInstallModal] = useState(false)
+
   return (
     <BrowserRouter>
       <ThemeProvider>
@@ -69,6 +97,7 @@ export default function App() {
           }}
         />
         <AuthProvider>
+          <OfflineBannerWrapper />
           <Suspense fallback={<div className="flex min-h-screen items-center justify-center"><div className="h-8 w-8 animate-spin rounded-full border-2 border-primary-400 border-t-transparent" /></div>}>
             <Routes>
               <Route path="/" element={<Landing />} />
@@ -156,8 +185,10 @@ export default function App() {
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>
+          <FloatingInstallBtn onClick={() => setShowInstallModal(true)} />
         </AuthProvider>
       </ThemeProvider>
+      <InstallAppModal isOpen={showInstallModal} onClose={() => setShowInstallModal(false)} />
     </BrowserRouter>
   )
 }

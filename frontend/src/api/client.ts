@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { logAxiosError } from '@/lib/debug'
+import { addToSyncQueue } from '@/lib/db'
 
 /*
  * VITE_API_URL handling:
@@ -35,7 +36,30 @@ const client = axios.create({
   headers: { Accept: 'application/json' },
 })
 
-client.interceptors.request.use((config) => {
+const OFFLINE_WRITABLE_PATTERNS = [
+  /\/api\/v1\/attendance$/,
+  /\/api\/v1\/attendance\/bulk$/,
+  /\/api\/v1\/attendance\/scan$/,
+]
+
+client.interceptors.request.use(async (config) => {
+  if (!navigator.onLine && config.method && ['post', 'put', 'patch', 'delete'].includes(config.method) && config.url) {
+    const isOfflineWritable = OFFLINE_WRITABLE_PATTERNS.some(p => p.test(config.url || ''))
+    if (isOfflineWritable) {
+      const token = config.headers?.Authorization?.toString().replace('Bearer ', '') || ''
+      await addToSyncQueue({
+        operation: config.method === 'delete' ? 'delete' : config.method === 'put' || config.method === 'patch' ? 'update' : 'create',
+        endpoint: config.url,
+        method: config.method.toUpperCase() as 'POST' | 'PUT' | 'PATCH' | 'DELETE',
+        body: config.data,
+        token,
+        status: 'pending',
+        retries: 0,
+      })
+      return Promise.reject({ __offline_queued: true, message: 'Request queued for sync' })
+    }
+  }
+
   const token = localStorage.getItem('auth_token')
   if (token) {
     config.headers.Authorization = `Bearer ${token}`

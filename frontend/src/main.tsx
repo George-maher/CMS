@@ -1,9 +1,11 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import toast from 'react-hot-toast'
 import './i18n'
 import './index.css'
 import App from './App'
+import { OfflineProvider } from '@/contexts/OfflineContext'
+import { SyncProvider } from '@/contexts/SyncContext'
+import { registerSW } from 'virtual:pwa-register'
 
 if (import.meta.env.DEV) {
   window.onerror = (message, source, lineno, colno, error) => {
@@ -41,20 +43,23 @@ if (import.meta.env.DEV) {
   console.log('[DEBUG] Global error handlers installed')
 }
 
-// Online / Offline connectivity notifications
-window.addEventListener('online', () => {
-  toast.success('You are back online!', { id: 'connection-status' })
-})
-
-window.addEventListener('offline', () => {
-  toast.error('You are offline. Some features may be unavailable.', {
-    id: 'connection-status',
-    duration: 6000,
-  })
+const updateSW = registerSW({
+  onNeedRefresh() {
+    if (confirm('A new version is available. Update now?')) {
+      updateSW(true)
+    }
+  },
+  onOfflineReady() {
+    console.log('[PWA] App ready for offline use')
+  },
 })
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    <OfflineProvider>
+      <SyncProvider>
+        <App />
+      </SyncProvider>
+    </OfflineProvider>
   </StrictMode>,
 )

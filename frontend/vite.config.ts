@@ -1,12 +1,62 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
+import { VitePWA } from 'vite-plugin-pwa'
 import path from 'node:path'
 
 export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
+    VitePWA({
+      registerType: 'autoUpdate',
+      includeAssets: ['favicon.svg', 'icons.svg'],
+      manifest: {
+        name: 'Church Manager',
+        short_name: 'Church Mgr',
+        description: 'Church Management System — Manage your church community with attendance tracking, events, and member management.',
+        theme_color: '#d4af37',
+        background_color: '#0f172a',
+        display: 'standalone',
+        orientation: 'portrait',
+        scope: '/',
+        start_url: '/',
+        lang: 'en',
+        dir: 'ltr',
+        categories: ['productivity', 'education', 'utilities'],
+        icons: [
+          { src: '/favicon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' },
+          { src: '/icons/icon.svg', sizes: '512x512', type: 'image/svg+xml', purpose: 'any maskable' },
+        ],
+        shortcuts: [
+          { name: 'Dashboard', url: '/admin', icons: [{ src: '/favicon.svg', sizes: 'any' }] },
+          { name: 'Attendance', url: '/servant/attendance', icons: [{ src: '/favicon.svg', sizes: 'any' }] },
+          { name: 'Scan QR', url: '/servant/scan', icons: [{ src: '/favicon.svg', sizes: 'any' }] },
+        ],
+      },
+      workbox: {
+        globPatterns: ['**/*.{js,css,html,woff2,svg,png,jpg,jpeg,gif,ico}'],
+        runtimeCaching: [
+          {
+            urlPattern: /^https?:\/\/.*\/api\/v1\/(stages|classes|members|attendance-contexts|daily-verse).*/,
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'api-cache',
+              expiration: { maxEntries: 100, maxAgeSeconds: 60 * 60 * 24 },
+              networkTimeoutSeconds: 5,
+            },
+          },
+          {
+            urlPattern: /^https?:\/\/fonts\.googleapis\.com\/.*/,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'google-fonts-cache',
+              expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 365 },
+            },
+          },
+        ],
+      },
+    }),
   ],
   resolve: {
     alias: {
