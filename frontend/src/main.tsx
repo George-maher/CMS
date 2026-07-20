@@ -3,8 +3,6 @@ import { createRoot } from 'react-dom/client'
 import toast from 'react-hot-toast'
 import './i18n'
 import './index.css'
-import '@/lib/pwa/PWAInstallService'
-import '@/lib/pwa/PWAStatusService'
 import App from './App'
 
 if (import.meta.env.DEV) {

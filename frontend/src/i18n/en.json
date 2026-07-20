@@ -3,10 +3,8 @@
     "name": "Church Manager",
     "tagline": "Manage your church community",
     "downloadApp": "Download App",
-    "downloadAppShort": "App",
     "installApp": "App",
     "openApp": "Open App",
-    "installing": "Installing...",
     "alreadyInstalled": "App is installed",
     "alreadyInstalledDesc": "Launch from your home screen for the best experience."
   },
