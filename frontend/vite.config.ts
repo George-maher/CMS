@@ -56,15 +56,22 @@ export default defineConfig({
           },
         ],
         icons: [
+          { src: '/icons/icon-48.svg', sizes: '48x48', type: 'image/svg+xml', purpose: 'any' },
           { src: '/icons/icon-72.png', sizes: '72x72', type: 'image/png', purpose: 'any' },
           { src: '/icons/icon-96.png', sizes: '96x96', type: 'image/png', purpose: 'any' },
           { src: '/icons/icon-128.png', sizes: '128x128', type: 'image/png', purpose: 'any' },
           { src: '/icons/icon-144.png', sizes: '144x144', type: 'image/png', purpose: 'any' },
           { src: '/icons/icon-152.png', sizes: '152x152', type: 'image/png', purpose: 'any' },
+          { src: '/icons/icon-167.svg', sizes: '167x167', type: 'image/svg+xml', purpose: 'any' },
           { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+          { src: '/icons/icon-256.svg', sizes: '256x256', type: 'image/svg+xml', purpose: 'any' },
           { src: '/icons/icon-384.png', sizes: '384x384', type: 'image/png', purpose: 'any' },
           { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
           { src: '/icons/icon-512-maskable.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+        ],
+        screenshots: [
+          { src: '/screenshots/desktop.png', sizes: '1920x1080', type: 'image/png', form_factor: 'wide' },
+          { src: '/screenshots/mobile.png', sizes: '390x844', type: 'image/png', form_factor: 'narrow' },
         ],
         launch_handler: {
           client_mode: ['focus-existing', 'auto'],
@@ -73,7 +80,7 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,jpg,jpeg,gif,webp,woff,woff2,ttf,otf,eot,ico}'],
         globIgnores: ['**/node_modules/**', 'sw.js', 'workbox-*'],
-        navigateFallback: '/offline.html',
+        navigateFallback: '/index.html',
         navigateFallbackDenylist: [/\/api\/.*/],
         runtimeCaching: [
           {

@@ -1,5 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useState, useEffect, useCallback, useRef } from 'react'
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>
@@ -8,6 +7,7 @@ interface BeforeInstallPromptEvent extends Event {
 
 export interface UsePwaInstallReturn {
   isInstalled: boolean
+  canInstall: boolean
   showIOSGuide: boolean
   handleAppClick: () => Promise<void>
   closeIOSGuide: () => void
@@ -19,50 +19,90 @@ function isIOSDevice(): boolean {
   return /iPad|iPhone|iPod/.test(ua) && !('MSStream' in window)
 }
 
+function checkStandalone(): boolean {
+  if (typeof window === 'undefined') return false
+  return (
+    window.matchMedia('(display-mode: standalone)').matches ||
+    (window.navigator as { standalone?: boolean }).standalone === true ||
+    window.matchMedia('(display-mode: fullscreen)').matches ||
+    window.matchMedia('(display-mode: minimal-ui)').matches
+  )
+}
+
+function getStorage(key: string): string | null {
+  try { return localStorage.getItem(key) } catch { return null }
+}
+
+function setStorage(key: string, value: string): void {
+  try { localStorage.setItem(key, value) } catch {}
+}
+
 export function usePwaInstall(): UsePwaInstallReturn {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null)
   const [isInstalled, setIsInstalled] = useState(false)
   const [showIOSGuide, setShowIOSGuide] = useState(false)
-  const navigate = useNavigate()
+  const mountedRef = useRef(true)
 
   useEffect(() => {
-    const isStandalone =
-      window.matchMedia('(display-mode: standalone)').matches ||
-      (window.navigator as { standalone?: boolean }).standalone === true ||
-      window.matchMedia('(display-mode: fullscreen)').matches ||
-      window.matchMedia('(display-mode: minimal-ui)').matches
+    return () => { mountedRef.current = false }
+  }, [])
 
-    const previouslyInstalled = (() => {
-      try { return localStorage.getItem('pwa_installed') === 'true' } catch { return false }
-    })()
+  useEffect(() => {
+    const standalone = checkStandalone()
+    const stored = getStorage('pwa_installed') === 'true'
 
-    if (isStandalone || previouslyInstalled) {
+    if (standalone || stored) {
       setIsInstalled(true)
+    }
+
+    if (standalone) {
+      setStorage('pwa_installed', 'true')
     }
 
     const onBeforeInstall = (e: Event) => {
       e.preventDefault()
-      setDeferredPrompt(e as BeforeInstallPromptEvent)
+      if (mountedRef.current) {
+        setDeferredPrompt(e as BeforeInstallPromptEvent)
+      }
     }
 
     const onAppInstalled = () => {
+      if (!mountedRef.current) return
       setIsInstalled(true)
       setDeferredPrompt(null)
-      try { localStorage.setItem('pwa_installed', 'true') } catch {}
+      setStorage('pwa_installed', 'true')
+    }
+
+    const onDisplayModeChange = () => {
+      if (!mountedRef.current) return
+      if (checkStandalone()) {
+        setIsInstalled(true)
+        setStorage('pwa_installed', 'true')
+      }
     }
 
     window.addEventListener('beforeinstallprompt', onBeforeInstall)
     window.addEventListener('appinstalled', onAppInstalled)
 
+    const mqlStandalone = window.matchMedia('(display-mode: standalone)')
+    const mqlFullscreen = window.matchMedia('(display-mode: fullscreen)')
+    mqlStandalone.addEventListener('change', onDisplayModeChange)
+    mqlFullscreen.addEventListener('change', onDisplayModeChange)
+
     return () => {
       window.removeEventListener('beforeinstallprompt', onBeforeInstall)
       window.removeEventListener('appinstalled', onAppInstalled)
+      mqlStandalone.removeEventListener('change', onDisplayModeChange)
+      mqlFullscreen.removeEventListener('change', onDisplayModeChange)
     }
   }, [])
 
   const handleAppClick = useCallback(async () => {
+    if (checkStandalone()) {
+      return
+    }
+
     if (isInstalled) {
-      navigate('/')
       return
     }
 
@@ -76,19 +116,27 @@ export function usePwaInstall(): UsePwaInstallReturn {
         deferredPrompt.prompt()
         const { outcome } = await deferredPrompt.userChoice
         if (outcome === 'accepted') {
-          setIsInstalled(true)
-          try { localStorage.setItem('pwa_installed', 'true') } catch {}
+          if (mountedRef.current) {
+            setIsInstalled(true)
+            setStorage('pwa_installed', 'true')
+          }
         }
-        setDeferredPrompt(null)
+        if (mountedRef.current) {
+          setDeferredPrompt(null)
+        }
       } catch {
-        setDeferredPrompt(null)
+        if (mountedRef.current) {
+          setDeferredPrompt(null)
+        }
       }
     }
-  }, [isInstalled, deferredPrompt, navigate])
+  }, [isInstalled, deferredPrompt])
 
   const closeIOSGuide = useCallback(() => {
-    setShowIOSGuide(false)
+    if (mountedRef.current) setShowIOSGuide(false)
   }, [])
 
-  return { isInstalled, showIOSGuide, handleAppClick, closeIOSGuide }
+  const canInstall = !isInstalled && !checkStandalone() && deferredPrompt !== null
+
+  return { isInstalled: isInstalled || checkStandalone(), canInstall, showIOSGuide, handleAppClick, closeIOSGuide }
 }

@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import { X, Share2, Plus, Check } from 'lucide-react'
+import { X, Share2, ArrowDown, Plus, Check, Smartphone } from 'lucide-react'
 
 interface Props {
   open: boolean
@@ -8,13 +8,13 @@ interface Props {
 }
 
 const steps = [
-  { icon: Share2, key: 'pwa.iosStep1' },
-  { icon: Share2, key: 'pwa.iosStep2' },
-  { icon: Plus, key: 'pwa.iosStep3' },
-  { icon: Check, key: 'pwa.iosStep4' },
+  { key: 'pwa.iosStep1' },
+  { key: 'pwa.iosStep2' },
+  { key: 'pwa.iosStep3' },
+  { key: 'pwa.iosStep4' },
 ]
 
-const stepIcons = [Share2, Share2, Plus, Check]
+const stepIcons = [Share2, ArrowDown, Plus, Check]
 
 export default function IOSInstallGuide({ open, onClose }: Props) {
   const { t } = useTranslation()
@@ -61,12 +61,7 @@ export default function IOSInstallGuide({ open, onClose }: Props) {
         <div className="px-6 pt-4 pb-6">
           <div className="flex flex-col items-center text-center">
             <div className="w-20 h-20 rounded-[1.25rem] bg-gradient-to-br from-[#d4af37] to-[#c5a028] shadow-xl shadow-[#d4af37]/25 flex items-center justify-center ring-2 ring-white/10 mb-5">
-              <svg viewBox="0 0 24 24" className="w-11 h-11 text-[#0f172a]" fill="currentColor">
-                <rect x="6" y="11" width="12" height="10" rx="1" opacity="0.9" />
-                <polygon points="12,4 4,11 20,11" />
-                <rect x="11" y="2" width="2" height="5" rx="0.5" />
-                <rect x="9" y="9" width="6" height="12" rx="3" opacity="0.4" />
-              </svg>
+              <Smartphone className="w-11 h-11 text-[#0f172a]" />
             </div>
 
             <h2 className="text-xl font-bold text-gray-900 dark:text-white">{t('pwa.iosInstallTitle')}</h2>
@@ -89,8 +84,15 @@ export default function IOSInstallGuide({ open, onClose }: Props) {
           </div>
 
           <div className="mt-6 flex flex-col items-center gap-2">
-            <button onClick={onClose} className="text-sm font-medium text-[#d4af37] hover:text-[#c5a028] transition-colors">
-              {t('common.gotIt')}
+            <button
+              onClick={onClose}
+              className="w-full rounded-xl bg-gradient-to-r from-[#d4af37] to-[#c5a028] text-navy-900 font-semibold py-3 px-4 shadow-lg shadow-[#d4af37]/25 hover:shadow-xl hover:shadow-[#d4af37]/30 transition-all active:scale-[0.97]"
+            >
+              <Check className="h-4 w-4 inline mr-1.5" />
+              {t('pwa.iosInstalledButton')}
+            </button>
+            <button onClick={onClose} className="text-sm font-medium text-gray-400 hover:text-gray-300 transition-colors py-1">
+              {t('common.cancel')}
             </button>
           </div>
         </div>

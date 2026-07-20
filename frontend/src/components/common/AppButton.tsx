@@ -1,6 +1,6 @@
-import { type ButtonHTMLAttributes } from 'react'
+import { type ButtonHTMLAttributes, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { AppWindow, Download } from 'lucide-react'
+import { AppWindow, Download, Smartphone } from 'lucide-react'
 import { usePwaInstall } from '@/hooks/usePwaInstall'
 import IOSInstallGuide from '@/components/common/IOSInstallGuide'
 
@@ -11,9 +11,15 @@ export interface AppButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElem
 export default function AppButton({ variant = 'default', className = '', ...props }: AppButtonProps) {
   const { t } = useTranslation()
   const { isInstalled, showIOSGuide, handleAppClick, closeIOSGuide } = usePwaInstall()
+  const [showTooltip, setShowTooltip] = useState(false)
+  const tooltipTimer = useRef<ReturnType<typeof setTimeout>>()
 
   const isHero = variant === 'hero'
   const isHeader = variant === 'header'
+  const isStandalone = typeof window !== 'undefined' && (
+    window.matchMedia('(display-mode: standalone)').matches ||
+    (window.navigator as { standalone?: boolean }).standalone === true
+  )
 
   const baseStyles = isHero
     ? 'btn-lg rounded-xl px-8 py-3.5 text-base font-semibold inline-flex items-center justify-center gap-2.5 transition-all duration-200 active:scale-[0.97]'
@@ -29,14 +35,37 @@ export default function AppButton({ variant = 'default', className = '', ...prop
     ? 'gold-gradient text-navy-900 shadow-lg shadow-[#d4af37]/30 hover:shadow-xl hover:shadow-[#d4af37]/40 hover:brightness-110'
     : 'gold-gradient text-navy-900 shadow-md shadow-[#d4af37]/25 hover:shadow-lg hover:shadow-[#d4af37]/30 hover:brightness-110'
 
-  const classNameResult = [baseStyles, isInstalled ? installedStyles : actionStyles, className].filter(Boolean).join(' ')
+  const showOpen = isInstalled || isStandalone
+  const label = showOpen ? t('app.openApp') : t('app.downloadApp')
+  const Icon = showOpen ? AppWindow : Download
+
+  const classNameResult = [baseStyles, showOpen ? installedStyles : actionStyles, className].filter(Boolean).join(' ')
+
+  const handleClick = async () => {
+    if (isStandalone || isInstalled) {
+      setShowTooltip(true)
+      clearTimeout(tooltipTimer.current)
+      tooltipTimer.current = setTimeout(() => setShowTooltip(false), 3000)
+      return
+    }
+    await handleAppClick()
+  }
 
   return (
     <>
-      <button onClick={handleAppClick} className={classNameResult} aria-label={isInstalled ? t('app.openApp') : t('app.downloadApp')} {...props}>
-        {isInstalled ? <AppWindow className="h-4 w-5 shrink-0" /> : <Download className="h-4 w-5 shrink-0" />}
-        <span className={isHeader ? 'hidden sm:inline' : ''}>{isInstalled ? t('app.openApp') : t('app.downloadApp')}</span>
-      </button>
+      <div className="relative inline-flex">
+        <button onClick={handleClick} className={classNameResult} aria-label={label} {...props}>
+          <Icon className="h-4 w-5 shrink-0" />
+          <span className={isHeader ? 'hidden sm:inline' : ''}>{label}</span>
+        </button>
+
+        {showTooltip && (
+          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap shadow-lg animate-fade-in bg-navy-800 text-white dark:bg-surface dark:text-text-primary border border-glass-border z-50">
+            <Smartphone className="h-3 w-3 inline mr-1" />
+            {isStandalone ? t('app.alreadyInstalledDesc') : t('app.alreadyInstalled')}
+          </div>
+        )}
+      </div>
 
       <IOSInstallGuide open={showIOSGuide} onClose={closeIOSGuide} />
     </>

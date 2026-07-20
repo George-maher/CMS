@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120">
+  <defs>
+    <linearGradient id="bg120" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1e3a8a"/>
+      <stop offset="100%" stop-color="#0f1d3d"/>
+    </linearGradient>
+    <linearGradient id="cross120" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#d4af37"/>
+      <stop offset="100%" stop-color="#e8c95a"/>
+    </linearGradient>
+  </defs>
+  <rect width="120" height="120" rx="20" fill="url(#bg120)"/>
+  <rect x="35" y="55" width="50" height="44" rx="4" fill="#fdf8e8" opacity="0.95"/>
+  <polygon points="60,22 34,55 86,55" fill="url(#cross120)"/>
+  <rect x="58" y="12" width="4" height="14" rx="2" fill="url(#cross120)"/>
+  <rect x="54" y="16" width="12" height="4" rx="2" fill="url(#cross120)"/>
+  <rect x="52" y="76" width="16" height="23" rx="8" fill="#1e3a8a"/>
+  <rect x="40" y="62" width="10" height="12" rx="5" fill="#d4af37" opacity="0.6"/>
+  <rect x="70" y="62" width="10" height="12" rx="5" fill="#d4af37" opacity="0.6"/>
+</svg>

@@ -733,6 +733,57 @@
   }
 }
 
+/* ─── PWA Desktop: Draggable titlebar region (window-controls-overlay) ─── */
+@media (display-mode: window-controls-overlay) {
+  /* The header area becomes the draggable titlebar region */
+  header {
+    -webkit-app-region: drag;
+  }
+  /* Buttons inside header should NOT be draggable */
+  header button,
+  header a,
+  header input,
+  header select {
+    -webkit-app-region: no-drag;
+  }
+}
+
+/* ─── PWA: Hide browser chrome elements in standalone mode ─── */
+@media (display-mode: standalone), (display-mode: fullscreen), (display-mode: minimal-ui) {
+  /* Ensure the app fills the entire screen */
+  html, body {
+    width: 100%;
+    height: 100%;
+    overflow-x: hidden;
+  }
+
+  #root {
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+  }
+}
+
+/* ─── PWA: Window controls overlay spacer for the titlebar ─── */
+.titlebar-spacer {
+  display: none;
+}
+@media (display-mode: window-controls-overlay) {
+  .titlebar-spacer {
+    display: block;
+    width: env(titlebar-area-width, 0px);
+    height: env(titlebar-area-height, 0px);
+  }
+}
+
+/* ─── PWA: Prevent pull-to-refresh in standalone mode on iOS ─── */
+@media (display-mode: standalone) {
+  html {
+    overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
 /* Safe area for fixed bottom elements (install/update prompts) */
 .fixed.bottom-0 {
   padding-bottom: var(--safe-area-bottom);
