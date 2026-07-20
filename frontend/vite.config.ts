@@ -13,9 +13,11 @@ export default defineConfig({
         'favicon.svg',
         'icons/*.svg',
         'icons/*.png',
+        'splash-screens/*.png',
         'offline.html',
       ],
       manifest: {
+        id: '/',
         name: 'Church Management System',
         short_name: 'Church Manager',
         description: 'Manage your church community with attendance tracking, events, and member management.',
@@ -67,22 +69,6 @@ export default defineConfig({
         launch_handler: {
           client_mode: ['focus-existing', 'auto'],
         },
-        screenshots: [
-          {
-            src: '/screenshots/desktop.png',
-            sizes: '1920x1080',
-            type: 'image/png',
-            form_factor: 'wide',
-            label: 'Church Manager Desktop View',
-          },
-          {
-            src: '/screenshots/mobile.png',
-            sizes: '390x844',
-            type: 'image/png',
-            form_factor: 'narrow',
-            label: 'Church Manager Mobile View',
-          },
-        ],
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,jpg,jpeg,gif,webp,woff,woff2,ttf,otf,eot,ico}'],
@@ -131,7 +117,6 @@ export default defineConfig({
         ],
       },
       registerType: 'prompt',
-      selfDestroying: true,
       devOptions: {
         enabled: true,
         type: 'module',

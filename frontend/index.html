@@ -30,13 +30,18 @@
     <meta name="apple-mobile-web-app-title" content="Church Manager" />
     <meta name="apple-touch-fullscreen" content="yes" />
 
-    <!-- Android themed color -->
-    <meta name="theme-color" content="#0f1d3d" />
+    <!-- Android themed color (light/dark aware) -->
+    <meta name="theme-color" content="#0f1d3d" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#faf9f6" media="(prefers-color-scheme: light)" />
     <meta name="msapplication-navbutton-color" content="#0f1d3d" />
     <meta name="msapplication-TileColor" content="#0f1d3d" />
 
     <!-- Windows Tiles -->
     <meta name="msapplication-config" content="none" />
+
+    <!-- Splash screen orientation lock -->
+    <meta name="x5-orientation" content="portrait" />
+    <meta name="screen-orientation" content="portrait" />
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
