@@ -1077,6 +1077,12 @@
     "notInstallableDesktop": "Use Chrome or Edge",
     "notInstallableDesktopDesc": "Open this page in Google Chrome or Microsoft Edge for the full installation experience.",
     "notInstallableChrome": "Bookmark this page",
-    "notInstallableChromeDesc": "Add this page to your browser bookmarks for quick access, or copy the URL to a supported browser."
+    "notInstallableChromeDesc": "Add this page to your browser bookmarks for quick access, or copy the URL to a supported browser.",
+    "installLoading": "Preparing installation...",
+    "installLoadingDesc": "Please wait a moment and try again, or refresh the page.",
+    "installUnsupported": "Installation not available",
+    "installUnsupportedDesc": "Your browser does not support installing this app. Use Chrome or Edge on desktop, or Safari on iPhone/iPad.",
+    "installFallback": "Installation is not available right now.",
+    "installFallbackDesc": "Try opening this page in Google Chrome or Microsoft Edge."
   }
 }

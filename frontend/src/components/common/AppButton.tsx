@@ -1,5 +1,6 @@
 import { type ButtonHTMLAttributes, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import toast from 'react-hot-toast'
 import { AppWindow, Download, Smartphone } from 'lucide-react'
 import { usePwaInstall } from '@/hooks/usePwaInstall'
 import IOSInstallGuide from '@/components/common/IOSInstallGuide'
@@ -10,7 +11,7 @@ export interface AppButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElem
 
 export default function AppButton({ variant = 'default', className = '', ...props }: AppButtonProps) {
   const { t } = useTranslation()
-  const { isInstalled, showIOSGuide, handleAppClick, closeIOSGuide } = usePwaInstall()
+  const { isInstalled, canInstall, showIOSGuide, handleAppClick, closeIOSGuide, browserSupported, isIOS } = usePwaInstall()
   const [showTooltip, setShowTooltip] = useState(false)
   const tooltipTimer = useRef<number | null>(null)
 
@@ -47,6 +48,14 @@ export default function AppButton({ variant = 'default', className = '', ...prop
 
   const classNameResult = [baseStyles, showOpen ? installedStyles : actionStyles, className].filter(Boolean).join(' ')
 
+  const showToastFeedback = (message: string) => {
+    toast(message, {
+      duration: 4000,
+      icon: <Smartphone className="h-4 w-4" />,
+      style: { borderRadius: '12px', padding: '12px 16px', fontSize: '13px' },
+    })
+  }
+
   const handleClick = async () => {
     if (isStandalone || isInstalled) {
       setShowTooltip(true)
@@ -54,7 +63,26 @@ export default function AppButton({ variant = 'default', className = '', ...prop
       tooltipTimer.current = window.setTimeout(() => setShowTooltip(false), 3000)
       return
     }
-    await handleAppClick()
+
+    const result = await handleAppClick()
+
+    if (result === 'installed' || result === 'ios_guide' || result === 'dismissed') {
+      return
+    }
+
+    if (isIOS) {
+      return
+    }
+
+    if (canInstall) {
+      return
+    }
+
+    if (browserSupported) {
+      showToastFeedback(t('pwa.installLoadingDesc'))
+    } else {
+      showToastFeedback(t('pwa.installUnsupportedDesc'))
+    }
   }
 
   return (

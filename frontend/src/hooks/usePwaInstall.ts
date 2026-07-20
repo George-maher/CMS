@@ -9,8 +9,10 @@ export interface UsePwaInstallReturn {
   isInstalled: boolean
   canInstall: boolean
   showIOSGuide: boolean
-  handleAppClick: () => Promise<void>
+  handleAppClick: () => Promise<'installed' | 'ios_guide' | 'dismissed' | 'noop'>
   closeIOSGuide: () => void
+  browserSupported: boolean
+  isIOS: boolean
 }
 
 function isIOSDevice(): boolean {
@@ -29,7 +31,11 @@ function checkStandalone(): boolean {
   )
 }
 
-function getStorage(key: string): string | null {
+function supportsBeforeInstallPrompt(): boolean {
+  return typeof window !== 'undefined' && ('BeforeInstallPromptEvent' in window || 'onbeforeinstallprompt' in window)
+}
+
+export function getStorage(key: string): string | null {
   try { return localStorage.getItem(key) } catch { return null }
 }
 
@@ -97,46 +103,58 @@ export function usePwaInstall(): UsePwaInstallReturn {
     }
   }, [])
 
-  const handleAppClick = useCallback(async () => {
-    if (checkStandalone()) {
-      return
-    }
-
-    if (isInstalled) {
-      return
+  const handleAppClick = useCallback(async (): Promise<'installed' | 'ios_guide' | 'dismissed' | 'noop'> => {
+    if (checkStandalone() || isInstalled) {
+      return 'installed'
     }
 
     if (isIOSDevice()) {
       setShowIOSGuide(true)
-      return
+      return 'ios_guide'
     }
 
     if (deferredPrompt) {
       try {
         deferredPrompt.prompt()
         const { outcome } = await deferredPrompt.userChoice
+        if (mountedRef.current) {
+          setDeferredPrompt(null)
+        }
         if (outcome === 'accepted') {
           if (mountedRef.current) {
             setIsInstalled(true)
             setStorage('pwa_installed', 'true')
           }
+          return 'installed'
         }
-        if (mountedRef.current) {
-          setDeferredPrompt(null)
-        }
+        return 'dismissed'
       } catch {
         if (mountedRef.current) {
           setDeferredPrompt(null)
         }
+        return 'noop'
       }
     }
+
+    return 'noop'
   }, [isInstalled, deferredPrompt])
 
   const closeIOSGuide = useCallback(() => {
     if (mountedRef.current) setShowIOSGuide(false)
   }, [])
 
-  const canInstall = !isInstalled && !checkStandalone() && deferredPrompt !== null
+  const standalone = checkStandalone()
+  const canInstall = !isInstalled && !standalone && deferredPrompt !== null
+  const iosDevice = isIOSDevice()
+  const browserSupported = supportsBeforeInstallPrompt() || iosDevice
 
-  return { isInstalled: isInstalled || checkStandalone(), canInstall, showIOSGuide, handleAppClick, closeIOSGuide }
+  return {
+    isInstalled: isInstalled || standalone,
+    canInstall,
+    showIOSGuide,
+    handleAppClick,
+    closeIOSGuide,
+    browserSupported,
+    isIOS: iosDevice,
+  }
 }
