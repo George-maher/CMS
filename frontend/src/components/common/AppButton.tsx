@@ -26,8 +26,8 @@ export default function AppButton({ variant = 'default', className = '', ...prop
   const baseStyles = isHero
     ? 'btn-lg rounded-xl border border-white/20 px-8 py-3.5 text-base font-semibold text-white hover:bg-white/10 transition-all backdrop-blur-sm inline-flex items-center justify-center gap-2'
     : isHeader
-      ? 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-glass-border bg-glass-bg backdrop-blur-sm text-white hover:bg-white/10 transition-all'
-      : 'inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold border border-glass-border bg-glass-bg backdrop-blur-sm text-white hover:bg-white/10 transition-all'
+      ? 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-glass-border bg-glass-bg backdrop-blur-sm text-gray-800 dark:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-all'
+      : 'inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold border border-glass-border bg-glass-bg backdrop-blur-sm text-gray-800 dark:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-all'
 
   const iconClass = isHero ? 'h-5 w-5' : 'h-4 w-5'
 
