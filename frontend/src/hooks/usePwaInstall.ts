@@ -5,20 +5,20 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>
 }
 
+export type PwaInstallStatus = 'installed' | 'ready' | 'ios' | 'waiting' | 'unsupported'
+
 export interface UsePwaInstallReturn {
-  isInstalled: boolean
-  canInstall: boolean
+  status: PwaInstallStatus
   showIOSGuide: boolean
   handleAppClick: () => Promise<'installed' | 'ios_guide' | 'dismissed' | 'noop'>
   closeIOSGuide: () => void
-  browserSupported: boolean
-  isIOS: boolean
+  canInstall: boolean
+  isStandalone: boolean
 }
 
 function isIOSDevice(): boolean {
   if (typeof window === 'undefined') return false
-  const ua = navigator.userAgent
-  return /iPad|iPhone|iPod/.test(ua) && !('MSStream' in window)
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) && !('MSStream' in window)
 }
 
 function checkStandalone(): boolean {
@@ -31,16 +31,17 @@ function checkStandalone(): boolean {
   )
 }
 
-function supportsBeforeInstallPrompt(): boolean {
-  return typeof window !== 'undefined' && ('BeforeInstallPromptEvent' in window || 'onbeforeinstallprompt' in window)
-}
-
-export function getStorage(key: string): string | null {
+function getStorage(key: string): string | null {
   try { return localStorage.getItem(key) } catch { return null }
 }
 
 function setStorage(key: string, value: string): void {
   try { localStorage.setItem(key, value) } catch {}
+}
+
+function supportsBeforeInstallPromptEvent(): boolean {
+  return typeof window !== 'undefined' &&
+    ('BeforeInstallPromptEvent' in window || 'onbeforeinstallprompt' in window)
 }
 
 export function usePwaInstall(): UsePwaInstallReturn {
@@ -60,7 +61,6 @@ export function usePwaInstall(): UsePwaInstallReturn {
     if (standalone || stored) {
       setIsInstalled(true)
     }
-
     if (standalone) {
       setStorage('pwa_installed', 'true')
     }
@@ -144,17 +144,29 @@ export function usePwaInstall(): UsePwaInstallReturn {
   }, [])
 
   const standalone = checkStandalone()
-  const canInstall = !isInstalled && !standalone && deferredPrompt !== null
   const iosDevice = isIOSDevice()
-  const browserSupported = supportsBeforeInstallPrompt() || iosDevice
+  const promptAvailable = deferredPrompt !== null
+  const supportsPrompt = supportsBeforeInstallPromptEvent()
+
+  let status: PwaInstallStatus
+  if (isInstalled || standalone) {
+    status = 'installed'
+  } else if (promptAvailable) {
+    status = 'ready'
+  } else if (iosDevice) {
+    status = 'ios'
+  } else if (supportsPrompt) {
+    status = 'waiting'
+  } else {
+    status = 'unsupported'
+  }
 
   return {
-    isInstalled: isInstalled || standalone,
-    canInstall,
+    status,
     showIOSGuide,
     handleAppClick,
     closeIOSGuide,
-    browserSupported,
-    isIOS: iosDevice,
+    canInstall: promptAvailable,
+    isStandalone: standalone,
   }
 }
