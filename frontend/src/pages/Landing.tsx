@@ -8,8 +8,6 @@ import {
 } from 'lucide-react'
 import PublicHeader from '@/components/layout/PublicHeader'
 import PublicFooter from '@/components/layout/PublicFooter'
-import AppButton from '@/components/common/AppButton'
-
 const features = [
   { icon: QrCode, key: 'attendanceManagement' },
   { icon: Users, key: 'memberManagement' },
@@ -72,7 +70,6 @@ export default function Landing() {
               <button onClick={() => navigate('/login')} className="btn-lg rounded-xl border border-white/20 px-8 py-3.5 text-base font-semibold text-white hover:bg-white/10 transition-all backdrop-blur-sm">
                 {t('landing.heroLogin')} <ChevronRight className="h-4 w-4 rtl-flip" />
               </button>
-              <AppButton variant="hero" />
             </div>
           </div>
         </div>

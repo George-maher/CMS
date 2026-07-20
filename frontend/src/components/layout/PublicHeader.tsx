@@ -3,7 +3,6 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { useTheme } from '@/hooks/useTheme'
 import { useTranslation } from 'react-i18next'
 import { Church, Menu, X, Sun, Moon, Languages, LogIn, Home } from 'lucide-react'
-import AppButton from '@/components/common/AppButton'
 
 export default function PublicHeader() {
   const { t } = useTranslation()
@@ -43,8 +42,6 @@ export default function PublicHeader() {
             {theme === 'dark' ? <Sun className="h-5 w-5 text-gold-400" /> : <Moon className="h-5 w-5" />}
           </button>
 
-          <AppButton variant="header" />
-
           <div className="mr-2 flex items-center gap-2">
             <button onClick={() => navigate('/login')} className="btn-ghost btn-sm border">
               <LogIn className="h-3.5 w-3.5" />
@@ -74,9 +71,6 @@ export default function PublicHeader() {
             <button onClick={() => { navigate('/join'); setMobileOpen(false) }} className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-white gold-gradient shadow-md">
               <Church className="h-4 w-4" /> {t('landing.heroCta')}
             </button>
-            <div className="flex w-full">
-              <AppButton variant="default" />
-            </div>
             <hr className="border-border my-2" />
             <button onClick={() => { toggleLang(); setMobileOpen(false) }} className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-secondary hover:bg-gold-50/30 transition-colors">
               <Languages className="h-4 w-4" /> {language === 'en' ? 'العربية' : 'English'}

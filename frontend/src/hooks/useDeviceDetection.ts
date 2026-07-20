@@ -12,11 +12,11 @@ import {
   isSafariDesktop,
   getPlatform,
   getIOSVersion,
-  isStandalone,
-} from '@/pwa/pwa'
+} from '@/utils/deviceDetection'
+import type { Platform } from '@/utils/deviceDetection'
 
 export interface DeviceInfo {
-  platform: ReturnType<typeof getPlatform>
+  platform: Platform
   isIOS: boolean
   isAndroid: boolean
   isDesktop: boolean
@@ -28,7 +28,6 @@ export interface DeviceInfo {
   isSamsungBrowser: boolean
   isSafariDesktop: boolean
   iosVersion: number
-  isStandalone: boolean
 }
 
 export function useDeviceDetection(): DeviceInfo {
@@ -45,6 +44,5 @@ export function useDeviceDetection(): DeviceInfo {
     isSamsungBrowser: isSamsungBrowser(),
     isSafariDesktop: isSafariDesktop(),
     iosVersion: getIOSVersion(),
-    isStandalone: isStandalone(),
   }), [])
 }

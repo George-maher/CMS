@@ -4,7 +4,6 @@ import { useAuth } from '@/hooks/useAuth'
 import { useTheme } from '@/hooks/useTheme'
 import { useTranslation } from 'react-i18next'
 import { Menu, Moon, Sun, Languages, LogOut, Home, Bell, BellRing, Eye, Calendar, Church } from 'lucide-react'
-import AppButton from '@/components/common/AppButton'
 import { getUnreadCount, listNotifications, markAsRead, markAllAsRead } from '@/api/notifications'
 import type { NotificationItem } from '@/types'
 import { getEvent } from '@/api/events'
@@ -239,7 +238,6 @@ export default function Header({ onMenuClick }: Props) {
             </div>
           )}
 
-          <AppButton variant="header" />
           <button onClick={() => setLanguage(language === 'en' ? 'ar' : 'en')} className="btn-ghost btn-sm border hidden sm:flex">
             <Languages className="h-3.5 w-3.5 text-gold-400" />
             {language === 'en' ? 'AR' : 'EN'}

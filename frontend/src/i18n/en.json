@@ -1,12 +1,7 @@
 {
   "app": {
     "name": "Church Manager",
-    "tagline": "Manage your church community",
-    "downloadApp": "Download App",
-    "installApp": "App",
-    "openApp": "Open App",
-    "alreadyInstalled": "App is installed",
-    "alreadyInstalledDesc": "Launch from your home screen for the best experience."
+    "tagline": "Manage your church community"
   },
   "nav": {
     "home": "Home",
@@ -1041,48 +1036,5 @@
     "phoneExact11": "Phone number must be exactly 11 digits.",
     "required": "This field is required.",
     "nameRequired": "Name is required."
-  },
-  "pwa": {
-    "installTitle": "Install Church Manager",
-    "installDescription": "Install the app for a faster, offline-capable experience with quick access from your home screen.",
-    "installButton": "Install App",
-    "remindLater": "Remind me later",
-    "dontShowAgain": "Don't show again",
-    "iosInstallTitle": "Install on Your iPhone",
-    "iosInstallDescription": "Follow these steps to add Church Manager to your home screen.",
-    "iosStep1": "Tap the Share button in Safari",
-    "iosStep2": "Scroll down",
-    "iosStep3": "Tap Add to Home Screen",
-    "iosStep4": "Tap Add",
-    "iosTip": "The Share button is at the bottom of the Safari address bar. If you don't see it, scroll down the page first.",
-    "iosInstalledButton": "I've installed it!",
-    "desktopInstallDesc": "Install Church Manager on your desktop for quick access and offline support.",
-    "mobileInstallDesc": "Install Church Manager on your device for quick access and offline support.",
-    "secureInstallDesc": "Secure & fast. Works offline after installation.",
-    "updateAvailable": "New Update Available",
-    "updateDescription": "A new version is ready. Refresh to get the latest features and improvements.",
-    "updateButton": "Update Now",
-    "offlineTitle": "You're Offline",
-    "offlineDescription": "Please check your internet connection. Some previously viewed pages may still be available.",
-    "retryConnection": "Retry Connection",
-    "alreadyInstalledHint": "App is installed — launch from your home screen for the best experience.",
-    "androidInstallTitle": "Install on Android",
-    "androidInstallDescription": "Follow these steps to install the app on your Android device.",
-    "androidStep1": "Tap the menu button (⋮) in the browser",
-    "androidStep2": "Tap \"Install app\" or \"Add to Home screen\"",
-    "androidStep3": "Tap \"Install\" to confirm",
-    "androidStep4": "Open the app from your home screen",
-    "notInstallableTitle": "Browser doesn't support installation",
-    "notInstallableDescription": "Your current browser doesn't support installing web apps. Try one of these options.",
-    "notInstallableDesktop": "Use Chrome or Edge",
-    "notInstallableDesktopDesc": "Open this page in Google Chrome or Microsoft Edge for the full installation experience.",
-    "notInstallableChrome": "Bookmark this page",
-    "notInstallableChromeDesc": "Add this page to your browser bookmarks for quick access, or copy the URL to a supported browser.",
-    "installWaiting": "Installation not yet available",
-    "installWaitingDesc": "Keep using this app across a few visits. Chrome will enable installation after it detects regular usage.",
-    "installUnsupported": "Installation not available",
-    "installUnsupportedDesc": "Your browser does not support installing this app. Use Chrome or Edge on desktop, or Safari on iPhone/iPad.",
-    "installFallback": "Installation is not available right now.",
-    "installFallbackDesc": "Try opening this page in Google Chrome or Microsoft Edge."
   }
 }
