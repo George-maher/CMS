@@ -1,15 +1,15 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" dir="ltr">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="theme-color" content="#0f1d3d" />
+  <meta name="theme-color" content="#0f1d3d" id="theme-color-meta" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <title>Offline — Church Manager</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    html { height: 100%; }
+    html, body { min-height: 100%; height: 100%; }
     body {
       min-height: 100%;
       display: flex;
@@ -19,11 +19,30 @@
       background: linear-gradient(135deg, #0f1d3d 0%, #1e3a8a 100%);
       color: #f1f5f9;
       padding: 1rem;
+      transition: background 0.3s ease, color 0.3s ease;
     }
+
+    /* Light mode override via prefers-color-scheme */
+    @media (prefers-color-scheme: light) {
+      body {
+        background: linear-gradient(135deg, #f0e6d3 0%, #faf6ee 50%, #f5f0e8 100%);
+        color: #1a1a2e;
+      }
+      .container h1 { color: #c5a028; }
+      .container p { color: #5b5b6e; }
+      .icon { background: linear-gradient(135deg, #d4af37, #e8c95a); }
+      .btn {
+        color: #faf9f6;
+        background: linear-gradient(135deg, #c5a028, #d4af37);
+      }
+    }
+
     .container {
       text-align: center;
       max-width: 400px;
+      width: 100%;
     }
+
     .icon {
       width: 96px;
       height: 96px;
@@ -34,45 +53,114 @@
       align-items: center;
       justify-content: center;
       box-shadow: 0 8px 32px rgba(212, 175, 55, 0.3);
+      animation: float 3s ease-in-out infinite;
     }
-    .icon svg {
-      width: 56px;
-      height: 56px;
-    }
+
+    .icon svg { width: 56px; height: 56px; }
+
     h1 {
       font-size: 1.5rem;
       font-weight: 700;
       margin-bottom: 0.75rem;
       color: #e8c95a;
+      transition: color 0.3s ease;
     }
+
     p {
       font-size: 0.9375rem;
       line-height: 1.6;
       color: #94a3b8;
       margin-bottom: 2rem;
+      transition: color 0.3s ease;
     }
+
     .btn {
       display: inline-flex;
       align-items: center;
+      justify-content: center;
       gap: 0.5rem;
       padding: 0.75rem 1.5rem;
       border-radius: 0.75rem;
       font-size: 0.875rem;
       font-weight: 600;
       text-decoration: none;
+      cursor: pointer;
+      border: none;
       color: #0f172a;
       background: linear-gradient(135deg, #d4af37, #e8c95a);
       box-shadow: 0 4px 16px rgba(212, 175, 55, 0.3);
       transition: all 0.3s ease;
     }
+
     .btn:hover {
-      transform: translateY(-1px);
+      transform: translateY(-2px);
       box-shadow: 0 6px 24px rgba(212, 175, 55, 0.4);
+    }
+
+    .btn:active {
+      transform: translateY(0);
+    }
+
+    .btn-secondary {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      margin-top: 0.75rem;
+      padding: 0.625rem 1.25rem;
+      border-radius: 0.75rem;
+      font-size: 0.8125rem;
+      font-weight: 500;
+      text-decoration: none;
+      cursor: pointer;
+      border: 1px solid rgba(212, 175, 55, 0.3);
+      color: #94a3b8;
+      background: transparent;
+      transition: all 0.2s ease;
+    }
+
+    .btn-secondary:hover {
+      border-color: #d4af37;
+      color: #e8c95a;
+    }
+
+    @media (prefers-color-scheme: light) {
+      .btn-secondary { color: #6b7280; border-color: #d4af37; }
+      .btn-secondary:hover { color: #c5a028; border-color: #c5a028; }
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-8px); }
+    }
+
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @media (prefers-color-scheme: light) {
+      .spinner { border-color: rgba(0,0,0,0.2); border-top-color: #c5a028; }
+    }
+
+    /* Arabic support */
+    [dir="rtl"] body {
+      font-family: 'Cairo', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     }
   </style>
 </head>
 <body>
-  <div class="container">
+  <div class="container" role="main">
     <div class="icon">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
         <rect x="20" y="40" width="60" height="50" rx="4" fill="#fdf8e8" opacity="0.95"/>
@@ -84,15 +172,60 @@
         <rect x="62" y="50" width="12" height="18" rx="6" fill="#d4af37" opacity="0.6"/>
       </svg>
     </div>
-    <h1>You're Offline</h1>
-    <p>Please check your internet connection and try again. Some pages may still be available from cache.</p>
-    <a href="/" class="btn" onclick="window.location.reload()">
+    <h1 id="title">You're Offline</h1>
+    <p id="description">Please check your internet connection and try again. Some previously viewed pages may still be available from cache.</p>
+    <button class="btn" id="retryBtn" onclick="retryConnection()">
       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
         <polyline points="23 4 23 10 17 10"/>
         <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
       </svg>
-      Retry Connection
-    </a>
+      <span id="btnText">Retry Connection</span>
+    </button>
+    <div>
+      <a class="btn-secondary" href="/" onclick="event.preventDefault(); window.location.href='/'">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+          <polyline points="9 22 9 12 15 12 15 22"/>
+        </svg>
+        Go Home
+      </a>
+    </div>
   </div>
+
+  <script>
+    // RTL / Arabic detection
+    (function() {
+      var lang = navigator.language || navigator.userLanguage || 'en';
+      if (lang.startsWith('ar')) {
+        document.documentElement.setAttribute('dir', 'rtl');
+        document.documentElement.setAttribute('lang', 'ar');
+        document.getElementById('title').textContent = 'أنت غير متصل';
+        document.getElementById('description').textContent = 'يرجى التحقق من اتصال الإنترنت. بعض الصفحات التي تمت مشاهدتها سابقاً قد لا تزال متوفرة.';
+        document.getElementById('btnText').textContent = 'إعادة المحاولة';
+      }
+    })();
+
+    // Retry logic with visual feedback
+    var retrying = false;
+    function retryConnection() {
+      if (retrying) return;
+      retrying = true;
+      var btn = document.getElementById('retryBtn');
+      var btnText = document.getElementById('btnText');
+      var originalText = btnText.textContent;
+      btnText.innerHTML = '<span class="spinner"></span>';
+      btn.style.pointerEvents = 'none';
+      btn.style.opacity = '0.7';
+
+      setTimeout(function() {
+        window.location.reload();
+      }, 1500);
+    }
+
+    // Auto-retry once when connection comes back
+    window.addEventListener('online', function() {
+      window.location.reload();
+    });
+  </script>
 </body>
 </html>

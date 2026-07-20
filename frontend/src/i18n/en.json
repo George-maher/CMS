@@ -1037,15 +1037,24 @@
     "nameRequired": "Name is required."
   },
   "pwa": {
-    "installTitle": "Install Church Management System",
-    "installDescription": "Install this app on your device for a better experience. Works offline and faster.",
-    "installButton": "Install",
-    "installIOS": "Install this app on your iPhone",
-    "installIOSSteps": "Tap the Share button and select Add to Home Screen.",
-    "updateAvailable": "Update Available",
-    "updateDescription": "A new version is available. Refresh to get the latest features and fixes.",
-    "updateButton": "Update",
+    "installTitle": "Install Church Manager",
+    "installDescription": "Install the app for a faster, offline-capable experience with quick access from your home screen.",
+    "installButton": "Install App",
+    "iosInstallTitle": "Install on Your iPhone",
+    "iosInstallDescription": "Follow these 3 simple steps to add Church Manager to your home screen.",
+    "iosStep1": "Tap the Share button in Safari",
+    "iosStep2": "Scroll down and tap Add to Home Screen",
+    "iosStep3": "Tap Add in the top-right corner",
+    "iosTip": "The Share button is at the bottom of the Safari address bar.",
+    "desktopInstallDesc": "Install Church Manager on your desktop for quick access and offline support.",
+    "mobileInstallDesc": "Install Church Manager on your device for quick access and offline support.",
+    "secureInstallDesc": "Secure & fast. Works offline after installation.",
+    "updateAvailable": "New Update Available",
+    "updateDescription": "A new version is ready. Refresh to get the latest features and improvements.",
+    "updateButton": "Update Now",
     "offlineTitle": "You're Offline",
-    "offlineDescription": "Please check your internet connection and try again. Some pages may still be available from cache."
+    "offlineDescription": "Please check your internet connection. Some previously viewed pages may still be available.",
+    "retryConnection": "Retry Connection",
+    "alreadyInstalledHint": "App is installed — launch from your home screen for the best experience."
   }
 }

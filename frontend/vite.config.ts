@@ -12,6 +12,7 @@ export default defineConfig({
       includeAssets: [
         'favicon.svg',
         'icons/*.svg',
+        'icons/*.png',
         'offline.html',
       ],
       manifest: {
