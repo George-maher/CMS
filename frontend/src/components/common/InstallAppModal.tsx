@@ -1,8 +1,8 @@
 import { useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
-  X, Share2, Plus, Check, ArrowDownToLine,
-  Smartphone, Monitor, Globe, Chrome,
+  X, Share2, Plus, Check, ArrowDown,
+  Smartphone, Globe, Monitor, Chrome,
 } from 'lucide-react'
 import type { ModalType } from '@/hooks/usePwaInstall'
 
@@ -14,13 +14,18 @@ interface InstallAppModalProps {
 }
 
 const iosSteps = [
-  { icon: Share2, labelKey: 'pwa.iosStep1' },
-  { icon: ArrowDownToLine, labelKey: 'pwa.iosStep2' },
-  { icon: Plus, labelKey: 'pwa.iosStep3' },
-  { icon: Check, labelKey: 'pwa.iosStep4' },
+  { icon: Share2, key: 'pwa.iosStep1' },
+  { icon: ArrowDown, key: 'pwa.iosStep2' },
+  { icon: Plus, key: 'pwa.iosStep3' },
+  { icon: Check, key: 'pwa.iosStep4' },
 ]
 
-const iosIcons = [Share2, ArrowDownToLine, Plus, Check]
+const androidSteps = [
+  { icon: Smartphone, key: 'pwa.androidStep1' },
+  { icon: Globe, key: 'pwa.androidStep2' },
+  { icon: Plus, key: 'pwa.androidStep3' },
+  { icon: Check, key: 'pwa.androidStep4' },
+]
 
 export default function InstallAppModal({ open, type, onClose, onInstalled }: InstallAppModalProps) {
   const { t } = useTranslation()
@@ -47,13 +52,23 @@ export default function InstallAppModal({ open, type, onClose, onInstalled }: In
 
   if (!open || !type) return null
 
-  const title = type === 'ios' ? t('pwa.iosInstallTitle') :
-    type === 'android' ? t('pwa.androidInstallTitle') :
-    t('pwa.notInstallableTitle')
+  const isIOS = type === 'ios'
+  const isAndroid = type === 'android'
+  const isNotInstallable = type === 'not_installable'
 
-  const description = type === 'ios' ? t('pwa.iosInstallDescription') :
-    type === 'android' ? t('pwa.androidInstallDescription') :
-    t('pwa.notInstallableDescription')
+  const title = isIOS
+    ? t('pwa.iosInstallTitle')
+    : isAndroid
+      ? t('pwa.androidInstallTitle')
+      : t('pwa.notInstallableTitle')
+
+  const description = isIOS
+    ? t('pwa.iosInstallDescription')
+    : isAndroid
+      ? t('pwa.androidInstallDescription')
+      : t('pwa.notInstallableDescription')
+
+  const steps = isIOS ? iosSteps : androidSteps
 
   return (
     <div
@@ -62,39 +77,40 @@ export default function InstallAppModal({ open, type, onClose, onInstalled }: In
       aria-modal="true"
       aria-label={title}
     >
+      {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fade-in"
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-fade-in"
         onClick={onClose}
         aria-hidden="true"
       />
 
+      {/* Sheet */}
       <div
-        className={`
-          relative w-full max-w-sm
-          bg-white dark:bg-[#1c1c1e]
-          rounded-t-3xl sm:rounded-3xl
-          shadow-2xl shadow-black/30
-          overflow-hidden
-          animate-slide-up
-          max-h-[90vh] flex flex-col
-        `}
+        className="relative w-full max-w-sm bg-white dark:bg-[#1c1c1e] rounded-t-[2rem] sm:rounded-[2rem] shadow-2xl shadow-black/30 overflow-hidden animate-slide-up max-h-[90vh] flex flex-col"
         style={{ paddingBottom: 'env(safe-area-inset-bottom, 16px)' }}
       >
+        {/* Drag Handle */}
+        <div className="flex justify-center pt-2 pb-1 shrink-0">
+          <div className="w-9 h-1 rounded-full bg-gray-300 dark:bg-gray-600" />
+        </div>
+
+        {/* Close button */}
         <button
           ref={closeRef}
           onClick={onClose}
-          className="absolute top-4 right-4 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-black/5 dark:bg-white/10 text-gray-400 dark:text-gray-500 hover:bg-black/10 dark:hover:bg-white/20 transition-colors"
+          className="absolute top-3 end-3 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
           aria-label={t('common.close')}
         >
           <X className="h-4 w-4" />
         </button>
 
-        <div className="flex-1 overflow-y-auto px-6 pt-10 pb-4">
-          {/* ─── App Icon ─── */}
+        {/* Scrollable body */}
+        <div className="flex-1 overflow-y-auto px-6 pt-4 pb-2">
+          {/* App Icon */}
           <div className="flex flex-col items-center text-center">
-            <div className="relative mb-6">
-              <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-[#d4af37] to-[#c5a028] shadow-lg shadow-[#d4af37]/30 flex items-center justify-center">
-                <svg viewBox="0 0 24 24" className="w-10 h-10 text-[#0f172a]" fill="currentColor">
+            <div className="relative mb-5">
+              <div className="w-20 h-20 rounded-[1.25rem] bg-gradient-to-br from-[#d4af37] to-[#c5a028] shadow-xl shadow-[#d4af37]/25 flex items-center justify-center ring-2 ring-white/10">
+                <svg viewBox="0 0 24 24" className="w-11 h-11 text-[#0f172a]" fill="currentColor">
                   <rect x="6" y="11" width="12" height="10" rx="1" opacity="0.9" />
                   <polygon points="12,4 4,11 20,11" />
                   <rect x="11" y="2" width="2" height="5" rx="0.5" />
@@ -106,75 +122,34 @@ export default function InstallAppModal({ open, type, onClose, onInstalled }: In
             <h2 className="text-xl font-bold text-gray-900 dark:text-white">
               {title}
             </h2>
-            <p className="mt-2 text-sm text-gray-500 dark:text-gray-400 max-w-xs leading-relaxed">
+            <p className="mt-1.5 text-sm text-gray-500 dark:text-gray-400 max-w-xs leading-relaxed">
               {description}
             </p>
           </div>
 
-          {/* ─── Body ─── */}
-          <div className="mt-8 space-y-3">
-            {type === 'ios' && (
-              <>
-                {iosSteps.map((step, i) => {
-                  const Icon = iosIcons[i]!
-                  return (
-                    <div
-                      key={i}
-                      className="flex items-center gap-4 p-4 rounded-2xl bg-gray-50 dark:bg-[#2c2c2e] border border-gray-100 dark:border-[#3a3a3c]"
-                    >
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#d4af37]/10 dark:bg-[#d4af37]/15 text-sm font-bold text-[#d4af37]">
-                        {i + 1}
-                      </div>
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white dark:bg-[#3a3a3c] shadow-sm text-gray-600 dark:text-gray-300">
-                        <Icon className="h-5 w-5" />
-                      </div>
-                      <p className="text-sm font-medium text-gray-800 dark:text-gray-200 leading-snug">
-                        {t(step.labelKey)}
-                      </p>
-                    </div>
-                  )
-                })}
-              </>
-            )}
+          {/* Steps or Not-installable content */}
+          <div className="mt-7 space-y-3">
+            {!isNotInstallable && steps.map((step, i) => {
+              const Icon = step.icon
+              return (
+                <div
+                  key={i}
+                  className="flex items-center gap-4 p-4 rounded-2xl bg-gray-50 dark:bg-[#2c2c2e] border border-gray-100 dark:border-[#3a3a3c]"
+                >
+                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#d4af37]/10 dark:bg-[#d4af37]/15 text-xs font-bold text-[#d4af37]">
+                    {i + 1}
+                  </div>
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white dark:bg-[#3a3a3c] shadow-sm text-gray-600 dark:text-gray-300">
+                    <Icon className="h-5 w-5" />
+                  </div>
+                  <p className="text-sm font-medium text-gray-800 dark:text-gray-200 leading-snug">
+                    {t(step.key)}
+                  </p>
+                </div>
+              )
+            })}
 
-            {type === 'android' && (
-              <div className="space-y-3">
-                <div className="flex items-center gap-4 p-4 rounded-2xl bg-gray-50 dark:bg-[#2c2c2e] border border-gray-100 dark:border-[#3a3a3c]">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white dark:bg-[#3a3a3c] shadow-sm text-gray-600 dark:text-gray-300">
-                    <Smartphone className="h-5 w-5" />
-                  </div>
-                  <p className="text-sm font-medium text-gray-800 dark:text-gray-200 leading-snug">
-                    {t('pwa.androidStep1')}
-                  </p>
-                </div>
-                <div className="flex items-center gap-4 p-4 rounded-2xl bg-gray-50 dark:bg-[#2c2c2e] border border-gray-100 dark:border-[#3a3a3c]">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white dark:bg-[#3a3a3c] shadow-sm text-gray-600 dark:text-gray-300">
-                    <Globe className="h-5 w-5" />
-                  </div>
-                  <p className="text-sm font-medium text-gray-800 dark:text-gray-200 leading-snug">
-                    {t('pwa.androidStep2')}
-                  </p>
-                </div>
-                <div className="flex items-center gap-4 p-4 rounded-2xl bg-gray-50 dark:bg-[#2c2c2e] border border-gray-100 dark:border-[#3a3a3c]">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white dark:bg-[#3a3a3c] shadow-sm text-gray-600 dark:text-gray-300">
-                    <Plus className="h-5 w-5" />
-                  </div>
-                  <p className="text-sm font-medium text-gray-800 dark:text-gray-200 leading-snug">
-                    {t('pwa.androidStep3')}
-                  </p>
-                </div>
-                <div className="flex items-center gap-4 p-4 rounded-2xl bg-gray-50 dark:bg-[#2c2c2e] border border-gray-100 dark:border-[#3a3a3c]">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white dark:bg-[#3a3a3c] shadow-sm text-gray-600 dark:text-gray-300">
-                    <Check className="h-5 w-5" />
-                  </div>
-                  <p className="text-sm font-medium text-gray-800 dark:text-gray-200 leading-snug">
-                    {t('pwa.androidStep4')}
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {type === 'not_installable' && (
+            {isNotInstallable && (
               <div className="space-y-3">
                 <div className="flex items-start gap-4 p-4 rounded-2xl bg-gray-50 dark:bg-[#2c2c2e] border border-gray-100 dark:border-[#3a3a3c]">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white dark:bg-[#3a3a3c] shadow-sm text-amber-500">
@@ -207,14 +182,14 @@ export default function InstallAppModal({ open, type, onClose, onInstalled }: In
           </div>
         </div>
 
-        {/* ─── Footer ─── */}
-        <div className="shrink-0 px-6 pt-2 pb-4 space-y-3">
-          {type === 'ios' || type === 'android' ? (
+        {/* Footer */}
+        <div className="shrink-0 px-6 pt-3 pb-5 space-y-3">
+          {!isNotInstallable ? (
             <button
               onClick={onInstalled}
-              className="w-full py-3 px-6 rounded-2xl text-sm font-semibold transition-all duration-200 active:scale-[0.98] bg-gradient-to-r from-[#d4af37] to-[#c5a028] text-[#0f172a] hover:shadow-lg hover:shadow-[#d4af37]/30"
+              className="w-full py-3 px-6 rounded-2xl text-sm font-semibold transition-all duration-200 active:scale-[0.98] gold-gradient text-navy-900 shadow-lg shadow-[#d4af37]/30 hover:shadow-xl hover:shadow-[#d4af37]/40 hover:brightness-110"
             >
-              <Check className="h-4 w-4 shrink-0 inline mr-2" />
+              <Check className="h-4 w-4 shrink-0 inline me-2" />
               {t('pwa.iosInstalledButton')}
             </button>
           ) : (

@@ -41,6 +41,24 @@ function initModule() {
 
 initModule()
 
+let _isChromium: boolean | null = null
+
+function isChromiumBased(): boolean {
+  if (_isChromium !== null) return _isChromium
+  try {
+    const ua = navigator.userAgent.toLowerCase()
+    _isChromium =
+      ua.includes('chrome') ||
+      ua.includes('chromium') ||
+      ua.includes('edg') ||
+      ua.includes('samsung') ||
+      ua.includes('brave')
+  } catch {
+    _isChromium = false
+  }
+  return _isChromium
+}
+
 export class PWAInstallService {
   private static instance: PWAInstallService
 
@@ -66,7 +84,13 @@ export class PWAInstallService {
 
   supportsNativeInstall(): boolean {
     if (typeof window === 'undefined') return false
-    return 'onbeforeinstallprompt' in window
+
+    if ('onbeforeinstallprompt' in window) return true
+    if ('BeforeInstallPromptEvent' in window) return true
+
+    if (isChromiumBased()) return true
+
+    return false
   }
 
   async waitForPrompt(timeoutMs = 8000): Promise<boolean> {

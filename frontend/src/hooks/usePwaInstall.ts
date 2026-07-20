@@ -13,7 +13,7 @@ function devLog(...args: unknown[]) {
 export type ModalType = 'ios' | 'android' | 'not_installable' | null
 
 let sharedModalType: ModalType = null
-let sharedIOSDismissed = false
+let sharedInstalled = false
 const listeners = new Set<() => void>()
 
 function notifyListeners() {
@@ -23,6 +23,7 @@ function notifyListeners() {
 export interface UsePwaInstallReturn {
   canInstall: boolean
   isStandalone: boolean
+  isInstalled: boolean
   isInstalling: boolean
   isWaiting: boolean
   modalType: ModalType
@@ -90,8 +91,9 @@ export function usePwaInstall(): UsePwaInstallReturn {
     notifyListeners()
   }, [])
 
-  const canInstall = !device.isStandalone && !statusService.isInstalled && !sharedIOSDismissed
+  const canInstall = !device.isStandalone && !statusService.isInstalled
   const isStandalone = device.isStandalone
+  const isInstalled = statusService.isInstalled || sharedInstalled
 
   const handleInstall = useCallback(async () => {
     setIsInstalling(true)
@@ -99,6 +101,7 @@ export function usePwaInstall(): UsePwaInstallReturn {
       const result = await installService.install()
       devLog('install result:', result)
       if (result === 'accepted') {
+        sharedInstalled = true
         setModalType(null)
       } else if (result === 'unavailable') {
         if (device.isAndroid) {
@@ -123,39 +126,43 @@ export function usePwaInstall(): UsePwaInstallReturn {
       hasDeferredPrompt: installService.hasDeferredPrompt,
       supportsNative: installService.supportsNativeInstall(),
       platform: device.platform,
-      browser: { chrome: device.isChrome, edge: device.isEdge, firefox: device.isFirefox, safari: device.isSafariDesktop, samsung: device.isSamsungBrowser },
+      browser: {
+        chrome: device.isChrome,
+        edge: device.isEdge,
+        firefox: device.isFirefox,
+        safari: device.isSafariDesktop,
+        samsung: device.isSamsungBrowser,
+      },
     })
 
-    // Already running in standalone mode → open app
+    // Already installed → open app
     if (device.isStandalone) {
       devLog('handleAppClick: standalone mode, navigating to /')
       navigate('/')
       return
     }
 
-    // Previously installed (browser tab, but PWA exists) → open app
-    if (statusService.isInstalled) {
-      devLog('handleAppClick: previously installed, navigating to /')
+    if (statusService.isInstalled || sharedInstalled) {
+      devLog('handleAppClick: app installed, navigating to /')
       navigate('/')
       return
     }
 
     // iOS → show installation guide
     if (device.isIOS) {
-      devLog('handleAppClick: iOS, showing guide')
+      devLog('handleAppClick: iOS, showing iOS install guide')
       setModalType('ios')
       return
     }
 
-    // Has deferred prompt → trigger native install IMMEDIATELY
+    // Native deferred prompt is available → trigger install immediately
     if (installService.hasDeferredPrompt) {
       devLog('handleAppClick: deferred prompt exists, triggering install')
       await handleInstall()
       return
     }
 
-    // Browser supports native install (Chrome, Edge, Samsung, Android WebView)
-    // but the event hasn't fired yet (user clicked too early, or page just loaded)
+    // Browser supports native install but prompt hasn't fired yet → wait briefly
     if (installService.supportsNativeInstall()) {
       devLog('handleAppClick: browser supports PWA, waiting for prompt...')
       setIsWaiting(true)
@@ -175,6 +182,13 @@ export function usePwaInstall(): UsePwaInstallReturn {
       } else {
         setModalType('not_installable')
       }
+      return
+    }
+
+    // Detected as Android but native check failed → show Android guide
+    if (device.isAndroid) {
+      devLog('handleAppClick: Android detected, showing Android guide')
+      setModalType('android')
       return
     }
 
@@ -201,13 +215,14 @@ export function usePwaInstall(): UsePwaInstallReturn {
   }, [setModalType])
 
   const handleInstalled = useCallback(() => {
-    sharedIOSDismissed = true
+    sharedInstalled = true
     setModalType(null)
   }, [setModalType])
 
   return {
     canInstall,
     isStandalone,
+    isInstalled,
     isInstalling,
     isWaiting,
     modalType,

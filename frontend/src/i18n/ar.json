@@ -2,8 +2,11 @@
   "app": {
     "name": "مدير الكنيسة",
     "tagline": "إدارة مجتمع كنيستك",
+    "downloadApp": "تحميل التطبيق",
+    "downloadAppShort": "تطبيق",
     "installApp": "التطبيق",
     "openApp": "فتح التطبيق",
+    "installing": "جاري التثبيت...",
     "alreadyInstalled": "التطبيق مثبت",
     "alreadyInstalledDesc": "افتحه من الشاشة الرئيسية لأفضل تجربة."
   },
