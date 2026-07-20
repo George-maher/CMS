@@ -3,7 +3,9 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { useTheme } from '@/hooks/useTheme'
 import { useTranslation } from 'react-i18next'
-import { Menu, Moon, Sun, Languages, LogOut, Home, Bell, BellRing, Eye, Calendar, Church } from 'lucide-react'
+import { Menu, Moon, Sun, Languages, LogOut, Home, Bell, BellRing, Eye, Calendar, Church, Smartphone } from 'lucide-react'
+import { usePWAInstall } from '@/hooks/usePwaInstall'
+import InstallAppModal from '@/components/common/InstallAppModal'
 import { getUnreadCount, listNotifications, markAsRead, markAllAsRead } from '@/api/notifications'
 import type { NotificationItem } from '@/types'
 import { getEvent } from '@/api/events'
@@ -69,6 +71,8 @@ export default function Header({ onMenuClick }: Props) {
   const [showPanel, setShowPanel] = useState(false)
   const [viewingEvent, setViewingEvent] = useState<{ id: number; name: string; description: string | null; event_date: string | null; location: string | null } | null>(null)
   const [eventModalOpen, setEventModalOpen] = useState(false)
+  const [installModalOpen, setInstallModalOpen] = useState(false)
+  const { isInstalled } = usePWAInstall()
   const panelRef = useRef<HTMLDivElement>(null)
 
   const notifTitle = (n: NotificationItem): string => {
@@ -238,6 +242,15 @@ export default function Header({ onMenuClick }: Props) {
             </div>
           )}
 
+          {!isInstalled && (
+            <button
+              onClick={() => setInstallModalOpen(true)}
+              className="btn-icon btn-ghost rounded-lg"
+              title={t('installApp.install', 'Install App')}
+            >
+              <Smartphone className="h-5 w-5 text-primary-500" />
+            </button>
+          )}
           <button onClick={() => setLanguage(language === 'en' ? 'ar' : 'en')} className="btn-ghost btn-sm border hidden sm:flex">
             <Languages className="h-3.5 w-3.5 text-gold-400" />
             {language === 'en' ? 'AR' : 'EN'}
@@ -251,6 +264,7 @@ export default function Header({ onMenuClick }: Props) {
         </div>
       </header>
 
+      <InstallAppModal isOpen={installModalOpen} onClose={() => setInstallModalOpen(false)} />
       <Modal isOpen={eventModalOpen} onClose={() => setEventModalOpen(false)} title={viewingEvent?.name ?? ''}>
         {viewingEvent && (
           <div className="space-y-3">
