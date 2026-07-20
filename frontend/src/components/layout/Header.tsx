@@ -3,7 +3,9 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { useTheme } from '@/hooks/useTheme'
 import { useTranslation } from 'react-i18next'
-import { Menu, Moon, Sun, Languages, LogOut, Home, Bell, BellRing, Eye, Calendar, Church } from 'lucide-react'
+import { Menu, Moon, Sun, Languages, LogOut, Home, Bell, BellRing, Eye, Calendar, Church, AppWindow, Download } from 'lucide-react'
+import { useAppInstall } from '@/pwa/useAppInstall'
+import AppInstallModal from '@/pwa/AppInstallModal'
 import { getUnreadCount, listNotifications, markAsRead, markAllAsRead } from '@/api/notifications'
 import type { NotificationItem } from '@/types'
 import { getEvent } from '@/api/events'
@@ -161,6 +163,7 @@ export default function Header({ onMenuClick }: Props) {
   }, [location.pathname, t])
 
   const isUnread = (notif: NotificationItem) => !notif.is_read
+  const appInstall = useAppInstall()
 
   return (
     <>
@@ -238,6 +241,13 @@ export default function Header({ onMenuClick }: Props) {
             </div>
           )}
 
+          <button
+            onClick={appInstall.handleAppClick}
+            className="btn-icon btn-ghost rounded-lg"
+            title={appInstall.isStandalone ? t('app.openApp') : t('app.installApp')}
+          >
+            {appInstall.isStandalone ? <AppWindow className="h-5 w-5" /> : <Download className="h-5 w-5" />}
+          </button>
           <button onClick={() => setLanguage(language === 'en' ? 'ar' : 'en')} className="btn-ghost btn-sm border hidden sm:flex">
             <Languages className="h-3.5 w-3.5 text-gold-400" />
             {language === 'en' ? 'AR' : 'EN'}
@@ -271,6 +281,7 @@ export default function Header({ onMenuClick }: Props) {
           </div>
         )}
       </Modal>
+      <AppInstallModal {...appInstall} />
     </>
   )
 }

@@ -1,7 +1,11 @@
 {
   "app": {
     "name": "Church Manager",
-    "tagline": "Manage your church community"
+    "tagline": "Manage your church community",
+    "installApp": "App",
+    "openApp": "Open App",
+    "alreadyInstalled": "App is installed",
+    "alreadyInstalledDesc": "Launch from your home screen for the best experience."
   },
   "nav": {
     "home": "Home",

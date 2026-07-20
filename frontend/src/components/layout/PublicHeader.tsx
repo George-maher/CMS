@@ -2,7 +2,9 @@ import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useTheme } from '@/hooks/useTheme'
 import { useTranslation } from 'react-i18next'
-import { Church, Menu, X, Sun, Moon, Languages, LogIn, Home } from 'lucide-react'
+import { Church, Menu, X, Sun, Moon, Languages, LogIn, Home, AppWindow, Download } from 'lucide-react'
+import { useAppInstall } from '@/pwa/useAppInstall'
+import AppInstallModal from '@/pwa/AppInstallModal'
 
 export default function PublicHeader() {
   const { t } = useTranslation()
@@ -14,8 +16,11 @@ export default function PublicHeader() {
   const isRtl = language === 'ar'
   const isHome = location.pathname === '/'
   const toggleLang = () => setLanguage(isRtl ? 'en' : 'ar')
+  const appInstall = useAppInstall()
+  const appBtnLabel = appInstall.isStandalone ? t('app.openApp') : t('app.installApp')
 
   return (
+    <>
     <header className="sticky top-0 z-50 border-b border-glass-border bg-surface/80 backdrop-blur-xl">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
         <button onClick={() => navigate('/')} className="flex items-center gap-2.5 group">
@@ -39,6 +44,15 @@ export default function PublicHeader() {
 
           <button onClick={toggleTheme} className="btn-icon btn-ghost rounded-lg" aria-label={t('theme.toggleTheme')}>
             {theme === 'dark' ? <Sun className="h-5 w-5 text-gold-400" /> : <Moon className="h-5 w-5" />}
+          </button>
+
+          <button
+            onClick={appInstall.handleAppClick}
+            className="btn-ghost btn-sm border"
+            title={appBtnLabel}
+          >
+            {appInstall.isStandalone ? <AppWindow className="h-3.5 w-3.5" /> : <Download className="h-3.5 w-3.5" />}
+            {appBtnLabel}
           </button>
 
           <div className="mr-2 flex items-center gap-2">
@@ -70,6 +84,9 @@ export default function PublicHeader() {
             <button onClick={() => { navigate('/join'); setMobileOpen(false) }} className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-white gold-gradient shadow-md">
               <Church className="h-4 w-4" /> {t('landing.heroCta')}
             </button>
+            <button onClick={() => { appInstall.handleAppClick(); setMobileOpen(false) }} className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-secondary hover:bg-gold-50/30 hover:text-gold-600 transition-colors">
+              {appInstall.isStandalone ? <AppWindow className="h-4 w-4" /> : <Download className="h-4 w-4" />} {appBtnLabel}
+            </button>
             <hr className="border-border my-2" />
             <button onClick={() => { toggleLang(); setMobileOpen(false) }} className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-secondary hover:bg-gold-50/30 transition-colors">
               <Languages className="h-4 w-4" /> {language === 'en' ? 'العربية' : 'English'}
@@ -82,5 +99,8 @@ export default function PublicHeader() {
         </div>
       )}
     </header>
+
+      <AppInstallModal {...appInstall} />
+    </>
   )
 }
