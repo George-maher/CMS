@@ -5,12 +5,10 @@ import {
   BarChart3, MessageSquare, ChevronRight,
   ClipboardCheck, ShieldCheck, Rocket, BookMarked, Lock,
   LayoutDashboard, TrendingUp, Globe, Sparkles, Cross,
-  AppWindow, Download,
 } from 'lucide-react'
 import PublicHeader from '@/components/layout/PublicHeader'
 import PublicFooter from '@/components/layout/PublicFooter'
-import { useAppInstall } from '@/pwa/useAppInstall'
-import AppInstallModal from '@/pwa/AppInstallModal'
+import AppButton from '@/components/common/AppButton'
 
 const features = [
   { icon: QrCode, key: 'attendanceManagement' },
@@ -40,9 +38,6 @@ const benefits = [
 export default function Landing() {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const appInstall = useAppInstall()
-  const appBtnIcon = appInstall.isStandalone ? <AppWindow className="h-4 w-4" /> : <Download className="h-4 w-4" />
-  const appBtnLabel = appInstall.isStandalone ? t('app.openApp') : t('app.installApp')
 
   return (
     <div className="min-h-screen bg-surface-secondary">
@@ -77,12 +72,7 @@ export default function Landing() {
               <button onClick={() => navigate('/login')} className="btn-lg rounded-xl border border-white/20 px-8 py-3.5 text-base font-semibold text-white hover:bg-white/10 transition-all backdrop-blur-sm">
                 {t('landing.heroLogin')} <ChevronRight className="h-4 w-4 rtl-flip" />
               </button>
-              <button
-                onClick={appInstall.handleAppClick}
-                className="btn-lg rounded-xl border border-white/20 px-8 py-3.5 text-base font-semibold text-white hover:bg-white/10 transition-all backdrop-blur-sm"
-              >
-                {appBtnIcon} {appBtnLabel}
-              </button>
+              <AppButton variant="hero" />
             </div>
           </div>
         </div>
@@ -214,7 +204,6 @@ export default function Landing() {
       </section>
 
       <PublicFooter />
-      <AppInstallModal {...appInstall} />
     </div>
   )
 }
