@@ -1,5 +1,6 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+import toast from 'react-hot-toast'
 import './i18n'
 import './index.css'
 import App from './App'
@@ -39,6 +40,18 @@ if (import.meta.env.DEV) {
 
   console.log('[DEBUG] Global error handlers installed')
 }
+
+// Online / Offline connectivity notifications
+window.addEventListener('online', () => {
+  toast.success('You are back online!', { id: 'connection-status' })
+})
+
+window.addEventListener('offline', () => {
+  toast.error('You are offline. Some features may be unavailable.', {
+    id: 'connection-status',
+    duration: 6000,
+  })
+})
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

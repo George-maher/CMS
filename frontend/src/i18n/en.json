@@ -1035,5 +1035,17 @@
     "phoneExact11": "Phone number must be exactly 11 digits.",
     "required": "This field is required.",
     "nameRequired": "Name is required."
+  },
+  "pwa": {
+    "installTitle": "Install Church Management System",
+    "installDescription": "Install this app on your device for a better experience. Works offline and faster.",
+    "installButton": "Install",
+    "installIOS": "Install this app on your iPhone",
+    "installIOSSteps": "Tap the Share button and select Add to Home Screen.",
+    "updateAvailable": "Update Available",
+    "updateDescription": "A new version is available. Refresh to get the latest features and fixes.",
+    "updateButton": "Update",
+    "offlineTitle": "You're Offline",
+    "offlineDescription": "Please check your internet connection and try again. Some pages may still be available from cache."
   }
 }
