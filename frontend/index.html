@@ -32,6 +32,13 @@
     <!-- Startup / Performance -->
     <meta http-equiv="x-dns-prefetch-control" content="on" />
 
+    <!-- PWA: Immediate Service Worker Registration -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js')
+      }
+    </script>
+
     <!-- OG Meta -->
     <meta property="og:title" content="Church Manager" />
     <meta property="og:description" content="Church Management System — Manage your church community with attendance tracking, events, and member management." />

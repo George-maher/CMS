@@ -5,9 +5,18 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>
 }
 
+let capturedInstallPrompt: BeforeInstallPromptEvent | null = null
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeinstallprompt', (e: Event) => {
+    e.preventDefault()
+    capturedInstallPrompt = e as BeforeInstallPromptEvent
+  }, { once: true })
+}
+
 export function usePWAInstall() {
-  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null)
-  const [isInstallable, setIsInstallable] = useState(false)
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(capturedInstallPrompt)
+  const [isInstallable, setIsInstallable] = useState(capturedInstallPrompt !== null)
   const [isInstalled, setIsInstalled] = useState(false)
   const [isIOS, setIsIOS] = useState(false)
 
@@ -18,6 +27,8 @@ export function usePWAInstall() {
 
     setIsInstalled(isStandalone)
     setIsIOS(isIOSDevice && isSafari && !isStandalone)
+
+    capturedInstallPrompt = null
 
     const handleBeforeInstall = (e: Event) => {
       e.preventDefault()

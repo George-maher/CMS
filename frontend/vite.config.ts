@@ -10,8 +10,8 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
-      injectRegister: 'inline',
       includeAssets: ['favicon.svg', 'icons.svg'],
+      injectRegister: false,
       manifest: {
         id: '/',
         name: 'Church Manager',
