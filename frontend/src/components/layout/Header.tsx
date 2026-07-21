@@ -72,8 +72,16 @@ export default function Header({ onMenuClick }: Props) {
   const [viewingEvent, setViewingEvent] = useState<{ id: number; name: string; description: string | null; event_date: string | null; location: string | null } | null>(null)
   const [eventModalOpen, setEventModalOpen] = useState(false)
   const [installModalOpen, setInstallModalOpen] = useState(false)
-  const { isInstalled } = usePWAInstall()
+  const { isInstallable, isInstalled, install } = usePWAInstall()
   const panelRef = useRef<HTMLDivElement>(null)
+
+  const handleInstallClick = () => {
+    if (isInstallable) {
+      install()
+    } else {
+      setInstallModalOpen(true)
+    }
+  }
 
   const notifTitle = (n: NotificationItem): string => {
     if (n.type === 'feedback_reply') return t('notifications.feedbackReplyTitle')
@@ -242,15 +250,15 @@ export default function Header({ onMenuClick }: Props) {
             </div>
           )}
 
-          {!isInstalled && (
-            <button
-              onClick={() => setInstallModalOpen(true)}
-              className="btn-icon btn-ghost rounded-lg"
-              title={t('installApp.install', 'Install App')}
-            >
-              <Smartphone className="h-5 w-5 text-primary-500" />
-            </button>
-          )}
+            {!isInstalled && (
+              <button
+                onClick={handleInstallClick}
+                className="btn-icon btn-ghost rounded-lg"
+                title={t('installApp.install', 'Install App')}
+              >
+                <Smartphone className="h-5 w-5 text-primary-500" />
+              </button>
+            )}
           <button onClick={() => setLanguage(language === 'en' ? 'ar' : 'en')} className="btn-ghost btn-sm border hidden sm:flex">
             <Languages className="h-3.5 w-3.5 text-gold-400" />
             {language === 'en' ? 'AR' : 'EN'}
