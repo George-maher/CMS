@@ -118,7 +118,8 @@ export default function InstallAppModal({ isOpen, onClose }: { isOpen: boolean; 
     setPhase(ok ? 'success' : 'failed')
   }, [isInstalled, isIOS, install])
 
-  const shouldShowInstructions = phase === 'failed' || (platform === 'ios' && phase === 'prompt')
+  const showInstallButton = phase === 'prompt' && !isIOS
+  const showInstructions = phase === 'failed' || isIOS
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={t('installApp.installTitle')} size="sm">
@@ -129,7 +130,11 @@ export default function InstallAppModal({ isOpen, onClose }: { isOpen: boolean; 
           </div>
           <div className="text-center">
             <h3 className="text-lg font-semibold">{t('app.name')}</h3>
-            <p className="text-sm text-muted mt-1">{t('installApp.installDescription')}</p>
+            <p className="text-sm text-muted mt-1">
+              {isIOS
+                ? t('installApp.iosDescription')
+                : t('installApp.installDescription')}
+            </p>
           </div>
         </div>
 
@@ -140,14 +145,14 @@ export default function InstallAppModal({ isOpen, onClose }: { isOpen: boolean; 
           </div>
         )}
 
-        {phase === 'prompt' && (
+        {showInstallButton && (
           <button onClick={handleInstall} className="btn-primary btn-md w-full gap-2">
             <Download className="h-5 w-5" />
             {t('installApp.install')}
           </button>
         )}
 
-        {phase === 'failed' && (
+        {phase === 'failed' && !isIOS && (
           <div className="rounded-xl bg-warning/10 p-3 dark:bg-warning/5">
             <p className="flex items-start gap-2 text-sm font-medium text-warning">
               <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
@@ -156,7 +161,7 @@ export default function InstallAppModal({ isOpen, onClose }: { isOpen: boolean; 
           </div>
         )}
 
-        {shouldShowInstructions && (
+        {showInstructions && (
           <div className="border-t border-border pt-4">
             <h4 className="mb-3 flex items-center gap-2 text-sm font-semibold text-secondary">
               {platform === 'ios' ? <Apple className="h-4 w-4" /> : platform === 'android' ? <Smartphone className="h-4 w-4" /> : <Monitor className="h-4 w-4" />}

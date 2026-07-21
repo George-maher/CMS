@@ -11,7 +11,7 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'icons.svg'],
-      injectRegister: false,
+      injectRegister: null,
       manifest: {
         id: '/',
         name: 'Church Manager',

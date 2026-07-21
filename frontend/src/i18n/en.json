@@ -1035,6 +1035,7 @@
     "install": "Install App",
     "installTitle": "Install Church Manager",
     "installDescription": "Install as an app for the best experience — works offline, loads faster, and feels like a native app.",
+    "iosDescription": "Add to your Home Screen for the best experience — works offline and loads instantly.",
     "alreadyInstalled": "App is installed on this device",
     "ios": "iPhone / iPad",
     "android": "Android",
