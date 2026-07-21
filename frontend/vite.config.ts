@@ -18,7 +18,7 @@ export default defineConfig({
         theme_color: '#d4af37',
         background_color: '#0f172a',
         display: 'standalone',
-        display_override: ['window-controls-overlay', 'standalone', 'minimal-ui'],
+        display_override: ['standalone', 'minimal-ui'],
         orientation: 'portrait',
         scope: '/',
         start_url: '/',
@@ -26,6 +26,8 @@ export default defineConfig({
         dir: 'ltr',
         categories: ['productivity', 'education', 'utilities'],
         icons: [
+          { src: '/icons/icon-192x192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+          { src: '/icons/icon-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
           { src: '/icons/icon.svg', sizes: '192x192', type: 'image/svg+xml', purpose: 'any' },
           { src: '/icons/icon.svg', sizes: '512x512', type: 'image/svg+xml', purpose: 'maskable' },
           { src: '/favicon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' },
@@ -42,6 +44,8 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,woff2,svg,png,jpg,jpeg,gif,ico}'],
+        navigateFallback: '/index.html',
+        navigateFallbackDenylist: [/^\/api\//],
         runtimeCaching: [
           {
             urlPattern: /^https?:\/\/.*\/api\/v1\/(stages|classes|members|attendance-contexts|daily-verse).*/,

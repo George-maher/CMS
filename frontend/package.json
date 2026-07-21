@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "generate-assets": "node scripts/generate-pwa-assets.mjs",
+    "prebuild": "npm run generate-assets",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview"
