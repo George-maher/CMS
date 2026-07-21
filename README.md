@@ -53,7 +53,7 @@ for complete terms.
                            ▼
                      ┌─────────────┐
                      │   Resend    │
-                     │   (Email)   │
+                     │   (Emails)   │
                      └─────────────┘
 ```
 
