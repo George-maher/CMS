@@ -678,7 +678,17 @@
     "footerQuickLinks": "روابط سريعة",
     "footerContact": "اتصل بنا",
     "footerContactEmail": "support@churchplatform.local",
-    "footerRights": "جميع الحقوق محفوظة."
+    "footerRights": "جميع الحقوق محفوظة.",
+    "installApp": "تثبيت التطبيق",
+    "installTitle": "استخدم Church Manager على أي جهاز",
+    "installSubtitle": "قم بتثبيت التطبيق التدريجي على هاتفك أو جهازك اللوحي أو حاسوبك. يعمل بدون إنترنت، ويتم التحميل فوراً، ويشعر وكأنه تطبيق أصلي.",
+    "installFast": "تحميل سريع — يتم تحميل الأصول المخزنة مؤقتاً فوراً",
+    "installOffline": "دعم بدون إنترنت — سجل الحضور دون اتصال",
+    "installHome": "أضف إلى الشاشة الرئيسية — الوصول بنقرة واحدة",
+    "installCta": "ثبّت الآن",
+    "howToInstall": "كيفية التثبيت",
+    "installOnDevice": "ثبّت على جهازك",
+    "offlineReady": "جاهز للعمل بدون إنترنت"
   },
   "join": {
     "title": "سجل كنيستك",

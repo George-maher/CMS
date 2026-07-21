@@ -680,7 +680,17 @@
     "footerQuickLinks": "Quick Links",
     "footerContact": "Contact",
     "footerContactEmail": "support@churchplatform.local",
-    "footerRights": "All rights reserved."
+    "footerRights": "All rights reserved.",
+    "installApp": "Install App",
+    "installTitle": "Use Church Manager on Any Device",
+    "installSubtitle": "Install as a Progressive Web App on your phone, tablet, or computer. Works offline, loads instantly, and feels just like a native app.",
+    "installFast": "Fast loading — cached assets load instantly",
+    "installOffline": "Offline support — record attendance without internet",
+    "installHome": "Add to home screen — access with one tap",
+    "installCta": "Install Now",
+    "howToInstall": "How to install",
+    "installOnDevice": "Install on your device",
+    "offlineReady": "Offline ready"
   },
   "join": {
     "title": "Register Your Church",

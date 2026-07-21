@@ -37,9 +37,10 @@ const benefits = [
 ]
 
 export default function Landing() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const navigate = useNavigate()
   const [installOpen, setInstallOpen] = useState(false)
+  const isRtl = i18n.dir() === 'rtl'
 
   return (
     <div className="min-h-screen bg-surface-secondary">
@@ -193,27 +194,27 @@ export default function Landing() {
           <div>
             <div className="inline-flex items-center gap-2 rounded-full border border-glass-border bg-glass-bg backdrop-blur-sm px-4 py-1.5 text-sm gold-text mb-4">
               <Download className="h-4 w-4" />
-              {t('landing.installApp', 'Install App')}
+              {t('landing.installApp')}
             </div>
             <h2 className="text-3xl sm:text-4xl font-bold">
-              {t('landing.installTitle', 'Use Church Manager on Any Device')}
+              {t('landing.installTitle')}
             </h2>
             <p className="mt-4 text-lg text-secondary leading-relaxed">
-              {t('landing.installSubtitle', 'Install as a Progressive Web App on your phone, tablet, or computer. Works offline, loads instantly, and feels just like a native app.')}
+              {t('landing.installSubtitle')}
             </p>
             <div className="mt-8 space-y-4">
               {[
-                { icon: Download, text: t('landing.installFast', 'Fast loading — cached assets load instantly') },
-                { icon: Wifi, text: t('landing.installOffline', 'Offline support — record attendance without internet') },
-                { icon: Smartphone, text: t('landing.installHome', 'Add to home screen — access with one tap') },
+                { icon: Download, key: 'installFast' },
+                { icon: Wifi, key: 'installOffline' },
+                { icon: Smartphone, key: 'installHome' },
               ].map((item) => {
                 const Icon = item.icon
                 return (
-                  <div key={item.text} className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl gold-gradient">
+                  <div key={item.key} className={`flex items-center gap-3 ${isRtl ? 'flex-row' : ''}`}>
+                    <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl gold-gradient ${isRtl ? 'order-1' : ''}`}>
                       <Icon className="h-5 w-5 text-navy-900" />
                     </div>
-                    <span className="text-sm sm:text-base text-secondary">{item.text}</span>
+                    <span className={`text-sm sm:text-base text-secondary ${isRtl ? 'order-0' : ''}`}>{t(`landing.${item.key}`)}</span>
                   </div>
                 )
               })}
@@ -224,14 +225,14 @@ export default function Landing() {
                 className="btn-gold btn-lg px-8 shadow-2xl shadow-gold-400/25"
               >
                 <Download className="h-5 w-5" />
-                {t('landing.installCta', 'Install Now')}
+                {t('landing.installCta')}
               </button>
               <button
                 onClick={() => setInstallOpen(true)}
                 className="btn-lg rounded-xl border border-border px-8 font-semibold text-secondary hover:bg-surface-dark transition-all"
               >
                 <Smartphone className="h-5 w-5" />
-                {t('landing.howToInstall', 'How to install')}
+                {t('landing.howToInstall')}
               </button>
             </div>
           </div>
@@ -243,10 +244,10 @@ export default function Landing() {
                   <Church className="h-8 w-8 text-navy-900" />
                 </div>
                 <p className="text-center text-lg font-bold gold-text">{t('app.name')}</p>
-                <p className="mt-2 text-center text-sm text-secondary">{t('landing.installOnDevice', 'Install on your device')}</p>
+                <p className="mt-2 text-center text-sm text-secondary">{t('landing.installOnDevice')}</p>
                 <div className="mt-8 flex items-center gap-2 rounded-full bg-green-50 px-4 py-2 text-xs font-medium text-green-700 dark:bg-green-900/20 dark:text-green-300">
                   <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
-                  {t('landing.offlineReady', 'Offline ready')}
+                  {t('landing.offlineReady')}
                 </div>
                 <div className="mt-6 grid grid-cols-3 gap-3 w-full">
                   {[Download, Wifi, Smartphone].map((Icon, i) => (

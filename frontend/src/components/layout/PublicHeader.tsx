@@ -47,12 +47,12 @@ export default function PublicHeader({ onInstallClick }: PublicHeaderProps) {
           </button>
 
           {onInstallClick && (
-            <button onClick={onInstallClick} className="btn-icon btn-ghost rounded-lg" title={t('installApp.install', 'Install App')}>
+            <button onClick={onInstallClick} className="btn-icon btn-ghost rounded-lg" title={t('installApp.install')}>
               <Download className="h-5 w-5 text-primary-500" />
             </button>
           )}
 
-          <div className="mr-2 flex items-center gap-2">
+          <div className="me-2 flex items-center gap-2">
             <button onClick={() => navigate('/login')} className="btn-ghost btn-sm border">
               <LogIn className="h-3.5 w-3.5" />
               {t('landing.heroLogin')}
