@@ -1066,7 +1066,9 @@
     "openInMenu": "Open Chrome's three dots menu",
     "downloadInstall": "Download / Install",
     "installFromChrome": "Click Install from Chrome",
-    "appInstalled": "App Installed Successfully"
+    "appInstalled": "App Installed Successfully",
+    "browserRestriction": "Your browser does not allow websites to force installation. Please follow the manual steps below to install the app on your device.",
+    "manualInstall": "Manual Installation"
   },
   "validation": {
     "phoneOnlyNumbers": "Phone number must contain only digits.",

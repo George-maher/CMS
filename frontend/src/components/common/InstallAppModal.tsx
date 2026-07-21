@@ -1,190 +1,113 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Download, Smartphone, Monitor, Menu as MenuIcon, Apple, Chrome, QrCode, Share2, CheckCircle } from 'lucide-react'
+import { Download, Smartphone, Monitor, Apple, Share2, Menu as MenuIcon, CheckCircle, AlertCircle, QrCode } from 'lucide-react'
 import { usePWAInstall } from '@/hooks/usePwaInstall'
 import { useDeviceDetection } from '@/hooks/useDeviceDetection'
 import QRCode from 'qrcode'
 import Modal from './Modal'
-import IOSInstallGuide from './IOSInstallGuide'
 
-interface InstallAppModalProps {
-  isOpen: boolean
-  onClose: () => void
-}
-
-type PlatformTab = 'ios' | 'android' | 'desktop'
+type InstallPhase = 'prompt' | 'success' | 'failed'
 
 function StepCircle({ num }: { num: number }) {
   return (
-    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary-100 text-xs font-medium text-primary-700 dark:bg-primary-900/30 dark:text-primary-300">
+    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary-100 text-xs font-medium text-primary-700 dark:bg-primary-900/30 dark:text-primary-300">
       {num}
     </span>
   )
 }
 
-function AndroidContent({ isInstallable, install }: { isInstallable: boolean; install: () => Promise<void> }) {
+function InstallInstructions({ platform }: { platform: 'ios' | 'android' | 'desktop' }) {
   const { t } = useTranslation()
 
-  if (isInstallable) {
+  if (platform === 'ios') {
     return (
-      <button
-        onClick={install}
-        className="btn-gold w-full"
-      >
-        <Download className="h-5 w-5" />
-        {t('installApp.install')}
-      </button>
+      <div className="space-y-3">
+        <ol className="space-y-2 text-sm text-secondary">
+          <li className="flex items-start gap-2">
+            <StepCircle num={1} />
+            <span>{t('installApp.iosStep1')} <Share2 className="inline h-3.5 w-3.5 text-primary-400" /></span>
+          </li>
+          <li className="flex items-start gap-2">
+            <StepCircle num={2} />
+            <span>{t('installApp.iosStep2')}</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <StepCircle num={3} />
+            <span>{t('installApp.iosStep3')}</span>
+          </li>
+        </ol>
+      </div>
+    )
+  }
+
+  if (platform === 'android') {
+    return (
+      <div className="space-y-3">
+        <ol className="space-y-2 text-sm text-secondary">
+          <li className="flex items-start gap-2">
+            <StepCircle num={1} />
+            <span>{t('installApp.androidStep1')}</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <StepCircle num={2} />
+            <span>{t('installApp.androidStep2')} <MenuIcon className="inline h-3.5 w-3.5 text-primary-400" /></span>
+          </li>
+          <li className="flex items-start gap-2">
+            <StepCircle num={3} />
+            <span>{t('installApp.androidStep3')}</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <StepCircle num={4} />
+            <span>{t('installApp.androidStep4')}</span>
+          </li>
+        </ol>
+      </div>
     )
   }
 
   return (
-    <div className="card p-4">
-      <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-secondary">
-        <MenuIcon className="h-4 w-4" />
-        {t('installApp.androidTitle')}
-      </h3>
+    <div className="space-y-3">
       <ol className="space-y-2 text-sm text-secondary">
         <li className="flex items-start gap-2">
           <StepCircle num={1} />
-          <span>{t('installApp.androidStep1')}</span>
+          <span>{t('installApp.desktopChromeStep1')} <Download className="inline h-3.5 w-3.5 text-primary-400" /></span>
         </li>
         <li className="flex items-start gap-2">
           <StepCircle num={2} />
-          <span>{t('installApp.androidStep2')} <MenuIcon className="inline h-3.5 w-3.5 text-primary-400" /></span>
+          <span>{t('installApp.desktopChromeStep2')}</span>
         </li>
         <li className="flex items-start gap-2">
           <StepCircle num={3} />
-          <span>{t('installApp.androidStep3')}</span>
-        </li>
-        <li className="flex items-start gap-2">
-          <StepCircle num={4} />
-          <span>{t('installApp.androidStep4')}</span>
+          <span>{t('installApp.desktopChromeStep3')}</span>
         </li>
       </ol>
     </div>
   )
 }
 
-function DesktopContent({ isInstallable, install }: { isInstallable: boolean; install: () => Promise<void> }) {
-  const { t } = useTranslation()
-
-  if (isInstallable) {
-    return (
-      <button
-        onClick={install}
-        className="btn-gold w-full"
-      >
-        <Download className="h-5 w-5" />
-        {t('installApp.install')}
-      </button>
-    )
-  }
-
-  return (
-    <div className="space-y-3">
-      <div className="card p-4">
-        <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-secondary">
-          <Chrome className="h-4 w-4" />
-          {t('installApp.desktopChrome')}
-        </h3>
-        <ol className="space-y-2 text-sm text-secondary">
-          <li className="flex items-start gap-2">
-            <StepCircle num={1} />
-            <span>{t('installApp.desktopChromeStep1')} <Download className="inline h-3.5 w-3.5 text-primary-400" /></span>
-          </li>
-          <li className="flex items-start gap-2">
-            <StepCircle num={2} />
-            <span>{t('installApp.desktopChromeStep2')}</span>
-          </li>
-          <li className="flex items-start gap-2">
-            <StepCircle num={3} />
-            <span>{t('installApp.desktopChromeStep3')}</span>
-          </li>
-        </ol>
-      </div>
-      <div className="card p-4">
-        <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-secondary">
-          <Monitor className="h-4 w-4" />
-          {t('installApp.desktopOther')}
-        </h3>
-        <ol className="space-y-2 text-sm text-secondary">
-          <li className="flex items-start gap-2">
-            <StepCircle num={1} />
-            <span>{t('installApp.desktopOtherStep1')}</span>
-          </li>
-          <li className="flex items-start gap-2">
-            <StepCircle num={2} />
-            <span>{t('installApp.desktopOtherStep2')}</span>
-          </li>
-          <li className="flex items-start gap-2">
-            <StepCircle num={3} />
-            <span>{t('installApp.desktopOtherStep3')}</span>
-          </li>
-        </ol>
-      </div>
-    </div>
-  )
-}
-
-function QRPanel({ showQR, setShowQR, qrDataUrl }: { showQR: boolean; setShowQR: (v: boolean) => void; qrDataUrl: string }) {
-  const { t } = useTranslation()
-  const handleShare = async () => {
-    const url = window.location.origin
-    if (typeof navigator.share === 'function') {
-      await navigator.share({ title: 'Church Manager', url })
-    } else {
-      await navigator.clipboard.writeText(url)
-    }
-  }
-
-  return (
-    <div>
-      <button
-        onClick={() => setShowQR(!showQR)}
-        className="btn-secondary w-full"
-      >
-        <QrCode className="h-4 w-4" />
-        {showQR ? t('installApp.hideQR') : t('installApp.qrCode')}
-      </button>
-
-      {showQR && (
-        <div className="mt-3 card p-4 text-center">
-          <p className="mb-3 text-sm font-medium text-secondary">
-            {t('installApp.qrScanPrompt')}
-          </p>
-          <div className="mx-auto mb-3 flex justify-center">
-            {qrDataUrl ? (
-              <img src={qrDataUrl} alt="QR Code" className="h-44 w-44 rounded-lg border-4 border-white shadow-sm dark:border-gray-600" />
-            ) : (
-              <div className="flex h-44 w-44 items-center justify-center rounded-lg bg-surface dark:bg-gray-600">
-                <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary-400 border-t-transparent" />
-              </div>
-            )}
-          </div>
-          <p className="mb-3 text-xs text-muted">{window.location.origin}</p>
-          <button onClick={handleShare} className="btn-primary btn-sm">
-            <Share2 className="h-3.5 w-3.5" />
-            {typeof navigator.share === 'function' ? t('installApp.shareLink') : t('installApp.copyLink')}
-          </button>
-        </div>
-      )}
-    </div>
-  )
-}
-
-export default function InstallAppModal({ isOpen, onClose }: InstallAppModalProps) {
-  const { t } = useTranslation()
-  const { isInstallable, isInstalled, install } = usePWAInstall()
+export default function InstallAppModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+  const { t, i18n } = useTranslation()
+  const { isInstalled, install } = usePWAInstall()
   const { isIOS, isAndroid } = useDeviceDetection()
-  const [tab, setTab] = useState<PlatformTab>(isIOS ? 'ios' : isAndroid ? 'android' : 'desktop')
+  const [phase, setPhase] = useState<InstallPhase>('prompt')
   const [showQR, setShowQR] = useState(false)
   const [qrDataUrl, setQrDataUrl] = useState('')
 
-  const tabs: { id: PlatformTab; label: string; icon: typeof Smartphone }[] = [
-    { id: 'ios', label: t('installApp.ios'), icon: Apple },
-    { id: 'android', label: t('installApp.android'), icon: Smartphone },
-    { id: 'desktop', label: t('installApp.desktop'), icon: Monitor },
-  ]
+  const platform = isIOS ? 'ios' : isAndroid ? 'android' : 'desktop'
+  const isRtl = i18n.dir() === 'rtl'
+
+  useEffect(() => {
+    if (isOpen) {
+      setPhase('prompt')
+      setShowQR(false)
+    }
+  }, [isOpen])
+
+  useEffect(() => {
+    if (isInstalled && phase === 'prompt') {
+      setPhase('success')
+    }
+  }, [isInstalled, phase])
 
   useEffect(() => {
     if (showQR) {
@@ -194,61 +117,92 @@ export default function InstallAppModal({ isOpen, onClose }: InstallAppModalProp
     }
   }, [showQR])
 
-  if (!isOpen) return null
+  const handleInstall = useCallback(async () => {
+    if (isInstalled) {
+      setPhase('success')
+      return
+    }
+    const ok = await install()
+    setPhase(ok ? 'success' : 'failed')
+  }, [isInstalled, install])
+
+  const shouldShowInstructions = phase === 'failed' || (platform === 'ios' && phase === 'prompt')
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={t('installApp.installTitle')} size="sm">
-      <div className="text-center">
-        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary-50 dark:bg-primary-900/20">
-          <Download className="h-8 w-8 text-primary-400" />
+      <div className={`space-y-5 ${isRtl ? 'text-right' : 'text-left'}`}>
+        <div className="flex flex-col items-center gap-3">
+          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary-50 dark:bg-primary-900/20">
+            <Download className="h-8 w-8 text-primary-400" />
+          </div>
+          <div className="text-center">
+            <h3 className="text-lg font-semibold">{t('app.name')}</h3>
+            <p className="text-sm text-muted mt-1">{t('installApp.installDescription')}</p>
+          </div>
         </div>
-        <p className="mb-4 text-sm text-secondary">
-          {t('installApp.installDescription')}
-        </p>
-      </div>
 
-      {isInstalled && (
-        <div className="mb-4 flex items-center gap-2 rounded-xl bg-success-light p-3 dark:bg-success/10">
-          <CheckCircle className="h-4 w-4 shrink-0 text-success" />
-          <p className="text-sm font-medium text-success">{t('installApp.alreadyInstalled')}</p>
+        {phase === 'success' && (
+          <div className="flex items-center gap-2 rounded-xl bg-success-light p-3 dark:bg-success/10">
+            <CheckCircle className="h-5 w-5 shrink-0 text-success" />
+            <p className="text-sm font-medium text-success">{t('installApp.alreadyInstalled')}</p>
+          </div>
+        )}
+
+        {phase === 'prompt' && (
+          <button onClick={handleInstall} className="btn-primary btn-md w-full gap-2">
+            <Download className="h-5 w-5" />
+            {t('installApp.install')}
+          </button>
+        )}
+
+        {phase === 'failed' && (
+          <div className="rounded-xl bg-warning/10 p-3 dark:bg-warning/5">
+            <p className="flex items-start gap-2 text-sm font-medium text-warning">
+              <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+              {t('installApp.browserRestriction')}
+            </p>
+          </div>
+        )}
+
+        {shouldShowInstructions && (
+          <div className="border-t border-border pt-4">
+            <h4 className="mb-3 flex items-center gap-2 text-sm font-semibold text-secondary">
+              {platform === 'ios' ? <Apple className="h-4 w-4" /> : platform === 'android' ? <Smartphone className="h-4 w-4" /> : <Monitor className="h-4 w-4" />}
+              {platform === 'ios' ? t('installApp.iosTitle') : platform === 'android' ? t('installApp.androidTitle') : t('installApp.desktopChrome')}
+              {' — '}
+              <span className="font-normal text-muted">{t('installApp.manualInstall')}</span>
+            </h4>
+            <InstallInstructions platform={platform} />
+          </div>
+        )}
+
+        <div className="border-t border-border pt-4">
+          <button onClick={() => setShowQR(!showQR)} className="btn-secondary w-full gap-2">
+            <QrCode className="h-4 w-4" />
+            {showQR ? t('installApp.hideQR') : t('installApp.qrCode')}
+          </button>
+
+          {showQR && (
+            <div className="mt-3 text-center">
+              <p className="mb-3 text-sm text-muted">{t('installApp.qrScanPrompt')}</p>
+              <div className="mx-auto mb-3 flex justify-center">
+                {qrDataUrl ? (
+                  <img src={qrDataUrl} alt="QR Code" className="h-40 w-40 rounded-lg border-4 border-white shadow-sm dark:border-gray-600" />
+                ) : (
+                  <div className="flex h-40 w-40 items-center justify-center rounded-lg bg-surface-dark dark:bg-gray-600">
+                    <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary-400 border-t-transparent" />
+                  </div>
+                )}
+              </div>
+              <p className="text-xs text-muted">{window.location.origin}</p>
+            </div>
+          )}
         </div>
-      )}
 
-      <div className="mb-4 grid grid-cols-3 gap-1 rounded-xl bg-surface-secondary p-1">
-        {tabs.map((tabItem) => {
-          const Icon = tabItem.icon
-          return (
-            <button
-              key={tabItem.id}
-              onClick={() => setTab(tabItem.id)}
-              className={`flex items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-xs font-medium transition-colors ${
-                tab === tabItem.id
-                  ? 'bg-surface text-primary-400 shadow-sm'
-                  : 'text-muted hover:text-secondary'
-              }`}
-            >
-              <Icon className="h-3.5 w-3.5 shrink-0" />
-              <span className="truncate">{tabItem.label}</span>
-            </button>
-          )
-        })}
-      </div>
-
-      {tab === 'ios' && <IOSInstallGuide />}
-      {tab === 'android' && <AndroidContent isInstallable={isInstallable} install={install} />}
-      {tab === 'desktop' && <DesktopContent isInstallable={isInstallable} install={install} />}
-
-      <div className="mt-4">
-        <QRPanel showQR={showQR} setShowQR={setShowQR} qrDataUrl={qrDataUrl} />
-      </div>
-
-      <div className="mt-4 flex items-center justify-center gap-6 text-xs text-muted">
-        <span className="flex items-center gap-1">
-          <Smartphone className="h-3.5 w-3.5" /> {t('installApp.offlineSupport')}
-        </span>
-        <span className="flex items-center gap-1">
-          <Download className="h-3.5 w-3.5" /> {t('installApp.fastLoading')}
-        </span>
+        <div className="flex items-center justify-center gap-4 text-xs text-muted">
+          <span className="flex items-center gap-1"><Smartphone className="h-3.5 w-3.5" /> {t('installApp.offlineSupport')}</span>
+          <span className="flex items-center gap-1"><Download className="h-3.5 w-3.5" /> {t('installApp.fastLoading')}</span>
+        </div>
       </div>
     </Modal>
   )

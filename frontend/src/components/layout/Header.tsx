@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { useTheme } from '@/hooks/useTheme'
 import { useTranslation } from 'react-i18next'
-import { Menu, Moon, Sun, Languages, LogOut, Home, Bell, BellRing, Eye, Calendar, Church, Smartphone } from 'lucide-react'
+import { Menu, Moon, Sun, Languages, LogOut, Home, Bell, BellRing, Eye, Calendar, Church, Download } from 'lucide-react'
 import { usePWAInstall } from '@/hooks/usePwaInstall'
 import InstallAppModal from '@/components/common/InstallAppModal'
 import { getUnreadCount, listNotifications, markAsRead, markAllAsRead } from '@/api/notifications'
@@ -256,7 +256,7 @@ export default function Header({ onMenuClick }: Props) {
                 className="btn-icon btn-ghost rounded-lg"
                 title={t('installApp.install', 'Install App')}
               >
-                <Smartphone className="h-5 w-5 text-primary-500" />
+                <Download className="h-5 w-5 text-primary-500" />
               </button>
             )}
           <button onClick={() => setLanguage(language === 'en' ? 'ar' : 'en')} className="btn-ghost btn-sm border hidden sm:flex">
