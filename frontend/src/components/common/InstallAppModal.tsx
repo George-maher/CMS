@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Download, Smartphone, Monitor, Apple, Share2, Menu as MenuIcon, CheckCircle, AlertCircle, QrCode } from 'lucide-react'
+import { Download, Smartphone, Monitor, Apple, Share2, Menu as MenuIcon, CheckCircle, AlertCircle } from 'lucide-react'
 import { usePWAInstall } from '@/hooks/usePwaInstall'
 import { useDeviceDetection } from '@/hooks/useDeviceDetection'
-import QRCode from 'qrcode'
 import Modal from './Modal'
+import IOSInstallGuide from './IOSInstallGuide'
 
 type InstallPhase = 'prompt' | 'success' | 'failed'
 
@@ -90,16 +90,12 @@ export default function InstallAppModal({ isOpen, onClose }: { isOpen: boolean; 
   const { isInstalled, install } = usePWAInstall()
   const { isIOS, isAndroid } = useDeviceDetection()
   const [phase, setPhase] = useState<InstallPhase>('prompt')
-  const [showQR, setShowQR] = useState(false)
-  const [qrDataUrl, setQrDataUrl] = useState('')
-
   const platform = isIOS ? 'ios' : isAndroid ? 'android' : 'desktop'
   const isRtl = i18n.dir() === 'rtl'
 
   useEffect(() => {
     if (isOpen) {
       setPhase('prompt')
-      setShowQR(false)
     }
   }, [isOpen])
 
@@ -109,22 +105,18 @@ export default function InstallAppModal({ isOpen, onClose }: { isOpen: boolean; 
     }
   }, [isInstalled, phase])
 
-  useEffect(() => {
-    if (showQR) {
-      QRCode.toDataURL(window.location.origin, { width: 200, margin: 2, color: { dark: '#1e293b', light: '#ffffff' } })
-        .then((url) => setQrDataUrl(url))
-        .catch(() => {})
-    }
-  }, [showQR])
-
   const handleInstall = useCallback(async () => {
     if (isInstalled) {
       setPhase('success')
       return
     }
+    if (isIOS) {
+      setPhase('failed')
+      return
+    }
     const ok = await install()
     setPhase(ok ? 'success' : 'failed')
-  }, [isInstalled, install])
+  }, [isInstalled, isIOS, install])
 
   const shouldShowInstructions = phase === 'failed' || (platform === 'ios' && phase === 'prompt')
 
@@ -172,32 +164,9 @@ export default function InstallAppModal({ isOpen, onClose }: { isOpen: boolean; 
               {' — '}
               <span className="font-normal text-muted">{t('installApp.manualInstall')}</span>
             </h4>
-            <InstallInstructions platform={platform} />
+            {platform === 'ios' ? <IOSInstallGuide /> : <InstallInstructions platform={platform} />}
           </div>
         )}
-
-        <div className="border-t border-border pt-4">
-          <button onClick={() => setShowQR(!showQR)} className="btn-secondary w-full gap-2">
-            <QrCode className="h-4 w-4" />
-            {showQR ? t('installApp.hideQR') : t('installApp.qrCode')}
-          </button>
-
-          {showQR && (
-            <div className="mt-3 text-center">
-              <p className="mb-3 text-sm text-muted">{t('installApp.qrScanPrompt')}</p>
-              <div className="mx-auto mb-3 flex justify-center">
-                {qrDataUrl ? (
-                  <img src={qrDataUrl} alt="QR Code" className="h-40 w-40 rounded-lg border-4 border-white shadow-sm dark:border-gray-600" />
-                ) : (
-                  <div className="flex h-40 w-40 items-center justify-center rounded-lg bg-surface-dark dark:bg-gray-600">
-                    <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary-400 border-t-transparent" />
-                  </div>
-                )}
-              </div>
-              <p className="text-xs text-muted">{window.location.origin}</p>
-            </div>
-          )}
-        </div>
 
         <div className="flex items-center justify-center gap-4 text-xs text-muted">
           <span className="flex items-center gap-1"><Smartphone className="h-3.5 w-3.5" /> {t('installApp.offlineSupport')}</span>

@@ -91,6 +91,49 @@ function drawIcon(size, isMaskable) {
   return pixels
 }
 
+// Splash screen: navy background with smaller centered cross icon
+function drawSplash(width, height) {
+  const pixels = new Uint8Array(width * height * 4)
+
+  // Fill with navy
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const idx = (y * width + x) * 4
+      pixels[idx] = NAVY[0]
+      pixels[idx + 1] = NAVY[1]
+      pixels[idx + 2] = NAVY[2]
+      pixels[idx + 3] = NAVY[3]
+    }
+  }
+
+  const iconSize = Math.min(width, height) * 0.2
+  const cx = width / 2
+  const cy = height / 2
+  const crossW = iconSize * 0.15
+  const crossH = iconSize * 0.6
+  const barW = iconSize * 0.5
+  const barH = iconSize * 0.15
+
+  for (let y = Math.max(0, Math.floor(cy - crossH / 2)); y < Math.min(height, Math.ceil(cy + crossH / 2)); y++) {
+    for (let x = Math.max(0, Math.floor(cx - barW / 2)); x < Math.min(width, Math.ceil(cx + barW / 2)); x++) {
+      const idx = (y * width + x) * 4
+      const inVert = x >= cx - crossW / 2 && x < cx + crossW / 2 && y >= cy - crossH / 2 && y < cy + crossH / 2
+      const inHoriz = x >= cx - barW / 2 && x < cx + barW / 2 && y >= cy - barH / 2 && y < cy + barH / 2
+      if (inVert || inHoriz) {
+        const isEdge = (inVert && (x < cx - crossW / 2 + 1 || x >= cx + crossW / 2 - 1)) || (inHoriz && (y < cy - barH / 2 + 1 || y >= cy + barH / 2 - 1))
+        if (!isEdge) {
+          pixels[idx] = GOLD[0]
+          pixels[idx + 1] = GOLD[1]
+          pixels[idx + 2] = GOLD[2]
+          pixels[idx + 3] = GOLD[3]
+        }
+      }
+    }
+  }
+
+  return pixels
+}
+
 function generate() {
   if (!existsSync(ICONS_DIR)) mkdirSync(ICONS_DIR, { recursive: true })
 
@@ -114,6 +157,27 @@ function generate() {
     const png = createPNG(size, size, pixels)
     writeFileSync(outPath, png)
     console.log(`  ✓ ${file} (${size}x${size})`)
+  }
+
+  const splashSizes = [
+    { file: 'apple-splash-640x1136.png', w: 640, h: 1136 },
+    { file: 'apple-splash-750x1334.png', w: 750, h: 1334 },
+    { file: 'apple-splash-1242x2208.png', w: 1242, h: 2208 },
+    { file: 'apple-splash-1125x2436.png', w: 1125, h: 2436 },
+    { file: 'apple-splash-1170x2532.png', w: 1170, h: 2532 },
+    { file: 'apple-splash-1290x2796.png', w: 1290, h: 2796 },
+  ]
+
+  for (const { file, w, h } of splashSizes) {
+    const outPath = join(ICONS_DIR, file)
+    if (existsSync(outPath)) {
+      console.log(`  ✓ ${file} (already exists, skipping)`)
+      continue
+    }
+    const pixels = drawSplash(w, h)
+    const png = createPNG(w, h, pixels)
+    writeFileSync(outPath, png)
+    console.log(`  ✓ ${file} (${w}x${h})`)
   }
 }
 
