@@ -63,11 +63,11 @@ function drawIcon(size, isMaskable) {
   const cx = size / 2
   const cy = size / 2
 
-  const margin = isMaskable ? size * 0.1 : 0
-  const crossW = size * 0.1
-  const crossH = size * 0.5
-  const barW = size * 0.35
-  const barH = size * 0.1
+  const scale = isMaskable ? 0.8 : 1.0
+  const crossW = size * 0.1 * scale
+  const crossH = size * 0.5 * scale
+  const barW = size * 0.35 * scale
+  const barH = size * 0.1 * scale
 
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
