@@ -52,7 +52,14 @@ const updateSW = registerSW({
   onOfflineReady() {
     console.log('[PWA] App ready for offline use')
   },
+  onRegisterError(error) {
+    console.error('[PWA] Service Worker registration failed:', error)
+  },
 })
+
+if (!('serviceWorker' in navigator)) {
+  console.warn('[PWA] Service workers not supported')
+}
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

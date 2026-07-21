@@ -10,16 +10,18 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
+      injectRegister: 'inline',
       includeAssets: ['favicon.svg', 'icons.svg'],
       manifest: {
+        id: '/',
         name: 'Church Manager',
         short_name: 'Church Mgr',
         description: 'Church Management System — Manage your church community with attendance tracking, events, and member management.',
         theme_color: '#d4af37',
         background_color: '#0f172a',
         display: 'standalone',
-        display_override: ['standalone', 'minimal-ui'],
-        orientation: 'portrait',
+        display_override: ['standalone'],
+        orientation: 'any',
         scope: '/',
         start_url: '/',
         lang: 'en',
@@ -27,9 +29,9 @@ export default defineConfig({
         categories: ['productivity', 'education', 'utilities'],
         icons: [
           { src: '/icons/icon-192x192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
-          { src: '/icons/icon-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+          { src: '/icons/icon-192x192-maskable.png', sizes: '192x192', type: 'image/png', purpose: 'maskable' },
+          { src: '/icons/icon-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
           { src: '/icons/icon.svg', sizes: '192x192', type: 'image/svg+xml', purpose: 'any' },
-          { src: '/icons/icon.svg', sizes: '512x512', type: 'image/svg+xml', purpose: 'maskable' },
           { src: '/favicon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' },
         ],
         screenshots: [
@@ -44,6 +46,7 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,woff2,svg,png,jpg,jpeg,gif,ico}'],
+        globIgnores: ['**/workbox-*.js', '**/manifest.webmanifest', '**/icons.svg'],
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api\//],
         runtimeCaching: [
@@ -57,11 +60,11 @@ export default defineConfig({
             },
           },
           {
-            urlPattern: /^https?:\/\/fonts\.googleapis\.com\/.*/,
+            urlPattern: /^https?:\/\/fonts\.(googleapis|gstatic)\.com\/.*/,
             handler: 'CacheFirst',
             options: {
               cacheName: 'google-fonts-cache',
-              expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 365 },
+              expiration: { maxEntries: 20, maxAgeSeconds: 60 * 60 * 24 * 365 },
             },
           },
         ],
