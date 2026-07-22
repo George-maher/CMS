@@ -57,7 +57,7 @@ for complete terms.
                      └─────────────┘
 ```
 
-## Features
+## Feature
 
 - **Authentication**: Register, Login, Logout, Email Verification, Forgot/Reset Password
 - **Role System**: Platform Admin, Church Admin, Assistant Admin, Servant, Member
