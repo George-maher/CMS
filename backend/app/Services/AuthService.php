@@ -59,7 +59,19 @@ class AuthService implements AuthServiceInterface
             ]);
         }
 
-        if ($user->is_active === false && $user->isApproved()) {
+        if ($user->isPending()) {
+            throw ValidationException::withMessages([
+                'email' => [__('auth.pending')],
+            ]);
+        }
+
+        if ($user->isRejected()) {
+            throw ValidationException::withMessages([
+                'email' => [__('auth.rejected')],
+            ]);
+        }
+
+        if ($user->is_active === false) {
             throw ValidationException::withMessages([
                 'email' => [__('auth.inactive')],
             ]);
@@ -182,6 +194,7 @@ class AuthService implements AuthServiceInterface
             $data['password'] = Hash::make($password);
             $data['role'] = $role->value;
             $data['is_active'] = true;
+            $data['application_status'] = 'approved';
             $data['created_by'] = $invite->created_by;
             $data['invite_id'] = $invite->id;
             $data['church_id'] = $invite->church_id;
