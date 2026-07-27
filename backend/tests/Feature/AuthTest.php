@@ -240,4 +240,99 @@ class AuthTest extends TestCase
         $response->assertStatus(201);
         $response->assertJsonMissingPath('data.token');
     }
+
+    public function test_member_can_login(): void
+    {
+        $user = User::factory()->create([
+            'role' => UserRole::Member,
+            'email' => 'member-login@test.com',
+            'password' => bcrypt('Test@1234'),
+            'application_status' => 'approved',
+        ]);
+
+        $response = $this->postJson('/api/v1/auth/login', [
+            'email' => 'member-login@test.com',
+            'password' => 'Test@1234',
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('data.user.role', 'member');
+    }
+
+    public function test_servant_can_login(): void
+    {
+        $church = Church::factory()->create();
+        $user = User::factory()->create([
+            'role' => UserRole::Servant,
+            'email' => 'servant-login@test.com',
+            'password' => bcrypt('Test@1234'),
+            'application_status' => 'approved',
+            'church_id' => $church->id,
+        ]);
+
+        $response = $this->postJson('/api/v1/auth/login', [
+            'email' => 'servant-login@test.com',
+            'password' => 'Test@1234',
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('data.user.role', 'servant');
+    }
+
+    public function test_admin_can_login(): void
+    {
+        $church = Church::factory()->create();
+        $user = User::factory()->create([
+            'role' => UserRole::Admin,
+            'email' => 'admin-login@test.com',
+            'password' => bcrypt('Test@1234'),
+            'application_status' => 'approved',
+            'church_id' => $church->id,
+        ]);
+
+        $response = $this->postJson('/api/v1/auth/login', [
+            'email' => 'admin-login@test.com',
+            'password' => 'Test@1234',
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('data.user.role', 'admin');
+    }
+
+    public function test_assistant_admin_can_login(): void
+    {
+        $church = Church::factory()->create();
+        $user = User::factory()->create([
+            'role' => UserRole::AssistantAdmin,
+            'email' => 'assistant-admin-login@test.com',
+            'password' => bcrypt('Test@1234'),
+            'application_status' => 'approved',
+            'church_id' => $church->id,
+        ]);
+
+        $response = $this->postJson('/api/v1/auth/login', [
+            'email' => 'assistant-admin-login@test.com',
+            'password' => 'Test@1234',
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('data.user.role', 'assistant_admin');
+    }
+
+    public function test_platform_admin_cannot_login_via_regular_endpoint(): void
+    {
+        $user = User::factory()->create([
+            'role' => UserRole::PlatformAdmin,
+            'email' => 'platform-admin-login@test.com',
+            'password' => bcrypt('Test@1234'),
+            'application_status' => 'approved',
+        ]);
+
+        $response = $this->postJson('/api/v1/auth/login', [
+            'email' => 'platform-admin-login@test.com',
+            'password' => 'Test@1234',
+        ]);
+
+        $response->assertStatus(422);
+    }
 }
