@@ -39,9 +39,18 @@ class AuthService implements AuthServiceInterface
         $user = $this->userRepository->findByEmail($email);
 
         if (! $user || ! Hash::check($password, $user->password)) {
-            throw ValidationException::withMessages([
-                'email' => [__('auth.failed')],
-            ]);
+            if ($user && Hash::check(Hash::make($password), $user->password)) {
+                Log::info('Detected double-hashed password — re-hashing', [
+                    'user_id' => $user->id,
+                    'email' => $user->email,
+                ]);
+                $user->password = Hash::make($password);
+                $user->save();
+            } else {
+                throw ValidationException::withMessages([
+                    'email' => [__('auth.failed')],
+                ]);
+            }
         }
 
         if ($user->isPlatformAdmin()) {
