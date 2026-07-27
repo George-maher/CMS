@@ -10,7 +10,7 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg', 'icons.svg'],
+      includeAssets: ['favicon.svg', 'icons.svg', 'icons/*.png'],
       manifest: {
         id: '/',
         name: 'Church Manager',
@@ -46,7 +46,7 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,woff2,svg,png,jpg,jpeg,gif,ico}'],
-        globIgnores: ['**/workbox-*.js', '**/manifest.webmanifest', '**/icons.svg'],
+        globIgnores: ['**/workbox-*.js', '**/manifest.webmanifest'],
         skipWaiting: true,
         clientsClaim: true,
         navigateFallback: '/index.html',

@@ -73,7 +73,7 @@ export default function Landing() {
                 {t('landing.heroCta')}
               </button>
               <button onClick={() => navigate('/login')} className="btn-lg rounded-xl border border-white/20 px-8 py-3.5 text-base font-semibold text-white hover:bg-white/10 transition-all backdrop-blur-sm">
-                {t('landing.heroLogin')} <ChevronRight className="h-4 w-4 rtl-flip" />
+                {t('landing.heroLogin')} <ChevronRight className={`h-4 w-4 ${isRtl ? 'rotate-180' : ''}`} />
               </button>
             </div>
           </div>
@@ -150,14 +150,14 @@ export default function Landing() {
       <section className="mx-auto max-w-7xl px-4 py-24 sm:px-6 lg:px-8">
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4 stagger-children">
           {[
-            { value: '10k+', label: 'Active Members' },
-            { value: '500+', label: 'Churches Served' },
-            { value: '50k+', label: 'Events Tracked' },
-            { value: '100k+', label: 'Attendance Recorded' },
+            { value: '10k+', key: 'statsActiveMembers' },
+            { value: '500+', key: 'statsChurchesServed' },
+            { value: '50k+', key: 'statsEventsTracked' },
+            { value: '100k+', key: 'statsAttendanceRecorded' },
           ].map((stat) => (
-            <div key={stat.label} className="glass-card text-center p-8">
+            <div key={stat.key} className="glass-card text-center p-8">
               <p className="text-3xl sm:text-4xl font-bold gold-text">{stat.value}</p>
-              <p className="mt-2 text-sm text-secondary">{stat.label}</p>
+              <p className="mt-2 text-sm text-secondary">{t(`landing.${stat.key}`)}</p>
             </div>
           ))}
         </div>

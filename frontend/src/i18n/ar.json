@@ -688,7 +688,11 @@
     "installCta": "ثبّت الآن",
     "howToInstall": "كيفية التثبيت",
     "installOnDevice": "ثبّت على جهازك",
-    "offlineReady": "جاهز للعمل بدون إنترنت"
+    "offlineReady": "جاهز للعمل بدون إنترنت",
+    "statsActiveMembers": "الأعضاء النشطون",
+    "statsChurchesServed": "الكنائس المخدومة",
+    "statsEventsTracked": "الأنشطة المسجلة",
+    "statsAttendanceRecorded": "الحضور المسجل"
   },
   "join": {
     "title": "سجل كنيستك",

@@ -690,7 +690,11 @@
     "installCta": "Install Now",
     "howToInstall": "How to install",
     "installOnDevice": "Install on your device",
-    "offlineReady": "Offline ready"
+    "offlineReady": "Offline ready",
+    "statsActiveMembers": "Active Members",
+    "statsChurchesServed": "Churches Served",
+    "statsEventsTracked": "Events Tracked",
+    "statsAttendanceRecorded": "Attendance Recorded"
   },
   "join": {
     "title": "Register Your Church",

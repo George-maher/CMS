@@ -26,7 +26,7 @@ class CreateUserRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:255', new NotPlaceholder],
             'email' => ['required', 'email', 'unique:users,email', new NotPlaceholder],
-            'password' => ['required', 'string', 'min:8', 'confirmed', 'regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#^()_\-+=]).+$/'],
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
             'role' => ['required', Rule::in($allowedRoles)],
             'class_year_id' => ['nullable', 'integer', 'exists:class_years,id'],
             'class_id' => ['nullable', 'integer', 'exists:classes,id'],
@@ -48,11 +48,5 @@ class CreateUserRequest extends FormRequest
         }
     }
 
-    /** @return array<string, string> */
-    public function messages(): array
-    {
-        return [
-            'password.regex' => 'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character (@$!%*?&#^()_-+=).',
-        ];
-    }
+
 }
