@@ -37,7 +37,7 @@ export default function PlatformLogin() {
       console.log('VITE_PLATFORM_ADMIN_LOGIN_PATH:', import.meta.env.VITE_PLATFORM_ADMIN_LOGIN_PATH)
       console.groupEnd()
 
-      await platformLogin({ email, password })
+      await platformLogin({ email: email.trim().toLowerCase(), password })
       navigate('/platform')
     } catch (err: unknown) {
       const axiosErr = err as AxiosError<{ message?: string; errors?: Record<string, string[]> }>

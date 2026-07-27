@@ -34,7 +34,7 @@ export default function Login() {
     e.preventDefault()
     setLoading(true)
     try {
-      const loggedInUser = await login({ email, password })
+      const loggedInUser = await login({ email: email.trim().toLowerCase(), password })
       if (loggedInUser.application_status === 'pending' || loggedInUser.application_status === 'rejected') { navigate('/application-status'); return }
       navigate(roleRedirect[loggedInUser.role] || '/login')
     } catch (err: unknown) {
