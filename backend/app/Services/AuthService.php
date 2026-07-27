@@ -150,6 +150,10 @@ class AuthService implements AuthServiceInterface
         $invite = $validation['invite'];
         $role = $validation['role'];
 
+        /** @var string $registerEmail */
+        $registerEmail = $data['email'] ?? '';
+        $data['email'] = strtolower(trim($registerEmail));
+
         return DB::transaction(function () use ($data, $invite, $role, $inviteToken) {
             $freshInvite = QRInvite::where('id', $invite->id)
                 ->lockForUpdate()

@@ -39,6 +39,15 @@ class CreateUserRequest extends FormRequest
         ];
     }
 
+    protected function prepareForValidation(): void
+    {
+        if ($this->has('email')) {
+            $this->merge([
+                'email' => strtolower(trim((string) $this->input('email'))),
+            ]);
+        }
+    }
+
     /** @return array<string, string> */
     public function messages(): array
     {

@@ -53,7 +53,7 @@ class UserService implements UserServiceInterface
     public function create(array $data, ?int $authUserId = null): array
     {
         /** @var string $email */
-        $email = $data['email'] ?? '';
+        $email = isset($data['email']) ? strtolower(trim((string) $data['email'])) : '';
         /** @var string $password */
         $password = $data['password'] ?? '';
 

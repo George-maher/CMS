@@ -73,6 +73,12 @@ class ChurchApplicationRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
+        if ($this->has('email')) {
+            $this->merge([
+                'email' => strtolower(trim((string) $this->input('email'))),
+            ]);
+        }
+
         if ($this->has('password') && empty($this->input('password'))) {
             $this->request->remove('password');
             $this->request->remove('password_confirmation');
