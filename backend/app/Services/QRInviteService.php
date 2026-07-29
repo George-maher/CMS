@@ -32,10 +32,6 @@ class QRInviteService implements QRInviteServiceInterface
         $typeValue = $data['type'];
         $type = QRInviteType::from($typeValue);
 
-        do {
-            $token = Str::random(self::TOKEN_LENGTH);
-        } while (QRInvite::where('token', $token)->exists());
-
         /** @var int|null $maxUsesInput */
         $maxUsesInput = $data['max_uses'] ?? null;
         $maxUses = $maxUsesInput !== null ? intval($maxUsesInput) : 1;
@@ -45,29 +41,33 @@ class QRInviteService implements QRInviteServiceInterface
         /** @var string|null $contextId */
         $contextId = $data['attendance_context_id'] ?? null;
 
-        $invite = $this->qrInviteRepository->create([
-            'type' => $type,
-            'token' => $token,
-            'created_by' => $creatorId,
-            'attendance_context_id' => $contextId,
-            'expires_at' => now()->addHours($expiresInHours),
-            'is_single_use' => $maxUses === 1,
-            'max_uses' => $maxUses,
-            'use_count' => 0,
-        ]);
+        return DB::transaction(function () use ($type, $creatorId, $contextId, $expiresInHours, $maxUses) {
+            $token = Str::random(self::TOKEN_LENGTH);
 
-        Log::info('Invite created', [
-            'invite_id' => $invite->id,
-            'type' => $type->value,
-            'created_by' => $creatorId,
-            'expires_at' => $invite->expires_at,
-        ]);
+            $invite = $this->qrInviteRepository->create([
+                'type' => $type,
+                'token' => $token,
+                'created_by' => $creatorId,
+                'attendance_context_id' => $contextId,
+                'expires_at' => now()->addHours($expiresInHours),
+                'is_single_use' => $maxUses === 1,
+                'max_uses' => $maxUses,
+                'use_count' => 0,
+            ]);
 
-        return [
-            'invite' => $invite,
-            'url' => $this->getInviteUrl($token),
-            'token' => $token,
-        ];
+            Log::info('Invite created', [
+                'invite_id' => $invite->id,
+                'type' => $type->value,
+                'created_by' => $creatorId,
+                'expires_at' => $invite->expires_at,
+            ]);
+
+            return [
+                'invite' => $invite,
+                'url' => $this->getInviteUrl($token),
+                'token' => $token,
+            ];
+        });
     }
 
     /** @return array<string, mixed> */

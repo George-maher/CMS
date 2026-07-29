@@ -78,7 +78,6 @@ export default function ResetPasswordFromRequest() {
       })
       setSuccess(true)
       toast.success(t('auth.resetPasswordSuccess'))
-      setTimeout(() => navigate('/login'), 3000)
     } catch (err: unknown) {
       logCatch('ResetPasswordFromRequest.submit', err)
       const axiosErr = err as { response?: { data?: { errors?: Record<string, string[]>; message?: string } } }

@@ -41,6 +41,7 @@
     "delete": "Delete",
     "edit": "Edit",
     "create": "Create",
+    "creating": "Creating...",
     "update": "Update",
     "view": "View",
     "close": "Close",

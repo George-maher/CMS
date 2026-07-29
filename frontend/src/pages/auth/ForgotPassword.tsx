@@ -2,14 +2,13 @@ import { useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import toast from 'react-hot-toast'
-import { Church, Loader2, ArrowLeft, Mail, AlertCircle, MessageSquare } from 'lucide-react'
-import { submitPasswordResetRequest } from '@/api/passwordResetRequests'
+import { Church, Loader2, ArrowLeft, Mail, AlertCircle } from 'lucide-react'
+import { forgotPassword } from '@/api/auth'
 import { logCatch } from '@/lib/debug'
 
 export default function ForgotPassword() {
   const { t } = useTranslation()
   const [email, setEmail] = useState('')
-  const [notes, setNotes] = useState('')
   const [emailError, setEmailError] = useState('')
   const [loading, setLoading] = useState(false)
   const [sent, setSent] = useState(false)
@@ -36,7 +35,7 @@ export default function ForgotPassword() {
     }
     setLoading(true)
     try {
-      await submitPasswordResetRequest({ email, notes: notes.trim() || undefined })
+      await forgotPassword({ email })
       setSent(true)
       toast.success(t('auth.forgotPasswordSent'))
     } catch (err: unknown) {
@@ -97,24 +96,6 @@ export default function ForgotPassword() {
                     {emailError}
                   </p>
                 )}
-              </div>
-
-              <div>
-                <label className="label">{t('auth.optionalNote')}</label>
-                <div className="relative">
-                  <textarea
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    className="input-field min-h-[80px] resize-none"
-                    placeholder={t('auth.optionalNotePlaceholder')}
-                    rows={3}
-                    maxLength={1000}
-                  />
-                  <div className="absolute bottom-2 right-3">
-                    <MessageSquare className="h-4 w-4 text-muted" />
-                  </div>
-                </div>
-                <p className="mt-1 text-xs text-muted text-right">{notes.length}/1000</p>
               </div>
 
               <button type="submit" disabled={loading} className="btn-primary btn-md w-full">

@@ -291,9 +291,9 @@ class AppServiceProvider extends ServiceProvider
                 ->response(fn () => self::rateLimitResponse());
         });
 
-        // Invite generate — 20 invites/hour per admin
+        // Invite generate — 3 invites/minute per user (prevents rapid duplicate creation)
         RateLimiter::for('invite-generate', function (Request $request) {
-            return Limit::perHour(20)
+            return Limit::perMinute(3)
                 ->by($request->user()?->id ?: $request->ip())
                 ->response(fn () => self::rateLimitResponse());
         });

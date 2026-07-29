@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
-import { Plus, Copy, Info, Eye, Search, X } from 'lucide-react'
+import { Plus, Copy, Info, Eye, Search, X, Loader2 } from 'lucide-react'
 import Badge from '@/components/common/Badge'
 import DataTable from '@/components/common/DataTable'
 import Modal from '@/components/common/Modal'
@@ -111,6 +111,7 @@ export default function AdminQRManagement() {
   const [meta, setMeta] = useState({ current_page: 1, last_page: 1, per_page: 15, total: 0 })
   const [loading, setLoading] = useState(true)
   const [showCreate, setShowCreate] = useState(false)
+  const [creating, setCreating] = useState(false)
   const [selectedUrl, setSelectedUrl] = useState<string | null>(null)
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null)
   const [structure, setStructure] = useState<StructureOption[]>([])
@@ -162,6 +163,8 @@ export default function AdminQRManagement() {
   }
 
   const handleCreate = async (type: QRInviteType) => {
+    if (creating) return
+    setCreating(true)
     setCreateError('')
     try {
       const payload: { type: QRInviteType; max_uses?: number; expires_in_hours?: number } = { type }
@@ -177,6 +180,8 @@ export default function AdminQRManagement() {
     } catch (err: unknown) {
       const axiosErr = err as { response?: { data?: { message?: string; errors?: Record<string, string[]> } } }
       setCreateError(Object.values(axiosErr?.response?.data?.errors || {}).flat().join(', ') || axiosErr?.response?.data?.message || t('common.saving'))
+    } finally {
+      setCreating(false)
     }
   }
 
@@ -324,13 +329,13 @@ export default function AdminQRManagement() {
           <div className="rounded-xl border border-border bg-surface-secondary p-4">
             <p className="font-medium">{t('qr.memberInvite')}</p>
             <p className="text-sm text-secondary">{t('qr.memberInviteDesc')}</p>
-            <button onClick={() => handleCreate('servant_to_member_invite')} className="mt-3 w-full btn-primary btn-md">{t('qr.createMemberInvite')}</button>
+            <button onClick={() => handleCreate('servant_to_member_invite')} disabled={creating} className="mt-3 w-full btn-primary btn-md">{creating ? <><Loader2 className="h-4 w-4 animate-spin inline mr-2" />{t('common.creating')}</> : t('qr.createMemberInvite')}</button>
           </div>
 
           <div className="rounded-xl border border-border bg-surface-secondary p-4">
             <p className="font-medium">{t('qr.servantInvite')}</p>
             <p className="text-sm text-secondary">{t('qr.servantInviteDesc')}</p>
-            <button onClick={() => handleCreate('admin_to_servant_invite')} className="mt-3 w-full btn-primary btn-md">{t('qr.createServantInvite')}</button>
+            <button onClick={() => handleCreate('admin_to_servant_invite')} disabled={creating} className="mt-3 w-full btn-primary btn-md">{creating ? <><Loader2 className="h-4 w-4 animate-spin inline mr-2" />{t('common.creating')}</> : t('qr.createServantInvite')}</button>
           </div>
 
           <div className="rounded-xl border border-border bg-surface-secondary p-4 space-y-4">
