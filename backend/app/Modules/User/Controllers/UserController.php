@@ -217,6 +217,22 @@ class UserController extends Controller
 
         $result = $this->userService->regenerateAttendanceToken($userId);
 
-        return response()->json($result);
+        return response()->json(['data' => [
+            'token' => $result['token'] ?? '',
+        ]]);
+    }
+
+    public function regenerateOwnQrToken(Request $request): JsonResponse
+    {
+        $authUser = $request->user();
+        if ($authUser === null) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
+        $result = $this->userService->regenerateAttendanceToken((int) $authUser->id);
+
+        return response()->json(['data' => [
+            'token' => $result['token'] ?? '',
+        ]]);
     }
 }

@@ -468,7 +468,7 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:api'])->group(functio
         /*
         | QR token regeneration — sensitive
         */
-        Route::post('/users/{id}/regenerate-qr-token', [UserController::class, 'regenerateUserQrToken'])
+        Route::post('/users/{id}/regenerate-qr-token', [UserController::class, 'regenerateAttendanceToken'])
             ->middleware('throttle:qr-regenerate');
 
         /*
