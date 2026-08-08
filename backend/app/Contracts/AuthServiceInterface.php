@@ -7,7 +7,7 @@ use App\Models\User;
 interface AuthServiceInterface
 {
     /** @param array<string, mixed> $credentials */
-    /** @return array{user: User, token: string, token_type: string, application_status?: string|null} */
+    /** @return array{user: User, token: string, token_type: string, application_status?: string|null, rejection_reason?: string|null} */
     public function login(array $credentials): array;
 
     /** @param array<string, mixed> $credentials */

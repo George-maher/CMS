@@ -23,9 +23,12 @@ class RegisterRequest extends FormRequest
     protected function prepareForValidation(): void
     {
         if ($this->has('email')) {
-            $this->merge([
-                'email' => strtolower(trim((string) $this->input('email'))),
-            ]);
+            $email = $this->input('email');
+            if (is_string($email)) {
+                $this->merge([
+                    'email' => strtolower(trim($email)),
+                ]);
+            }
         }
 
         if (empty($this->all()) && app()->runningInConsole()) {

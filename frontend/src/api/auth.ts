@@ -1,12 +1,17 @@
-import type { ApiResponse, ForgotPasswordPayload, LoginPayload, RegisterPayload, ResetPasswordPayload, User } from '@/types'
+import type { ApiResponse, ApplicationStatus, ForgotPasswordPayload, LoginPayload, RegisterPayload, ResetPasswordPayload, User } from '@/types'
 import client from './client'
 
 const platformAdminLoginPath = import.meta.env.VITE_PLATFORM_ADMIN_LOGIN_PATH || 'platform-secure-admin-login'
 
-interface AuthResult {
+export type AccessState = 'restricted' | 'full'
+
+export interface AuthResult {
   user: User
   token: string
   token_type: string
+  application_status: ApplicationStatus
+  rejection_reason: string | null
+  access_state: AccessState
 }
 
 interface RegisterResult {

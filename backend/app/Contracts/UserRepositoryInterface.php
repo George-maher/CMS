@@ -48,7 +48,7 @@ interface UserRepositoryInterface
     /** @return Collection<int, User> */
     public function getMembersByServant(int $servantId): Collection;
 
-    public function demoteFromAdmin(int $id): bool;
+    public function demoteFromAdmin(int $id, string $newRole = 'member'): bool;
 
     /** @param array<int, int> $ids @return \Illuminate\Support\Collection<int, \App\Models\User> */
     public function findByIds(array $ids): \Illuminate\Support\Collection;

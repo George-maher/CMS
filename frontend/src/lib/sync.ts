@@ -73,7 +73,7 @@ export async function trySyncAll(): Promise<{ synced: number; failed: number }> 
       await markSyncCompleted(item.id!)
       synced++
       emit({ type: 'item-complete', item: item.endpoint })
-    } catch (err) {
+    } catch {
       const nextRetries = item.retries + 1
       if (nextRetries >= MAX_RETRIES) {
         await markSyncFailed(item.id!, nextRetries)

@@ -110,7 +110,7 @@ Route::prefix('v1')->group(function () {
 |--------------------------------------------------------------------------
 */
 
-Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:api'])->group(function () {
+Route::prefix('v1')->middleware(['auth:sanctum', 'approval', 'throttle:api'])->group(function () {
 
     /*
     | Auth
@@ -535,7 +535,7 @@ Route::prefix('v1')->group(function () {
     Route::post('/membership-requests', [MembershipRequestController::class, 'store'])
         ->middleware('throttle:membership-request');
 
-    Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
+    Route::middleware(['auth:sanctum', 'approval', 'throttle:api'])->group(function () {
 
         Route::middleware(['permission:manage_membership_requests', 'approved'])->group(function () {
             Route::get('/membership-requests', [MembershipRequestController::class, 'index']);
@@ -554,7 +554,7 @@ Route::prefix('v1')->group(function () {
 |--------------------------------------------------------------------------
 */
 
-Route::prefix('v1')->middleware(['auth:sanctum', 'role:'.UserRole::PlatformAdmin->value, 'throttle:api'])->group(function () {
+Route::prefix('v1')->middleware(['auth:sanctum', 'approval', 'role:'.UserRole::PlatformAdmin->value, 'throttle:api'])->group(function () {
 
     Route::get('/platform/dashboard', [PlatformController::class, 'dashboard']);
 

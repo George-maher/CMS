@@ -23,6 +23,10 @@ RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 ENTRYPOINT ["docker-entrypoint.sh"]
 
+# Run PHP-FPM in the foreground so the container stays alive; the default
+# daemonize=yes would let the entrypoint exit (PID 1) right away.
+CMD ["php-fpm", "-F"]
+
 FROM base AS development
 
 COPY . .

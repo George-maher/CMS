@@ -24,12 +24,18 @@ class AuthController extends Controller
     {
         $result = $this->authService->login($request->validated());
 
+        /** @var string|null $applicationStatus */
+        $applicationStatus = $result['application_status'] ?? null;
+
         return response()->json([
             'message' => __('auth.login_success'),
             'data' => [
                 'user' => new UserResource($result['user']),
                 'token' => $result['token'],
                 'token_type' => $result['token_type'],
+                'application_status' => $applicationStatus,
+                'rejection_reason' => $result['rejection_reason'] ?? null,
+                'access_state' => in_array($applicationStatus, ['pending', 'rejected'], true) ? 'restricted' : 'full',
             ],
         ]);
     }

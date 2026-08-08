@@ -15,14 +15,17 @@ if (typeof window !== 'undefined') {
 }
 
 export function usePWAInstall() {
-  const [isInstallable, setIsInstallable] = useState(deferredPrompt !== null)
-  const [isInstalled, setIsInstalled] = useState(false)
+const [isInstallable, setIsInstallable] = useState(() => {
+    if (typeof window === 'undefined') return false
+    if (window.matchMedia('(display-mode: standalone)').matches) return false
+    return deferredPrompt !== null
+  })
+  const [isInstalled, setIsInstalled] = useState(() => {
+    if (typeof window === 'undefined') return false
+    return window.matchMedia('(display-mode: standalone)').matches
+  })
 
   useEffect(() => {
-    const isStandalone = window.matchMedia('(display-mode: standalone)').matches
-    setIsInstalled(isStandalone)
-    if (isStandalone) setIsInstallable(false)
-
     const handleBeforeInstall = (e: Event) => {
       e.preventDefault()
       deferredPrompt = e as BeforeInstallPromptEvent

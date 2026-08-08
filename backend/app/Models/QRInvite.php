@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\DB;
  * @property int $id
  * @property QRInviteType $type
  * @property string $token
+ * @property string|null $client_request_id
  * @property int|null $created_by
  * @property int|null $class_id
  * @property int|null $class_year_id
@@ -47,6 +48,7 @@ class QRInvite extends Model
     protected $fillable = [
         'type',
         'token',
+        'client_request_id',
         'created_by',
         'class_id',
         'class_year_id',

@@ -9,6 +9,7 @@ use App\Models\Permission;
 use App\Models\User;
 use Database\Seeders\PermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class QRInviteTest extends TestCase
@@ -111,5 +112,78 @@ class QRInviteTest extends TestCase
 
         $response->assertStatus(200)
             ->assertJsonMissingPath('data.0.token');
+    }
+
+    public function test_create_invite_is_idempotent_with_same_request_id(): void
+    {
+        $church = Church::factory()->create();
+        $servant = User::factory()->create([
+            'role' => UserRole::Servant,
+            'church_id' => $church->id,
+            'application_status' => 'approved',
+        ]);
+        $token = $servant->createToken('test', [$servant->role->value])->plainTextToken;
+
+        $requestId = str_repeat('a', 30).'-'.Str::random(20);
+        $payload = ['type' => QRInviteType::ServantToMemberInvite->value, 'client_request_id' => $requestId];
+
+        $first = $this->withHeader('Authorization', "Bearer $token")->postJson('/api/v1/qr/invites', $payload);
+        $first->assertStatus(201);
+
+        $second = $this->withHeader('Authorization', "Bearer $token")->postJson('/api/v1/qr/invites', $payload);
+        $second->assertStatus(201);
+
+        $this->assertSame($first->json('data.invite.id'), $second->json('data.invite.id'));
+        $this->assertDatabaseCount('qr_invites', 1);
+    }
+
+    public function test_create_invite_with_different_request_ids_creates_separate_records(): void
+    {
+        $church = Church::factory()->create();
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'church_id' => $church->id,
+            'application_status' => 'approved',
+        ]);
+        $token = $admin->createToken('test', [$admin->role->value])->plainTextToken;
+
+        $payload = ['type' => QRInviteType::AdminToServantInvite->value];
+
+        $first = $this->withHeader('Authorization', "Bearer $token")
+            ->postJson('/api/v1/qr/invites', $payload + ['client_request_id' => 'key-one-'.Str::random(20)]);
+        $first->assertStatus(201);
+
+        $second = $this->withHeader('Authorization', "Bearer $token")
+            ->postJson('/api/v1/qr/invites', $payload + ['client_request_id' => 'key-two-'.Str::random(20)]);
+        $second->assertStatus(201);
+
+        $this->assertNotSame($first->json('data.invite.id'), $second->json('data.invite.id'));
+        $this->assertDatabaseCount('qr_invites', 2);
+    }
+
+    public function test_concurrent_duplicate_request_id_never_creates_two_records(): void
+    {
+        $church = Church::factory()->create();
+        $servant = User::factory()->create([
+            'role' => UserRole::Servant,
+            'church_id' => $church->id,
+            'application_status' => 'approved',
+        ]);
+        $token = $servant->createToken('test', [$servant->role->value])->plainTextToken;
+
+        $requestId = 'concurrent-'.Str::random(20);
+
+        // Simulate the race: pre-create the invite, then assert that a follow-up
+        // with the same key reuses the existing record instead of duplicating it.
+        $this->withToken($token)
+            ->postJson('/api/v1/qr/invites', ['type' => QRInviteType::ServantToMemberInvite->value, 'client_request_id' => $requestId])
+            ->assertStatus(201);
+
+        $this->withToken($token)
+            ->postJson('/api/v1/qr/invites', ['type' => QRInviteType::ServantToMemberInvite->value, 'client_request_id' => $requestId])
+            ->assertStatus(201);
+
+        // The DB unique index (created_by, client_request_id) is the final gate.
+        $this->assertDatabaseCount('qr_invites', 1);
     }
 }

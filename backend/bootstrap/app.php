@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\CheckApproval;
+use App\Http\Middleware\EnsureApproval;
 use App\Http\Middleware\ForceJsonResponse;
 use App\Http\Middleware\PermissionMiddleware;
 use App\Http\Middleware\RequireReauth;
@@ -32,6 +33,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'role' => RoleMiddleware::class,
             'permission' => PermissionMiddleware::class,
             'approved' => CheckApproval::class,
+            'approval' => EnsureApproval::class,
             'track.activity' => TrackActivity::class,
             'reauth' => RequireReauth::class,
         ]);

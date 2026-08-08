@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Enums\QRInviteType;
 use App\Enums\UserRole;
 use App\Models\Church;
+use App\Models\ChurchApplication;
 use App\Models\QRInvite;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -334,5 +335,85 @@ class AuthTest extends TestCase
         ]);
 
         $response->assertStatus(422);
+    }
+
+    public function test_pending_login_returns_restricted_access_state(): void
+    {
+        $user = User::factory()->create([
+            'email' => 'pending-access@test.com',
+            'password' => bcrypt('Test@1234'),
+            'application_status' => 'pending',
+            'is_active' => true,
+        ]);
+
+        $response = $this->postJson('/api/v1/auth/login', [
+            'email' => 'pending-access@test.com',
+            'password' => 'Test@1234',
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('data.application_status', 'pending')
+            ->assertJsonPath('data.access_state', 'restricted')
+            ->assertJsonStructure(['data' => ['user', 'token', 'token_type']]);
+    }
+
+    public function test_rejected_login_returns_actual_rejection_reason(): void
+    {
+        /** @var ChurchApplication $application */
+        $application = ChurchApplication::factory()->rejected('Church name does not match the ID documents.')->create();
+
+        User::factory()->create([
+            'church_application_id' => $application->id,
+            'email' => 'rejected-reason@test.com',
+            'password' => bcrypt('Test@1234'),
+            'application_status' => 'rejected',
+            'is_active' => true,
+        ]);
+
+        $response = $this->postJson('/api/v1/auth/login', [
+            'email' => 'rejected-reason@test.com',
+            'password' => 'Test@1234',
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('data.application_status', 'rejected')
+            ->assertJsonPath('data.rejection_reason', 'Church name does not match the ID documents.')
+            ->assertJsonPath('data.access_state', 'restricted');
+    }
+
+    public function test_pending_user_can_access_status_but_not_dashboard(): void
+    {
+        $user = User::factory()->create([
+            'application_status' => 'pending',
+            'role' => UserRole::Admin,
+            'is_active' => true,
+        ]);
+        $token = $user->createToken('test', ['admin'])->plainTextToken;
+
+        $status = $this->withHeader('Authorization', "Bearer $token")
+            ->getJson('/api/v1/application/status');
+
+        $status->assertStatus(200);
+
+        $dashboard = $this->withHeader('Authorization', "Bearer $token")
+            ->getJson('/api/v1/dashboard/stats');
+
+        $dashboard->assertStatus(403);
+    }
+
+    public function test_approved_user_can_access_dashboard(): void
+    {
+        $church = Church::factory()->create();
+        $user = User::factory()->create([
+            'role' => UserRole::Admin,
+            'church_id' => $church->id,
+            'application_status' => 'approved',
+            'is_active' => true,
+        ]);
+        $token = $user->createToken('test', ['admin'])->plainTextToken;
+
+        $this->withHeader('Authorization', "Bearer $token")
+            ->getJson('/api/v1/dashboard/stats')
+            ->assertStatus(200);
     }
 }

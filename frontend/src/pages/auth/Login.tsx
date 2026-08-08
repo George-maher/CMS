@@ -34,9 +34,22 @@ export default function Login() {
     e.preventDefault()
     setLoading(true)
     try {
-      const loggedInUser = await login({ email: email.trim().toLowerCase(), password })
-      if (loggedInUser.application_status === 'pending' || loggedInUser.application_status === 'rejected') { navigate('/application-status'); return }
-      navigate(roleRedirect[loggedInUser.role] || '/login')
+      const result = await login({ email: email.trim().toLowerCase(), password })
+
+      const isRestricted =
+        result.access_state === 'restricted' ||
+        result.application_status === 'pending' ||
+        result.application_status === 'rejected'
+
+      if (isRestricted) {
+        if (result.application_status === 'rejected' && result.rejection_reason) {
+          toast.error(result.rejection_reason, { duration: 6000 })
+        }
+        navigate('/application-status')
+        return
+      }
+
+      navigate(roleRedirect[result.user.role] || '/login')
     } catch (err: unknown) {
       logCatch('Login.login', err)
       const axiosErr = err as { response?: { data?: { message?: string; errors?: Record<string, string[] | string> } } }

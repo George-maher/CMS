@@ -4,7 +4,6 @@ namespace App\Models;
 
 use App\Enums\PointType;
 use App\Enums\UserRole;
-use App\Models\User;
 use App\Traits\BelongsToChurch;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;

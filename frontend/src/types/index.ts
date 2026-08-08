@@ -242,6 +242,8 @@ export interface CreateQRInvitePayload {
   attendance_context_id?: number | null
   max_uses?: number | null
   expires_in_hours?: number | null
+  /** Idempotency key — prevents duplicate invites when the request is retried or double-submitted. */
+  client_request_id?: string
 }
 
 export interface AddBonusPointsPayload {

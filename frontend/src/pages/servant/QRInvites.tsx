@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
@@ -10,6 +10,7 @@ import type { Column } from '@/components/common/DataTable'
 import type { QRInvite, QRInviteType } from '@/types'
 import { listQRInvites, createQRInvite, revokeQRInvite } from '@/api/qr'
 import { getMyClasses } from '@/api/structure'
+import { newRequestId } from '@/lib/requestId'
 import QRCodeLib from 'qrcode'
 
 const statusBadge: Record<string, 'success' | 'danger' | 'warning' | 'info'> = {
@@ -108,6 +109,9 @@ export default function ServantQRInvites() {
   const [createError, setCreateError] = useState('')
   const [maxUses, setMaxUses] = useState<number | ''>('')
   const [expiresIn, setExpiresIn] = useState<string>('24')
+  // Synchronous guard — React state updates are async, so `creating` alone
+  // cannot prevent a rapid double/triple click from firing duplicate requests.
+  const creatingRef = useRef(false)
 
   const [filters, setFilters] = useState<Record<string, string | number>>({})
   const [searchInput, setSearchInput] = useState('')
@@ -179,11 +183,12 @@ export default function ServantQRInvites() {
   }
 
   const handleCreate = async (type: QRInviteType) => {
-    if (creating) return
+    if (creatingRef.current) return
+    creatingRef.current = true
     setCreating(true)
     setCreateError('')
     try {
-      const payload: { type: QRInviteType; max_uses?: number; expires_in_hours?: number } = { type }
+      const payload: { type: QRInviteType; max_uses?: number; expires_in_hours?: number; client_request_id: string } = { type, client_request_id: newRequestId() }
       if (maxUses !== '') payload.max_uses = Number(maxUses)
       if (expiresIn) payload.expires_in_hours = Number(expiresIn)
       const result = await createQRInvite(payload)
@@ -197,6 +202,7 @@ export default function ServantQRInvites() {
       const axiosErr = err as { response?: { data?: { message?: string; errors?: Record<string, string[]> } } }
       setCreateError(Object.values(axiosErr?.response?.data?.errors || {}).flat().join(', ') || axiosErr?.response?.data?.message || t('common.saving'))
     } finally {
+      creatingRef.current = false
       setCreating(false)
     }
   }
@@ -316,7 +322,7 @@ export default function ServantQRInvites() {
             <p className="font-medium">{t('qr.memberInvite')}</p>
             <p className="text-sm text-secondary">{t('qr.memberInviteNoClass')}</p>
             <button onClick={() => handleCreate('servant_to_member_invite')} disabled={creating}
-              className="btn-primary btn-md mt-3 w-full">{creating ? <><Loader2 className="h-4 w-4 animate-spin inline mr-2" />{t('common.creating')}</> : t('qr.createMemberInvite')}</button>
+              className="btn-primary btn-md mt-3 w-full">{creating ? <><Loader2 className="h-4 w-4 animate-spin inline mr-2" />{t('qr.generating')}</> : t('qr.createMemberInvite')}</button>
           </div>
 
         </div>

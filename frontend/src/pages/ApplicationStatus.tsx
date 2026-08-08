@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/hooks/useAuth'
 import { getApplicationStatus } from '@/api/churchApplications'
+import { logCatch } from '@/lib/debug'
 import toast from 'react-hot-toast'
 import {
   Clock, XCircle, LogOut, Loader2, User, Building2, Mail, AlertTriangle,
@@ -18,25 +19,50 @@ export default function ApplicationStatus() {
   const { user: authUser, logout, isAuthenticated } = useAuth()
   const navigate = useNavigate()
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
   const [application, setApplication] = useState<ChurchApplication | null>(null)
   const [userInfo, setUserInfo] = useState<{ name: string; email: string } | null>(null)
   const [status, setStatus] = useState<'pending' | 'approved' | 'rejected'>(authUser?.application_status || 'pending')
+
+  const applyStatusData = useCallback((data: Awaited<ReturnType<typeof getApplicationStatus>>) => {
+    setApplication(data.application)
+    setUserInfo(data.user)
+    setStatus(data.application_status as 'pending' | 'approved' | 'rejected')
+  }, [])
 
   useEffect(() => {
     if (!isAuthenticated) {
       navigate('/login', { replace: true })
       return
     }
-    getApplicationStatus().then(data => {
-      setApplication(data.application)
-      setUserInfo(data.user)
-      setStatus(data.application_status as 'pending' | 'approved' | 'rejected')
-    }).catch(() => {
+    let active = true
+    getApplicationStatus()
+      .then((data) => {
+        if (active) applyStatusData(data)
+      })
+      .catch((e) => {
+        if (active) {
+          logCatch('ApplicationStatus.load', e)
+          toast.error(t('common.failedToLoad'))
+        }
+      })
+      .finally(() => {
+        if (active) setLoading(false)
+      })
+    return () => { active = false }
+  }, [isAuthenticated, navigate, t, applyStatusData])
+
+  const handleRefresh = async () => {
+    setRefreshing(true)
+    try {
+      applyStatusData(await getApplicationStatus())
+    } catch (e) {
+      logCatch('ApplicationStatus.refresh', e)
       toast.error(t('common.failedToLoad'))
-    }).finally(() => {
-      setLoading(false)
-    })
-  }, [isAuthenticated, navigate, t])
+    } finally {
+      setRefreshing(false)
+    }
+  }
 
   useEffect(() => {
     if (!loading && status === 'approved' && authUser) {
@@ -376,6 +402,17 @@ export default function ApplicationStatus() {
               >
                 <Edit3 className="h-4 w-4" />
                 {t('applicationStatus.editApplication')}
+              </button>
+            )}
+
+            {(isPending || isRejected) && (
+              <button
+                onClick={() => handleRefresh()}
+                disabled={refreshing}
+                className="btn-ghost btn-md inline-flex items-center gap-2 border border-border"
+              >
+                {refreshing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                {t('applicationStatus.refresh')}
               </button>
             )}
 

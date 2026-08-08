@@ -2,6 +2,7 @@
 import { createContext, useEffect, useRef, useState, type ReactNode } from 'react'
 import type { LoginPayload, RegisterPayload, User } from '@/types'
 import * as authApi from '@/api/auth'
+import type { AuthResult } from '@/api/auth'
 import { logCatch } from '@/lib/debug'
 import { clearAllData } from '@/lib/db'
 
@@ -10,8 +11,8 @@ interface AuthContextType {
   token: string | null
   isAuthenticated: boolean
   isLoading: boolean
-  login: (payload: LoginPayload) => Promise<User>
-  platformLogin: (payload: LoginPayload) => Promise<User>
+  login: (payload: LoginPayload) => Promise<AuthResult>
+  platformLogin: (payload: LoginPayload) => Promise<AuthResult>
   register: (payload: RegisterPayload) => Promise<void>
   logout: () => Promise<void>
   refreshUser: () => Promise<void>
@@ -60,22 +61,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [token])
 
-  const login = async (payload: LoginPayload): Promise<User> => {
+  const login = async (payload: LoginPayload): Promise<AuthResult> => {
     const result = await authApi.login(payload)
     setToken(result.token)
     setUser(result.user)
     localStorage.setItem('auth_token', result.token)
     localStorage.setItem('auth_user', JSON.stringify(result.user))
-    return result.user
+    return result
   }
 
-  const platformLogin = async (payload: LoginPayload): Promise<User> => {
+  const platformLogin = async (payload: LoginPayload): Promise<AuthResult> => {
     const result = await authApi.platformLogin(payload)
     setToken(result.token)
     setUser(result.user)
     localStorage.setItem('auth_token', result.token)
     localStorage.setItem('auth_user', JSON.stringify(result.user))
-    return result.user
+    return result
   }
 
   const register = async (payload: RegisterPayload): Promise<void> => {

@@ -49,8 +49,12 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   }, [refreshPendingCount])
 
   useEffect(() => {
-    refreshPendingCount()
-  }, [refreshPendingCount])
+    let active = true
+    getSyncQueueLength().then((count) => {
+      if (active) setPendingCount(count)
+    })
+    return () => { active = false }
+  }, [])
 
   useEffect(() => {
     const unsub = onSyncEvent((event) => {

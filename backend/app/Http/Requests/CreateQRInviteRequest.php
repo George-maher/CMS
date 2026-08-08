@@ -22,6 +22,7 @@ class CreateQRInviteRequest extends FormRequest
             'attendance_context_id' => ['nullable', 'integer', 'exists:attendance_contexts,id'],
             'max_uses' => ['nullable', 'integer', 'min:1', 'max:999999'],
             'expires_in_hours' => ['nullable', 'integer', 'min:1', 'max:8760'],
+            'client_request_id' => ['nullable', 'string', 'min:8', 'max:64'],
         ];
     }
 

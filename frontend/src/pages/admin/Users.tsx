@@ -127,7 +127,21 @@ export default function AdminUsers() {
     }
   }, [t])
 
-  useEffect(() => { fetchStages() }, [fetchStages])
+  useEffect(() => {
+    let active = true
+    listStages()
+      .then((data) => {
+        if (active) setStages(data)
+      })
+      .catch((error) => {
+        logCatch('AdminUsers.listStages', error)
+        if (active) setStagesError(t('common.failedToLoad'))
+      })
+      .finally(() => {
+        if (active) setStagesLoading(false)
+      })
+    return () => { active = false }
+  }, [t])
 
   const handleStageChange = useCallback(async (stageId: number | null) => {
     setSelectedStageId(stageId)

@@ -9,6 +9,7 @@ use App\Enums\UserRole;
 use App\Models\Classe;
 use App\Models\QRInvite;
 use App\Models\User;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -40,34 +41,84 @@ class QRInviteService implements QRInviteServiceInterface
         $expiresInHours = $expiresInHoursInput !== null ? intval($expiresInHoursInput) : self::INVITE_EXPIRY_HOURS;
         /** @var string|null $contextId */
         $contextId = $data['attendance_context_id'] ?? null;
+        $clientRequestInput = $data['client_request_id'] ?? null;
+        $clientRequestId = is_string($clientRequestInput) && $clientRequestInput !== ''
+            ? $clientRequestInput
+            : null;
 
-        return DB::transaction(function () use ($type, $creatorId, $contextId, $expiresInHours, $maxUses) {
-            $token = Str::random(self::TOKEN_LENGTH);
+        $existingByKey = function () use ($creatorId, $clientRequestId): ?QRInvite {
+            if ($clientRequestId === null) {
+                return null;
+            }
 
-            $invite = $this->qrInviteRepository->create([
-                'type' => $type,
-                'token' => $token,
-                'created_by' => $creatorId,
-                'attendance_context_id' => $contextId,
-                'expires_at' => now()->addHours($expiresInHours),
-                'is_single_use' => $maxUses === 1,
-                'max_uses' => $maxUses,
-                'use_count' => 0,
-            ]);
+            return QRInvite::where('created_by', $creatorId)
+                ->where('client_request_id', $clientRequestId)
+                ->first();
+        };
 
-            Log::info('Invite created', [
-                'invite_id' => $invite->id,
-                'type' => $type->value,
-                'created_by' => $creatorId,
-                'expires_at' => $invite->expires_at,
-            ]);
-
+        // Fast path: an invite for this (creator, request key) already exists.
+        $existing = $existingByKey();
+        if ($existing) {
             return [
-                'invite' => $invite,
-                'url' => $this->getInviteUrl($token),
-                'token' => $token,
+                'invite' => $existing,
+                'url' => $this->getInviteUrl($existing->token),
+                'token' => $existing->token,
             ];
-        });
+        }
+
+        try {
+            return DB::transaction(function () use ($type, $creatorId, $contextId, $expiresInHours, $maxUses, $clientRequestId, $existingByKey) {
+                $existing = $existingByKey();
+                if ($existing) {
+                    return [
+                        'invite' => $existing,
+                        'url' => $this->getInviteUrl($existing->token),
+                        'token' => $existing->token,
+                    ];
+                }
+
+                $token = Str::random(self::TOKEN_LENGTH);
+
+                $invite = $this->qrInviteRepository->create([
+                    'type' => $type,
+                    'token' => $token,
+                    'client_request_id' => $clientRequestId,
+                    'created_by' => $creatorId,
+                    'attendance_context_id' => $contextId,
+                    'expires_at' => now()->addHours($expiresInHours),
+                    'is_single_use' => $maxUses === 1,
+                    'max_uses' => $maxUses,
+                    'use_count' => 0,
+                ]);
+
+                Log::info('Invite created', [
+                    'invite_id' => $invite->id,
+                    'type' => $type->value,
+                    'created_by' => $creatorId,
+                    'expires_at' => $invite->expires_at,
+                ]);
+
+                return [
+                    'invite' => $invite,
+                    'url' => $this->getInviteUrl($token),
+                    'token' => $token,
+                ];
+            });
+        } catch (UniqueConstraintViolationException $e) {
+            // A concurrent request already inserted the row for this
+            // (created_by, client_request_id) key. Reuse it instead of
+            // producing a duplicate invite.
+            $existing = $existingByKey();
+            if ($existing) {
+                return [
+                    'invite' => $existing,
+                    'url' => $this->getInviteUrl($existing->token),
+                    'token' => $existing->token,
+                ];
+            }
+
+            throw $e;
+        }
     }
 
     /** @return array<string, mixed> */

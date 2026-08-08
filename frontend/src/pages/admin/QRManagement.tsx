@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
@@ -10,6 +10,7 @@ import type { Column } from '@/components/common/DataTable'
 import type { QRInvite, QRInviteType } from '@/types'
 import { listQRInvites, revokeQRInvite, createQRInvite } from '@/api/qr'
 import { listStructureClasses } from '@/api/structure'
+import { newRequestId } from '@/lib/requestId'
 import QRCode from 'qrcode'
 
 const statusBadge: Record<string, 'success' | 'danger' | 'warning' | 'info'> = {
@@ -115,6 +116,9 @@ export default function AdminQRManagement() {
   const [selectedUrl, setSelectedUrl] = useState<string | null>(null)
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null)
   const [structure, setStructure] = useState<StructureOption[]>([])
+  // Synchronous guard — React state updates are async, so `creating` alone
+  // cannot prevent a rapid double/triple click from firing duplicate requests.
+  const creatingRef = useRef(false)
 
   const [createError, setCreateError] = useState('')
   const [maxUses, setMaxUses] = useState<number | ''>('')
@@ -163,11 +167,12 @@ export default function AdminQRManagement() {
   }
 
   const handleCreate = async (type: QRInviteType) => {
-    if (creating) return
+    if (creatingRef.current) return
+    creatingRef.current = true
     setCreating(true)
     setCreateError('')
     try {
-      const payload: { type: QRInviteType; max_uses?: number; expires_in_hours?: number } = { type }
+      const payload: { type: QRInviteType; max_uses?: number; expires_in_hours?: number; client_request_id: string } = { type, client_request_id: newRequestId() }
       if (maxUses !== '') payload.max_uses = Number(maxUses)
       if (expiresIn) payload.expires_in_hours = Number(expiresIn)
       const result = await createQRInvite(payload)
@@ -181,6 +186,7 @@ export default function AdminQRManagement() {
       const axiosErr = err as { response?: { data?: { message?: string; errors?: Record<string, string[]> } } }
       setCreateError(Object.values(axiosErr?.response?.data?.errors || {}).flat().join(', ') || axiosErr?.response?.data?.message || t('common.saving'))
     } finally {
+      creatingRef.current = false
       setCreating(false)
     }
   }
@@ -329,13 +335,13 @@ export default function AdminQRManagement() {
           <div className="rounded-xl border border-border bg-surface-secondary p-4">
             <p className="font-medium">{t('qr.memberInvite')}</p>
             <p className="text-sm text-secondary">{t('qr.memberInviteDesc')}</p>
-            <button onClick={() => handleCreate('servant_to_member_invite')} disabled={creating} className="mt-3 w-full btn-primary btn-md">{creating ? <><Loader2 className="h-4 w-4 animate-spin inline mr-2" />{t('common.creating')}</> : t('qr.createMemberInvite')}</button>
+            <button onClick={() => handleCreate('servant_to_member_invite')} disabled={creating} className="mt-3 w-full btn-primary btn-md">{creating ? <><Loader2 className="h-4 w-4 animate-spin inline mr-2" />{t('qr.generating')}</> : t('qr.createMemberInvite')}</button>
           </div>
 
           <div className="rounded-xl border border-border bg-surface-secondary p-4">
             <p className="font-medium">{t('qr.servantInvite')}</p>
             <p className="text-sm text-secondary">{t('qr.servantInviteDesc')}</p>
-            <button onClick={() => handleCreate('admin_to_servant_invite')} disabled={creating} className="mt-3 w-full btn-primary btn-md">{creating ? <><Loader2 className="h-4 w-4 animate-spin inline mr-2" />{t('common.creating')}</> : t('qr.createServantInvite')}</button>
+            <button onClick={() => handleCreate('admin_to_servant_invite')} disabled={creating} className="mt-3 w-full btn-primary btn-md">{creating ? <><Loader2 className="h-4 w-4 animate-spin inline mr-2" />{t('qr.generating')}</> : t('qr.createServantInvite')}</button>
           </div>
 
           <div className="rounded-xl border border-border bg-surface-secondary p-4 space-y-4">

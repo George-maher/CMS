@@ -59,18 +59,6 @@ class AuthService implements AuthServiceInterface
             ]);
         }
 
-        if ($user->isPending()) {
-            throw ValidationException::withMessages([
-                'email' => [__('auth.pending')],
-            ]);
-        }
-
-        if ($user->isRejected()) {
-            throw ValidationException::withMessages([
-                'email' => [__('auth.rejected')],
-            ]);
-        }
-
         if ($user->is_active === false) {
             throw ValidationException::withMessages([
                 'email' => [__('auth.inactive')],
@@ -93,11 +81,22 @@ class AuthService implements AuthServiceInterface
 
         $token = $user->createToken('auth-token', [$user->role->value])->plainTextToken;
 
+        $user->load(['classe', 'servant', 'church', 'churchApplication']);
+
+        $rejectionReason = null;
+        if ($user->isRejected() && $user->churchApplication && $user->churchApplication->rejection_reason) {
+            $rejectionReason = (string) $user->churchApplication->rejection_reason;
+        }
+
+        // Pending/rejected applicants receive an authenticated token so they can
+        // track their application status and log out. Application access is later
+        // enforced server-side by the CheckApproval/EnsureApproval middleware.
         return [
-            'user' => $user->load(['classe', 'servant', 'church']),
+            'user' => $user,
             'token' => $token,
             'token_type' => 'Bearer',
             'application_status' => $user->application_status,
+            'rejection_reason' => $rejectionReason,
         ];
     }
 

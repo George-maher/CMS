@@ -52,8 +52,8 @@ class UserService implements UserServiceInterface
     /** @return array<string, mixed> */
     public function create(array $data, ?int $authUserId = null): array
     {
-        /** @var string $email */
-        $email = isset($data['email']) ? strtolower(trim((string) $data['email'])) : '';
+        $emailInput = $data['email'] ?? '';
+        $email = is_string($emailInput) ? strtolower(trim($emailInput)) : '';
         /** @var string $password */
         $password = $data['password'] ?? '';
 
@@ -63,7 +63,7 @@ class UserService implements UserServiceInterface
         /** @var array<string, mixed> $data */
         $data['password'] = Hash::make($password);
         $data['created_by'] = $authUserId;
-        $data['church_id'] = $authUser?->church_id ?? $data['church_id'] ?? null;
+        $data['church_id'] = $this->resolveChurchId($data, $authUser);
         $data['application_status'] = 'approved';
         $data['is_active'] = $data['is_active'] ?? true;
 
@@ -259,5 +259,17 @@ class UserService implements UserServiceInterface
             'message' => 'Attendance QR token regenerated successfully.',
             'token' => $token,
         ];
+    }
+
+    /** @param array<string, mixed> $data */
+    private function resolveChurchId(array $data, ?User $authUser): ?int
+    {
+        if ($authUser !== null) {
+            return $authUser->church_id;
+        }
+
+        $fallback = $data['church_id'] ?? null;
+
+        return is_int($fallback) ? $fallback : null;
     }
 }

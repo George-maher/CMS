@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Download, Smartphone, Monitor, Apple, Share2, Menu as MenuIcon, CheckCircle, AlertCircle } from 'lucide-react'
 import { usePWAInstall } from '@/hooks/usePwaInstall'
@@ -90,20 +90,16 @@ export default function InstallAppModal({ isOpen, onClose }: { isOpen: boolean; 
   const { isInstalled, install } = usePWAInstall()
   const { isIOS, isAndroid } = useDeviceDetection()
   const [phase, setPhase] = useState<InstallPhase>('prompt')
+  const [prevOpen, setPrevOpen] = useState(isOpen)
   const platform = isIOS ? 'ios' : isAndroid ? 'android' : 'desktop'
   const isRtl = i18n.dir() === 'rtl'
 
-  useEffect(() => {
-    if (isOpen) {
-      setPhase('prompt')
-    }
-  }, [isOpen])
+  if (prevOpen !== isOpen) {
+    setPrevOpen(isOpen)
+    if (isOpen) setPhase('prompt')
+  }
 
-  useEffect(() => {
-    if (isInstalled && phase === 'prompt') {
-      setPhase('success')
-    }
-  }, [isInstalled, phase])
+  const shownPhase: InstallPhase = phase === 'prompt' && isInstalled ? 'success' : phase
 
   const handleInstall = useCallback(async () => {
     if (isInstalled) {
@@ -118,8 +114,8 @@ export default function InstallAppModal({ isOpen, onClose }: { isOpen: boolean; 
     setPhase(ok ? 'success' : 'failed')
   }, [isInstalled, isIOS, install])
 
-  const showInstallButton = phase === 'prompt' && !isIOS
-  const showInstructions = phase === 'failed' || isIOS
+  const showInstallButton = shownPhase === 'prompt' && !isIOS
+  const showInstructions = shownPhase === 'failed' || isIOS
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={t('installApp.installTitle')} size="sm">
@@ -138,7 +134,7 @@ export default function InstallAppModal({ isOpen, onClose }: { isOpen: boolean; 
           </div>
         </div>
 
-        {phase === 'success' && (
+        {shownPhase === 'success' && (
           <div className="flex items-center gap-2 rounded-xl bg-success-light p-3 dark:bg-success/10">
             <CheckCircle className="h-5 w-5 shrink-0 text-success" />
             <p className="text-sm font-medium text-success">{t('installApp.alreadyInstalled')}</p>
@@ -152,7 +148,7 @@ export default function InstallAppModal({ isOpen, onClose }: { isOpen: boolean; 
           </button>
         )}
 
-        {phase === 'failed' && !isIOS && (
+        {shownPhase === 'failed' && !isIOS && (
           <div className="rounded-xl bg-warning/10 p-3 dark:bg-warning/5">
             <p className="flex items-start gap-2 text-sm font-medium text-warning">
               <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />

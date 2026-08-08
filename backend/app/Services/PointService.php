@@ -62,6 +62,13 @@ class PointService implements PointServiceInterface
             ]);
         }
 
+        $churchId = $user->church_id;
+        if ($churchId === null) {
+            throw ValidationException::withMessages([
+                'user_id' => ['Member must belong to a church to receive bonus points.'],
+            ]);
+        }
+
         $point = $this->pointRepository->create([
             'user_id' => $userId,
             'points' => $points,
@@ -73,13 +80,13 @@ class PointService implements PointServiceInterface
         $this->notificationService->createForBonusPoints(
             pointsId: $point->id,
             userId: $userId,
-            churchId: $user->church_id,
+            churchId: $churchId,
             title: 'Bonus Points Added',
             body: "You received {$points} bonus points.".($reason ? " Reason: {$reason}" : ''),
         );
 
-        $this->cacheService->invalidatePoints($user->church_id);
-        $this->cacheService->invalidateDashboard($user->church_id);
+        $this->cacheService->invalidatePoints($churchId);
+        $this->cacheService->invalidateDashboard($churchId);
 
         return [
             'point' => $point,
