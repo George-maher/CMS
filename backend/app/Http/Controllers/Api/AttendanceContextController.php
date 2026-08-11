@@ -6,7 +6,6 @@ use App\Contracts\AttendanceContextServiceInterface;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreAttendanceContextRequest;
 use App\Models\AttendanceContext;
-use App\Models\Scopes\ChurchScope;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -69,7 +68,7 @@ class AttendanceContextController extends Controller
 
     public function update(StoreAttendanceContextRequest $request, int $id): JsonResponse
     {
-        $context = AttendanceContext::withoutGlobalScope(ChurchScope::class)->findOrFail($id);
+        $context = AttendanceContext::findOrFail($id);
         $this->authorize('update', $context);
 
         /** @var User $user */
@@ -88,7 +87,7 @@ class AttendanceContextController extends Controller
 
     public function destroy(int $id): JsonResponse
     {
-        $context = AttendanceContext::withoutGlobalScope(ChurchScope::class)->findOrFail($id);
+        $context = AttendanceContext::findOrFail($id);
         $this->authorize('delete', $context);
 
         $this->contextService->delete($id);
@@ -100,7 +99,7 @@ class AttendanceContextController extends Controller
 
     public function toggleActive(int $id): JsonResponse
     {
-        $context = AttendanceContext::withoutGlobalScope(ChurchScope::class)->findOrFail($id);
+        $context = AttendanceContext::findOrFail($id);
         $this->authorize('toggleActive', $context);
 
         /** @var User $user */

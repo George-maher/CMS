@@ -80,6 +80,10 @@ class AttendanceService implements AttendanceServiceInterface
         $context = AttendanceContext::withoutGlobalScope(ChurchScope::class)
             ->where('id', $contextId)
             ->where('is_active', true)
+            ->where(function ($q) use ($member) {
+                $q->where('church_id', $member->church_id)
+                    ->orWhereNull('church_id');
+            })
             ->first();
 
         if (! $context) {

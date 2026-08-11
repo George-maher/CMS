@@ -7,6 +7,7 @@ use App\Models\QRInvite;
 use App\Models\Scopes\ChurchScope;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\DB;
 
 class QRInviteRepository implements QRInviteRepositoryInterface
 {
@@ -124,13 +125,19 @@ class QRInviteRepository implements QRInviteRepositoryInterface
             $classId = (int) $classId;
             $query->where(function (Builder $q) use ($classId) {
                 $q->where('qr_invites.class_id', $classId)
-                    ->orWhereRaw(
-                        "EXISTS (SELECT 1 FROM jsonb_array_elements(used_by_users::jsonb) AS elem WHERE (elem->>'class_id')::int = ?)",
-                        [$classId]
-                    )
                     ->orWhereHas('usedBy', function (Builder $userQ) use ($classId) {
                         $userQ->where('class_id', $classId);
                     });
+
+                // Prefer a native JSON containment check on PostgreSQL; other
+                // drivers (e.g. SQLite in the test suite) fall back to the
+                // relational checks above, which are fully DB-agnostic.
+                if (DB::connection()->getDriverName() === 'pgsql') {
+                    $q->orWhereRaw(
+                        "EXISTS (SELECT 1 FROM jsonb_array_elements(used_by_users::jsonb) AS elem WHERE (elem->>'class_id')::int = ?)",
+                        [$classId]
+                    );
+                }
             });
         } elseif (! empty($filters['class_year_id'])) {
             $query->where('class_year_id', $filters['class_year_id']);

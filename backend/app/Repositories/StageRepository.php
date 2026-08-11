@@ -6,6 +6,7 @@ use App\Contracts\StageRepositoryInterface;
 use App\Models\Stage;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class StageRepository implements StageRepositoryInterface
 {
@@ -28,7 +29,7 @@ class StageRepository implements StageRepositoryInterface
     public function structure(?string $search = null): Collection
     {
         /** @var Builder<Stage> $query */
-        $query = Stage::with(['classes' => function (Builder $q) {
+        $query = Stage::with(['classes' => function (HasMany $q) {
             $q->orderBy('display_order');
         }])->withCount(['classes']);
 

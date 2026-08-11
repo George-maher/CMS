@@ -4,8 +4,16 @@ RUN set -eux; \
     apt-get update; \
     apt-get install -y \
         git curl libpng-dev libpq-dev libonig-dev libxml2-dev libicu-dev \
-        zip unzip libzip-dev postgresql-client procps; \
+        zip unzip libzip-dev postgresql-client procps \
+        $PHPIZE_DEPS; \
     docker-php-ext-install intl pdo_pgsql mbstring exif pcntl bcmath gd zip; \
+    # Install the official phpredis extension via PECL (Debian build).
+    # $PHPIZE_DEPS (autoconf, gcc, make, ...) is required to compile it and is
+    # purged afterwards so the runtime image stays slim.
+    printf '\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n' | pecl install redis; \
+    docker-php-ext-enable redis; \
+    apt-get purge -y $PHPIZE_DEPS; \
+    apt-get autoremove -y; \
     rm -rf /var/lib/apt/lists/*
 
 COPY --from=composer:2.8 /usr/bin/composer /usr/local/bin/composer
