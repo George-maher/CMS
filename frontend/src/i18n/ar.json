@@ -140,8 +140,8 @@
         "createdBy": "اللي عمل الدعوة",
         "forgotPassword": "نسيت كلمة المرور؟",
         "forgotPasswordTitle": "إعادة تعيين كلمة المرور",
-        "forgotPasswordDescription": "إذا كان الحساب موجودًا، فسيتم إرسال رابط إعادة تعيين كلمة المرور.",
-        "forgotPasswordSent": "إذا كان الحساب موجودًا، فسيتم إرسال رابط إعادة تعيين كلمة المرور.",
+        "forgotPasswordDescription": "تم إرسال طلبك إلى مسؤول الكنيسة للمراجعة. ستتلقى بريدًا إلكترونيًا لإعادة تعيين كلمة المرور بمجرد الموافقة عليه.",
+        "forgotPasswordSent": "تم إرسال طلب إعادة تعيين كلمة المرور الخاص بك إلى مسؤول الكنيسة. ستتلقى بريدًا إلكترونيًا بعد الموافقة على طلبك.",
         "forgotPasswordFailed": "فشل إرسال رابط إعادة تعيين كلمة المرور.",
         "resetPassword": "إعادة تعيين كلمة المرور",
         "resetPasswordTitle": "تعيين كلمة مرور جديدة",
@@ -812,7 +812,9 @@
         "feedbackReplyTitle": "رد جديد على ملاحظاتك",
         "feedbackReplyBody": "تلقت ملاحظاتك رداً.",
         "bonusPointsTitle": "تمت إضافة نقاط مكافأة",
-        "bonusPointsBody": "لقد تلقيت {points} نقاط مكافأة."
+        "bonusPointsBody": "لقد تلقيت {points} نقاط مكافأة.",
+        "passwordResetTitle": "طلب إعادة تعيين كلمة المرور",
+        "passwordResetBody": "طلب أحد الأعضاء إعادة تعيين كلمة المرور."
     },
     "absentMembers": {
         "title": "الأعضاء الغائبون",

@@ -171,7 +171,7 @@ class AuthController extends Controller
         $result = $this->authService->forgotPassword($data);
 
         return response()->json([
-            'message' => 'If an account exists, a password reset link has been sent.',
+            'message' => $result['message'],
         ]);
     }
 

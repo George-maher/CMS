@@ -68,6 +68,13 @@ fi
 # ──────────────────────────────────────────────────────
 php /var/www/artisan migrate --force 2>/dev/null && echo "Migrations complete." || echo "Migrations skipped."
 
+# Seed default roles/permissions when they are missing — idempotent, so it is
+# safe to run on every boot. Prevents admins being locked out of admin routes.
+if php /var/www/artisan tinker --execute="echo \App\Models\Permission::rolePermissionsSeeded() ? 'seeded' : 'empty';" 2>/dev/null | grep -q "empty"; then
+    echo "Seeding default roles and permissions..."
+    php /var/www/artisan db:seed --class=PermissionSeeder --force 2>/dev/null && echo "Permission seeder complete." || echo "Permission seeder skipped."
+fi
+
 # ──────────────────────────────────────────────────────
 # Phase 6: Storage Symlink
 # ──────────────────────────────────────────────────────

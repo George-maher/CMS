@@ -7,7 +7,7 @@ use App\Models\PasswordResetRequest;
 interface PasswordResetRequestServiceInterface
 {
     /** @param array<string, mixed> $data */
-    /** @return array<string, mixed> */
+    /** @return array{message: string} */
     public function submitRequest(array $data): array;
 
     /** @return array<string, mixed> */

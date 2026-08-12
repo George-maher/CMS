@@ -140,8 +140,8 @@
         "createdBy": "Created by",
         "forgotPassword": "Forgot Password?",
         "forgotPasswordTitle": "Reset your password",
-        "forgotPasswordDescription": "If an account exists, a password reset link has been sent.",
-        "forgotPasswordSent": "If an account exists, a password reset link has been sent.",
+        "forgotPasswordDescription": "Your request has been sent to your Church Admin for review. You will receive an email to reset your password once it is approved.",
+        "forgotPasswordSent": "Your password reset request has been sent to your Church Admin. You will receive an email after your request is approved.",
         "forgotPasswordFailed": "Failed to send password reset link.",
         "resetPassword": "Reset Password",
         "resetPasswordTitle": "Set a new password",
@@ -813,7 +813,9 @@
         "feedbackReplyTitle": "New Reply to Your Feedback",
         "feedbackReplyBody": "Your feedback has received a reply.",
         "bonusPointsTitle": "Bonus Points Added",
-        "bonusPointsBody": "You received {points} bonus points."
+        "bonusPointsBody": "You received {points} bonus points.",
+        "passwordResetTitle": "Password Reset Request",
+        "passwordResetBody": "A member requested a password reset."
     },
     "absentMembers": {
         "title": "Absent Members",

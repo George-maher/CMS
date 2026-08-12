@@ -56,5 +56,12 @@
   "password_reset_requests.rejected": "Password reset request rejected.",
   "password_reset_requests.not_found": "Password reset request not found.",
   "password_reset_requests.already_processed": "This request has already been processed.",
-  "password_reset_requests.invalid_token": "This reset link is invalid or expired."
+  "password_reset_requests.invalid_token": "This reset link is invalid or expired.",
+  "password_reset_requests.user_not_found": "The account associated with this request no longer exists.",
+  "password_reset_requests.submitted_notification_title": "Password Reset Request",
+  "password_reset_requests.submitted_notification_body": "A member requested a password reset. Review the request to approve or reject it.",
+  "password_reset_requests.approved_notification_title": "Password Reset Approved",
+  "password_reset_requests.approved_notification_body": "Your password reset request was approved. A reset email has been sent to your email address.",
+  "password_reset_requests.rejected_notification_title": "Password Reset Rejected",
+  "password_reset_requests.rejected_notification_body": "Your password reset request was rejected."
 }

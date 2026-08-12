@@ -87,6 +87,7 @@ export default function Header({ onMenuClick }: Props) {
     if (n.type === 'feedback_reply') return t('notifications.feedbackReplyTitle')
     if (n.type === 'bonus_points') return t('notifications.bonusPointsTitle')
     if (n.type === 'event') return t('notifications.newEvent')
+    if (n.type === 'password_reset') return t('notifications.passwordResetTitle')
     return n.title
   }
 
@@ -94,7 +95,12 @@ export default function Header({ onMenuClick }: Props) {
     if (n.type === 'feedback_reply') return t('notifications.feedbackReplyBody')
     if (n.type === 'bonus_points') return t('notifications.bonusPointsBody', { points: n.point?.points ?? '' })
     if (n.type === 'event') return n.body
+    if (n.type === 'password_reset') return n.body ?? t('notifications.passwordResetBody')
     return n.body
+  }
+
+  const canViewNotifications = (): boolean => {
+    return !!user && ['member', 'servant', 'admin', 'assistant_admin'].includes(user.role)
   }
 
   useEffect(() => {
@@ -135,6 +141,14 @@ export default function Header({ onMenuClick }: Props) {
     }
     if (notif.type === 'bonus_points') {
       navigate(`/member/points`)
+      return
+    }
+    if (notif.type === 'password_reset') {
+      if (user?.role === 'admin' || user?.role === 'assistant_admin') {
+        navigate(`/${user.role}/password-reset-requests`)
+      } else {
+        navigate(`/${user?.role === 'servant' ? 'servant' : 'member'}`)
+      }
       return
     }
     if (notif.event_id) {
@@ -193,7 +207,7 @@ export default function Header({ onMenuClick }: Props) {
         </div>
 
         <div className="flex items-center gap-1">
-          {user?.role === 'member' && (
+          {canViewNotifications() && (
             <div className="relative" ref={panelRef}>
               <button onClick={handleBellClick} className="btn-icon btn-ghost rounded-lg relative" title={t('notifications.title')}>
                 {unreadCount > 0 ? (

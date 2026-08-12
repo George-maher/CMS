@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Contracts\AuthServiceInterface;
+use App\Contracts\PasswordResetRequestServiceInterface;
 use App\Contracts\QRInviteServiceInterface;
 use App\Contracts\UserRepositoryInterface;
 use App\Enums\UserRole;
@@ -26,6 +27,7 @@ class AuthService implements AuthServiceInterface
     public function __construct(
         private readonly UserRepositoryInterface $userRepository,
         private readonly QRInviteServiceInterface $qrInviteService,
+        private readonly PasswordResetRequestServiceInterface $passwordResetRequestService,
     ) {}
 
     /** @param array<string, mixed> $credentials */
@@ -266,16 +268,10 @@ class AuthService implements AuthServiceInterface
     /** @param array{email: string} $data */
     public function forgotPassword(array $data): array
     {
-        /** @var string $email */
-        $email = $data['email'];
-
-        Password::sendResetLink(
-            ['email' => $email]
-        );
-
-        return [
-            'message' => 'If an account exists, a password reset link has been sent.',
-        ];
+        // Security: this endpoint must NOT issue a reset link immediately.
+        // All reset requests converge on the admin-approval workflow so a
+        // member/servant only receives a link after their Church Admin approves.
+        return $this->passwordResetRequestService->submitRequest($data);
     }
 
     /** @param array<string, mixed> $data */

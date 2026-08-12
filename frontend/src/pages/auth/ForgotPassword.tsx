@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import toast from 'react-hot-toast'
 import { Church, Loader2, ArrowLeft, Mail, AlertCircle } from 'lucide-react'
-import { forgotPassword } from '@/api/auth'
+import { submitPasswordResetRequest } from '@/api/passwordResetRequests'
 import { logCatch } from '@/lib/debug'
 
 export default function ForgotPassword() {
@@ -35,7 +35,7 @@ export default function ForgotPassword() {
     }
     setLoading(true)
     try {
-      await forgotPassword({ email })
+      await submitPasswordResetRequest({ email })
       setSent(true)
       toast.success(t('auth.forgotPasswordSent'))
     } catch (err: unknown) {

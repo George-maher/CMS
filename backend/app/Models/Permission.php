@@ -45,6 +45,15 @@ class Permission extends Model
         });
     }
 
+    /**
+     * Whether the role_permission mapping has been seeded at all.
+     * Used to fall back to defaults when deployments forget to run the seeder.
+     */
+    public static function rolePermissionsSeeded(): bool
+    {
+        return DB::table('role_permission')->exists();
+    }
+
     public static function roleHasPermission(string $roleName, string $permissionKey): bool
     {
         return in_array($permissionKey, self::getPermissionsForRole($roleName), true);
@@ -52,7 +61,15 @@ class Permission extends Model
 
     public static function userHasPermission(User $user, string $permissionKey): bool
     {
-        return self::roleHasPermission($user->role->value, $permissionKey);
+        $roleName = $user->role->value;
+
+        if (! self::rolePermissionsSeeded()) {
+            self::clearCache();
+
+            return in_array($permissionKey, self::defaultRolePermissions()[$roleName] ?? [], true);
+        }
+
+        return self::roleHasPermission($roleName, $permissionKey);
     }
 
     public static function clearCache(): void

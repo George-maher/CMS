@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Contracts\NotificationServiceInterface;
 use App\Contracts\PasswordResetRequestServiceInterface;
 use App\Enums\PasswordResetRequestStatus;
 use App\Models\PasswordResetRequest;
@@ -11,6 +12,7 @@ use App\Notifications\PasswordResetRequestApprovedNotification;
 use App\Notifications\PasswordResetRequestRejectedNotification;
 use App\Notifications\PasswordResetRequestSubmittedNotification;
 use Illuminate\Auth\Events\PasswordReset;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
@@ -20,8 +22,12 @@ class PasswordResetRequestService implements PasswordResetRequestServiceInterfac
 {
     private const TOKEN_EXPIRY_HOURS = 24;
 
+    public function __construct(
+        private readonly NotificationServiceInterface $notificationService,
+    ) {}
+
     /** @param array<string, mixed> $data */
-    /** @return array<string, mixed> */
+    /** @return array{message: string} */
     public function submitRequest(array $data): array
     {
         $user = User::where('email', $data['email'])->first();
@@ -61,25 +67,87 @@ class PasswordResetRequestService implements PasswordResetRequestServiceInterfac
             'email' => $user->email,
         ]);
 
-        try {
-            $admins = User::whereIn('role', ['admin', 'assistant_admin'])
-                ->where('church_id', $user->church_id)
-                ->where('is_active', true)
-                ->get();
-
-            foreach ($admins as $admin) {
-                $admin->notify(new PasswordResetRequestSubmittedNotification($user));
-            }
-        } catch (\Exception $e) {
-            Log::warning('Failed to notify admins about password reset request', [
-                'request_id' => $request->id,
-                'error' => $e->getMessage(),
-            ]);
-        }
+        $this->notifyChurchAdmins($request, $user);
 
         return [
             'message' => __('password_reset_requests.submitted'),
         ];
+    }
+
+    /**
+     * Notify every active admin/assistant-admin in the requester's church.
+     *
+     * The in-app notification (synchronous database insert) is created first so
+     * the Church Admin always sees the request, regardless of queue/mail health.
+     * The queued email is sent as best-effort: a mail failure must never block
+     * or skip the in-app notification.
+     */
+    private function notifyChurchAdmins(PasswordResetRequest $request, User $requester): void
+    {
+        $churchId = $requester->church_id;
+
+        if ($churchId === null) {
+            Log::warning('Password reset request submitted by user without a church — no admin can be notified', [
+                'request_id' => $request->id,
+                'user_id' => $requester->id,
+                'email' => $requester->email,
+            ]);
+
+            return;
+        }
+
+        /** @var Collection<int, User> $admins */
+        $admins = User::whereIn('role', ['admin', 'assistant_admin'])
+            ->where('church_id', $churchId)
+            ->where('is_active', true)
+            ->get();
+
+        if ($admins->isEmpty()) {
+            Log::warning('No active church admin found for password reset request', [
+                'request_id' => $request->id,
+                'user_id' => $requester->id,
+                'church_id' => $churchId,
+            ]);
+
+            return;
+        }
+
+        $title = __('password_reset_requests.submitted_notification_title');
+        $body = __('password_reset_requests.submitted_notification_body', ['name' => $requester->name ?? '']);
+
+        /** @var array<int, int> $adminIds */
+        $adminIds = $admins->pluck('id')->toArray();
+
+        foreach ($adminIds as $adminId) {
+            try {
+                $this->notificationService->create(
+                    userId: $adminId,
+                    churchId: $churchId,
+                    title: $title,
+                    body: $body,
+                    type: 'password_reset',
+                );
+            } catch (\Exception $e) {
+                Log::warning('Failed to create in-app notification for admin', [
+                    'request_id' => $request->id,
+                    'admin_id' => $adminId,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+
+            try {
+                $admin = User::find($adminId);
+                if ($admin !== null) {
+                    $admin->notify(new PasswordResetRequestSubmittedNotification($requester));
+                }
+            } catch (\Exception $e) {
+                Log::warning('Failed to dispatch admin email notification', [
+                    'request_id' => $request->id,
+                    'admin_id' => $adminId,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
     }
 
     /** @return array<string, mixed> */
@@ -114,11 +182,13 @@ class PasswordResetRequestService implements PasswordResetRequestServiceInterfac
 
             $user = $request->user;
 
-            if ($user === null) {
+            if ($user === null || $user->id === null) {
                 throw ValidationException::withMessages([
                     'request' => [__('password_reset_requests.user_not_found')],
                 ]);
             }
+
+            $userId = $user->id;
 
             /** @var string $frontendUrl */
             $frontendUrl = config('app.frontend_url');
@@ -132,14 +202,22 @@ class PasswordResetRequestService implements PasswordResetRequestServiceInterfac
             } catch (\Exception $e) {
                 Log::warning('Failed to send approval notification', [
                     'request_id' => $request->id,
-                    'user_id' => $user->id,
+                    'user_id' => $userId,
                     'error' => $e->getMessage(),
                 ]);
             }
 
+            $this->notificationService->create(
+                userId: $userId,
+                churchId: $user->church_id ?? 0,
+                title: __('password_reset_requests.approved_notification_title'),
+                body: __('password_reset_requests.approved_notification_body'),
+                type: 'password_reset',
+            );
+
             Log::info('Password reset request approved', [
                 'request_id' => $request->id,
-                'user_id' => $user->id,
+                'user_id' => $userId,
                 'reviewed_by' => $adminId,
             ]);
 
@@ -182,25 +260,35 @@ class PasswordResetRequestService implements PasswordResetRequestServiceInterfac
 
             $user = $request->user;
 
-            if ($user === null) {
+            if ($user === null || $user->id === null) {
                 throw ValidationException::withMessages([
                     'request' => [__('password_reset_requests.user_not_found')],
                 ]);
             }
+
+            $userId = $user->id;
 
             try {
                 $user->notify(new PasswordResetRequestRejectedNotification($reason));
             } catch (\Exception $e) {
                 Log::warning('Failed to send rejection notification', [
                     'request_id' => $request->id,
-                    'user_id' => $user->id,
+                    'user_id' => $userId,
                     'error' => $e->getMessage(),
                 ]);
             }
 
+            $this->notificationService->create(
+                userId: $userId,
+                churchId: $user->church_id ?? 0,
+                title: __('password_reset_requests.rejected_notification_title'),
+                body: __('password_reset_requests.rejected_notification_body'),
+                type: 'password_reset',
+            );
+
             Log::info('Password reset request rejected', [
                 'request_id' => $request->id,
-                'user_id' => $user->id,
+                'user_id' => $userId,
                 'reviewed_by' => $adminId,
             ]);
 

@@ -56,5 +56,12 @@
   "password_reset_requests.rejected": "تم رفض طلب إعادة تعيين كلمة المرور.",
   "password_reset_requests.not_found": "لم يتم العثور على طلب إعادة تعيين كلمة المرور.",
   "password_reset_requests.already_processed": "تمت معالجة هذا الطلب بالفعل.",
-  "password_reset_requests.invalid_token": "رابط إعادة التعيين غير صالح أو منتهي الصلاحية."
+  "password_reset_requests.invalid_token": "رابط إعادة التعيين غير صالح أو منتهي الصلاحية.",
+  "password_reset_requests.user_not_found": "الحساب المرتبط بهذا الطلب لم يعد موجودًا.",
+  "password_reset_requests.submitted_notification_title": "طلب إعادة تعيين كلمة المرور",
+  "password_reset_requests.submitted_notification_body": "طلب أحد الأعضاء إعادة تعيين كلمة المرور. راجع الطلب للموافقة عليه أو رفضه.",
+  "password_reset_requests.approved_notification_title": "تمت الموافقة على إعادة تعيين كلمة المرور",
+  "password_reset_requests.approved_notification_body": "تمت الموافقة على طلب إعادة تعيين كلمة المرور. تم إرسال بريد إلكتروني لإعادة التعيين إلى بريدك الإلكتروني.",
+  "password_reset_requests.rejected_notification_title": "تم رفض إعادة تعيين كلمة المرور",
+  "password_reset_requests.rejected_notification_body": "تم رفض طلب إعادة تعيين كلمة المرور الخاصة بك."
 }
