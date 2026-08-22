@@ -194,3 +194,58 @@ Member/Servant must request a password reset, their Church Admin must approve/re
 | 6 | Approve a real member request and confirm the reset email is received | Live Vercel + Railway | ⚠️ NOT VERIFIED |
 
 > Items marked **NOT VERIFIED** require a live environment with working Resend + queue worker and are outside the scope of local CI verification.
+
+---
+
+# Resend Email Delivery — Root Cause Report (2026-07-18 · Round 2)
+
+## 🎯 Objective
+Identify why the Resend emails (submitted/approved/rejected password-reset notifications) were never delivered in production, and fix it with minimal, architecture-respecting code changes.
+
+## 🔍 Root Causes (confirmed by tracing the actual code, not guessing)
+
+### 1. `AppServiceProvider` mailer auto-switch was broken
+- The block checked `config('services.resend.api_key')` — **a key that does not exist** (the actual config is `services.resend.key` → `env('RESEND_API_KEY')`).
+- Even when a key was present, it only called `Mail::alwaysFrom()` and **never set `config('mail.default')` to `resend`** → the default mailer stayed `log`, so "email accepted" was an illusion: nothing ever left the container.
+- **Fix**: reads `config('services.resend.key')`, and when non-empty and the default mailer is still `log`, actually flips `config(['mail.default' => 'resend'])` before `Mail::alwaysFrom()`.
+
+### 2. Production supervisord had no queue worker
+- `backend/production/supervisord.conf` ran only `php-fpm` + `nginx`.
+- All password-reset notification classes implement `ShouldQueue`, and with `QUEUE_CONNECTION=database` the jobs are inserted into the `jobs` table — but nothing ever drained it in the single-container Railway deployment.
+- `docker-compose.yml` already had a `worker` service (dev parity), but the production single-container image had none.
+- **Fix**: added `[program:queue-worker]` running `php artisan queue:work database --sleep=3 --tries=3 --timeout=90 --queue=default --max-time=3600 --memory=128` with auto-restart.
+
+### 3. Production env values (config risk, not code)
+- `backend/.env`: `MAIL_MAILER=log`, `RESEND_API_KEY=` (empty), `FRONTEND_URL=http://localhost:3000` → reset-email links would point to localhost in production.
+- Fixes 1+2 mean that once `RESEND_API_KEY` + the correct `FRONTEND_URL` are set on Railway, the queue worker picks up the jobs and Resend delivers them.
+- `MAIL_MAILER` is auto-upgraded to `resend` by the provider fix only when `RESEND_API_KEY` is present.
+
+## ✅ Fixes Applied
+
+| Layer | File | Change |
+|---|---|---|
+| Deployment | `backend/production/supervisord.conf` | Added `[program:queue-worker]` (drains the `jobs` table in single-container production) |
+| Backend provider | `backend/app/Providers/AppServiceProvider.php` | Corrected Resend auto-switch: `services.resend.key` + real `mail.default` flip |
+
+## 🧪 Verification (all green)
+- `php artisan test` → 99 passed (283 assertions), incl. all 20 password-reset tests
+- `php vendor/bin/phpstan analyse --level max` → 0 errors
+- `php vendor/bin/pint --test` → passed
+- `php -l app/Providers/AppServiceProvider.php` → no syntax errors
+- `npx tsc --noEmit` (frontend) → clean
+- `npx eslint` on Header.tsx, ForgotPassword.tsx, ResetPasswordFromRequest.tsx, AdminPasswordResetRequests.tsx → clean
+- supervisord.conf contains `queue-worker` + `queue:work` → verified
+
+## 🚀 Remaining Production Checklist (NOT VERIFIED live)
+
+| # | Action | Status |
+|---|---|---|
+| 1 | Set `RESEND_API_KEY` on Railway | ⚠️ NOT VERIFIED |
+| 2 | Set correct `FRONTEND_URL` (e.g. `https://cms-flame-eta.vercel.app`) on Railway so reset links are correct | ⚠️ NOT VERIFIED |
+| 3 | Redeploy the production image (supervisord now starts queue-worker) | ✅ code-ready |
+| 4 | Confirm a real reset email is delivered after approval | ⚠️ NOT VERIFIED |
+
+> Items marked **NOT VERIFIED** require a live environment with working Resend credentials; out of scope for local CI.
+## Resend Removal (2026-08-22) 
+ 
+Resend has been completely removed from the project. Password recovery is now a pure in-app workflow: request -> Church Admin in-app notification -> approve/reject -> Admin sets new password directly (hashed) -> status completed. No email, no tokens, no mail dependency. See AGENTS.md anchored summary 2026-08-22 for full details and verification results.

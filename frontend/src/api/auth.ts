@@ -1,4 +1,4 @@
-import type { ApiResponse, ApplicationStatus, ForgotPasswordPayload, LoginPayload, RegisterPayload, ResetPasswordPayload, User } from '@/types'
+import type { ApiResponse, ApplicationStatus, LoginPayload, RegisterPayload, User } from '@/types'
 import client from './client'
 
 const platformAdminLoginPath = import.meta.env.VITE_PLATFORM_ADMIN_LOGIN_PATH || 'platform-secure-admin-login'
@@ -40,14 +40,4 @@ export async function logout(): Promise<void> {
 export async function getMe(): Promise<User> {
   const { data } = await client.get<ApiResponse<{ user: User }>>('/auth/me')
   return data.data.user
-}
-
-export async function forgotPassword(payload: ForgotPasswordPayload): Promise<{ message: string }> {
-  const { data } = await client.post<{ message: string }>('/auth/forgot-password', payload)
-  return data
-}
-
-export async function resetPassword(payload: ResetPasswordPayload): Promise<{ message: string }> {
-  const { data } = await client.post<{ message: string }>('/auth/reset-password', payload)
-  return data
 }

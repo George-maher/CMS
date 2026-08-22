@@ -174,23 +174,4 @@ class AuthController extends Controller
             'message' => $result['message'],
         ]);
     }
-
-    public function resetPassword(Request $request): JsonResponse
-    {
-        $request->validate([
-            'token' => ['required', 'string'],
-            'email' => ['required', 'email'],
-            'password' => ['required', 'string', 'min:8', 'confirmed'],
-        ]);
-
-        /** @var array<string, mixed> $data */
-        $data = $request->only(
-            'email', 'password', 'password_confirmation', 'token'
-        );
-        $result = $this->authService->resetPassword($data);
-
-        return response()->json([
-            'message' => $result['message'],
-        ]);
-    }
 }

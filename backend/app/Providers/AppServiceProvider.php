@@ -101,10 +101,8 @@ use Illuminate\Http\Request;
 use Illuminate\Routing\Redirector;
 use Illuminate\Routing\UrlGenerator;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
-use Resend\Laravel\ResendServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -162,8 +160,6 @@ class AppServiceProvider extends ServiceProvider
             return new LocalStorageService;
         });
 
-        $this->app->register(ResendServiceProvider::class);
-
         $this->app->bind(EmailServiceInterface::class, EmailService::class);
 
         $this->app->bind(NotificationServiceInterface::class, NotificationService::class);
@@ -196,24 +192,6 @@ class AppServiceProvider extends ServiceProvider
         Event::observe(EventObserver::class);
         ChurchApplication::observe(ChurchApplicationObserver::class);
         MembershipRequestModel::observe(MembershipRequestObserver::class);
-
-        // ──────────────────────────────────────────────
-        // Set default mailer to resend (overrides log in dev)
-        // ──────────────────────────────────────────────
-        /** @var string|null $mailDefault */
-        $mailDefault = config('mail.default');
-        /** @var string|null $resendKey */
-        $resendKey = config('services.resend.api_key');
-        if ($mailDefault === 'log' && $resendKey) {
-            /** @var string|null $fromAddress */
-            $fromAddress = config('mail.from.address');
-            /** @var string|null $fromName */
-            $fromName = config('mail.from.name');
-            Mail::alwaysFrom(
-                (string) $fromAddress,
-                (string) $fromName,
-            );
-        }
 
         // ──────────────────────────────────────────────
         // Event → Listener Registrations
@@ -498,7 +476,7 @@ class AppServiceProvider extends ServiceProvider
                 ->response(fn () => self::rateLimitResponse());
         });
 
-        // Email sending — 30 emails/min per user (prevents abuse via Resend)
+        // Email sending — 30 emails/min per user (prevents abuse)
         RateLimiter::for('email-send', function (Request $request) {
             return Limit::perMinute(30)
                 ->by($request->user()?->id ?: $request->ip())

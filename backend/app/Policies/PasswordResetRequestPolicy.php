@@ -37,6 +37,14 @@ class PasswordResetRequestPolicy
             && $request->user->church_id === $user->church_id;
     }
 
+    public function resetPassword(User $user, PasswordResetRequest $request): bool
+    {
+        return $user->isAdminOrAssistantAdmin()
+            && $request->isApproved()
+            && $request->user !== null
+            && $request->user->church_id === $user->church_id;
+    }
+
     public function create(User $user): bool
     {
         return $user->isMember() || $user->isServant();

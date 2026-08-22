@@ -11,14 +11,10 @@ use App\Models\Church;
 use App\Models\Classe;
 use App\Models\QRInvite;
 use App\Models\User;
-use App\Notifications\PasswordChangedNotification;
 use App\Notifications\VerifyEmailNotification;
-use Illuminate\Auth\Events\PasswordReset;
-use Illuminate\Contracts\Auth\CanResetPassword;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -269,48 +265,9 @@ class AuthService implements AuthServiceInterface
     public function forgotPassword(array $data): array
     {
         // Security: this endpoint must NOT issue a reset link immediately.
-        // All reset requests converge on the admin-approval workflow so a
-        // member/servant only receives a link after their Church Admin approves.
+        // All reset requests converge on the admin-approval workflow so the
+        // password is only changed after their Church Admin approves and sets
+        // the new password. No email is involved in password recovery.
         return $this->passwordResetRequestService->submitRequest($data);
-    }
-
-    /** @param array<string, mixed> $data */
-    public function resetPassword(array $data): array
-    {
-        /** @var string|null $status */
-        $status = Password::reset(
-            $data,
-            function (CanResetPassword $user, string $password) {
-                /** @var User $user */
-                $user->forceFill([
-                    'password' => Hash::make($password),
-                ])->setRememberToken(Str::random(60));
-
-                $user->save();
-
-                $user->tokens()->delete();
-
-                try {
-                    $user->notify(new PasswordChangedNotification);
-                } catch (\Exception $e) {
-                    Log::warning('Failed to send password changed notification', [
-                        'user_id' => $user->id,
-                        'error' => $e->getMessage(),
-                    ]);
-                }
-
-                event(new PasswordReset($user));
-            }
-        );
-
-        if ($status === Password::PASSWORD_RESET) {
-            return [
-                'message' => __('passwords.reset'),
-            ];
-        }
-
-        throw ValidationException::withMessages([
-            'email' => [__(strval($status))],
-        ]);
     }
 }

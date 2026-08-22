@@ -6,6 +6,7 @@ use App\Contracts\PasswordResetRequestServiceInterface;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ApprovePasswordResetRequest;
 use App\Http\Requests\RejectPasswordResetRequest;
+use App\Http\Requests\ResetPasswordByAdminRequest;
 use App\Http\Requests\SubmitPasswordResetRequest;
 use App\Http\Resources\PasswordResetRequestResource;
 use App\Models\PasswordResetRequest;
@@ -118,19 +119,29 @@ class PasswordResetRequestController extends Controller
         ]);
     }
 
-    public function completeReset(Request $request): JsonResponse
+    /**
+     * Church Admin sets a brand-new password for an approved request.
+     * The password is hashed server-side and never returned or logged.
+     */
+    public function resetPassword(int $id, ResetPasswordByAdminRequest $request): JsonResponse
     {
-        $request->validate([
-            'token' => ['required', 'string', 'size:64'],
-            'password' => ['required', 'string', 'min:8', 'confirmed'],
-        ]);
+        /** @var User $user */
+        $user = $request->user();
+        $resetRequest = PasswordResetRequest::find($id);
 
-        /** @var string $token */
-        $token = $request->input('token');
+        if (! $resetRequest) {
+            return response()->json(['message' => 'Not found.'], 404);
+        }
+
+        Gate::authorize('resetPassword', $resetRequest);
+
+        /** @var int $adminId */
+        $adminId = $user->id;
         /** @var string $password */
         $password = $request->input('password');
-        $result = $this->passwordResetRequestService->completeReset(
-            $token,
+        $result = $this->passwordResetRequestService->resetPassword(
+            $id,
+            $adminId,
             $password,
         );
 

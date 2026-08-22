@@ -52,16 +52,12 @@ Route::prefix('v1')->group(function () {
     Route::post('/auth/forgot-password', [AuthController::class, 'forgotPassword'])
         ->middleware('throttle:login');
 
-    Route::post('/auth/reset-password', [AuthController::class, 'resetPassword'])
-        ->middleware('throttle:login');
-
     /*
-    | Password Reset Requests — public (member/servant submits, user completes reset)
+    | Password Reset Requests — public (member/servant submits).
+    | The new password is set by the Church Admin after approval —
+    | there is no public token-based reset endpoint and no email flow.
     */
     Route::post('/password-reset-requests', [PasswordResetRequestController::class, 'submit'])
-        ->middleware('throttle:login');
-
-    Route::post('/password-reset-requests/reset', [PasswordResetRequestController::class, 'completeReset'])
         ->middleware('throttle:login');
 
     Route::post('/auth/verify-email', [AuthController::class, 'verifyEmail'])
@@ -389,7 +385,8 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'approval', 'throttle:api'])->g
     Route::middleware(['permission:manage_users', 'approved'])->group(function () {
 
         /*
-        | Password Reset Requests — admin review
+        | Password Reset Requests — admin review.
+        | Approve → Admin sets the new password directly (reset-password).
         */
         Route::get('/password-reset-requests', [PasswordResetRequestController::class, 'index'])
             ->middleware('throttle:api');
@@ -398,6 +395,8 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'approval', 'throttle:api'])->g
         Route::post('/password-reset-requests/{id}/approve', [PasswordResetRequestController::class, 'approve'])
             ->middleware('throttle:sensitive');
         Route::post('/password-reset-requests/{id}/reject', [PasswordResetRequestController::class, 'reject'])
+            ->middleware('throttle:sensitive');
+        Route::post('/password-reset-requests/{id}/reset-password', [PasswordResetRequestController::class, 'resetPassword'])
             ->middleware('throttle:sensitive');
 
         /*

@@ -14,8 +14,6 @@ const JoinNow = lazy(() => import('@/pages/JoinNow'))
 const Login = lazy(() => import('@/pages/auth/Login'))
 const PlatformLogin = lazy(() => import('@/pages/auth/PlatformLogin'))
 const ForgotPassword = lazy(() => import('@/pages/auth/ForgotPassword'))
-const ResetPassword = lazy(() => import('@/pages/auth/ResetPassword'))
-const ResetPasswordFromRequest = lazy(() => import('@/pages/auth/ResetPasswordFromRequest'))
 const VerifyEmail = lazy(() => import('@/pages/auth/VerifyEmail'))
 const InviteRegister = lazy(() => import('@/pages/auth/InviteRegister'))
 const InviteLanding = lazy(() => import('@/pages/auth/InviteLanding'))
@@ -89,8 +87,6 @@ export default function App() {
               <Route path="/invite/:token" element={<InviteLanding />} />
               <Route path="/login" element={<Login />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
-              <Route path="/reset-password" element={<ResetPassword />} />
-              <Route path="/reset-password-request" element={<ResetPasswordFromRequest />} />
               <Route path="/verify-email" element={<VerifyEmail />} />
               <Route path="/chconfirmation777" element={<PlatformLogin />} />
               <Route path="/application-status" element={<ApplicationStatus />} />

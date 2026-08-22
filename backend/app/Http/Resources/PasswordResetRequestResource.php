@@ -33,8 +33,6 @@ class PasswordResetRequestResource extends JsonResource
                 ];
             }),
             'reviewed_at' => $this->reviewed_at?->toISOString(),
-            'token_expires_at' => $this->token_expires_at?->toISOString(),
-            'used_at' => $this->used_at?->toISOString(),
             'created_at' => $this->created_at?->toISOString(),
             'updated_at' => $this->updated_at?->toISOString(),
             'user' => $this->when($this->relationLoaded('user') && $user, function () use ($user) {

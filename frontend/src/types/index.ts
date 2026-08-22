@@ -355,17 +355,6 @@ export interface ApplicationCounts {
   total: number
 }
 
-export interface ForgotPasswordPayload {
-  email: string
-}
-
-export interface ResetPasswordPayload {
-  email: string
-  token: string
-  password: string
-  password_confirmation: string
-}
-
 export interface NotificationItem {
   id: number
   event_id: number | null
@@ -412,13 +401,11 @@ export interface PasswordResetRequest {
   user_id: number
   email: string
   notes: string | null
-  status: 'pending' | 'approved' | 'rejected'
+  status: 'pending' | 'approved' | 'rejected' | 'completed'
   status_label: string
   rejection_reason: string | null
   reviewer: { id: number; name: string } | null
   reviewed_at: string | null
-  token_expires_at: string | null
-  used_at: string | null
   created_at: string
   updated_at: string
   user: {

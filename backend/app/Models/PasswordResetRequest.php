@@ -6,7 +6,6 @@ use App\Enums\PasswordResetRequestStatus;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Str;
 
 /**
  * @property int $id
@@ -14,12 +13,9 @@ use Illuminate\Support\Str;
  * @property string $email
  * @property string|null $notes
  * @property PasswordResetRequestStatus $status
- * @property string|null $token
  * @property string|null $rejection_reason
  * @property int|null $reviewed_by
  * @property Carbon|null $reviewed_at
- * @property Carbon|null $token_expires_at
- * @property Carbon|null $used_at
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read User|null $user
@@ -32,12 +28,9 @@ class PasswordResetRequest extends Model
         'email',
         'notes',
         'status',
-        'token',
         'rejection_reason',
         'reviewed_by',
         'reviewed_at',
-        'token_expires_at',
-        'used_at',
     ];
 
     protected function casts(): array
@@ -45,8 +38,6 @@ class PasswordResetRequest extends Model
         return [
             'status' => PasswordResetRequestStatus::class,
             'reviewed_at' => 'datetime',
-            'token_expires_at' => 'datetime',
-            'used_at' => 'datetime',
         ];
     }
 
@@ -60,14 +51,6 @@ class PasswordResetRequest extends Model
     public function reviewer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'reviewed_by');
-    }
-
-    public function isValidToken(): bool
-    {
-        return $this->token !== null
-            && $this->token_expires_at !== null
-            && $this->token_expires_at->isFuture()
-            && $this->used_at === null;
     }
 
     public function isPending(): bool
@@ -85,20 +68,8 @@ class PasswordResetRequest extends Model
         return $this->status === PasswordResetRequestStatus::Rejected;
     }
 
-    public static function generateToken(): string
+    public function isCompleted(): bool
     {
-        do {
-            $token = Str::random(64);
-        } while (static::where('token', $token)->exists());
-
-        return $token;
-    }
-
-    public function markAsUsed(): void
-    {
-        $this->update([
-            'used_at' => now(),
-            'token' => null,
-        ]);
+        return $this->status === PasswordResetRequestStatus::Completed;
     }
 }

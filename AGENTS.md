@@ -815,3 +815,49 @@ Fix the Stages and Classes feature: HTTP 500 on Classes API, Stages/Classes not 
 - `frontend/src/i18n/en.json` — Translation keys `structure.selectStageFirst`, `structure.noClasses`, `structure.selectStage`, `structure.noStages` (already exist, no changes needed)
 - `backend/app/Http/Controllers/Api/StageController.php` — Stage endpoints (correct, no changes needed)
 - `backend/app/Http/Controllers/Api/ClasseController.php` — Class endpoints (correct, no changes needed)
+
+---
+
+## 📌 ANCHORED SUMMARY (2026-08-22)
+
+## Goal
+Completely remove Resend from the project and rebuild the Forgot Password feature with ZERO email dependency: Member/Servant submits request → Church Admin in-app notification → admin approves → admin sets a NEW password directly (hashed) → status `completed` → user logs in.
+
+## Progress
+### Done (2026-08-22 — Resend Removal + No-Email Password Reset Rebuild)
+1. **Resend package removed** — `composer remove resend/resend-laravel`; `bootstrap/cache/packages.php|services.php` regenerated.
+2. **AppServiceProvider cleaned** — removed `ResendServiceProvider` import + explicit `$this->app->register(ResendServiceProvider::class)` and the `mail.default = resend` auto-upgrade block (the block that silently failed when `RESEND_API_KEY` was empty — confirmed root cause of "emails never sent").
+3. **Config cleanup** — deleted `backend/config/resend.php`; removed `services.resend`, `mail.mailers.resend`, and the `RESEND_API_KEY` smtp-password fallback in `config/mail.php`.
+4. **Env cleanup** — removed `RESEND_API_KEY=` from `backend/.env`, root `.env`; `.env.example` mail section rewritten to plain SMTP/log defaults.
+5. **Competing broker flow removed** — `AuthService::resetPassword()` (Laravel Password broker) + `AuthController::resetPassword()` + route `/auth/reset-password` + `User::sendPasswordResetNotification()` + notifications `ResetPasswordNotification`, `PasswordChangedNotification`, and all three `PasswordResetRequest*Notification` email classes DELETED. `/auth/forgot-password` kept (delegates to the approval workflow); `resendVerification` kept (email *verification*, unrelated to Resend).
+6. **New admin reset endpoint** — `POST /v1/password-reset-requests/{id}/reset-password` (`ResetPasswordByAdminRequest`: password min:8 confirmed; policy `resetPassword`: adminOrAssistantAdmin + same church + status approved; service hashes via `Hash::make()`, deletes all user Sanctum tokens, sets status to new `Completed` enum case). Public token endpoint `/password-reset-requests/reset` REMOVED.
+7. **Token columns dropped** — migration `2026_08_22_000001_remove_email_reset_tokens_from_password_reset_requests.php` drops `token`/`token_expires_at`/`used_at` (drops indexes first for SQLite; existence-checked). Model cleaned (`generateToken`/`isValidToken`/`markAsUsed` removed, `isCompleted` added). Resource no longer exposes token fields.
+8. **Notifications are in-app only now** — synchronous `NotificationService::create()` inserts (type `password_reset`) for admins on submit, requester on approve/reject/complete. No queued mail anywhere in this feature.
+9. **Frontend rebuilt** — deleted `ResetPassword.tsx` + `ResetPasswordFromRequest.tsx` pages and their routes/public-paths; removed `forgotPassword`/`resetPassword` from `api/auth.ts` + payload types; `api/passwordResetRequests.ts` gained `resetPasswordByAdmin(id, {password, password_confirmation})`; `AdminPasswordResetRequests.tsx` gained a Set-New-Password modal (KeyRound icon on approved rows, show/hide toggle, mismatch validation, completed badge + filter); i18n EN/AR updated (no more "you will receive an email" wording).
+
+## Key Decisions
+- No user-facing self-reset without email (per requirement 11): inventing one would be insecure, so the Church Admin performs the reset directly after identity verification.
+- Duplicate-pending submit still returns the generic "submitted" message (anti-enumeration) while only creating one row/notification.
+- Completed requests cannot be reset again (policy requires Approved); a fresh request may be submitted afterward.
+- Old password is never retrievable/recoverable — only replaced; hashes never exposed in resources/logs/notifications.
+
+## Relevant Files
+- `backend/composer.json`, `backend/config/mail.php`, `backend/config/services.php`, deleted `backend/config/resend.php`
+- `backend/app/Providers/AppServiceProvider.php` — Resend registration + auto-upgrade block removed
+- `backend/routes/api.php` — `/auth/reset-password` + public `/password-reset-requests/reset` removed; `/{id}/reset-password` added under manage_users group
+- `backend/app/Services/PasswordResetRequestService.php` — rewritten: in-app-only notifications, `approve()` without tokens, new `resetPassword()`; `completeReset()` removed
+- `backend/app/Contracts/PasswordResetRequestServiceInterface.php`, `app/Policies/PasswordResetRequestPolicy.php`, `app/Http/Requests/ResetPasswordByAdminRequest.php`
+- `backend/app/Http/Controllers/Api/PasswordResetRequestController.php` — `completeReset` → `resetPassword`
+- `backend/app/Enums/PasswordResetRequestStatus.php` (+Completed), `app/Models/PasswordResetRequest.php` (token logic removed)
+- `backend/database/migrations/2026_08_22_000001_remove_email_reset_tokens_from_password_reset_requests.php`
+- Deleted: 5 notification classes (Submitted/Approved/Rejected/PasswordChanged/ResetPassword)
+- `backend/resources/lang/en.json|ar.json` — `password_reset_requests.*` keys updated (not_approved, completed*)
+- `frontend/src/App.tsx`, `src/api/client.ts`, `src/api/auth.ts`, `src/api/passwordResetRequests.ts`, `src/types/index.ts`, `src/i18n/en.json|ar.json`
+- Deleted: `src/pages/auth/ResetPassword.tsx`, `src/pages/auth/ResetPasswordFromRequest.tsx`
+- `frontend/src/pages/admin/PasswordResetRequests.tsx` — Set-New-Password modal + completed status support
+
+## Verification (2026-08-22)
+- Backend: 98 tests passed (287 assertions), PHPStan level-max 0 errors, Pint clean.
+- Frontend: ESLint 0 errors, tsc --noEmit clean.
+- `route:list` confirms exactly: submit / list / show / approve / reject / reset-password (+ forgot-password alias).
+- Project-wide grep: zero remaining Resend references in code/config/env.

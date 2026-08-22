@@ -26,7 +26,7 @@ export async function rejectPasswordResetRequest(id: number, reason: string): Pr
   await client.post(`/password-reset-requests/${id}/reject`, { reason })
 }
 
-export async function completePasswordReset(payload: { token: string; password: string; password_confirmation: string }): Promise<{ message: string }> {
-  const { data } = await client.post<{ message: string }>('/password-reset-requests/reset', payload)
+export async function resetPasswordByAdmin(id: number, payload: { password: string; password_confirmation: string }): Promise<{ message: string }> {
+  const { data } = await client.post<{ message: string }>(`/password-reset-requests/${id}/reset-password`, payload)
   return data
 }

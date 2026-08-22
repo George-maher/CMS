@@ -4,7 +4,6 @@ import { useAuth } from '@/hooks/useAuth'
 import { useTranslation } from 'react-i18next'
 import toast from 'react-hot-toast'
 import { Shield, Eye, EyeOff, Loader2 } from 'lucide-react'
-import client from '@/api/client'
 import type { AxiosError } from 'axios'
 
 export default function PlatformLogin() {
@@ -25,32 +24,10 @@ export default function PlatformLogin() {
     e.preventDefault()
     setLoading(true)
     try {
-      const baseUrl = client.defaults.baseURL
-      const fullPath = `${baseUrl}/auth/${import.meta.env.VITE_PLATFORM_ADMIN_LOGIN_PATH || 'platform-secure-admin-login'}`
-      console.group('[DEBUG] Platform Login Request')
-      console.log('Base URL:', baseUrl)
-      console.log('Full Path:', fullPath)
-      console.log('Auth endpoint:', `auth/${import.meta.env.VITE_PLATFORM_ADMIN_LOGIN_PATH || 'platform-secure-admin-login'}`)
-      console.log('Method: POST')
-      console.log('Payload:', { email, password: '***' })
-      console.log('VITE_API_URL:', import.meta.env.VITE_API_URL)
-      console.log('VITE_PLATFORM_ADMIN_LOGIN_PATH:', import.meta.env.VITE_PLATFORM_ADMIN_LOGIN_PATH)
-      console.groupEnd()
-
       await platformLogin({ email: email.trim().toLowerCase(), password })
       navigate('/platform')
     } catch (err: unknown) {
       const axiosErr = err as AxiosError<{ message?: string; errors?: Record<string, string[]> }>
-      console.group('[DEBUG] Platform Login Error')
-      console.error('Full error:', axiosErr)
-      console.error('Response data:', axiosErr?.response?.data)
-      console.error('Response status:', axiosErr?.response?.status)
-      console.error('Response headers:', axiosErr?.response?.headers)
-      console.error('Request URL:', axiosErr?.config?.url)
-      console.error('Request method:', axiosErr?.config?.method)
-      console.error('Request baseURL:', axiosErr?.config?.baseURL)
-      console.error('Request data:', axiosErr?.config?.data)
-      console.groupEnd()
 
       const msg = axiosErr?.response?.data?.errors
         ? Object.values(axiosErr.response.data.errors).flat().join('. ')

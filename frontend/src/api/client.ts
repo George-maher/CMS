@@ -81,7 +81,7 @@ client.interceptors.response.use(
     logAxiosError('Response Interceptor', error)
 
     if (error.response?.status === 401) {
-      const publicPaths = ['/login', '/register', '/invite/', '/forgot-password', '/reset-password', '/reset-password-request']
+      const publicPaths = ['/login', '/register', '/invite/', '/forgot-password']
       const onPublicPage = publicPaths.some(p => window.location.pathname.startsWith(p))
       if (!onPublicPage) {
         localStorage.removeItem('auth_token')

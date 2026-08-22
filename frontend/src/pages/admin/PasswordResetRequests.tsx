@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { CheckCircle, XCircle, Clock, Search, FileText, Phone, MessageSquare } from 'lucide-react'
+import { CheckCircle, XCircle, Clock, Search, FileText, Phone, MessageSquare, KeyRound, Eye, EyeOff } from 'lucide-react'
 import Badge from '@/components/common/Badge'
 import LoadingSpinner from '@/components/common/LoadingSpinner'
 import Modal from '@/components/common/Modal'
@@ -9,6 +9,7 @@ import {
   listPasswordResetRequests,
   approvePasswordResetRequest,
   rejectPasswordResetRequest,
+  resetPasswordByAdmin,
 } from '@/api/passwordResetRequests'
 import { logCatch } from '@/lib/debug'
 import toast from 'react-hot-toast'
@@ -32,6 +33,13 @@ export default function AdminPasswordResetRequests() {
   const [approveId, setApproveId] = useState<number | null>(null)
   const [approveOpen, setApproveOpen] = useState(false)
   const [approving, setApproving] = useState(false)
+
+  const [resetOpen, setResetOpen] = useState(false)
+  const [resetId, setResetId] = useState<number | null>(null)
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmNewPassword, setConfirmNewPassword] = useState('')
+  const [showNewPassword, setShowNewPassword] = useState(false)
+  const [resetting, setResetting] = useState(false)
 
   const fetch = async (p = 1) => {
     setLoading(true)
@@ -107,8 +115,35 @@ export default function AdminPasswordResetRequests() {
         return <Badge variant="success">{t('passwordResetRequests.approved')}</Badge>
       case 'rejected':
         return <Badge variant="danger">{t('passwordResetRequests.rejected')}</Badge>
+      case 'completed':
+        return <Badge variant="primary">{t('passwordResetRequests.completed')}</Badge>
       default:
         return <Badge>{status}</Badge>
+    }
+  }
+
+  const handleResetPassword = async () => {
+    if (!resetId || !newPassword || newPassword !== confirmNewPassword) return
+    setResetting(true)
+    try {
+      await resetPasswordByAdmin(resetId, {
+        password: newPassword,
+        password_confirmation: confirmNewPassword,
+      })
+      toast.success(t('passwordResetRequests.completed'))
+      setResetOpen(false)
+      setResetId(null)
+      setNewPassword('')
+      setConfirmNewPassword('')
+      setShowNewPassword(false)
+      fetch(page)
+    } catch (e: unknown) {
+      logCatch('PasswordResetRequests.resetPassword', e)
+      const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message
+        || t('common.failedToSave')
+      toast.error(msg)
+    } finally {
+      setResetting(false)
     }
   }
 
@@ -123,7 +158,7 @@ export default function AdminPasswordResetRequests() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <p className="text-sm text-secondary">{meta.total} {t('passwordResetRequests.total')}</p>
         <div className="flex flex-wrap gap-1.5">
-          {['', 'pending', 'approved', 'rejected'].map((s) => (
+          {['', 'pending', 'approved', 'rejected', 'completed'].map((s) => (
             <button
               key={s}
               onClick={() => setStatusFilter(s)}
@@ -202,6 +237,15 @@ export default function AdminPasswordResetRequests() {
                       <XCircle className="h-4 w-4" />
                     </button>
                   </>
+                )}
+                {req.status === 'approved' && (
+                  <button
+                    onClick={() => { setResetId(req.id); setNewPassword(''); setConfirmNewPassword(''); setResetOpen(true) }}
+                    className="btn-icon btn-ghost text-primary-600"
+                    title={t('passwordResetRequests.resetPasswordTitle')}
+                  >
+                    <KeyRound className="h-4 w-4" />
+                  </button>
                 )}
               </div>
             </div>
@@ -304,6 +348,18 @@ export default function AdminPasswordResetRequests() {
               </div>
             )}
 
+            {detail.status === 'approved' && (
+              <div className="flex gap-3 pt-4 border-t">
+                <button
+                  onClick={() => { setDetailOpen(false); setResetId(detail.id); setNewPassword(''); setConfirmNewPassword(''); setResetOpen(true) }}
+                  className="flex-1 btn-primary btn-md"
+                >
+                  <KeyRound className="h-4 w-4" />
+                  {t('passwordResetRequests.resetPasswordTitle')}
+                </button>
+              </div>
+            )}
+
             {detail.status === 'pending' && (
               <div className="flex gap-3 pt-4 border-t">
                 <button
@@ -383,6 +439,81 @@ export default function AdminPasswordResetRequests() {
             placeholder={t('passwordResetRequests.rejectionReasonPlaceholder')}
             required
           />
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={resetOpen}
+        onClose={() => { setResetOpen(false); setResetId(null); setNewPassword(''); setConfirmNewPassword(''); setShowNewPassword(false) }}
+        title={t('passwordResetRequests.resetPasswordTitle')}
+        footer={
+          <div className="flex gap-3 w-full">
+            <button
+              onClick={() => { setResetOpen(false); setResetId(null); setNewPassword(''); setConfirmNewPassword('') }}
+              className="flex-1 btn-secondary btn-md"
+            >
+              {t('common.cancel')}
+            </button>
+            <button
+              onClick={handleResetPassword}
+              disabled={resetting || !newPassword || newPassword.length < 8 || newPassword !== confirmNewPassword}
+              className="flex-1 btn-primary btn-md"
+            >
+              <KeyRound className="h-4 w-4" />
+              {resetting ? t('common.saving') : t('passwordResetRequests.resetPasswordAction')}
+            </button>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          <p className="text-secondary">{t('passwordResetRequests.resetConfirm')}</p>
+
+          <div>
+            <label className="label">{t('passwordResetRequests.newPassword')}</label>
+            <div className="relative">
+              <input
+                type={showNewPassword ? 'text' : 'password'}
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                autoComplete="new-password"
+                required
+                minLength={8}
+                className="input-field pl-10"
+              />
+              <button
+                type="button"
+                onClick={() => setShowNewPassword((v) => !v)}
+                className="absolute inset-y-0 left-0 flex items-center px-3 text-muted hover:text-secondary"
+                tabIndex={-1}
+                aria-label={showNewPassword ? t('common.hide') || 'Hide password' : t('common.show') || 'Show password'}
+              >
+                {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+            {newPassword && (
+              <p className={`mt-1 text-xs ${newPassword.length < 8 ? 'text-red-500' : 'text-success-dark'}`}>
+                {t('auth.passwordMinLength')}
+              </p>
+            )}
+          </div>
+
+          <div>
+            <label className="label">{t('passwordResetRequests.confirmNewPassword')}</label>
+            <input
+              type={showNewPassword ? 'text' : 'password'}
+              value={confirmNewPassword}
+              onChange={(e) => setConfirmNewPassword(e.target.value)}
+              autoComplete="new-password"
+              required
+              className="input-field"
+            />
+            {confirmNewPassword && newPassword !== confirmNewPassword && (
+              <p className="mt-1 text-xs text-red-500 flex items-center gap-1">
+                <XCircle className="h-3 w-3 shrink-0" />
+                {t('auth.passwordsDoNotMatch')}
+              </p>
+            )}
+          </div>
         </div>
       </Modal>
     </div>

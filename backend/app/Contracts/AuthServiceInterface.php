@@ -26,8 +26,4 @@ interface AuthServiceInterface
     /** @param array<string, mixed> $data */
     /** @return array{message: string} */
     public function forgotPassword(array $data): array;
-
-    /** @param array<string, mixed> $data */
-    /** @return array{message: string} */
-    public function resetPassword(array $data): array;
 }
