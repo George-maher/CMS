@@ -7,7 +7,9 @@ use App\Contracts\EventReportServiceInterface;
 use App\Enums\EventAttendanceStatus;
 use App\Enums\RegistrationStatus;
 use App\Models\Event;
+use App\Models\EventAccommodation;
 use App\Models\EventRegistration;
+use App\Models\EventRoom;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -64,6 +66,40 @@ class EventReportService implements EventReportServiceInterface
                 'absent' => $absent,
                 'attendance_percentage' => $attendancePercentage,
             ],
+            'accommodation' => $this->accommodationStats($event),
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    private function accommodationStats(Event $event): array
+    {
+        $hasAccommodation = $event->rooms()->exists();
+
+        if (! $hasAccommodation) {
+            return [
+                'enabled' => false,
+            ];
+        }
+
+        $totalRooms = EventRoom::query()->where('event_id', $event->id)->count();
+        $totalCapacity = (int) EventRoom::query()->where('event_id', $event->id)->sum('capacity');
+        $totalMemberCapacity = (int) EventRoom::query()->where('event_id', $event->id)->sum('member_capacity');
+        $accommodated = EventAccommodation::query()
+            ->whereHas('registration', fn ($q) => $q->where('event_id', $event->id))
+            ->count();
+        $approvedCount = EventRegistration::query()
+            ->where('event_id', $event->id)
+            ->where('status', RegistrationStatus::Approved->value)
+            ->count();
+
+        return [
+            'enabled' => true,
+            'total_rooms' => $totalRooms,
+            'total_capacity' => $totalCapacity,
+            'total_member_capacity' => $totalMemberCapacity,
+            'approved_reservations' => $approvedCount,
+            'accommodated' => $accommodated,
+            'not_accommodated' => max(0, $approvedCount - $accommodated),
         ];
     }
 
@@ -71,12 +107,12 @@ class EventReportService implements EventReportServiceInterface
     {
         $rows = EventRegistration::query()
             ->where('event_id', $event->id)
-            ->with(['user.classe', 'bus'])
+            ->with(['user.classe', 'bus', 'accommodation.cell.room'])
             ->orderBy('created_at')
             ->get();
 
         return $this->streamCsv('participants-'.$event->id.'.csv', [
-            ['Member Name', 'Phone', 'Class', 'Registration Status', 'Payment Status', 'Amount Paid', 'Attendance', 'Bus', 'Registered At', 'Notes'],
+            ['Member Name', 'Phone', 'Class', 'Registration Status', 'Payment Status', 'Amount Paid', 'Attendance', 'Bus', 'Accommodation', 'Registered At', 'Notes'],
             ...$rows->map(fn (EventRegistration $r): array => [
                 strval($r->user->name ?? ''),
                 strval($r->user->phone ?? ''),
@@ -86,6 +122,7 @@ class EventReportService implements EventReportServiceInterface
                 number_format((float) $r->amount_paid, 2),
                 $r->attendance_status->label(),
                 strval($r->bus->bus_number ?? ''),
+                $r->accommodation ? 'Room '.$r->accommodation->cell->room->room_number.' / Cell '.$r->accommodation->cell->cell_number : '',
                 strval($r->created_at !== null ? $r->created_at->format('Y-m-d H:i') : ''),
                 strval($r->notes ?? ''),
             ])->all(),

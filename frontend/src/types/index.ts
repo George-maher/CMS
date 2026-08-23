@@ -110,7 +110,7 @@ export interface QRInvite {
 export type EventType = 'service' | 'conference' | 'trip' | 'meeting' | 'other'
 
 export type EventStatus = 'draft' | 'open' | 'closed' | 'completed' | 'cancelled'
-export type RegistrationStatus = 'pending' | 'confirmed' | 'cancelled' | 'waitlisted'
+export type RegistrationStatus = 'pending' | 'confirmed' | 'cancelled' | 'waitlisted' | 'approved' | 'rejected'
 export type EventPaymentStatus = 'unpaid' | 'partially_paid' | 'paid' | 'refunded'
 export type EventAttendanceStatus = 'not_checked_in' | 'checked_in' | 'absent'
 
@@ -163,6 +163,18 @@ export interface EventRegistration {
   checked_in_at: string | null
   qr_token?: string
   notes: string | null
+  booking_with: string | null
+  medical_notes: string | null
+  rejection_reason: string | null
+  accommodation?: {
+    id: number
+    cell: {
+      id: number
+      cell_number: number
+      type: string
+      room: { id: number; room_number: number }
+    }
+  } | null
   registered_at: string
 }
 
@@ -218,6 +230,15 @@ export interface EventDashboardStats {
     absent: number
     attendance_percentage: number
   }
+  accommodation?: {
+    enabled: boolean
+    total_rooms?: number
+    total_capacity?: number
+    total_member_capacity?: number
+    approved_reservations?: number
+    accommodated?: number
+    not_accommodated?: number
+  }
 }
 
 export interface EventViewEntry {
@@ -269,6 +290,12 @@ export interface Event {
   classe: { id: number; name: string } | null
   class_id: number | null
   creator: { id: number; name: string } | null
+  responsible_servant_id?: number | null
+  responsible_servant?: { id: number; name: string; phone: string | null; avatar: string | null } | null
+  has_accommodation?: boolean
+  rooms_count?: number
+  total_capacity?: number
+  total_member_capacity?: number
   view_count?: number
   views?: EventViewEntry[]
   created_at: string
@@ -609,4 +636,44 @@ export interface StageLeaderboard {
     name: string
     leaderboard: LeaderboardEntry[]
   }[]
+}
+
+export interface EventRoom {
+  id: number
+  event_id: number
+  room_number: number
+  capacity: number
+  member_capacity: number
+  is_active: boolean
+  total_cells?: number
+  occupied_cells?: number
+  available_cells?: number
+  cells?: EventRoomCell[]
+  created_at: string
+}
+
+export interface EventRoomCell {
+  id: number
+  room_id: number
+  cell_number: number
+  type: 'servant_reserved' | 'member'
+  type_label: string
+  is_available: boolean
+  accommodation?: {
+    id: number
+    registration_id: number
+    user: { id: number; name: string }
+  } | null
+}
+
+export interface EventAccommodationDashboard {
+  total_rooms: number
+  total_capacity: number
+  servant_capacity: number
+  member_capacity: number
+  approved_reservations: number
+  accommodated: number
+  not_accommodated: number
+  occupied_member_cells: number
+  available_member_cells: number
 }

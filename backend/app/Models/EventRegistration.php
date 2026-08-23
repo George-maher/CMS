@@ -29,12 +29,16 @@ use Illuminate\Support\Str;
  * @property int|null $checked_in_by
  * @property string $qr_token
  * @property string|null $notes
+ * @property string|null $medical_notes
+ * @property string|null $booking_with
+ * @property string|null $rejection_reason
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read Event $event
  * @property-read User $user
  * @property-read User|null $registrar
  * @property-read EventBus|null $bus
+ * @property-read EventAccommodation|null $accommodation
  * @property-read Collection<int, EventPayment> $payments
  * @property-read int|null $payments_count
  */
@@ -56,6 +60,9 @@ class EventRegistration extends Model
         'checked_in_by',
         'qr_token',
         'notes',
+        'medical_notes',
+        'booking_with',
+        'rejection_reason',
     ];
 
     protected function casts(): array
@@ -93,6 +100,12 @@ class EventRegistration extends Model
         return $this->belongsTo(EventBus::class, 'bus_id');
     }
 
+    /** @return BelongsTo<EventAccommodation, $this> */
+    public function accommodation(): BelongsTo
+    {
+        return $this->belongsTo(EventAccommodation::class);
+    }
+
     /** @return HasMany<EventPayment, $this> */
     public function payments(): HasMany
     {
@@ -111,7 +124,11 @@ class EventRegistration extends Model
      */
     public static function activeStatuses(): array
     {
-        return [RegistrationStatus::Pending->value, RegistrationStatus::Confirmed->value];
+        return [
+            RegistrationStatus::Pending->value,
+            RegistrationStatus::Confirmed->value,
+            RegistrationStatus::Approved->value,
+        ];
     }
 
     /**

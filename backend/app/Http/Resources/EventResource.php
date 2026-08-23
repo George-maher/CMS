@@ -107,6 +107,40 @@ class EventResource extends JsonResource
                 $this->relationLoaded('registrations') || $this->relationLoaded('buses'),
                 fn () => $this->registeredCount(),
             ),
+            'responsible_servant_id' => $this->when(
+                $this->isDetailView || $isAdminOrServant,
+                fn () => $this->responsible_servant_id,
+            ),
+            'responsible_servant' => $this->when(
+                ($this->isDetailView || $isAdminOrServant) && $this->relationLoaded('responsibleServant') && $this->responsibleServant !== null,
+                function () {
+                    /** @var User $servant */
+                    $servant = $this->responsibleServant;
+
+                    return [
+                        'id' => $servant->id,
+                        'name' => $servant->name,
+                        'phone' => $servant->phone ?? null,
+                        'avatar' => $servant->avatar ?? null,
+                    ];
+                },
+            ),
+            'has_accommodation' => $this->when(
+                $this->isDetailView || $isAdminOrServant,
+                fn () => $this->hasAccommodation(),
+            ),
+            'rooms_count' => $this->when(
+                ($this->isDetailView || $isAdminOrServant) && $this->hasAccommodation(),
+                fn () => $this->totalRooms(),
+            ),
+            'total_capacity' => $this->when(
+                ($this->isDetailView || $isAdminOrServant) && $this->hasAccommodation(),
+                fn () => $this->totalCapacity(),
+            ),
+            'total_member_capacity' => $this->when(
+                ($this->isDetailView || $isAdminOrServant) && $this->hasAccommodation(),
+                fn () => $this->totalMemberCapacity(),
+            ),
             'available_spaces' => $this->when(
                 $this->isDetailView || $isAdminOrServant,
                 fn () => $this->availableSpaces() === -1 ? null : $this->availableSpaces(),

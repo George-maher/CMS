@@ -11,6 +11,7 @@ import EventPaymentsTab from '@/components/events/EventPaymentsTab'
 import EventBusesTab from '@/components/events/EventBusesTab'
 import EventScheduleTab from '@/components/events/EventScheduleTab'
 import EventCheckInTab from '@/components/events/EventCheckInTab'
+import EventAccommodationTab from '@/components/events/EventAccommodationTab'
 import { eventStatusVariant, eventStatusLabelKey } from '@/components/events/eventStatus'
 import {
   cancelEvent,
@@ -27,7 +28,7 @@ import type { Event, EventDashboardStats } from '@/types'
 import { useAuth } from '@/hooks/useAuth'
 import { logCatch } from '@/lib/debug'
 
-type Tab = 'overview' | 'participants' | 'payments' | 'buses' | 'schedule' | 'checkin'
+type Tab = 'overview' | 'participants' | 'payments' | 'buses' | 'schedule' | 'checkin' | 'accommodation'
 
 const tabs: { key: Tab; labelKey: string }[] = [
   { key: 'overview', labelKey: 'eventMgmt.tabOverview' },
@@ -36,6 +37,7 @@ const tabs: { key: Tab; labelKey: string }[] = [
   { key: 'buses', labelKey: 'eventMgmt.tabBuses' },
   { key: 'schedule', labelKey: 'eventMgmt.tabSchedule' },
   { key: 'checkin', labelKey: 'eventMgmt.tabCheckIn' },
+  { key: 'accommodation', labelKey: 'eventMgmt.tabAccommodation' },
 ]
 
 export default function EventDetail() {
@@ -76,8 +78,8 @@ export default function EventDetail() {
     void Promise.resolve().then(fetchAll)
   }, [fetchAll])
 
-  // Derive the effective tab: schedule only exists for conferences.
-  const activeTab: Tab = tab === 'schedule' && !isConference ? 'overview' : tab
+  // Derive the effective tab: schedule only exists for conferences, accommodation only for conference/trip.
+  const activeTab: Tab = tab === 'schedule' && !isConference ? 'overview' : tab === 'accommodation' && !event?.has_accommodation ? 'overview' : tab
 
   const runLifecycle = async (action: () => Promise<Event>, successMsg: string) => {
     setBusy(true)
@@ -182,6 +184,7 @@ export default function EventDetail() {
           {tabs
             .filter((tb) => (tb.key === 'buses' ? isTrip : true))
             .filter((tb) => (tb.key === 'schedule' ? isConference : true))
+            .filter((tb) => (tb.key === 'accommodation' ? event?.has_accommodation : true))
             .map((tb) => (
               <button
                 key={tb.key}
@@ -203,6 +206,7 @@ export default function EventDetail() {
       {activeTab === 'buses' && isTrip ? <EventBusesTab eventId={eventId} /> : null}
       {activeTab === 'schedule' && isConference ? <EventScheduleTab eventId={eventId} /> : null}
       {activeTab === 'checkin' ? <EventCheckInTab eventId={eventId} /> : null}
+      {activeTab === 'accommodation' && event?.has_accommodation ? <EventAccommodationTab eventId={eventId} /> : null}
 
       {/* Reports */}
       {canManage ? (

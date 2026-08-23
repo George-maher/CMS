@@ -1,9 +1,11 @@
 import type {
   Event,
+  EventAccommodationDashboard,
   EventBusItem,
   EventDashboardStats,
   EventPayment,
   EventRegistration,
+  EventRoom,
   EventSession,
   EventSpeaker,
   PaginationMeta,
@@ -214,4 +216,87 @@ export async function duplicateEvent(id: number): Promise<Event> {
 export function reportUrl(eventId: number, type: 'participants' | 'financial' | 'attendance'): string {
   const base = client.defaults.baseURL ?? '/api/v1'
   return `${base}/events/${eventId}/reports/${type}`
+}
+
+/*
+ | Reservations — approve / reject
+ */
+
+export async function approveReservation(eventId: number, regId: number): Promise<EventRegistration> {
+  const { data } = await client.post<{ data: EventRegistration }>(`/events/${eventId}/registrations/${regId}/approve`)
+  return data.data
+}
+
+export async function rejectReservation(eventId: number, regId: number, reason?: string): Promise<EventRegistration> {
+  const { data } = await client.post<{ data: EventRegistration }>(`/events/${eventId}/registrations/${regId}/reject`, { reason })
+  return data.data
+}
+
+/*
+ | Accommodation — rooms, cells, assignments
+ */
+
+export async function getAccommodationDashboard(eventId: number): Promise<EventAccommodationDashboard> {
+  const { data } = await client.get<{ data: EventAccommodationDashboard }>(`/events/${eventId}/accommodation/dashboard`)
+  return data.data
+}
+
+export async function listRooms(
+  eventId: number,
+  params?: Record<string, string | number | boolean>,
+): Promise<{ data: EventRoom[]; meta: PaginationMeta }> {
+  const { data } = await client.get(`/events/${eventId}/accommodation/rooms`, { params })
+  return data
+}
+
+export async function getRoom(eventId: number, roomId: number): Promise<EventRoom> {
+  const { data } = await client.get<{ data: EventRoom }>(`/events/${eventId}/accommodation/rooms/${roomId}`)
+  return data.data
+}
+
+export async function createRooms(
+  eventId: number,
+  roomGroups: { count: number; capacity: number }[],
+): Promise<{ rooms_created: number; cells_created: number; total_capacity: number; member_capacity: number }> {
+  const { data } = await client.post<{ data: { rooms_created: number; cells_created: number; total_capacity: number; member_capacity: number } }>(
+    `/events/${eventId}/accommodation/rooms`,
+    { room_groups: roomGroups },
+  )
+  return data.data
+}
+
+export async function updateRoom(
+  eventId: number,
+  roomId: number,
+  payload: { capacity?: number; is_active?: boolean },
+): Promise<EventRoom> {
+  const { data } = await client.put<{ data: EventRoom }>(`/events/${eventId}/accommodation/rooms/${roomId}`, payload)
+  return data.data
+}
+
+export async function deleteRoom(eventId: number, roomId: number): Promise<void> {
+  await client.delete(`/events/${eventId}/accommodation/rooms/${roomId}`)
+}
+
+export async function assignAccommodation(
+  eventId: number,
+  registrationId: number,
+  cellId: number,
+): Promise<void> {
+  await client.post(`/events/${eventId}/accommodation/assign`, {
+    registration_id: registrationId,
+    cell_id: cellId,
+  })
+}
+
+export async function removeAccommodation(eventId: number, registrationId: number): Promise<void> {
+  await client.delete(`/events/${eventId}/accommodation/registrations/${registrationId}`)
+}
+
+export async function listUnaccommodated(
+  eventId: number,
+  params?: Record<string, string | number | boolean>,
+): Promise<{ data: EventRegistration[]; meta: PaginationMeta }> {
+  const { data } = await client.get(`/events/${eventId}/accommodation/unaccommodated`, { params })
+  return data
 }

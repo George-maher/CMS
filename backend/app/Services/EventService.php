@@ -8,8 +8,12 @@ use App\Contracts\NotificationServiceInterface;
 use App\Enums\UserRole;
 use App\Http\Resources\EventResource;
 use App\Models\Event;
+use App\Models\EventBus;
+use App\Models\EventRoom;
+use App\Models\EventRoomCell;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class EventService implements EventServiceInterface
@@ -82,7 +86,7 @@ class EventService implements EventServiceInterface
         }
 
         if ($userRole && in_array($userRole, [UserRole::Admin->value, UserRole::AssistantAdmin->value, UserRole::Servant->value], true)) {
-            $event->load(['views.user.classe', 'targets.classe']);
+            $event->load(['views.user.classe', 'targets.classe', 'responsibleServant', 'rooms.cells.accommodation.registration.user']);
         }
 
         $resource = new EventResource($event);
@@ -108,20 +112,109 @@ class EventService implements EventServiceInterface
             }
         }
 
+        // Extract bulk configuration before creating event
+        /** @var array<int, array{count: int, capacity: int}>|null $roomGroups */
+        $roomGroups = $data['room_groups'] ?? null;
+        /** @var array<int, array{capacity: int}>|null $busConfig */
+        $busConfig = $data['bus_config'] ?? null;
+        unset($data['room_groups'], $data['bus_config']);
+
         /** @var array<string, mixed> $createData */
         $createData = [
             ...$data,
             'created_by' => $creatorId,
         ];
-        $event = $this->eventRepository->create($createData);
+
+        $event = DB::transaction(function () use ($createData, $roomGroups, $busConfig) {
+            /** @var Event $event */
+            $event = $this->eventRepository->create($createData);
+
+            if (! empty($roomGroups)) {
+                $this->bulkCreateRooms($event, $roomGroups);
+            }
+
+            if (! empty($busConfig)) {
+                $this->bulkCreateBuses($event, $busConfig);
+            }
+
+            return $event;
+        });
 
         $this->sendEventNotifications($event);
 
         $this->cacheService->invalidateEvents($event->church_id);
 
         return [
-            'data' => new EventResource($event->load(['creator', 'classe', 'targets.classe'])),
+            'data' => new EventResource($event->load(['creator', 'classe', 'targets.classe', 'responsibleServant'])),
         ];
+    }
+
+    /**
+     * Bulk-create rooms and cells from room group definitions.
+     *
+     * @param  array<int, array{count: int, capacity: int}>  $roomGroups
+     */
+    private function bulkCreateRooms(Event $event, array $roomGroups): void
+    {
+        $roomNumber = 1;
+
+        foreach ($roomGroups as $group) {
+            $count = (int) $group['count'];
+            $capacity = (int) $group['capacity'];
+            $memberCapacity = $capacity - 1; // 1 cell reserved for servant
+
+            for ($i = 0; $i < $count; $i++) {
+                /** @var EventRoom $room */
+                $room = EventRoom::create([
+                    'event_id' => $event->id,
+                    'room_number' => $roomNumber,
+                    'capacity' => $capacity,
+                    'member_capacity' => max(0, $memberCapacity),
+                ]);
+
+                // Create servant-reserved cell (cell_number 1)
+                EventRoomCell::create([
+                    'room_id' => $room->id,
+                    'cell_number' => 1,
+                    'type' => 'servant_reserved',
+                    'is_available' => false,
+                ]);
+
+                // Create member cells
+                for ($c = 2; $c <= $capacity; $c++) {
+                    EventRoomCell::create([
+                        'room_id' => $room->id,
+                        'cell_number' => $c,
+                        'type' => 'member',
+                        'is_available' => true,
+                    ]);
+                }
+
+                $roomNumber++;
+            }
+        }
+    }
+
+    /**
+     * Bulk-create buses from config.
+     *
+     * @param  array<int, array{capacity: int}>  $busConfig
+     */
+    private function bulkCreateBuses(Event $event, array $busConfig): void
+    {
+        $busNumber = 1;
+
+        foreach ($busConfig as $bus) {
+            $capacity = (int) $bus['capacity'];
+
+            EventBus::create([
+                'event_id' => $event->id,
+                'bus_number' => (string) $busNumber,
+                'capacity' => $capacity,
+            ]);
+
+            $busNumber++;
+        }
     }
 
     private function sendEventNotifications(Event $event): void

@@ -8,12 +8,14 @@ import type { Column } from '@/components/common/DataTable'
 import type { EventBusItem, EventRegistration, User } from '@/types'
 import {
   addParticipant,
+  approveReservation,
   assignBus,
   cancelRegistration,
   checkIn,
   confirmRegistration,
   listBuses,
   listRegistrations,
+  rejectReservation,
   removeRegistration,
   undoCheckIn,
   waitlistRegistration,
@@ -159,6 +161,9 @@ export default function EventParticipantsTab({ eventId, isTrip }: Props) {
           render: (r: EventRegistration) => r.bus?.bus_number ?? '-',
         } satisfies Column<EventRegistration>]
       : []),
+    { key: 'accommodation', header: t('eventMgmt.accommodation'), render: (r) => r.accommodation ? (
+      <Badge variant="success">Room {r.accommodation.cell.room.room_number} / Cell {r.accommodation.cell.cell_number}</Badge>
+    ) : <span className="text-xs text-secondary">-</span> },
     { key: 'registered_at', header: t('eventMgmt.registeredAt'), render: (r) => new Date(r.registered_at).toLocaleDateString() },
   ]
 
@@ -177,6 +182,8 @@ export default function EventParticipantsTab({ eventId, isTrip }: Props) {
             <option value="">{t('eventMgmt.allStatuses')}</option>
             <option value="pending">{t('eventMgmt.reg_pending')}</option>
             <option value="confirmed">{t('eventMgmt.reg_confirmed')}</option>
+            <option value="approved">{t('eventMgmt.reg_approved')}</option>
+            <option value="rejected">{t('eventMgmt.reg_rejected')}</option>
             <option value="waitlisted">{t('eventMgmt.reg_waitlisted')}</option>
             <option value="cancelled">{t('eventMgmt.reg_cancelled')}</option>
           </select>
@@ -205,6 +212,12 @@ export default function EventParticipantsTab({ eventId, isTrip }: Props) {
                 ))}
                 <td className="px-3 py-2.5">
                   <div className="flex flex-wrap justify-end gap-1">
+                    {r.status === 'pending' ? (
+                      <>
+                        <button onClick={() => runAction(() => approveReservation(eventId, r.id), t('eventMgmt.approved'))} className="btn-icon btn-ghost text-green-500" title={t('eventMgmt.approve')}>✓</button>
+                        <button onClick={() => runAction(() => rejectReservation(eventId, r.id), t('eventMgmt.rejected'))} className="btn-icon btn-ghost text-red-500" title={t('eventMgmt.reject')}>✕</button>
+                      </>
+                    ) : null}
                     {r.status === 'pending' || r.status === 'waitlisted' ? (
                       <button onClick={() => runAction(() => confirmRegistration(eventId, r.id), t('eventMgmt.confirmed'))} className="btn-icon btn-ghost" title={t('eventMgmt.confirm')}>✓</button>
                     ) : null}

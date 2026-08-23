@@ -14,12 +14,16 @@ import type { Column } from '@/components/common/DataTable'
 import type { Event } from '@/types'
 import { listEvents, getEvent, createEvent, updateEvent, deleteEvent } from '@/api/events'
 import { listAllClasses } from '@/api/structure'
+import { getServants } from '@/api/users'
 import { logCatch } from '@/lib/debug'
 import { eventStatusVariant, eventStatusLabelKey } from '@/components/events/eventStatus'
 
-interface EventForm { name: string; type: string; image: string | File; description: string; event_date: string; location: string; class_id: string; is_active: boolean; is_all_classes: boolean; target_class_ids: number[] }
+interface RoomGroup { count: number; capacity: number }
+interface BusConfig { count: number; capacity: number }
 
-const emptyForm: EventForm = { name: '', type: 'service', image: '', description: '', event_date: '', location: '', class_id: '', is_active: true, is_all_classes: false, target_class_ids: [] }
+interface EventForm { name: string; type: string; image: string | File; description: string; event_date: string; location: string; class_id: string; is_active: boolean; is_all_classes: boolean; target_class_ids: number[]; responsible_servant_id: string; room_groups: RoomGroup[]; bus_config: BusConfig[] }
+
+const emptyForm: EventForm = { name: '', type: 'service', image: '', description: '', event_date: '', location: '', class_id: '', is_active: true, is_all_classes: false, target_class_ids: [], responsible_servant_id: '', room_groups: [], bus_config: [] }
 
 export default function AdminEvents() {
   const { t } = useTranslation()
@@ -50,6 +54,7 @@ export default function AdminEvents() {
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState<Event | null>(null)
   const [classes, setClasses] = useState<{ id: number; name: string }[]>([])
+  const [servants, setServants] = useState<{ id: number; name: string }[]>([])
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
   const [form, setForm] = useState<EventForm>(emptyForm)
@@ -68,6 +73,7 @@ export default function AdminEvents() {
       .then((res) => { setEvents(res.data); setMeta(res.meta) })
       .finally(() => setLoading(false))
     listAllClasses().then(setClasses).catch((e) => logCatch('AdminEvents.listAllClasses', e))
+    getServants().then(setServants).catch((e) => logCatch('AdminEvents.getServants', e))
   }, [])
 
   const fetch = async (page = 1) => {
@@ -84,7 +90,21 @@ export default function AdminEvents() {
 
   const openEdit = (event: Event) => {
     setEditing(event)
-    setForm({ name: event.name, type: event.type, image: event.image ?? '', description: event.description ?? '', event_date: event.event_date ? event.event_date.slice(0, 16) : '', location: event.location ?? '', class_id: event.class_id?.toString() ?? '', is_active: event.is_active, is_all_classes: event.is_all_classes ?? false, target_class_ids: event.target_classes?.map(c => c.id) ?? [] })
+    setForm({
+      name: event.name,
+      type: event.type,
+      image: event.image ?? '',
+      description: event.description ?? '',
+      event_date: event.event_date ? event.event_date.slice(0, 16) : '',
+      location: event.location ?? '',
+      class_id: event.class_id?.toString() ?? '',
+      is_active: event.is_active,
+      is_all_classes: event.is_all_classes ?? false,
+      target_class_ids: event.target_classes?.map(c => c.id) ?? [],
+      responsible_servant_id: event.responsible_servant_id?.toString() ?? '',
+      room_groups: [],
+      bus_config: [],
+    })
     setSaveError(''); setShowModal(true)
   }
 
@@ -100,6 +120,15 @@ export default function AdminEvents() {
       if (form.event_date) payload.event_date = new Date(form.event_date).toISOString()
       if (form.image instanceof File) { payload.image = form.image }
       else if (editing && (form.image === '' || form.image === null)) { payload.remove_image = true }
+      if (['conference', 'trip'].includes(form.type) && form.responsible_servant_id) {
+        payload.responsible_servant_id = Number(form.responsible_servant_id)
+      }
+      if (form.type === 'conference' && !editing && form.room_groups.length > 0) {
+        payload.room_groups = form.room_groups
+      }
+      if (form.type === 'trip' && !editing && form.bus_config.length > 0) {
+        payload.bus_config = form.bus_config
+      }
       if (editing) { await updateEvent(editing.id, payload) } else { await createEvent(payload) }
       setShowModal(false); fetch(); toast.success(editing ? t('common.update') : t('common.create'))
     } catch (err: unknown) {
@@ -169,6 +198,7 @@ export default function AdminEvents() {
             <input placeholder={t('events.eventName')} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="input-field" />
             <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} className="input-field">
               <option value="service">{t('events.type_service')}</option>
+              <option value="conference">{t('events.type_conference')}</option>
               <option value="trip">{t('events.type_trip')}</option>
               <option value="meeting">{t('events.type_meeting')}</option>
               <option value="other">{t('events.type_other')}</option>
@@ -208,6 +238,53 @@ export default function AdminEvents() {
             <input type="checkbox" checked={form.is_active} onChange={(e) => setForm({ ...form, is_active: e.target.checked })} />
             {t('common.active')}
           </label>
+          {['conference', 'trip'].includes(form.type) && (
+            <div>
+              <label className="block text-sm font-medium mb-1">{t('eventMgmt.tabOverview')} - {t('events.createdBy')}</label>
+              <select value={form.responsible_servant_id} onChange={(e) => setForm({ ...form, responsible_servant_id: e.target.value })} className="input-field">
+                <option value="">--</option>
+                {servants.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+            </div>
+          )}
+          {form.type === 'conference' && !editing && (
+            <div className="space-y-2">
+              <label className="block text-sm font-medium">{t('eventMgmt.tabAccommodation')} - {t('eventMgmt.addRooms')}</label>
+              {form.room_groups.map((group, idx) => (
+                <div key={idx} className="flex gap-2 items-center">
+                  <input type="number" min={1} placeholder={t('eventMgmt.numberOfRooms')} value={group.count || ''}
+                    onChange={(e) => { const g = [...form.room_groups]; g[idx] = { ...g[idx], count: Number(e.target.value) }; setForm({ ...form, room_groups: g }) }}
+                    className="input-field flex-1" />
+                  <input type="number" min={1} placeholder={t('eventMgmt.capacityPerRoom')} value={group.capacity || ''}
+                    onChange={(e) => { const g = [...form.room_groups]; g[idx] = { ...g[idx], capacity: Number(e.target.value) }; setForm({ ...form, room_groups: g }) }}
+                    className="input-field flex-1" />
+                  <button type="button" onClick={() => setForm({ ...form, room_groups: form.room_groups.filter((_, i) => i !== idx) })}
+                    className="btn-icon btn-ghost text-red-500">✕</button>
+                </div>
+              ))}
+              <button type="button" onClick={() => setForm({ ...form, room_groups: [...form.room_groups, { count: 1, capacity: 6 }] })}
+                className="text-sm text-primary hover:underline">+ {t('eventMgmt.addRoomGroup')}</button>
+            </div>
+          )}
+          {form.type === 'trip' && !editing && (
+            <div className="space-y-2">
+              <label className="block text-sm font-medium">{t('eventMgmt.tabBuses')} - {t('eventMgmt.addBus')}</label>
+              {form.bus_config.map((group, idx) => (
+                <div key={idx} className="flex gap-2 items-center">
+                  <input type="number" min={1} placeholder={t('eventMgmt.numberOfRooms')} value={group.count || ''}
+                    onChange={(e) => { const g = [...form.bus_config]; g[idx] = { ...g[idx], count: Number(e.target.value) }; setForm({ ...form, bus_config: g }) }}
+                    className="input-field flex-1" />
+                  <input type="number" min={1} placeholder={t('eventMgmt.seats')} value={group.capacity || ''}
+                    onChange={(e) => { const g = [...form.bus_config]; g[idx] = { ...g[idx], capacity: Number(e.target.value) }; setForm({ ...form, bus_config: g }) }}
+                    className="input-field flex-1" />
+                  <button type="button" onClick={() => setForm({ ...form, bus_config: form.bus_config.filter((_, i) => i !== idx) })}
+                    className="btn-icon btn-ghost text-red-500">✕</button>
+                </div>
+              ))}
+              <button type="button" onClick={() => setForm({ ...form, bus_config: [...form.bus_config, { count: 1, capacity: 20 }] })}
+                className="text-sm text-primary hover:underline">+ {t('eventMgmt.addBus')}</button>
+            </div>
+          )}
           {saveError && <div className="rounded-lg bg-red-50 dark:bg-red-900/20 p-3 text-sm text-red-600 dark:text-red-400">{saveError}</div>}
         </div>
       </Modal>

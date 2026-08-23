@@ -2,6 +2,8 @@
 
 namespace App\Http\Resources;
 
+use App\Enums\UserRole;
+use App\Models\EventAccommodation;
 use App\Models\EventBus;
 use App\Models\EventRegistration;
 use App\Models\User;
@@ -59,6 +61,42 @@ class EventRegistrationResource extends JsonResource
                 fn () => $this->qr_token,
             ),
             'notes' => $this->notes,
+            'booking_with' => $this->when(
+                $currentUser !== null && in_array($currentUser->role, [UserRole::Admin, UserRole::AssistantAdmin, UserRole::Servant], true),
+                fn () => $this->booking_with,
+            ),
+            // Medical notes are ONLY visible to the participant and authorized management.
+            'medical_notes' => $this->when(
+                $currentUser !== null && (
+                    $currentUser->getAuthIdentifier() === $this->user_id
+                    || in_array($currentUser->role, [UserRole::Admin, UserRole::AssistantAdmin], true)
+                ),
+                fn () => $this->medical_notes,
+            ),
+            'rejection_reason' => $this->when(
+                $currentUser !== null && $currentUser->getAuthIdentifier() === $this->user_id,
+                fn () => $this->rejection_reason,
+            ),
+            'accommodation' => $this->when(
+                $this->relationLoaded('accommodation') && $this->accommodation !== null,
+                function (): array {
+                    /** @var EventAccommodation $acc */
+                    $acc = $this->accommodation;
+
+                    return [
+                        'id' => $acc->id,
+                        'cell' => [
+                            'id' => $acc->cell->id,
+                            'cell_number' => $acc->cell->cell_number,
+                            'type' => $acc->cell->type,
+                            'room' => [
+                                'id' => $acc->cell->room->id,
+                                'room_number' => $acc->cell->room->room_number,
+                            ],
+                        ],
+                    ];
+                },
+            ),
             'registered_at' => $this->created_at?->toISOString(),
         ];
     }

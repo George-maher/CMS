@@ -9,12 +9,14 @@ use App\Http\Controllers\Api\ChurchDeletionController;
 use App\Http\Controllers\Api\ClasseController;
 use App\Http\Controllers\Api\DailyVerseController;
 use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\EventAccommodationController;
 use App\Http\Controllers\Api\EventAnalyticsController;
 use App\Http\Controllers\Api\EventBusController;
 use App\Http\Controllers\Api\EventController;
 use App\Http\Controllers\Api\EventDashboardController;
 use App\Http\Controllers\Api\EventPaymentController;
 use App\Http\Controllers\Api\EventRegistrationController;
+use App\Http\Controllers\Api\EventReservationController;
 use App\Http\Controllers\Api\EventScheduleController;
 use App\Http\Controllers\Api\FeedbackController;
 use App\Http\Controllers\Api\LeaderboardController;
@@ -432,6 +434,38 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'approval', 'throttle:api'])->g
             ->middleware('throttle:event-crud');
         Route::delete('/events/{id}/buses/{busId}', [EventBusController::class, 'destroy'])
             ->middleware('throttle:event-crud');
+
+        /*
+        | Event Reservations — approve / reject
+        */
+        Route::post('/events/{id}/registrations/{regId}/approve', [EventReservationController::class, 'approve'])
+            ->middleware('throttle:event-crud');
+        Route::post('/events/{id}/registrations/{regId}/reject', [EventReservationController::class, 'reject'])
+            ->middleware('throttle:event-crud');
+
+        /*
+        | Event Accommodation — rooms, cells, assignments
+        */
+        Route::get('/events/{id}/accommodation/dashboard', [EventAccommodationController::class, 'dashboard'])
+            ->middleware('throttle:event-read');
+        Route::get('/events/{id}/accommodation/rooms', [EventAccommodationController::class, 'roomsIndex'])
+            ->middleware('throttle:event-read');
+        Route::post('/events/{id}/accommodation/rooms', [EventAccommodationController::class, 'roomsStore'])
+            ->middleware('throttle:event-crud');
+        Route::get('/events/{id}/accommodation/rooms/{roomId}', [EventAccommodationController::class, 'roomsShow'])
+            ->middleware('throttle:event-read');
+        Route::put('/events/{id}/accommodation/rooms/{roomId}', [EventAccommodationController::class, 'roomsUpdate'])
+            ->middleware('throttle:event-crud');
+        Route::patch('/events/{id}/accommodation/rooms/{roomId}', [EventAccommodationController::class, 'roomsUpdate'])
+            ->middleware('throttle:event-crud');
+        Route::delete('/events/{id}/accommodation/rooms/{roomId}', [EventAccommodationController::class, 'roomsDestroy'])
+            ->middleware('throttle:event-crud');
+        Route::post('/events/{id}/accommodation/assign', [EventAccommodationController::class, 'assign'])
+            ->middleware('throttle:event-crud');
+        Route::delete('/events/{id}/accommodation/registrations/{regId}', [EventAccommodationController::class, 'removeAccommodation'])
+            ->middleware('throttle:event-crud');
+        Route::get('/events/{id}/accommodation/unaccommodated', [EventAccommodationController::class, 'unaccommodated'])
+            ->middleware('throttle:event-read');
     });
 
     /*

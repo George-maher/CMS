@@ -10,7 +10,10 @@ use App\Enums\RegistrationStatus;
 use App\Enums\UserRole;
 use App\Models\Church;
 use App\Models\Event;
+use App\Models\EventAccommodation;
 use App\Models\EventRegistration;
+use App\Models\EventRoom;
+use App\Models\EventRoomCell;
 use App\Models\Permission;
 use App\Models\User;
 use Database\Seeders\PermissionSeeder;
@@ -393,5 +396,399 @@ class EventManagementTest extends TestCase
         $this->actAs($admin)
             ->postJson("/api/v1/events/{$event->id}/registrations", ['user_id' => $member->id])
             ->assertStatus(422);
+    }
+
+    public function test_admin_can_approve_and_reject_reservation(): void
+    {
+        $church = Church::factory()->create();
+        $event = Event::factory()->create(['church_id' => $church->id, 'status' => EventStatus::Open->value]);
+        $admin = $this->makeUser($church, UserRole::Admin);
+        $member = $this->makeUser($church, UserRole::Member);
+
+        $registration = EventRegistration::factory()->create([
+            'event_id' => $event->id,
+            'user_id' => $member->id,
+            'status' => RegistrationStatus::Pending->value,
+        ]);
+
+        // Approve
+        $this->actAs($admin)
+            ->postJson("/api/v1/events/{$event->id}/registrations/{$registration->id}/approve")
+            ->assertStatus(200)
+            ->assertJsonPath('data.status', RegistrationStatus::Approved->value);
+
+        // Reject
+        $registration2 = EventRegistration::factory()->create([
+            'event_id' => $event->id,
+            'user_id' => $this->makeUser($church, UserRole::Member)->id,
+            'status' => RegistrationStatus::Pending->value,
+        ]);
+
+        $this->actAs($admin)
+            ->postJson("/api/v1/events/{$event->id}/registrations/{$registration2->id}/reject", [
+                'reason' => 'Duplicate registration',
+            ])
+            ->assertStatus(200)
+            ->assertJsonPath('data.status', RegistrationStatus::Rejected->value);
+
+        $this->assertDatabaseHas('event_registrations', [
+            'id' => $registration2->id,
+            'status' => RegistrationStatus::Rejected->value,
+            'rejection_reason' => 'Duplicate registration',
+        ]);
+    }
+
+    public function test_only_approved_registrations_can_be_approved(): void
+    {
+        $church = Church::factory()->create();
+        $event = Event::factory()->create(['church_id' => $church->id]);
+        $admin = $this->makeUser($church, UserRole::Admin);
+
+        $confirmed = EventRegistration::factory()->create([
+            'event_id' => $event->id,
+            'user_id' => $this->makeUser($church, UserRole::Member)->id,
+            'status' => RegistrationStatus::Confirmed->value,
+        ]);
+
+        $this->actAs($admin)
+            ->postJson("/api/v1/events/{$event->id}/registrations/{$confirmed->id}/approve")
+            ->assertStatus(422);
+    }
+
+    public function test_responsible_servant_can_approve_reservations(): void
+    {
+        $church = Church::factory()->create();
+        $servant = $this->makeUser($church, UserRole::Servant);
+        $event = Event::factory()->create([
+            'church_id' => $church->id,
+            'status' => EventStatus::Open->value,
+            'responsible_servant_id' => $servant->id,
+        ]);
+        $member = $this->makeUser($church, UserRole::Member);
+
+        $registration = EventRegistration::factory()->create([
+            'event_id' => $event->id,
+            'user_id' => $member->id,
+            'status' => RegistrationStatus::Pending->value,
+        ]);
+
+        $this->actAs($servant)
+            ->postJson("/api/v1/events/{$event->id}/registrations/{$registration->id}/approve")
+            ->assertStatus(200)
+            ->assertJsonPath('data.status', RegistrationStatus::Approved->value);
+    }
+
+    public function test_non_responsible_servant_cannot_approve_reservations(): void
+    {
+        $church = Church::factory()->create();
+        $otherServant = $this->makeUser($church, UserRole::Servant);
+        $event = Event::factory()->create(['church_id' => $church->id]);
+        $member = $this->makeUser($church, UserRole::Member);
+
+        $registration = EventRegistration::factory()->create([
+            'event_id' => $event->id,
+            'user_id' => $member->id,
+            'status' => RegistrationStatus::Pending->value,
+        ]);
+
+        $this->actAs($otherServant)
+            ->postJson("/api/v1/events/{$event->id}/registrations/{$registration->id}/approve")
+            ->assertStatus(422);
+    }
+
+    public function test_admin_can_create_conference_with_rooms(): void
+    {
+        $church = Church::factory()->create();
+        $admin = $this->makeUser($church, UserRole::Admin);
+
+        $response = $this->actAs($admin)
+            ->postJson('/api/v1/events', [
+                'name' => 'Annual Conference',
+                'type' => EventType::Conference->value,
+                'is_active' => true,
+                'event_date' => now()->addDays(30)->toDateString(),
+                'room_groups' => [
+                    ['count' => 2, 'capacity' => 5],
+                    ['count' => 1, 'capacity' => 3],
+                ],
+            ]);
+
+        $response->assertStatus(201);
+
+        $eventId = $response->json('data.id');
+
+        // 3 rooms created (2 + 1)
+        $this->assertDatabaseCount('event_rooms', 3);
+        // 2 rooms * 5 cells + 1 room * 3 cells = 13 cells
+        $this->assertDatabaseCount('event_room_cells', 13);
+
+        // Check servant cells exist (1 per room)
+        $servantCells = EventRoomCell::query()
+            ->whereHas('room', fn ($q) => $q->where('event_id', $eventId))
+            ->where('type', 'servant_reserved')
+            ->count();
+        $this->assertSame(3, $servantCells);
+    }
+
+    public function test_bulk_room_creation_via_event_create(): void
+    {
+        $church = Church::factory()->create();
+        $admin = $this->makeUser($church, UserRole::Admin);
+
+        $this->actAs($admin)
+            ->postJson('/api/v1/events', [
+                'name' => 'Test Conference',
+                'type' => EventType::Conference->value,
+                'is_active' => true,
+                'room_groups' => [
+                    ['count' => 1, 'capacity' => 6],
+                ],
+            ])
+            ->assertStatus(201);
+
+        $this->assertDatabaseCount('event_rooms', 1);
+        // 1 servant + 5 member cells
+        $this->assertDatabaseCount('event_room_cells', 6);
+    }
+
+    public function test_accommodation_assign_and_remove(): void
+    {
+        $church = Church::factory()->create();
+        $admin = $this->makeUser($church, UserRole::Admin);
+        $event = Event::factory()->create(['church_id' => $church->id]);
+        $member = $this->makeUser($church, UserRole::Member);
+
+        // Create room with cells manually
+        $room = EventRoom::create([
+            'event_id' => $event->id,
+            'room_number' => 1,
+            'capacity' => 3,
+            'member_capacity' => 2,
+        ]);
+
+        $servantCell = EventRoomCell::create([
+            'room_id' => $room->id,
+            'cell_number' => 1,
+            'type' => 'servant_reserved',
+            'is_available' => false,
+        ]);
+
+        $memberCell = EventRoomCell::create([
+            'room_id' => $room->id,
+            'cell_number' => 2,
+            'type' => 'member',
+            'is_available' => true,
+        ]);
+
+        // Create approved registration
+        $registration = EventRegistration::factory()->create([
+            'event_id' => $event->id,
+            'user_id' => $member->id,
+            'status' => RegistrationStatus::Approved->value,
+        ]);
+
+        // Assign
+        $this->actAs($admin)
+            ->postJson("/api/v1/events/{$event->id}/accommodation/assign", [
+                'registration_id' => $registration->id,
+                'cell_id' => $memberCell->id,
+            ])
+            ->assertStatus(201);
+
+        $this->assertDatabaseHas('event_accommodations', [
+            'registration_id' => $registration->id,
+            'cell_id' => $memberCell->id,
+        ]);
+
+        // Cell now occupied
+        $this->assertDatabaseHas('event_room_cells', [
+            'id' => $memberCell->id,
+            'is_available' => false,
+        ]);
+
+        // Remove
+        $this->actAs($admin)
+            ->deleteJson("/api/v1/events/{$event->id}/accommodation/registrations/{$registration->id}")
+            ->assertStatus(200);
+
+        $this->assertDatabaseMissing('event_accommodations', [
+            'registration_id' => $registration->id,
+        ]);
+
+        // Cell released
+        $this->assertDatabaseHas('event_room_cells', [
+            'id' => $memberCell->id,
+            'is_available' => true,
+        ]);
+    }
+
+    public function test_duplicate_accommodation_is_prevented(): void
+    {
+        $church = Church::factory()->create();
+        $admin = $this->makeUser($church, UserRole::Admin);
+        $event = Event::factory()->create(['church_id' => $church->id]);
+        $member = $this->makeUser($church, UserRole::Member);
+
+        $room = EventRoom::create(['event_id' => $event->id, 'room_number' => 1, 'capacity' => 4, 'member_capacity' => 3]);
+        $cell1 = EventRoomCell::create(['room_id' => $room->id, 'cell_number' => 2, 'type' => 'member', 'is_available' => true]);
+        $cell2 = EventRoomCell::create(['room_id' => $room->id, 'cell_number' => 3, 'type' => 'member', 'is_available' => true]);
+
+        $registration = EventRegistration::factory()->create([
+            'event_id' => $event->id,
+            'user_id' => $member->id,
+            'status' => RegistrationStatus::Approved->value,
+        ]);
+
+        // First assignment
+        $this->actAs($admin)
+            ->postJson("/api/v1/events/{$event->id}/accommodation/assign", [
+                'registration_id' => $registration->id,
+                'cell_id' => $cell1->id,
+            ])
+            ->assertStatus(201);
+
+        // Duplicate assignment should fail
+        $this->actAs($admin)
+            ->postJson("/api/v1/events/{$event->id}/accommodation/assign", [
+                'registration_id' => $registration->id,
+                'cell_id' => $cell2->id,
+            ])
+            ->assertStatus(422);
+    }
+
+    public function test_cannot_assign_to_servant_cell(): void
+    {
+        $church = Church::factory()->create();
+        $admin = $this->makeUser($church, UserRole::Admin);
+        $event = Event::factory()->create(['church_id' => $church->id]);
+
+        $room = EventRoom::create(['event_id' => $event->id, 'room_number' => 1, 'capacity' => 3, 'member_capacity' => 2]);
+        $servantCell = EventRoomCell::create(['room_id' => $room->id, 'cell_number' => 1, 'type' => 'servant_reserved', 'is_available' => false]);
+
+        $registration = EventRegistration::factory()->create([
+            'event_id' => $event->id,
+            'user_id' => $this->makeUser($church, UserRole::Member)->id,
+            'status' => RegistrationStatus::Approved->value,
+        ]);
+
+        $this->actAs($admin)
+            ->postJson("/api/v1/events/{$event->id}/accommodation/assign", [
+                'registration_id' => $registration->id,
+                'cell_id' => $servantCell->id,
+            ])
+            ->assertStatus(422);
+    }
+
+    public function test_cross_church_accommodation_access_is_blocked(): void
+    {
+        $churchA = Church::factory()->create();
+        $churchB = Church::factory()->create();
+        $adminA = $this->makeUser($churchA, UserRole::Admin);
+        $eventB = Event::factory()->create(['church_id' => $churchB->id]);
+
+        $room = EventRoom::create(['event_id' => $eventB->id, 'room_number' => 1, 'capacity' => 3, 'member_capacity' => 2]);
+        $cell = EventRoomCell::create(['room_id' => $room->id, 'cell_number' => 2, 'type' => 'member', 'is_available' => true]);
+
+        $registration = EventRegistration::factory()->create([
+            'event_id' => $eventB->id,
+            'user_id' => $this->makeUser($churchB, UserRole::Member)->id,
+            'status' => RegistrationStatus::Approved->value,
+        ]);
+
+        // Admin A tries to assign accommodation on Church B's event
+        $this->actAs($adminA)
+            ->postJson("/api/v1/events/{$eventB->id}/accommodation/assign", [
+                'registration_id' => $registration->id,
+                'cell_id' => $cell->id,
+            ])
+            ->assertStatus(404);
+    }
+
+    public function test_only_approved_registrations_can_be_assigned_accommodation(): void
+    {
+        $church = Church::factory()->create();
+        $admin = $this->makeUser($church, UserRole::Admin);
+        $event = Event::factory()->create(['church_id' => $church->id]);
+
+        $room = EventRoom::create(['event_id' => $event->id, 'room_number' => 1, 'capacity' => 3, 'member_capacity' => 2]);
+        $cell = EventRoomCell::create(['room_id' => $room->id, 'cell_number' => 2, 'type' => 'member', 'is_available' => true]);
+
+        $pending = EventRegistration::factory()->create([
+            'event_id' => $event->id,
+            'user_id' => $this->makeUser($church, UserRole::Member)->id,
+            'status' => RegistrationStatus::Pending->value,
+        ]);
+
+        $this->actAs($admin)
+            ->postJson("/api/v1/events/{$event->id}/accommodation/assign", [
+                'registration_id' => $pending->id,
+                'cell_id' => $cell->id,
+            ])
+            ->assertStatus(422);
+    }
+
+    public function test_delete_room_with_occupants_is_blocked(): void
+    {
+        $church = Church::factory()->create();
+        $admin = $this->makeUser($church, UserRole::Admin);
+        $event = Event::factory()->create(['church_id' => $church->id]);
+
+        $room = EventRoom::create(['event_id' => $event->id, 'room_number' => 1, 'capacity' => 3, 'member_capacity' => 2]);
+        $cell = EventRoomCell::create(['room_id' => $room->id, 'cell_number' => 2, 'type' => 'member', 'is_available' => false]);
+
+        $registration = EventRegistration::factory()->create([
+            'event_id' => $event->id,
+            'user_id' => $this->makeUser($church, UserRole::Member)->id,
+            'status' => RegistrationStatus::Approved->value,
+        ]);
+
+        EventAccommodation::create([
+            'registration_id' => $registration->id,
+            'cell_id' => $cell->id,
+        ]);
+
+        $this->actAs($admin)
+            ->deleteJson("/api/v1/events/{$event->id}/accommodation/rooms/{$room->id}")
+            ->assertStatus(422);
+    }
+
+    public function test_responsible_servant_can_update_event(): void
+    {
+        $church = Church::factory()->create();
+        $servant = $this->makeUser($church, UserRole::Servant);
+        $event = Event::factory()->create([
+            'church_id' => $church->id,
+            'responsible_servant_id' => $servant->id,
+        ]);
+
+        $this->actAs($servant)
+            ->putJson("/api/v1/events/{$event->id}", [
+                'name' => 'Updated by servant',
+                'type' => EventType::Conference->value,
+                'is_active' => true,
+            ])
+            ->assertStatus(200);
+
+        $this->assertDatabaseHas('events', [
+            'id' => $event->id,
+            'name' => 'Updated by servant',
+        ]);
+    }
+
+    public function test_non_responsible_servant_cannot_update_event(): void
+    {
+        $church = Church::factory()->create();
+        $servant = $this->makeUser($church, UserRole::Servant);
+        $otherChurch = Church::factory()->create();
+        $otherEvent = Event::factory()->create(['church_id' => $otherChurch->id]);
+
+        // Servant from church A cannot see/update event of church B (404 via BelongsToChurch scope)
+        $this->actAs($servant)
+            ->putJson("/api/v1/events/{$otherEvent->id}", [
+                'name' => 'Hacked',
+                'type' => EventType::Conference->value,
+                'is_active' => true,
+            ])
+            ->assertStatus(404);
     }
 }

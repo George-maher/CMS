@@ -40,6 +40,9 @@ class EventPolicy
         if ($user->isServant() && $event->class_year_id === $user->class_year_id) {
             return true;
         }
+        if ($event->responsible_servant_id && $event->responsible_servant_id === $user->id) {
+            return true;
+        }
 
         return false;
     }
@@ -50,6 +53,9 @@ class EventPolicy
             return true;
         }
         if ($user->isServant() && $event->class_year_id === $user->class_year_id) {
+            return true;
+        }
+        if ($event->responsible_servant_id && $event->responsible_servant_id === $user->id) {
             return true;
         }
 

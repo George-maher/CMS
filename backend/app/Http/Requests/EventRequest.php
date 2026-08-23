@@ -53,6 +53,19 @@ class EventRequest extends FormRequest
             'coordinator_name' => ['nullable', 'string', 'max:255'],
             'coordinator_phone' => ['nullable', 'string', 'max:30'],
             'price_per_participant' => ['nullable', 'numeric', 'min:0', 'max:9999999.99'],
+
+            // Responsible servant (conference/trip)
+            'responsible_servant_id' => ['nullable', 'integer', 'exists:users,id'],
+
+            // Bulk room configuration (conference/trip)
+            'room_groups' => ['sometimes', 'array'],
+            'room_groups.*.count' => ['required_with:room_groups', 'integer', 'min:1', 'max:1000'],
+            'room_groups.*.capacity' => ['required_with:room_groups', 'integer', 'min:2', 'max:100'],
+
+            // Bulk bus configuration (trip)
+            'bus_config' => ['sometimes', 'array'],
+            'bus_config.*.count' => ['required_with:bus_config', 'integer', 'min:1', 'max:1000'],
+            'bus_config.*.capacity' => ['required_with:bus_config', 'integer', 'min:1', 'max:200'],
         ];
 
         if ($isUpdate) {

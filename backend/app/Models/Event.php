@@ -54,6 +54,8 @@ use Illuminate\Support\Carbon;
  * @property-read Collection<int, EventSpeaker> $speakers
  * @property-read Collection<int, EventBus> $buses
  * @property-read Collection<int, EventRegistration> $registrations
+ * @property-read Collection<int, EventRoom> $rooms
+ * @property-read User|null $responsibleServant
  * @property-read int|null $views_count
  * @property-read int|null $registrations_count
  */
@@ -88,6 +90,7 @@ class Event extends Model
         'price_per_participant',
         'location',
         'created_by',
+        'responsible_servant_id',
         'is_active',
         'is_all_classes',
         'class_year_id',
@@ -158,6 +161,18 @@ class Event extends Model
     public function registrations(): HasMany
     {
         return $this->hasMany(EventRegistration::class);
+    }
+
+    /** @return HasMany<EventRoom, $this> */
+    public function rooms(): HasMany
+    {
+        return $this->hasMany(EventRoom::class);
+    }
+
+    /** @return BelongsTo<User, $this> */
+    public function responsibleServant(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'responsible_servant_id');
     }
 
     /**
@@ -241,5 +256,48 @@ class Event extends Model
     public function viewCount(): int
     {
         return $this->views()->count();
+    }
+
+    /**
+     * Whether this event uses the accommodation workflow (conference or trip).
+     */
+    public function hasAccommodation(): bool
+    {
+        return in_array($this->type, [EventType::Conference, EventType::Trip], true);
+    }
+
+    /**
+     * Total rooms configured for this event.
+     */
+    public function totalRooms(): int
+    {
+        return $this->rooms()->count();
+    }
+
+    /**
+     * Total capacity across all rooms.
+     */
+    public function totalCapacity(): int
+    {
+        return (int) $this->rooms()->sum('capacity');
+    }
+
+    /**
+     * Total member capacity across all rooms.
+     */
+    public function totalMemberCapacity(): int
+    {
+        return (int) $this->rooms()->sum('member_capacity');
+    }
+
+    /**
+     * Total servant-reserved cells.
+     */
+    public function totalServantCells(): int
+    {
+        return EventRoomCell::query()
+            ->whereHas('room', fn ($q) => $q->where('event_id', $this->id))
+            ->where('type', 'servant_reserved')
+            ->count();
     }
 }
