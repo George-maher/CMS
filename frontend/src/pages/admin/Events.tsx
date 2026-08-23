@@ -253,10 +253,10 @@ export default function AdminEvents() {
               {form.room_groups.map((group, idx) => (
                 <div key={idx} className="flex gap-2 items-center">
                   <input type="number" min={1} placeholder={t('eventMgmt.numberOfRooms')} value={group.count || ''}
-                    onChange={(e) => { const g = [...form.room_groups]; g[idx] = { ...g[idx], count: Number(e.target.value) }; setForm({ ...form, room_groups: g }) }}
+                    onChange={(e) => { const g = [...form.room_groups]; g[idx] = { ...g[idx], count: Number(e.target.value) } as RoomGroup; setForm({ ...form, room_groups: g }) }}
                     className="input-field flex-1" />
                   <input type="number" min={1} placeholder={t('eventMgmt.capacityPerRoom')} value={group.capacity || ''}
-                    onChange={(e) => { const g = [...form.room_groups]; g[idx] = { ...g[idx], capacity: Number(e.target.value) }; setForm({ ...form, room_groups: g }) }}
+                    onChange={(e) => { const g = [...form.room_groups]; g[idx] = { ...g[idx], capacity: Number(e.target.value) } as RoomGroup; setForm({ ...form, room_groups: g }) }}
                     className="input-field flex-1" />
                   <button type="button" onClick={() => setForm({ ...form, room_groups: form.room_groups.filter((_, i) => i !== idx) })}
                     className="btn-icon btn-ghost text-red-500">✕</button>
@@ -272,10 +272,10 @@ export default function AdminEvents() {
               {form.bus_config.map((group, idx) => (
                 <div key={idx} className="flex gap-2 items-center">
                   <input type="number" min={1} placeholder={t('eventMgmt.numberOfRooms')} value={group.count || ''}
-                    onChange={(e) => { const g = [...form.bus_config]; g[idx] = { ...g[idx], count: Number(e.target.value) }; setForm({ ...form, bus_config: g }) }}
+                    onChange={(e) => { const g = [...form.bus_config]; g[idx] = { ...g[idx], count: Number(e.target.value) } as BusConfig; setForm({ ...form, bus_config: g }) }}
                     className="input-field flex-1" />
                   <input type="number" min={1} placeholder={t('eventMgmt.seats')} value={group.capacity || ''}
-                    onChange={(e) => { const g = [...form.bus_config]; g[idx] = { ...g[idx], capacity: Number(e.target.value) }; setForm({ ...form, bus_config: g }) }}
+                    onChange={(e) => { const g = [...form.bus_config]; g[idx] = { ...g[idx], capacity: Number(e.target.value) } as BusConfig; setForm({ ...form, bus_config: g }) }}
                     className="input-field flex-1" />
                   <button type="button" onClick={() => setForm({ ...form, bus_config: form.bus_config.filter((_, i) => i !== idx) })}
                     className="btn-icon btn-ghost text-red-500">✕</button>

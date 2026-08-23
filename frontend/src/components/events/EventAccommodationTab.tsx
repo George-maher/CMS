@@ -161,7 +161,7 @@ export default function EventAccommodationTab({ eventId }: Props) {
           <Plus className="h-4 w-4" /> {t('eventMgmt.addRooms')}
         </button>
         {unaccommodated.length > 0 && (
-          <button onClick={() => { setSelectedRegistration(unaccommodated[0]); setShowAssignModal(true) }} className="btn-secondary btn-sm">
+          <button onClick={() => { setSelectedRegistration(unaccommodated[0] ?? null); setShowAssignModal(true) }} className="btn-secondary btn-sm">
             <Home className="h-4 w-4" /> {t('eventMgmt.assignAccommodation')} ({unaccommodated.length})
           </button>
         )}
