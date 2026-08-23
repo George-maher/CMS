@@ -126,7 +126,7 @@ export default function EventAccommodationTab({ eventId }: Props) {
   const removeRoomGroup = (idx: number) => setRoomGroups(roomGroups.filter((_, i) => i !== idx))
   const updateRoomGroup = (idx: number, field: keyof RoomGroup, value: number) => {
     const updated = [...roomGroups]
-    updated[idx] = { ...updated[idx], [field]: value }
+    updated[idx] = { ...updated[idx], [field]: value } as RoomGroup
     setRoomGroups(updated)
   }
 
