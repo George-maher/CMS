@@ -10,7 +10,12 @@ use App\Http\Controllers\Api\ClasseController;
 use App\Http\Controllers\Api\DailyVerseController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\EventAnalyticsController;
+use App\Http\Controllers\Api\EventBusController;
 use App\Http\Controllers\Api\EventController;
+use App\Http\Controllers\Api\EventDashboardController;
+use App\Http\Controllers\Api\EventPaymentController;
+use App\Http\Controllers\Api\EventRegistrationController;
+use App\Http\Controllers\Api\EventScheduleController;
 use App\Http\Controllers\Api\FeedbackController;
 use App\Http\Controllers\Api\LeaderboardController;
 use App\Http\Controllers\Api\MembershipRequestController;
@@ -206,10 +211,19 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'approval', 'throttle:api'])->g
     */
     Route::get('/events', [EventController::class, 'index'])
         ->middleware('throttle:event-read');
+    // Must be registered before /events/{id} so "my-registrations" is not treated as an id.
+    Route::get('/events/my-registrations', [EventRegistrationController::class, 'my'])
+        ->middleware('throttle:event-read');
     Route::get('/events/{id}', [EventController::class, 'show'])
         ->middleware('throttle:event-read');
     Route::post('/events/{id}/track-view', [EventAnalyticsController::class, 'track'])
         ->middleware('throttle:event-read');
+
+    /*
+    | Events — member self-registration
+    */
+    Route::post('/events/{id}/register-self', [EventRegistrationController::class, 'selfRegister'])
+        ->middleware(['throttle:event-crud']);
 
     /*
     | QR Invite Accept
@@ -367,6 +381,135 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'approval', 'throttle:api'])->g
             ->middleware('throttle:attendance-context-crud');
         Route::delete('/attendance-contexts/{id}', [AttendanceContextController::class, 'destroy'])
             ->middleware('throttle:attendance-context-crud');
+    });
+
+    /*
+    |--------------------------------------------------------------------------
+    | Event Registrations — permission: manage_event_registrations
+    | (admin, assistant admin, servant)
+    |--------------------------------------------------------------------------
+    */
+
+    Route::middleware(['permission:manage_event_registrations', 'approved'])->group(function () {
+        Route::get('/events/{id}/registrations', [EventRegistrationController::class, 'index'])
+            ->middleware('throttle:event-read');
+
+        Route::post('/events/{id}/registrations', [EventRegistrationController::class, 'store'])
+            ->middleware('throttle:event-crud');
+        // Static segment before {regId} params
+        Route::post('/events/{id}/registrations/check-in-by-token', [EventRegistrationController::class, 'checkInByToken'])
+            ->middleware('throttle:attendance-record');
+
+        Route::post('/events/{id}/registrations/{regId}/confirm', [EventRegistrationController::class, 'confirm'])
+            ->middleware('throttle:event-crud');
+        Route::post('/events/{id}/registrations/{regId}/cancel', [EventRegistrationController::class, 'cancel'])
+            ->middleware('throttle:event-crud');
+        Route::post('/events/{id}/registrations/{regId}/waitlist', [EventRegistrationController::class, 'waitlist'])
+            ->middleware('throttle:event-crud');
+        Route::post('/events/{id}/registrations/{regId}/check-in', [EventRegistrationController::class, 'checkIn'])
+            ->middleware('throttle:attendance-record');
+        Route::post('/events/{id}/registrations/{regId}/undo-check-in', [EventRegistrationController::class, 'undoCheckIn'])
+            ->middleware('throttle:attendance-record');
+        Route::post('/events/{id}/registrations/{regId}/assign-bus', [EventRegistrationController::class, 'assignBus'])
+            ->middleware('throttle:event-crud');
+        Route::put('/events/{id}/registrations/{regId}', [EventRegistrationController::class, 'update'])
+            ->middleware('throttle:event-crud');
+        Route::patch('/events/{id}/registrations/{regId}', [EventRegistrationController::class, 'update'])
+            ->middleware('throttle:event-crud');
+        Route::delete('/events/{id}/registrations/{regId}', [EventRegistrationController::class, 'destroy'])
+            ->middleware('throttle:event-crud');
+
+        /*
+        | Buses for trips
+        */
+        Route::get('/events/{id}/buses', [EventBusController::class, 'index'])
+            ->middleware('throttle:event-read');
+        Route::post('/events/{id}/buses', [EventBusController::class, 'store'])
+            ->middleware('throttle:event-crud');
+        Route::put('/events/{id}/buses/{busId}', [EventBusController::class, 'update'])
+            ->middleware('throttle:event-crud');
+        Route::patch('/events/{id}/buses/{busId}', [EventBusController::class, 'update'])
+            ->middleware('throttle:event-crud');
+        Route::delete('/events/{id}/buses/{busId}', [EventBusController::class, 'destroy'])
+            ->middleware('throttle:event-crud');
+    });
+
+    /*
+    |--------------------------------------------------------------------------
+    | Event Payments — permission: manage_event_payments (admin only)
+    |--------------------------------------------------------------------------
+    */
+
+    Route::middleware(['permission:manage_event_payments', 'approved'])->group(function () {
+        Route::get('/events/{id}/payments', [EventPaymentController::class, 'index'])
+            ->middleware('throttle:event-read');
+        Route::post('/events/{id}/registrations/{regId}/payments', [EventPaymentController::class, 'store'])
+            ->middleware('throttle:sensitive');
+        Route::post('/events/{id}/registrations/{regId}/payments/{paymentId}/refund', [EventPaymentController::class, 'refund'])
+            ->middleware('throttle:sensitive');
+    });
+
+    /*
+    |--------------------------------------------------------------------------
+    | Event Dashboard + Reports — permission: view_event_reports
+    |--------------------------------------------------------------------------
+    */
+
+    Route::middleware(['permission:view_event_reports', 'approved'])->group(function () {
+        Route::get('/events/{id}/dashboard', [EventDashboardController::class, 'dashboard'])
+            ->middleware('throttle:event-read');
+        Route::get('/events/{id}/reports/participants', [EventDashboardController::class, 'participantsReport'])
+            ->middleware('throttle:event-read');
+        Route::get('/events/{id}/reports/financial', [EventDashboardController::class, 'financialReport'])
+            ->middleware('throttle:event-read');
+        Route::get('/events/{id}/reports/attendance', [EventDashboardController::class, 'attendanceReport'])
+            ->middleware('throttle:event-read');
+    });
+
+    /*
+    |--------------------------------------------------------------------------
+    | Event Lifecycle + Schedule — permission: manage_events
+    |--------------------------------------------------------------------------
+    */
+
+    Route::middleware(['permission:manage_events', 'approved'])->group(function () {
+        Route::post('/events/{id}/publish', [EventController::class, 'publish'])
+            ->middleware('throttle:event-crud');
+        Route::post('/events/{id}/close-registration', [EventController::class, 'closeRegistration'])
+            ->middleware('throttle:event-crud');
+        Route::post('/events/{id}/reopen-registration', [EventController::class, 'reopenRegistration'])
+            ->middleware('throttle:event-crud');
+        Route::post('/events/{id}/cancel', [EventController::class, 'cancel'])
+            ->middleware('throttle:event-crud');
+        Route::post('/events/{id}/complete', [EventController::class, 'complete'])
+            ->middleware('throttle:event-crud');
+        Route::post('/events/{id}/duplicate', [EventController::class, 'duplicate'])
+            ->middleware('throttle:event-crud');
+
+        /*
+        | Conference schedule — sessions + speakers
+        */
+        Route::get('/events/{id}/sessions', [EventScheduleController::class, 'sessionsIndex'])
+            ->middleware('throttle:event-read');
+        Route::post('/events/{id}/sessions', [EventScheduleController::class, 'sessionsStore'])
+            ->middleware('throttle:event-crud');
+        Route::put('/events/{id}/sessions/{sessionId}', [EventScheduleController::class, 'sessionsUpdate'])
+            ->middleware('throttle:event-crud');
+        Route::patch('/events/{id}/sessions/{sessionId}', [EventScheduleController::class, 'sessionsUpdate'])
+            ->middleware('throttle:event-crud');
+        Route::delete('/events/{id}/sessions/{sessionId}', [EventScheduleController::class, 'sessionsDestroy'])
+            ->middleware('throttle:event-crud');
+
+        Route::get('/events/{id}/speakers', [EventScheduleController::class, 'speakersIndex'])
+            ->middleware('throttle:event-read');
+        Route::post('/events/{id}/speakers', [EventScheduleController::class, 'speakersStore'])
+            ->middleware('throttle:event-crud');
+        Route::put('/events/{id}/speakers/{speakerId}', [EventScheduleController::class, 'speakersUpdate'])
+            ->middleware('throttle:event-crud');
+        Route::patch('/events/{id}/speakers/{speakerId}', [EventScheduleController::class, 'speakersUpdate'])
+            ->middleware('throttle:event-crud');
+        Route::delete('/events/{id}/speakers/{speakerId}', [EventScheduleController::class, 'speakersDestroy'])
+            ->middleware('throttle:event-crud');
     });
 
     /*

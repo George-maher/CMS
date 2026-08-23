@@ -34,6 +34,7 @@ const StageDetail = lazy(() => import('@/pages/admin/StageDetail'))
 const ClasseDetail = lazy(() => import('@/pages/admin/ClasseDetail'))
 const AdminQRManagement = lazy(() => import('@/pages/admin/QRManagement'))
 const AdminEvents = lazy(() => import('@/pages/admin/Events'))
+const AdminEventDetail = lazy(() => import('@/pages/admin/EventDetail'))
 const AdminLeaderboard = lazy(() => import('@/pages/admin/Leaderboard'))
 const AdminPasswordResetRequests = lazy(() => import('@/pages/admin/PasswordResetRequests'))
 
@@ -43,6 +44,7 @@ const ServantMemberDetail = lazy(() => import('@/pages/servant/MemberDetail'))
 const ServantScanQR = lazy(() => import('@/pages/servant/ScanQR'))
 const ServantQRInvites = lazy(() => import('@/pages/servant/QRInvites'))
 const ServantEvents = lazy(() => import('@/pages/servant/Events'))
+const ServantEventDetail = lazy(() => import('@/pages/admin/EventDetail'))
 const ServantAttendance = lazy(() => import('@/pages/servant/Attendance'))
 const ServantLeaderboard = lazy(() => import('@/pages/servant/Leaderboard'))
 
@@ -109,6 +111,7 @@ export default function App() {
                 <Route path="/admin/classes/:id" element={<ClasseDetail />} />
                 <Route path="/admin/qr" element={<AdminQRManagement />} />
                 <Route path="/admin/events" element={<AdminEvents />} />
+                <Route path="/admin/events/:id" element={<AdminEventDetail />} />
                 <Route path="/admin/attendance" element={<ServantAttendance />} />
                 <Route path="/admin/feedback" element={<FeedbackManagement />} />
                 <Route path="/admin/verses" element={<VerseManagement />} />
@@ -125,6 +128,7 @@ export default function App() {
                 <Route path="/assistant-admin/classes/:id" element={<ClasseDetail />} />
                 <Route path="/assistant-admin/qr" element={<AdminQRManagement />} />
                 <Route path="/assistant-admin/events" element={<AdminEvents />} />
+                <Route path="/assistant-admin/events/:id" element={<AdminEventDetail />} />
                 <Route path="/assistant-admin/attendance" element={<ServantAttendance />} />
                 <Route path="/assistant-admin/feedback" element={<FeedbackManagement />} />
                 <Route path="/assistant-admin/verses" element={<VerseManagement />} />
@@ -141,6 +145,7 @@ export default function App() {
                 <Route path="/servant/scan" element={<ServantScanQR />} />
                 <Route path="/servant/qr" element={<ServantQRInvites />} />
                 <Route path="/servant/events" element={<ServantEvents />} />
+                <Route path="/servant/events/:id" element={<ServantEventDetail />} />
                 <Route path="/servant/attendance" element={<ServantAttendance />} />
                 <Route path="/servant/feedback" element={<FeedbackManagement />} />
                 <Route path="/servant/absent-members" element={<AbsentMembers />} />

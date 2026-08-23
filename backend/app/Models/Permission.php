@@ -89,6 +89,9 @@ class Permission extends Model
             ['key' => 'view_users', 'name' => 'View Users', 'group' => 'users'],
             ['key' => 'manage_events', 'name' => 'Manage Events', 'group' => 'events'],
             ['key' => 'view_events', 'name' => 'View Events', 'group' => 'events'],
+            ['key' => 'manage_event_registrations', 'name' => 'Manage Event Registrations', 'group' => 'events'],
+            ['key' => 'manage_event_payments', 'name' => 'Manage Event Payments', 'group' => 'events'],
+            ['key' => 'view_event_reports', 'name' => 'View Event Reports', 'group' => 'events'],
             ['key' => 'manage_class_years', 'name' => 'Manage Class Years', 'group' => 'classes'],
             ['key' => 'view_class_years', 'name' => 'View Class Years', 'group' => 'classes'],
             ['key' => 'manage_attendance', 'name' => 'Manage Attendance', 'group' => 'attendance'],
@@ -118,6 +121,7 @@ class Permission extends Model
             UserRole::Admin->value => [
                 'manage_members', 'manage_servants', 'manage_users', 'view_users',
                 'manage_events', 'view_events',
+                'manage_event_registrations', 'manage_event_payments', 'view_event_reports',
                 'manage_class_years', 'view_class_years',
                 'manage_attendance', 'record_attendance', 'view_attendance',
                 'manage_invites', 'view_invites',
@@ -132,6 +136,7 @@ class Permission extends Model
             UserRole::AssistantAdmin->value => [
                 'manage_members', 'manage_servants', 'manage_users', 'view_users',
                 'manage_events', 'view_events',
+                'manage_event_registrations', 'manage_event_payments', 'view_event_reports',
                 'manage_class_years', 'view_class_years',
                 'manage_attendance', 'record_attendance', 'view_attendance',
                 'manage_invites', 'view_invites',
@@ -146,6 +151,7 @@ class Permission extends Model
             UserRole::Servant->value => [
                 'view_users',
                 'view_events', 'manage_events',
+                'manage_event_registrations', 'view_event_reports',
                 'view_class_years',
                 'record_attendance', 'view_attendance',
                 'manage_invites', 'view_invites',

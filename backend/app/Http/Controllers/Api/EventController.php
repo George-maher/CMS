@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Contracts\EventLifecycleServiceInterface;
 use App\Contracts\EventServiceInterface;
 use App\Contracts\FileUploadServiceInterface;
 use App\Enums\UserRole;
@@ -18,8 +19,87 @@ class EventController extends Controller
 {
     public function __construct(
         private readonly EventServiceInterface $eventService,
+        private readonly EventLifecycleServiceInterface $lifecycleService,
         private readonly FileUploadServiceInterface $fileUploadService,
     ) {}
+
+    /*
+    | Lifecycle actions — publish / close / reopen / cancel / complete / duplicate
+    */
+
+    public function publish(int $id): JsonResponse
+    {
+        return $this->lifecycleResponse($id, fn ($event) => $this->lifecycleService->publish($event), 'Event published.');
+    }
+
+    public function closeRegistration(int $id): JsonResponse
+    {
+        return $this->lifecycleResponse($id, fn ($event) => $this->lifecycleService->closeRegistration($event), 'Registration closed.');
+    }
+
+    public function reopenRegistration(int $id): JsonResponse
+    {
+        return $this->lifecycleResponse($id, fn ($event) => $this->lifecycleService->reopenRegistration($event), 'Registration reopened.');
+    }
+
+    public function cancel(int $id): JsonResponse
+    {
+        return $this->lifecycleResponse($id, fn ($event) => $this->lifecycleService->cancel($event), 'Event cancelled.');
+    }
+
+    public function complete(int $id): JsonResponse
+    {
+        return $this->lifecycleResponse($id, fn ($event) => $this->lifecycleService->complete($event), 'Event completed.');
+    }
+
+    public function duplicate(Request $request, int $id): JsonResponse
+    {
+        /** @var User $user */
+        $user = $request->user();
+        /** @var array{data: EventResource}|null $existing */
+        $existing = $this->eventService->findById($id);
+
+        if (! $existing) {
+            return response()->json(['message' => 'Event not found.'], 404);
+        }
+
+        /** @var Event $eventModel */
+        $eventModel = $existing['data']->resource;
+
+        if ($this->servantCannotAccessEvent($user, $eventModel)) {
+            return response()->json(['message' => 'Forbidden.'], 403);
+        }
+
+        /** @var int $creatorId */
+        $creatorId = $user->id;
+
+        $result = $this->lifecycleService->duplicate($eventModel, $creatorId);
+
+        return response()->json([
+            'message' => 'Event duplicated as draft.',
+            'data' => $result['data'],
+        ], 201);
+    }
+
+    /**
+     * @param  callable(Event): Event  $action
+     */
+    private function lifecycleResponse(int $id, callable $action, string $message): JsonResponse
+    {
+        /** @var Event|null $event */
+        $event = Event::query()->find($id);
+
+        if (! $event) {
+            return response()->json(['message' => 'Event not found.'], 404);
+        }
+
+        $updated = $action($event);
+
+        return response()->json([
+            'message' => $message,
+            'data' => new EventResource($updated),
+        ]);
+    }
 
     public function index(Request $request): JsonResponse
     {

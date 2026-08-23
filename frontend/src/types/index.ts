@@ -107,7 +107,118 @@ export interface QRInvite {
   created_at: string
 }
 
-export type EventType = 'service' | 'trip' | 'meeting' | 'other'
+export type EventType = 'service' | 'conference' | 'trip' | 'meeting' | 'other'
+
+export type EventStatus = 'draft' | 'open' | 'closed' | 'completed' | 'cancelled'
+export type RegistrationStatus = 'pending' | 'confirmed' | 'cancelled' | 'waitlisted'
+export type EventPaymentStatus = 'unpaid' | 'partially_paid' | 'paid' | 'refunded'
+export type EventAttendanceStatus = 'not_checked_in' | 'checked_in' | 'absent'
+
+export interface EventSession {
+  id: number
+  event_id: number
+  title: string
+  description: string | null
+  speaker_name: string | null
+  starts_at: string | null
+  ends_at: string | null
+  display_order: number
+}
+
+export interface EventSpeaker {
+  id: number
+  event_id: number
+  name: string
+  title: string | null
+  bio: string | null
+}
+
+export interface EventBusItem {
+  id: number
+  event_id: number
+  bus_number: string
+  capacity: number
+  driver_name: string | null
+  coordinator_name: string | null
+  assigned_count: number
+  available_seats: number
+  occupancy_percentage: number
+  created_at: string
+}
+
+export interface EventRegistration {
+  id: number
+  event_id: number
+  user: { id: number; name: string; phone: string | null; avatar: string | null; class_name: string | null } | null
+  registrar?: { id: number; name: string } | null
+  bus?: { id: number; bus_number: string } | null
+  bus_id: number | null
+  status: RegistrationStatus
+  status_label: string
+  payment_status: EventPaymentStatus
+  payment_status_label: string
+  amount_paid: string
+  attendance_status: EventAttendanceStatus
+  attendance_status_label: string
+  checked_in_at: string | null
+  qr_token?: string
+  notes: string | null
+  registered_at: string
+}
+
+export interface EventPayment {
+  id: number
+  registration_id: number
+  member?: { id: number; name: string } | null
+  amount: string
+  method: 'cash' | 'bank_transfer' | 'other'
+  method_label: string
+  paid_at: string
+  note: string | null
+  refunded: boolean
+  recorded_by_name?: string
+}
+
+export interface EventFinancialSummary {
+  price_per_participant: number
+  active_registrations: number
+  expected_revenue: number
+  collected: number
+  refunded: number
+  remaining: number
+  paid_participants: number
+  unpaid_participants: number
+  net_result: number
+}
+
+export interface EventDashboardStats {
+  event: {
+    id: number
+    name: string
+    type: EventType | null
+    status: EventStatus | null
+    location: string | null
+    event_date: string | null
+    end_date: string | null
+    start_time: string | null
+    end_time: string | null
+  }
+  statistics: {
+    max_capacity: number | null
+    total_registered: number
+    available_spaces: number | null
+    waitlisted: number
+    occupancy_percentage: number
+    is_full: boolean
+  }
+  payments: EventFinancialSummary
+  attendance: {
+    total_registered: number
+    checked_in: number
+    absent: number
+    attendance_percentage: number
+  }
+}
 
 export interface EventViewEntry {
   user: { id: number; name: string }
@@ -132,6 +243,25 @@ export interface Event {
   description: string | null
   preview: string | null
   event_date: string
+  end_date?: string | null
+  start_time?: string | null
+  end_time?: string | null
+  status?: EventStatus
+  status_label?: string
+  max_capacity?: number | null
+  registered_count?: number
+  available_spaces?: number | null
+  occupancy_percentage?: number
+  theme?: string | null
+  target_age_group?: string | null
+  destination?: string | null
+  departure_location?: string | null
+  departure_at?: string | null
+  return_at?: string | null
+  transportation_type?: string | null
+  coordinator_name?: string | null
+  coordinator_phone?: string | null
+  price_per_participant?: string | null
   location: string | null
   is_active: boolean
   is_all_classes: boolean

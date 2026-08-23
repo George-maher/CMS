@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { Plus } from 'lucide-react'
 import Badge from '@/components/common/Badge'
@@ -19,6 +20,7 @@ const emptyForm: EventForm = { name: '', type: 'service', image: '', description
 
 export default function ServantEvents() {
   const { t } = useTranslation()
+  const navigate = useNavigate()
 
   const columns: Column<Event>[] = [
     { key: 'image', header: '', render: (e) => e.image ? (
@@ -110,6 +112,7 @@ export default function ServantEvents() {
 
       <DataTable columns={[...columns, { key: 'actions', header: '', render: (e) => (
         <div className="flex gap-2">
+          <button onClick={() => navigate(`/servant/events/${e.id}`)} className="btn-ghost btn-sm text-primary-500">{t('eventMgmt.tabOverview')}</button>
           <button onClick={() => handleView(e.id)} disabled={viewLoading} className="btn-ghost btn-sm">{t('common.view')}</button>
           <button onClick={() => openEdit(e)} className="btn-ghost btn-sm text-primary-500">{t('common.edit')}</button>
           <button onClick={() => handleDelete(e.id)} className="btn-ghost btn-sm text-red-500">{t('common.delete')}</button>

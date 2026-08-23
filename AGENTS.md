@@ -861,3 +861,36 @@ Completely remove Resend from the project and rebuild the Forgot Password featur
 - Frontend: ESLint 0 errors, tsc --noEmit clean.
 - `route:list` confirms exactly: submit / list / show / approve / reject / reset-password (+ forgot-password alias).
 - Project-wide grep: zero remaining Resend references in code/config/env.
+
+---
+
+## 📌 ANCHORED SUMMARY (2026-08-23)
+
+## Goal
+Implement a complete Events Management module (Conferences + Trips) on top of the existing events system: lifecycle management, capacity tracking, participant registration, payments, QR check-in, bus management, conference schedule (sessions/speakers), dashboard, reports/CSV export, calendar view, and full EN/AR i18n.
+
+## Progress
+### Done (2026-08-23 — Events & Trips Module)
+1. **DB** — `2026_08_23_000001_add_event_management_fields_to_events_table` adds status/end_date/start_time/end_time/max_capacity + conference fields (theme, target_age_group, target_group) + trip fields (destination, departure_location, departure_at, return_at, transportation_type, coordinator_name/phone, price_per_participant) to `events` (backfill: active→open, inactive→closed). `2026_08_23_000002_create_event_management_tables` creates `event_sessions`, `event_speakers`, `event_buses`, `event_registrations` (status/payment_status/amount_paid/attendance_status/checked_in_at/unique qr_token, unique(event_id,user_id)), `event_payments`.
+2. **Enums** — EventStatus, RegistrationStatus, EventPaymentStatus, EventAttendanceStatus, EventPaymentMethod; `Conference` case added to EventType.
+3. **Models** — EventSession, EventSpeaker, EventBus, EventRegistration (qr token gen, addPaidAmount, refreshPaymentStatus), EventPayment; Event model extended (sessions/speakers/buses/registrations relations, isRegistrationOpen(), hasAvailableCapacity(), registeredCount(), availableSpaces(), occupancyPercentage()); EventFactory + EventRegistrationFactory added.
+4. **Permissions** — new keys `manage_event_registrations` (admin/assistant/servant), `manage_event_payments` (admin/assistant), `view_event_reports` (admin/assistant/servant) in Permission::defaultPermissions()/defaultRolePermissions(). Lifecycle + schedule gated by existing `manage_events`. Re-run PermissionSeeder after deploy.
+5. **Services** — EventRegistrationService (register with lockForUpdate + capacity→waitlist, confirm/cancel/waitlist/remove with waitlist auto-promotion, check-in by id or qr_token, undoCheckIn, setAttendanceStatus, myRegistrations); EventPaymentService (recordPayment validates remaining balance in transaction, markRefunded, financialSummary); EventLifecycleService (publish/close/reopen/cancel+notify participants/complete/duplicate-as-draft); EventScheduleService (sessions/speakers/buses CRUD, assignBus per-bus lockForUpdate + capacity guard); EventReportService (dashboard stats, 3 streamed CSV reports). All bound in AppServiceProvider.
+6. **API** — controllers: EventRegistrationController, EventBusController, EventScheduleController, EventPaymentController, EventDashboardController; lifecycle actions added to EventController; routes under v1 with permission middleware + throttles. Member endpoints: POST /v1/events/{id}/register-self, GET /v1/events/my-registrations.
+7. **Frontend** — api/eventRegistrations.ts; new types in types/index.ts; shared pages/admin/EventDetail.tsx (tabs: Overview stats / Participants / Payments / Buses(trip) / Schedule(conference) / Check-In with html5-qrcode scan + token paste) routed at /admin/events/:id, /assistant-admin/events/:id, /servant/events/:id; admin/Events.tsx gains status+capacity columns, Manage link, List⇄Calendar toggle (components/common/EventsCalendar.tsx month grid); member/EventDetail.tsx gains self-registration + registration card with personal QR token; components/events/* tabs + eventStatus helpers; i18n eventMgmt.* namespace EN+AR.
+8. **Tests** — tests/Feature/EventManagementTest.php: 13 tests covering create/update/publish/close/reopen, register, duplicate prevention, capacity→waitlist, cancel promotes waitlist, payments partial/full/overpay-rejected, QR check-in + undo + duplicate rejected, member 403s, bus capacity enforcement + assignment, cancelled/completed events reject registrations.
+
+## Verification (2026-08-23)
+- Backend: 111 tests passed (334 assertions), PHPStan level-max 0 errors, Pint clean.
+- Frontend: tsc --noEmit clean, ESLint 0 errors, vite production build succeeds.
+
+## Key Decisions (Events & Trips)
+- Extended the EXISTING events table additively rather than a parallel module; attendance is embedded in event_registrations (no separate event_attendance table).
+- Capacity counts pending+confirmed only; full → automatic waitlist; freeing a seat auto-promotes the earliest waitlisted registration and notifies them.
+- Registration QR tokens are 60-char random strings, unique-indexed, exposed ONLY to the owning member via resource authorization check.
+- Payment overpayment rejected at service level inside lockForUpdate transaction; refunds decrement amount_paid and recompute payment_status.
+- CSV export implemented as streamed fputcsv responses (project has no Excel/PDF package).
+
+## Next Steps
+1. Deploy: run `php artisan migrate --force` and `php artisan db:seed --class=PermissionSeeder --force` (new permission keys).
+2. Optional: servant-scoped participant visibility (currently servants manage all registrations within their church).

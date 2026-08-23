@@ -2,21 +2,17 @@
 
 namespace App\Enums;
 
-enum EventType: string
+enum EventPaymentMethod: string
 {
-    case Service = 'service';
-    case Conference = 'conference';
-    case Trip = 'trip';
-    case Meeting = 'meeting';
+    case Cash = 'cash';
+    case BankTransfer = 'bank_transfer';
     case Other = 'other';
 
     public function label(): string
     {
         return match ($this) {
-            self::Service => 'Service',
-            self::Conference => 'Conference',
-            self::Trip => 'Trip',
-            self::Meeting => 'Meeting',
+            self::Cash => 'Cash',
+            self::BankTransfer => 'Bank Transfer',
             self::Other => 'Other',
         };
     }

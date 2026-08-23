@@ -3,6 +3,7 @@
 namespace App\Http\Resources;
 
 use App\Contracts\FileUploadServiceInterface;
+use App\Enums\EventType;
 use App\Enums\UserRole;
 use App\Models\Classe;
 use App\Models\Event;
@@ -51,6 +52,25 @@ class EventResource extends JsonResource
             ),
             'preview' => $this->truncateDescription($this->description, 100),
             'event_date' => $this->event_date,
+            'end_date' => $this->when($this->isDetailView || $isAdminOrServant, fn () => $this->end_date?->toDateString()),
+            'start_time' => $this->start_time,
+            'end_time' => $this->end_time,
+            'status' => $this->when($this->isDetailView || $isAdminOrServant, fn () => $this->status?->value),
+            'status_label' => $this->when($this->isDetailView || $isAdminOrServant, fn () => $this->status?->label()),
+            'max_capacity' => $this->when($this->isDetailView || $isAdminOrServant, fn () => $this->max_capacity),
+            // Conference-specific
+            'theme' => $this->when($this->type === EventType::Conference && ($this->isDetailView || $isAdminOrServant), fn () => $this->theme),
+            'target_age_group' => $this->when($this->isDetailView || $isAdminOrServant, fn () => $this->target_age_group),
+            'target_group' => $this->when($this->isDetailView || $isAdminOrServant, fn () => $this->target_group),
+            // Trip-specific
+            'destination' => $this->when($this->isDetailView || $isAdminOrServant, fn () => $this->destination),
+            'departure_location' => $this->when($this->isDetailView || $isAdminOrServant, fn () => $this->departure_location),
+            'departure_at' => $this->when($this->isDetailView || $isAdminOrServant, fn () => $this->departure_at),
+            'return_at' => $this->when($this->isDetailView || $isAdminOrServant, fn () => $this->return_at),
+            'transportation_type' => $this->when($this->isDetailView || $isAdminOrServant, fn () => $this->transportation_type),
+            'coordinator_name' => $this->when($this->isDetailView || $isAdminOrServant, fn () => $this->coordinator_name),
+            'coordinator_phone' => $this->when($this->isDetailView || $isAdminOrServant, fn () => $this->coordinator_phone),
+            'price_per_participant' => $this->when($this->isDetailView || $isAdminOrServant, fn () => number_format((float) $this->price_per_participant, 2, '.', '')),
             'location' => $this->location,
             'is_active' => $this->is_active,
             'is_all_classes' => $isAllClasses,
@@ -83,6 +103,15 @@ class EventResource extends JsonResource
             ),
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
+            'registered_count' => $this->when(
+                $this->relationLoaded('registrations') || $this->relationLoaded('buses'),
+                fn () => $this->registeredCount(),
+            ),
+            'available_spaces' => $this->when(
+                $this->isDetailView || $isAdminOrServant,
+                fn () => $this->availableSpaces() === -1 ? null : $this->availableSpaces(),
+            ),
+            'occupancy_percentage' => $this->when($this->isDetailView || $isAdminOrServant, fn () => $this->occupancyPercentage()),
         ];
     }
 

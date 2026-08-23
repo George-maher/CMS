@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
-import { Plus } from 'lucide-react'
+import { Plus, List, CalendarDays } from 'lucide-react'
 import Badge from '@/components/common/Badge'
 import DataTable from '@/components/common/DataTable'
 import EventDetailModal from '@/components/common/EventDetailModal'
+import EventsCalendar from '@/components/common/EventsCalendar'
 import ImageUpload from '@/components/common/ImageUpload'
 import ImageWithFallback from '@/components/common/ImageWithFallback'
 import Modal from '@/components/common/Modal'
@@ -13,6 +15,7 @@ import type { Event } from '@/types'
 import { listEvents, getEvent, createEvent, updateEvent, deleteEvent } from '@/api/events'
 import { listAllClasses } from '@/api/structure'
 import { logCatch } from '@/lib/debug'
+import { eventStatusVariant, eventStatusLabelKey } from '@/components/events/eventStatus'
 
 interface EventForm { name: string; type: string; image: string | File; description: string; event_date: string; location: string; class_id: string; is_active: boolean; is_all_classes: boolean; target_class_ids: number[] }
 
@@ -20,13 +23,21 @@ const emptyForm: EventForm = { name: '', type: 'service', image: '', description
 
 export default function AdminEvents() {
   const { t } = useTranslation()
+  const navigate = useNavigate()
+  const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list')
 
   const columns: Column<Event>[] = [
     { key: 'image', header: '', render: (e) => e.image ? (
       <ImageWithFallback src={e.image} alt={e.name} className="h-10 w-16 rounded object-cover" />
     ) : <div className="h-10 w-16 rounded bg-surface-tertiary" /> },
     { key: 'name', header: t('events.eventName'), render: (e) => <span className="font-medium">{e.name}</span> },
-    { key: 'type', header: t('events.eventType'), render: (e) => <Badge variant="info">{e.type_label}</Badge> },
+    { key: 'type', header: t('events.eventType'), render: (e) => <Badge variant="info">{t(`events.type_${e.type}`)}</Badge> },
+    { key: 'status', header: t('common.status'), render: (e) => (
+      <Badge variant={eventStatusVariant[(e.status ?? 'draft') as keyof typeof eventStatusVariant]}>
+        {t(eventStatusLabelKey(e.status ?? 'draft'))}
+      </Badge>
+    ) },
+    { key: 'capacity', header: t('eventMgmt.capacity'), render: (e) => e.max_capacity ? `${e.registered_count ?? 0} / ${e.max_capacity}` : '-' },
     { key: 'event_date', header: t('events.eventDate'), render: (e) => e.event_date ? new Date(e.event_date).toLocaleDateString() : '-' },
     { key: 'location', header: t('events.location') },
     { key: 'class_id', header: t('events.target'), render: (e) => e.classe?.name ?? t('events.allClasses') },
@@ -108,18 +119,41 @@ export default function AdminEvents() {
     <div className="space-y-4">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-secondary">{meta.total} {t('events.events')}</p>
-        <button onClick={openCreate} className="btn-primary btn-md self-start sm:self-auto">
-          <Plus className="h-4 w-4" /> {t('events.createEvent')}
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <div className="flex overflow-hidden rounded-lg border border-border">
+            <button
+              onClick={() => setViewMode('list')}
+              className={`flex items-center gap-1 px-3 py-2 text-sm ${viewMode === 'list' ? 'bg-primary text-white' : 'text-secondary'}`}
+            >
+              <List className="h-4 w-4" /> {t('eventMgmt.listView')}
+            </button>
+            <button
+              onClick={() => setViewMode('calendar')}
+              className={`flex items-center gap-1 px-3 py-2 text-sm ${viewMode === 'calendar' ? 'bg-primary text-white' : 'text-secondary'}`}
+            >
+              <CalendarDays className="h-4 w-4" /> {t('eventMgmt.calendarView')}
+            </button>
+          </div>
+          <button onClick={openCreate} className="btn-primary btn-md self-start sm:self-auto">
+            <Plus className="h-4 w-4" /> {t('events.createEvent')}
+          </button>
+        </div>
       </div>
 
-      <DataTable columns={[...columns, { key: 'actions', header: '', render: (e) => (
-        <div className="flex gap-2">
-          <button onClick={() => handleView(e.id)} disabled={viewLoading} className="btn-icon btn-ghost">{t('common.view')}</button>
-          <button onClick={() => openEdit(e)} className="btn-icon btn-ghost">{t('common.edit')}</button>
-          <button onClick={() => handleDelete(e.id)} className="btn-icon btn-ghost">{t('common.delete')}</button>
-        </div>
-      )}]} data={events} meta={meta} isLoading={loading} onPageChange={fetch} />
+      {viewMode === 'calendar' ? (
+        <EventsCalendar events={events} onOpenEvent={(id) => navigate(`/admin/events/${id}`)} />
+      ) : (
+        <>
+          <DataTable columns={[...columns, { key: 'actions', header: '', render: (e) => (
+            <div className="flex gap-2">
+              <button onClick={() => navigate(`/admin/events/${e.id}`)} className="btn-icon btn-ghost">{t('eventMgmt.tabOverview')}</button>
+              <button onClick={() => handleView(e.id)} disabled={viewLoading} className="btn-icon btn-ghost">{t('common.view')}</button>
+              <button onClick={() => openEdit(e)} className="btn-icon btn-ghost">{t('common.edit')}</button>
+              <button onClick={() => handleDelete(e.id)} className="btn-icon btn-ghost">{t('common.delete')}</button>
+            </div>
+          )}]} data={events} meta={meta} isLoading={loading} onPageChange={fetch} />
+        </>
+      )}
 
       <Modal isOpen={showModal} onClose={() => setShowModal(false)} title={editing ? t('events.editEvent') : t('events.createEvent')}
         footer={
