@@ -67,7 +67,6 @@ export default function AdminEvents() {
   const [servantEvent, setServantEvent] = useState<Event | null>(null)
   const [newServantId, setNewServantId] = useState<string>('')
   const [servantsLoading, setServantsLoading] = useState(true)
-  const [servantsError, setServantsError] = useState(false)
   const [servantSearch, setServantSearch] = useState('')
 
   const handleView = async (id: number) => {
@@ -90,7 +89,6 @@ export default function AdminEvents() {
       setServantsLoading(false)
     }).catch((e) => {
       logCatch('AdminEvents.getServants', e)
-      setServantsError(true)
       setServantsLoading(false)
     })
   }, [user?.church_id])
