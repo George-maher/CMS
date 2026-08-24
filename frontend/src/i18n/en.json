@@ -1241,6 +1241,7 @@
         "selectResponsibleServant": "Select Responsible Servant",
         "responsibleServantHint": "Select the servant responsible for managing this Conference / Trip.",
         "searchServant": "Search servants by name or phone...",
+        "type_servant": "Servant",
         "loadingServants": "Loading servants…",
         "errorLoadingServants": "Failed to load servants. Click to retry.",
         "noServantsAvailable": "No active servants available in your church.",

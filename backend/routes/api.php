@@ -408,24 +408,28 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'approval', 'throttle:api'])->g
             ->middleware('throttle:event-crud');
         Route::post('/events/{id}/registrations/{regId}/cancel', [EventRegistrationController::class, 'cancel'])
             ->middleware('throttle:event-crud');
-        Route::post('/events/{id}/registrations/{regId}/waitlist', [EventRegistrationController::class, 'waitlist'])
-            ->middleware('throttle:event-crud');
-        Route::post('/events/{id}/registrations/{regId}/check-in', [EventRegistrationController::class, 'checkIn'])
-            ->middleware('throttle:attendance-record');
-        Route::post('/events/{id}/registrations/{regId}/undo-check-in', [EventRegistrationController::class, 'undoCheckIn'])
-            ->middleware('throttle:attendance-record');
-        Route::post('/events/{id}/registrations/{regId}/assign-bus', [EventRegistrationController::class, 'assignBus'])
-            ->middleware('throttle:event-crud');
-        Route::put('/events/{id}/registrations/{regId}', [EventRegistrationController::class, 'update'])
-            ->middleware('throttle:event-crud');
-        Route::patch('/events/{id}/registrations/{regId}', [EventRegistrationController::class, 'update'])
-            ->middleware('throttle:event-crud');
-        Route::delete('/events/{id}/registrations/{regId}', [EventRegistrationController::class, 'destroy'])
-            ->middleware('throttle:event-crud');
+Route::post('/events/{id}/registrations/{regId}/waitlist', [EventRegistrationController::class, 'waitlist'])
+        ->middleware('throttle:event-crud');
 
-        /*
-        | Buses for trips
-        */
+    /*
+     | Reservation Requests — for Conference/Trip accommodation
+     */
+    Route::middleware(['permission:manage_event_registrations,approved'])->group(function () {
+        Route::post('/events/{id}/reservation-request', [EventRegistrationController::class, 'submitReservationRequest'])
+            ->middleware('throttle:event-crud');
+        Route::post('/events/{id}/reservation-request/{regId}/approve', [EventRegistrationController::class, 'approveReservation'])
+            ->middleware('throttle:event-crud');
+        Route::post('/events/{id}/reservation-request/{regId}/reject', [EventRegistrationController::class, 'rejectReservation'])
+            ->middleware('throttle:sensitive');
+        Route::post('/events/{id}/reservation-request/{regId}/complete', [EventRegistrationController::class, 'completeAccommodation'])
+            ->middleware('throttle:event-crud');
+        Route::get('/events/{id}/reservation-status', [EventRegistrationController::class, 'getReservationStatus'])
+            ->middleware('throttle:event-read');
+    });
+
+    /*
+     | Buses for trips
+     */
         Route::get('/events/{id}/buses', [EventBusController::class, 'index'])
             ->middleware('throttle:event-read');
         Route::post('/events/{id}/buses', [EventBusController::class, 'store'])

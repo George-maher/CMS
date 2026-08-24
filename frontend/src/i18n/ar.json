@@ -1265,6 +1265,7 @@
         "selectResponsibleServant": "اختر الخادم المسؤول",
         "responsibleServantHint": "اختر الخادم المسؤول عن إدارة هذا المؤتمر / الرحلة.",
         "searchServant": "ابحث عن خادم بالاسم أو الهاتف...",
+        "type_servant": "خادم",
         "loadingServants": "جارٍ تحميل الخدام…",
         "errorLoadingServants": "فشل تحميل قائمة الخدام. انقر لإعادة المحاولة.",
         "noServantsAvailable": "لا يوجد خدام نشطون في كنيستك.",
