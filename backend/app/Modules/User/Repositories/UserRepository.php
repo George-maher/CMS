@@ -100,18 +100,6 @@ class UserRepository implements UserRepositoryInterface
     /**
      * @return Collection<int, User>
      */
-    public function findServantsByAdmin(int $adminId): Collection
-    {
-        return User::byChurch()
-            ->byRole(UserRole::Servant)
-            ->where('created_by', $adminId)
-            ->active()
-            ->get();
-    }
-
-    /**
-     * @return Collection<int, User>
-     */
     public function findMembersByServant(int $servantId): Collection
     {
         $servant = $this->findById($servantId);
@@ -192,11 +180,18 @@ class UserRepository implements UserRepositoryInterface
     }
 
     /**
+     * All active Servants belonging to the given church.
+     *
      * @return Collection<int, User>
      */
     public function getServantsByChurch(int $churchId): Collection
     {
-        return $this->findServantsByAdmin($churchId);
+        return User::query()
+            ->byChurch($churchId)
+            ->byRole(UserRole::Servant)
+            ->active()
+            ->orderBy('name')
+            ->get();
     }
 
     /**

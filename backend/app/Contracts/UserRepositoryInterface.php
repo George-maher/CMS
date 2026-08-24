@@ -30,9 +30,6 @@ interface UserRepositoryInterface
     public function paginateMembersByClassYear(int $classYearId, int $perPage = 15): LengthAwarePaginator;
 
     /** @return Collection<int, User> */
-    public function findServantsByAdmin(int $adminId): Collection;
-
-    /** @return Collection<int, User> */
     public function findMembersByServant(int $servantId): Collection;
 
     /** @return Collection<int, User> */

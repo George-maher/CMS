@@ -353,9 +353,9 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'approval', 'throttle:api'])->g
             ->middleware('throttle:user-list');
 
         /*
-        | User — servants list
+        | User — servants list (eligible Responsible Servants for events)
         */
-        Route::get('/users/servants', [UserController::class, 'servantsMe'])
+        Route::get('/users/servants', [UserController::class, 'servants'])
             ->middleware('throttle:user-list');
 
         /*

@@ -9,6 +9,7 @@ import EventDetailModal from '@/components/common/EventDetailModal'
 import ImageUpload from '@/components/common/ImageUpload'
 import ImageWithFallback from '@/components/common/ImageWithFallback'
 import Modal from '@/components/common/Modal'
+import { useAuth } from '@/hooks/useAuth'
 import type { Column } from '@/components/common/DataTable'
 import type { Event } from '@/types'
 import { getMyAssignedEvents, getEvent, createEvent, updateEvent, deleteEvent } from '@/api/events'
@@ -21,6 +22,7 @@ const emptyForm: EventForm = { name: '', type: 'service', image: '', description
 export default function ServantEvents() {
   const { t } = useTranslation()
   const navigate = useNavigate()
+  const { user } = useAuth()
 
   const columns: Column<Event>[] = [
     { key: 'image', header: '', render: (e) => e.image ? (
@@ -78,6 +80,12 @@ export default function ServantEvents() {
     setSaving(true); setError('')
     try {
       const payload: Record<string, unknown> = { name: form.name, type: form.type, description: form.description, location: form.location || null, class_id: form.class_id ? Number(form.class_id) : null, is_active: true, is_all_classes: form.is_all_classes }
+      // The backend requires a Responsible Servant for Conference/Trip events.
+      // A servant creating an event is responsible for it themselves.
+      if (['conference', 'trip'].includes(form.type)) {
+        if (!user?.id) { setError(t('eventMgmt.responsibleServantRequired')); return }
+        payload.responsible_servant_id = user.id
+      }
       if (form.is_all_classes) {
         payload.target_class_ids = []
       } else if (form.target_class_ids.length > 0) {
@@ -135,11 +143,17 @@ export default function ServantEvents() {
             <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}
               className="input-field">
               <option value="service">{t('events.type_service')}</option>
+              <option value="conference">{t('events.type_conference')}</option>
               <option value="trip">{t('events.type_trip')}</option>
               <option value="meeting">{t('events.type_meeting')}</option>
               <option value="other">{t('events.type_other')}</option>
             </select>
           </div>
+          {['conference', 'trip'].includes(form.type) && (
+            <p className="rounded-lg bg-blue-50 dark:bg-blue-900/20 p-2 text-xs text-secondary">
+              {t('eventMgmt.youAreResponsible')}
+            </p>
+          )}
           <ImageUpload value={form.image} onChange={(file) => setForm({ ...form, image: file ?? '' })} />
           <textarea placeholder={t('events.description')} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })}
             className="input-field" rows={2} />

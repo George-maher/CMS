@@ -272,6 +272,7 @@
         "type_trip": "رحلة",
         "type_meeting": "اجتماع",
         "type_other": "أخرى",
+        "noServantAssigned": "لم يتم تعيين خادم",
         "deleteConfirm": "هل تريد حذف هذه النشاط؟",
         "deleteUserConfirm": "هل تريد حذف هذا المستخدم؟",
         "createdBy": "تم الإنشاء بواسطة",
@@ -1260,6 +1261,13 @@
         "responsibleServantRequired": "الخادم المسؤول مطلوب لفعاليات المؤتمر/الرحلة.",
         "responsibleServantMustBeServant": "المستخدم المحدد يجب أن يكون خادماً.",
         "responsibleServantInactive": "الخادم المحدد غير نشط.",
-        "responsibleServantWrongChurch": "الخادم المحدد لا ينتمي إلى كنيستك."
+        "responsibleServantWrongChurch": "الخادم المحدد لا ينتمي إلى كنيستك.",
+        "selectResponsibleServant": "اختر الخادم المسؤول",
+        "responsibleServantHint": "اختر الخادم المسؤول عن إدارة هذا المؤتمر / الرحلة.",
+        "searchServant": "ابحث عن خادم بالاسم أو الهاتف...",
+        "loadingServants": "جارٍ تحميل الخدام…",
+        "errorLoadingServants": "فشل تحميل قائمة الخدام. انقر لإعادة المحاولة.",
+        "noServantsAvailable": "لا يوجد خدام نشطون في كنيستك.",
+        "youAreResponsible": "ستكون أنت الخادم المسؤول عن هذه الفعالية."
     }
 }

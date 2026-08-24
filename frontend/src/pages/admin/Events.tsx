@@ -66,6 +66,9 @@ export default function AdminEvents() {
   const [form, setForm] = useState<EventForm>(emptyForm)
   const [servantEvent, setServantEvent] = useState<Event | null>(null)
   const [newServantId, setNewServantId] = useState<string>('')
+  const [servantsLoading, setServantsLoading] = useState(true)
+  const [servantsError, setServantsError] = useState(false)
+  const [servantSearch, setServantSearch] = useState('')
 
   const handleView = async (id: number) => {
     setViewLoading(true)
@@ -84,7 +87,12 @@ export default function AdminEvents() {
       const filtered = servants.filter((s) => s.church_id === churchId)
       setServants(servants)
       setFilteredServants(filtered)
-    }).catch((e) => logCatch('AdminEvents.getServants', e))
+      setServantsLoading(false)
+    }).catch((e) => {
+      logCatch('AdminEvents.getServants', e)
+      setServantsError(true)
+      setServantsLoading(false)
+    })
   }, [user?.church_id])
 
   const fetch = async (page = 1) => {
@@ -95,7 +103,7 @@ export default function AdminEvents() {
 
   const openCreate = () => {
     setEditing(null)
-    setForm({ ...emptyForm, event_date: new Date().toISOString().slice(0, 16), church_id: user?.church_id ?? 0 }); setSaveError(''); setShowModal(true)
+    setForm({ ...emptyForm, event_date: new Date().toISOString().slice(0, 16), church_id: user?.church_id ?? 0 }); setSaveError(''); setShowModal(true); setServantSearch('')
   }
 
   const openEdit = (event: Event) => {
@@ -120,10 +128,14 @@ export default function AdminEvents() {
       church_id: eventChurchId,
     })
     setFilteredServants(eventServants)
-    setSaveError(''); setShowModal(true)
+    setSaveError(''); setShowModal(true); setServantSearch('')
   }
 
   const handleSave = async () => {
+    if (['conference', 'trip'].includes(form.type) && !form.responsible_servant_id) {
+      setSaveError(t('eventMgmt.responsibleServantRequired'))
+      return
+    }
     setSaving(true); setSaveError('')
     try {
       const payload: Record<string, unknown> = { name: form.name, type: form.type, description: form.description, location: form.location || null, class_id: form.class_id ? Number(form.class_id) : null, is_active: form.is_active, is_all_classes: form.is_all_classes, church_id: form.church_id }
@@ -285,20 +297,52 @@ export default function AdminEvents() {
           {['conference', 'trip'].includes(form.type) && (
             <div className="rounded-lg border border-border p-3 space-y-2">
               <label className="block text-sm font-medium">{t('eventMgmt.responsibleServant')}</label>
-              <select value={form.responsible_servant_id} onChange={(e) => setForm({ ...form, responsible_servant_id: e.target.value })} className="input-field">
-                <option value="">--</option>
-                {filteredServants.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-              </select>
+              <p className="text-xs text-secondary">{t('eventMgmt.responsibleServantHint')}</p>
+              {servantsLoading ? (
+                <div className="flex items-center gap-2 py-2 text-sm text-secondary">
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary-400 border-t-transparent" />
+                  {t('eventMgmt.loadingServants')}
+                </div>
+              ) : filteredServants.length === 0 ? (
+                <p className="py-1 text-sm text-secondary">{t('eventMgmt.noServantsAvailable')}</p>
+              ) : (
+                <>
+                  <input
+                    type="search"
+                    placeholder={t('eventMgmt.searchServant')}
+                    value={servantSearch}
+                    onChange={(e) => setServantSearch(e.target.value)}
+                    className="input-field"
+                  />
+                  <select
+                    value={form.responsible_servant_id}
+                    onChange={(e) => setForm({ ...form, responsible_servant_id: e.target.value })}
+                    className="input-field"
+                  >
+                    <option value="">{t('eventMgmt.selectResponsibleServant')}</option>
+                    {filteredServants
+                      .filter((s) => {
+                        const q = servantSearch.trim().toLowerCase()
+                        if (!q) return true
+                        return s.name.toLowerCase().includes(q) || (s.phone ?? '').includes(q)
+                      })
+                      .map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.name} {t('events.type_servant')}{s.phone ? ` — ${s.phone}` : ''}
+                        </option>
+                      ))}
+                  </select>
+                </>
+              )}
               {form.responsible_servant_id && (() => {
                 const selected = filteredServants.find(s => s.id === Number(form.responsible_servant_id))
-                if (!selected) return null
                 return (
-                  <div className="rounded-lg bg-surface-secondary p-2 text-xs space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-sm">{selected.name}</span>
+                  <div className="rounded-lg bg-surface-secondary p-3 text-xs space-y-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-medium text-sm break-all">{selected?.name ?? '—'}</span>
                       <span className="rounded-full bg-primary/10 px-2 py-0.5 text-primary text-xs">{t('events.type_servant')}</span>
                     </div>
-                    {selected.phone && <div className="text-secondary">{selected.phone}</div>}
+                    {selected?.phone && <div className="text-secondary break-all">{selected.phone}</div>}
                   </div>
                 )
               })()}
@@ -399,7 +443,11 @@ export default function AdminEvents() {
           <label className="block text-sm font-medium">{t('eventMgmt.newResponsibleServant')}</label>
           <select value={newServantId} onChange={(e) => setNewServantId(e.target.value)} className="input-field">
             <option value="">--</option>
-            {filteredServants.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+            {filteredServants.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name} {t('events.type_servant')}{s.phone ? ` — ${s.phone}` : ''}
+              </option>
+            ))}
           </select>
           <div className="mt-3">
             <button onClick={() => { void handleChangeServant() }} disabled={!newServantId} className="btn-primary btn-md w-full disabled:opacity-50">{t('common.save')}</button>
