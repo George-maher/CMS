@@ -51,7 +51,9 @@ class EventManagementTest extends TestCase
 
     public function test_admin_can_create_trip_event_with_details(): void
     {
-        $admin = $this->makeUser(Church::factory()->create(), UserRole::Admin);
+        $church = Church::factory()->create();
+        $admin = $this->makeUser($church, UserRole::Admin);
+        $servant = $this->makeUser($church, UserRole::Servant);
 
         $response = $this->actAs($admin)
             ->postJson('/api/v1/events', [
@@ -59,6 +61,7 @@ class EventManagementTest extends TestCase
                 'type' => EventType::Trip->value,
                 'status' => EventStatus::Open->value,
                 'is_active' => true,
+                'responsible_servant_id' => $servant->id,
                 'event_date' => now()->addDays(10)->toDateString(),
                 'location' => 'Alexandria',
                 'destination' => 'Alexandria',
@@ -83,12 +86,14 @@ class EventManagementTest extends TestCase
         $church = Church::factory()->create();
         $event = Event::factory()->create(['church_id' => $church->id, 'max_capacity' => 50]);
         $admin = $this->makeUser($church, UserRole::Admin);
+        $servant = $this->makeUser($church, UserRole::Servant);
 
         $response = $this->actAs($admin)
             ->putJson("/api/v1/events/{$event->id}", [
                 'name' => $event->name,
                 'type' => EventType::Trip->value,
                 'is_active' => true,
+                'responsible_servant_id' => $servant->id,
                 'location' => 'New Location',
                 'max_capacity' => 120,
             ]);
@@ -500,12 +505,14 @@ class EventManagementTest extends TestCase
     {
         $church = Church::factory()->create();
         $admin = $this->makeUser($church, UserRole::Admin);
+        $servant = $this->makeUser($church, UserRole::Servant);
 
         $response = $this->actAs($admin)
             ->postJson('/api/v1/events', [
                 'name' => 'Annual Conference',
                 'type' => EventType::Conference->value,
                 'is_active' => true,
+                'responsible_servant_id' => $servant->id,
                 'event_date' => now()->addDays(30)->toDateString(),
                 'room_groups' => [
                     ['count' => 2, 'capacity' => 5],
@@ -534,12 +541,14 @@ class EventManagementTest extends TestCase
     {
         $church = Church::factory()->create();
         $admin = $this->makeUser($church, UserRole::Admin);
+        $servant = $this->makeUser($church, UserRole::Servant);
 
         $this->actAs($admin)
             ->postJson('/api/v1/events', [
                 'name' => 'Test Conference',
                 'type' => EventType::Conference->value,
                 'is_active' => true,
+                'responsible_servant_id' => $servant->id,
                 'room_groups' => [
                     ['count' => 1, 'capacity' => 6],
                 ],
@@ -766,6 +775,7 @@ class EventManagementTest extends TestCase
                 'name' => 'Updated by servant',
                 'type' => EventType::Conference->value,
                 'is_active' => true,
+                'responsible_servant_id' => $servant->id,
             ])
             ->assertStatus(200);
 
@@ -788,6 +798,7 @@ class EventManagementTest extends TestCase
                 'name' => 'Hacked',
                 'type' => EventType::Conference->value,
                 'is_active' => true,
+                'responsible_servant_id' => $servant->id,
             ])
             ->assertStatus(404);
     }

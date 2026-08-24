@@ -296,6 +296,9 @@ export interface Event {
   rooms_count?: number
   total_capacity?: number
   total_member_capacity?: number
+  pending_count?: number
+  confirmed_count?: number
+  approved_count?: number
   view_count?: number
   views?: EventViewEntry[]
   created_at: string

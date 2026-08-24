@@ -213,8 +213,10 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'approval', 'throttle:api'])->g
     */
     Route::get('/events', [EventController::class, 'index'])
         ->middleware('throttle:event-read');
-    // Must be registered before /events/{id} so "my-registrations" is not treated as an id.
+    // Must be registered before /events/{id} so these are not treated as an id.
     Route::get('/events/my-registrations', [EventRegistrationController::class, 'my'])
+        ->middleware('throttle:event-read');
+    Route::get('/events/my-assigned', [EventController::class, 'myAssigned'])
         ->middleware('throttle:event-read');
     Route::get('/events/{id}', [EventController::class, 'show'])
         ->middleware('throttle:event-read');

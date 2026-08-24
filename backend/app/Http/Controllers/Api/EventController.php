@@ -281,4 +281,19 @@ class EventController extends Controller
 
         return ! $hasAccess && ! $overlap && $event->class_year_id !== null && $event->class_year_id !== $user->class_year_id;
     }
+
+    /**
+     * Events where the authenticated user is the responsible servant.
+     */
+    public function myAssigned(Request $request): JsonResponse
+    {
+        /** @var User $user */
+        $user = $request->user();
+        /** @var int $perPage */
+        $perPage = $request->integer('per_page', 15);
+
+        $result = $this->eventService->myAssignedEvents((int) $user->id, $perPage);
+
+        return response()->json($result);
+    }
 }

@@ -161,6 +161,7 @@ class EventAccommodationController extends Controller
 
         try {
             $accommodation = $this->accommodationService->assignAccommodation(
+                $event,
                 $registrationId,
                 $cellId,
             );
@@ -183,7 +184,7 @@ class EventAccommodationController extends Controller
         }
 
         try {
-            $this->accommodationService->removeAccommodation($registrationId);
+            $this->accommodationService->removeAccommodation($event, $registrationId);
 
             return response()->json(['message' => 'Accommodation removed.']);
         } catch (ValidationException $e) {

@@ -46,14 +46,15 @@ interface EventAccommodationServiceInterface
 
     /**
      * Assign a user to a cell (accommodation).
-     * Validates: registration is approved, cell is available, user has no existing accommodation.
+     * Validates: registration belongs to the event and is approved, cell belongs
+     * to the event and is available, user has no existing accommodation.
      */
-    public function assignAccommodation(int $registrationId, int $cellId): EventAccommodation;
+    public function assignAccommodation(Event $event, int $registrationId, int $cellId): EventAccommodation;
 
     /**
      * Remove a user's accommodation assignment.
      */
-    public function removeAccommodation(int $registrationId): void;
+    public function removeAccommodation(Event $event, int $registrationId): void;
 
     /**
      * List approved but unaccommodated registrations for an event.

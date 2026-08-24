@@ -11,6 +11,7 @@
         "classYears": "السنوات الدراسية",
         "classYearDetail": "تفاصيل السنة الدراسية",
         "events": "إعلان عن نشاط",
+        "myAssignedEvents": "الفعاليات المخصصة لي",
         "feedback": "الشكاوي و الاقتراحات ",
         "analytics": "معدل الغياب",
         "qr": "إدارة رمز QR",
@@ -1245,6 +1246,20 @@
         "bookingWith": "الحجز مع",
         "medicalNotes": "ملاحظات طبية",
         "rejectionReason": "سبب الرفض",
-        "notes": "ملاحظات"
+        "notes": "ملاحظات",
+        "responsibleServant": "الخادم المسؤول",
+        "totalRoomsLabel": "إجمالي الغرف",
+        "roomGroupMismatch": "مجموع غرف المجموعات لا يتطابق مع إجمالي الغرف.",
+        "totalBusCapacity": "السعة الإجمالية للحافلات",
+        "buses": "حافلات",
+        "myAssignedEvents": "الفعاليات المخصصة لي",
+        "noAssignedEvents": "لا توجد فعاليات مخصصة لك بعد.",
+        "changeResponsibleServant": "تغيير الخادم المسؤول",
+        "currentResponsibleServant": "الخادم المسؤول الحالي",
+        "newResponsibleServant": "الخادم المسؤول الجديد",
+        "responsibleServantRequired": "الخادم المسؤول مطلوب لفعاليات المؤتمر/الرحلة.",
+        "responsibleServantMustBeServant": "المستخدم المحدد يجب أن يكون خادماً.",
+        "responsibleServantInactive": "الخادم المحدد غير نشط.",
+        "responsibleServantWrongChurch": "الخادم المحدد لا ينتمي إلى كنيستك."
     }
 }

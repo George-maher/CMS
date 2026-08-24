@@ -40,7 +40,7 @@ class EventPolicy
         if ($user->isServant() && $event->class_year_id === $user->class_year_id) {
             return true;
         }
-        if ($event->responsible_servant_id && $event->responsible_servant_id === $user->id) {
+        if ($event->responsible_servant_id && $event->responsible_servant_id === $user->id && $event->church_id === $user->church_id) {
             return true;
         }
 
@@ -55,7 +55,7 @@ class EventPolicy
         if ($user->isServant() && $event->class_year_id === $user->class_year_id) {
             return true;
         }
-        if ($event->responsible_servant_id && $event->responsible_servant_id === $user->id) {
+        if ($event->responsible_servant_id && $event->responsible_servant_id === $user->id && $event->church_id === $user->church_id) {
             return true;
         }
 

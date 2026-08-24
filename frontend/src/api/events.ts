@@ -90,3 +90,10 @@ export async function getEventNotViewedUsers(
   const { data } = await client.get<{ data: EventViewer[] }>(`/events/${id}/analytics/not-viewed`, { params })
   return data.data
 }
+
+export async function getMyAssignedEvents(
+  params?: Record<string, string | number>,
+): Promise<{ data: Event[]; meta: PaginationMeta }> {
+  const { data } = await client.get<{ data: Event[]; meta: PaginationMeta }>('/events/my-assigned', { params })
+  return data
+}

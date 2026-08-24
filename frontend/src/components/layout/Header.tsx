@@ -44,6 +44,7 @@ const routeTitles: Record<string, string> = {
   '/servant/leaderboard': 'nav.leaderboard',
   '/servant/members': 'nav.myMembers',
   '/servant/events': 'nav.events',
+  '/servant/my-assigned-events': 'nav.myAssignedEvents',
   '/servant/scan': 'nav.scanQR',
   '/servant/attendance': 'nav.attendance',
   '/servant/qr': 'nav.qrInvites',

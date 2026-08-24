@@ -11,7 +11,7 @@ import ImageWithFallback from '@/components/common/ImageWithFallback'
 import Modal from '@/components/common/Modal'
 import type { Column } from '@/components/common/DataTable'
 import type { Event } from '@/types'
-import { listEvents, getEvent, createEvent, updateEvent, deleteEvent } from '@/api/events'
+import { getMyAssignedEvents, getEvent, createEvent, updateEvent, deleteEvent } from '@/api/events'
 import { getMyClasses } from '@/api/structure'
 import { logCatch } from '@/lib/debug'
 
@@ -53,12 +53,12 @@ export default function ServantEvents() {
 
   const fetch = async (page = 1) => {
     setLoading(true)
-    try { const res = await listEvents({ page, per_page: 15 }); setEvents(res.data); setMeta(res.meta) }
+    try { const res = await getMyAssignedEvents({ page, per_page: 15 }); setEvents(res.data); setMeta(res.meta) }
     finally { setLoading(false) }
   }
 
   useEffect(() => {
-    listEvents({ page: 1, per_page: 15 }).then(res => { setEvents(res.data); setMeta(res.meta) }).finally(() => setLoading(false))
+    getMyAssignedEvents({ page: 1, per_page: 15 }).then(res => { setEvents(res.data); setMeta(res.meta) }).finally(() => setLoading(false))
     getMyClasses().then(setClasses).catch((e) => logCatch('ServantEvents.getMyClasses', e))
   }, [])
 

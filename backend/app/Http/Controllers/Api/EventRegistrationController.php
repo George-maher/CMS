@@ -65,6 +65,8 @@ class EventRegistrationController extends Controller
             $notes,
         );
 
+        // Responsible-servant notification is created inside the registration
+        // service (notifyRegistration); avoid duplicate notifications here.
         return response()->json([
             'message' => 'Participant registered successfully.',
             'data' => new EventRegistrationResource($registration->load(['user.classe', 'bus'])),

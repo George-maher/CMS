@@ -42,6 +42,7 @@ const servantNav: NavItem[] = [
   { labelKey: 'nav.leaderboard', path: '/servant/leaderboard', icon: <Trophy className="h-5 w-5 text-gold-400" /> },
   { labelKey: 'nav.myMembers', path: '/servant/members', icon: <Users className="h-5 w-5 text-gold-400" /> },
   { labelKey: 'nav.events', path: '/servant/events', icon: <Calendar className="h-5 w-5 text-gold-400" /> },
+  { labelKey: 'nav.myAssignedEvents', path: '/servant/my-assigned-events', icon: <Calendar className="h-5 w-5 text-gold-400" /> },
   { labelKey: 'nav.scanQR', path: '/servant/scan', icon: <Camera className="h-5 w-5 text-gold-400" /> },
   { labelKey: 'nav.attendance', path: '/servant/attendance', icon: <ClipboardList className="h-5 w-5 text-gold-400" /> },
   { labelKey: 'nav.qrInvites', path: '/servant/qr', icon: <QrCode className="h-5 w-5 text-gold-400" /> },

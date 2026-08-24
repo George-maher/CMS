@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Contracts\EventAccommodationServiceInterface;
 use App\Enums\RegistrationStatus;
+use App\Http\Resources\EventRegistrationResource;
 use App\Models\Event;
 use App\Models\EventAccommodation;
 use App\Models\EventRegistration;
@@ -208,11 +209,12 @@ class EventAccommodationService implements EventAccommodationServiceInterface
         return $this->findRoom($event, $roomId)->load(['cells.accommodation.registration.user']);
     }
 
-    public function assignAccommodation(int $registrationId, int $cellId): EventAccommodation
+    public function assignAccommodation(Event $event, int $registrationId, int $cellId): EventAccommodation
     {
-        return DB::transaction(function () use ($registrationId, $cellId): EventAccommodation {
+        return DB::transaction(function () use ($event, $registrationId, $cellId): EventAccommodation {
             /** @var EventRegistration|null $registration */
             $registration = EventRegistration::query()
+                ->where('event_id', $event->id)
                 ->whereKey($registrationId)
                 ->lockForUpdate()
                 ->first();
@@ -245,6 +247,7 @@ class EventAccommodationService implements EventAccommodationServiceInterface
 
             /** @var EventRoomCell|null $cell */
             $cell = EventRoomCell::query()
+                ->whereHas('room', fn ($q) => $q->where('event_id', $event->id))
                 ->whereKey($cellId)
                 ->lockForUpdate()
                 ->first();
@@ -289,11 +292,12 @@ class EventAccommodationService implements EventAccommodationServiceInterface
         });
     }
 
-    public function removeAccommodation(int $registrationId): void
+    public function removeAccommodation(Event $event, int $registrationId): void
     {
-        DB::transaction(function () use ($registrationId): void {
+        DB::transaction(function () use ($event, $registrationId): void {
             /** @var EventAccommodation|null $accommodation */
             $accommodation = EventAccommodation::query()
+                ->whereHas('registration', fn ($q) => $q->where('event_id', $event->id))
                 ->where('registration_id', $registrationId)
                 ->lockForUpdate()
                 ->first();
@@ -324,7 +328,7 @@ class EventAccommodationService implements EventAccommodationServiceInterface
             ->paginate($perPage);
 
         return [
-            'data' => $paginator->items(),
+            'data' => EventRegistrationResource::collection($paginator->items()),
             'meta' => [
                 'current_page' => $paginator->currentPage(),
                 'last_page' => $paginator->lastPage(),

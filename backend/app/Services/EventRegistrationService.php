@@ -317,6 +317,18 @@ class EventRegistrationService implements EventRegistrationServiceInterface
             $body,
             'event_registration',
         );
+
+        // Notify the responsible servant about the new registration
+        if ($event->responsible_servant_id && $event->responsible_servant_id !== $registration->user_id) {
+            $memberName = $registration->user->name ?? 'A member';
+            $this->notificationService->create(
+                $event->responsible_servant_id,
+                $event->church_id ?? 0,
+                'New Registration',
+                "{$memberName} registered for '{$event->name}'.",
+                'event_reservation',
+            );
+        }
     }
 
     private function notifyMember(EventRegistration $registration, string $title, string $body): void

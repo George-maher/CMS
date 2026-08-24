@@ -12,7 +12,9 @@ use App\Models\EventBus;
 use App\Models\EventRoom;
 use App\Models\EventRoomCell;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -196,7 +198,7 @@ class EventService implements EventServiceInterface
     }
 
     /**
-     * Bulk-create buses from config.
+     * Bulk-create buses from per-bus config.
      *
      * @param  array<int, array{capacity: int}>  $busConfig
      */
@@ -207,13 +209,15 @@ class EventService implements EventServiceInterface
         foreach ($busConfig as $bus) {
             $capacity = (int) $bus['capacity'];
 
-            EventBus::create([
-                'event_id' => $event->id,
-                'bus_number' => (string) $busNumber,
-                'capacity' => $capacity,
-            ]);
+            if ($capacity > 0) {
+                EventBus::create([
+                    'event_id' => $event->id,
+                    'bus_number' => (string) $busNumber,
+                    'capacity' => $capacity,
+                ]);
 
-            $busNumber++;
+                $busNumber++;
+            }
         }
     }
 
@@ -460,5 +464,56 @@ class EventService implements EventServiceInterface
         }
 
         return $query->get();
+    }
+
+    /**
+     * Events where the user is the responsible servant.
+     *
+     * @return array<string, mixed>
+     */
+    public function myAssignedEvents(int $userId, int $perPage = 15): array
+    {
+        $paginator = Event::query()
+            ->where('responsible_servant_id', $userId)
+            ->withCount([
+                'registrations as pending_count' => function (Builder $q) {
+                    $q->where('status', 'pending');
+                },
+                'registrations as confirmed_count' => function (Builder $q) {
+                    $q->where('status', 'confirmed');
+                },
+                'registrations as approved_count' => function (Builder $q) {
+                    $q->where('status', 'approved');
+                },
+            ])
+            ->with(['rooms.cells' => function (Relation $q) {
+                $q->where('type', 'member');
+            }])
+            ->orderByDesc('event_date')
+            ->paginate($perPage);
+
+        $data = collect($paginator->items())->map(function (Event $event) {
+            /** @var array<string, mixed> $resourceData */
+            $resourceData = (new EventResource($event))->resolve();
+
+            return array_merge($resourceData, [
+                'rooms_count' => $event->totalRooms(),
+                'total_capacity' => $event->totalCapacity(),
+                'total_member_capacity' => $event->totalMemberCapacity(),
+                'pending_count' => $event->pending_count ?? 0,
+                'confirmed_count' => $event->confirmed_count ?? 0,
+                'approved_count' => $event->approved_count ?? 0,
+            ]);
+        })->values();
+
+        return [
+            'data' => $data,
+            'meta' => [
+                'current_page' => $paginator->currentPage(),
+                'last_page' => $paginator->lastPage(),
+                'per_page' => $paginator->perPage(),
+                'total' => $paginator->total(),
+            ],
+        ];
     }
 }

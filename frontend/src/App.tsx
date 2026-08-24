@@ -44,6 +44,7 @@ const ServantMemberDetail = lazy(() => import('@/pages/servant/MemberDetail'))
 const ServantScanQR = lazy(() => import('@/pages/servant/ScanQR'))
 const ServantQRInvites = lazy(() => import('@/pages/servant/QRInvites'))
 const ServantEvents = lazy(() => import('@/pages/servant/Events'))
+const ServantMyAssignedEvents = lazy(() => import('@/pages/servant/MyAssignedEvents'))
 const ServantEventDetail = lazy(() => import('@/pages/admin/EventDetail'))
 const ServantAttendance = lazy(() => import('@/pages/servant/Attendance'))
 const ServantLeaderboard = lazy(() => import('@/pages/servant/Leaderboard'))
@@ -145,6 +146,7 @@ export default function App() {
                 <Route path="/servant/scan" element={<ServantScanQR />} />
                 <Route path="/servant/qr" element={<ServantQRInvites />} />
                 <Route path="/servant/events" element={<ServantEvents />} />
+                <Route path="/servant/my-assigned-events" element={<ServantMyAssignedEvents />} />
                 <Route path="/servant/events/:id" element={<ServantEventDetail />} />
                 <Route path="/servant/attendance" element={<ServantAttendance />} />
                 <Route path="/servant/feedback" element={<FeedbackManagement />} />

@@ -11,6 +11,7 @@
         "classYears": "Class Years",
         "classYearDetail": "Class Year Detail",
         "events": "Events",
+        "myAssignedEvents": "My Assigned Events",
         "feedback": "Feedback",
         "analytics": "Analytics",
         "qr": "QR Management",
@@ -1246,6 +1247,20 @@
         "bookingWith": "Booking With",
         "medicalNotes": "Medical Notes",
         "rejectionReason": "Rejection Reason",
-        "notes": "Notes"
+        "notes": "Notes",
+        "responsibleServant": "Responsible Servant",
+        "totalRoomsLabel": "Total Rooms",
+        "roomGroupMismatch": "Room group counts do not match total rooms.",
+        "totalBusCapacity": "Total Bus Capacity",
+        "buses": "buses",
+        "myAssignedEvents": "My Assigned Events",
+        "noAssignedEvents": "No events assigned to you yet.",
+        "changeResponsibleServant": "Change Responsible Servant",
+        "currentResponsibleServant": "Current Responsible Servant",
+        "newResponsibleServant": "New Responsible Servant",
+        "responsibleServantRequired": "Responsible Servant is required for Conference/Trip events.",
+        "responsibleServantMustBeServant": "The selected user must be a Servant.",
+        "responsibleServantInactive": "The selected Servant is inactive.",
+        "responsibleServantWrongChurch": "The selected Servant does not belong to your Church."
     }
 }

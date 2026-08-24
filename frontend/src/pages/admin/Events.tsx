@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from '@/hooks/useAuth'
 import toast from 'react-hot-toast'
 import { Plus, List, CalendarDays } from 'lucide-react'
 import Badge from '@/components/common/Badge'
@@ -19,15 +20,16 @@ import { logCatch } from '@/lib/debug'
 import { eventStatusVariant, eventStatusLabelKey } from '@/components/events/eventStatus'
 
 interface RoomGroup { count: number; capacity: number }
-interface BusConfig { count: number; capacity: number }
+interface BusEntry { capacity: number }
 
-interface EventForm { name: string; type: string; image: string | File; description: string; event_date: string; location: string; class_id: string; is_active: boolean; is_all_classes: boolean; target_class_ids: number[]; responsible_servant_id: string; room_groups: RoomGroup[]; bus_config: BusConfig[] }
+interface EventForm { name: string; type: string; image: string | File; description: string; event_date: string; location: string; class_id: string; is_active: boolean; is_all_classes: boolean; target_class_ids: number[]; responsible_servant_id: string; total_rooms: string; room_groups: RoomGroup[]; bus_config: BusEntry[]; church_id: number }
 
-const emptyForm: EventForm = { name: '', type: 'service', image: '', description: '', event_date: '', location: '', class_id: '', is_active: true, is_all_classes: false, target_class_ids: [], responsible_servant_id: '', room_groups: [], bus_config: [] }
+const emptyForm: EventForm = { name: '', type: 'service', image: '', description: '', event_date: '', location: '', class_id: '', is_active: true, is_all_classes: false, target_class_ids: [], responsible_servant_id: '', total_rooms: '', room_groups: [], bus_config: [], church_id: 0 }
 
 export default function AdminEvents() {
   const { t } = useTranslation()
   const navigate = useNavigate()
+  const { user } = useAuth()
   const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list')
 
   const columns: Column<Event>[] = [
@@ -54,12 +56,16 @@ export default function AdminEvents() {
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState<Event | null>(null)
   const [classes, setClasses] = useState<{ id: number; name: string }[]>([])
-  const [servants, setServants] = useState<{ id: number; name: string }[]>([])
+  const [servants, setServants] = useState<{ id: number; name: string; phone?: string | null; church_id?: number | null }[]>([])
+  const [filteredServants, setFilteredServants] = useState<{ id: number; name: string; phone?: string | null; church_id?: number | null }[]>([])
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
-  const [form, setForm] = useState<EventForm>(emptyForm)
   const [viewing, setViewing] = useState<Event | null>(null)
   const [viewLoading, setViewLoading] = useState(false)
+  const [changeServantModalOpen, setChangeServantModalOpen] = useState(false)
+  const [form, setForm] = useState<EventForm>(emptyForm)
+  const [servantEvent, setServantEvent] = useState<Event | null>(null)
+  const [newServantId, setNewServantId] = useState<string>('')
 
   const handleView = async (id: number) => {
     setViewLoading(true)
@@ -73,8 +79,13 @@ export default function AdminEvents() {
       .then((res) => { setEvents(res.data); setMeta(res.meta) })
       .finally(() => setLoading(false))
     listAllClasses().then(setClasses).catch((e) => logCatch('AdminEvents.listAllClasses', e))
-    getServants().then(setServants).catch((e) => logCatch('AdminEvents.getServants', e))
-  }, [])
+    getServants().then(servants => {
+      const churchId = user?.church_id ?? 0
+      const filtered = servants.filter((s) => s.church_id === churchId)
+      setServants(servants)
+      setFilteredServants(filtered)
+    }).catch((e) => logCatch('AdminEvents.getServants', e))
+  }, [user?.church_id])
 
   const fetch = async (page = 1) => {
     setLoading(true)
@@ -84,12 +95,13 @@ export default function AdminEvents() {
 
   const openCreate = () => {
     setEditing(null)
-    const now = new Date(); now.setMinutes(now.getMinutes() - now.getTimezoneOffset())
-    setForm({ ...emptyForm, event_date: now.toISOString().slice(0, 16) }); setSaveError(''); setShowModal(true)
+    setForm({ ...emptyForm, event_date: new Date().toISOString().slice(0, 16), church_id: user?.church_id ?? 0 }); setSaveError(''); setShowModal(true)
   }
 
   const openEdit = (event: Event) => {
     setEditing(event)
+    const eventChurchId = user?.church_id ?? 0
+    const eventServants = servants.filter((s) => s.church_id === eventChurchId)
     setForm({
       name: event.name,
       type: event.type,
@@ -102,16 +114,19 @@ export default function AdminEvents() {
       is_all_classes: event.is_all_classes ?? false,
       target_class_ids: event.target_classes?.map(c => c.id) ?? [],
       responsible_servant_id: event.responsible_servant_id?.toString() ?? '',
+      total_rooms: '',
       room_groups: [],
       bus_config: [],
+      church_id: eventChurchId,
     })
+    setFilteredServants(eventServants)
     setSaveError(''); setShowModal(true)
   }
 
   const handleSave = async () => {
     setSaving(true); setSaveError('')
     try {
-      const payload: Record<string, unknown> = { name: form.name, type: form.type, description: form.description, location: form.location || null, class_id: form.class_id ? Number(form.class_id) : null, is_active: form.is_active, is_all_classes: form.is_all_classes }
+      const payload: Record<string, unknown> = { name: form.name, type: form.type, description: form.description, location: form.location || null, class_id: form.class_id ? Number(form.class_id) : null, is_active: form.is_active, is_all_classes: form.is_all_classes, church_id: form.church_id }
       if (form.is_all_classes) {
         payload.target_class_ids = []
       } else if (form.target_class_ids.length > 0) {
@@ -120,14 +135,18 @@ export default function AdminEvents() {
       if (form.event_date) payload.event_date = new Date(form.event_date).toISOString()
       if (form.image instanceof File) { payload.image = form.image }
       else if (editing && (form.image === '' || form.image === null)) { payload.remove_image = true }
-      if (['conference', 'trip'].includes(form.type) && form.responsible_servant_id) {
+      if (form.responsible_servant_id) {
         payload.responsible_servant_id = Number(form.responsible_servant_id)
       }
-      if (form.type === 'conference' && !editing && form.room_groups.length > 0) {
-        payload.room_groups = form.room_groups
-      }
-      if (form.type === 'trip' && !editing && form.bus_config.length > 0) {
-        payload.bus_config = form.bus_config
+      if (['conference', 'trip'].includes(form.type) && !editing) {
+        if (form.room_groups.length > 0) {
+          const totalRooms = form.total_rooms ? Number(form.total_rooms) : form.room_groups.reduce((s, g) => s + (g.count || 0), 0)
+          payload.total_rooms = totalRooms
+          payload.room_groups = form.room_groups.filter(g => g.count > 0 && g.capacity > 1)
+        }
+        if (form.bus_config.length > 0) {
+          payload.bus_config = form.bus_config.filter(b => b.capacity > 0)
+        }
       }
       if (editing) { await updateEvent(editing.id, payload) } else { await createEvent(payload) }
       setShowModal(false); fetch(); toast.success(editing ? t('common.update') : t('common.create'))
@@ -141,6 +160,28 @@ export default function AdminEvents() {
     if (window.confirm(t('events.deleteConfirm'))) {
       try { await deleteEvent(id); fetch(); toast.success(t('common.delete')) }
       catch (e) { logCatch('AdminEvents.deleteEvent', e); toast.error(t('common.saving')) }
+    }
+  }
+
+  const openChangeServantModal = (event: Event) => {
+    setServantEvent(event)
+    const eventChurchId = user?.church_id ?? 0
+    setFilteredServants(servants.filter((s) => s.church_id === eventChurchId))
+    setNewServantId(event.responsible_servant_id?.toString() ?? '')
+    setSaveError('')
+    setChangeServantModalOpen(true)
+  }
+
+  const handleChangeServant = async () => {
+    if (!servantEvent || !newServantId) return
+    try {
+      await updateEvent(servantEvent.id, { responsible_servant_id: Number(newServantId) })
+      setChangeServantModalOpen(false)
+      fetch()
+      toast.success(t('common.update'))
+    } catch (e) {
+      logCatch('AdminEvents.changeServant', e)
+      toast.error(t('common.saving'))
     }
   }
 
@@ -178,6 +219,9 @@ export default function AdminEvents() {
               <button onClick={() => navigate(`/admin/events/${e.id}`)} className="btn-icon btn-ghost">{t('eventMgmt.tabOverview')}</button>
               <button onClick={() => handleView(e.id)} disabled={viewLoading} className="btn-icon btn-ghost">{t('common.view')}</button>
               <button onClick={() => openEdit(e)} className="btn-icon btn-ghost">{t('common.edit')}</button>
+              {e.responsible_servant_id && (
+                <button onClick={() => openChangeServantModal(e)} className="btn-icon btn-ghost text-primary-600">{t('eventMgmt.changeResponsibleServant')}</button>
+              )}
               <button onClick={() => handleDelete(e.id)} className="btn-icon btn-ghost">{t('common.delete')}</button>
             </div>
           )}]} data={events} meta={meta} isLoading={loading} onPageChange={fetch} />
@@ -239,57 +283,129 @@ export default function AdminEvents() {
             {t('common.active')}
           </label>
           {['conference', 'trip'].includes(form.type) && (
-            <div>
-              <label className="block text-sm font-medium mb-1">{t('eventMgmt.tabOverview')} - {t('events.createdBy')}</label>
+            <div className="rounded-lg border border-border p-3 space-y-2">
+              <label className="block text-sm font-medium">{t('eventMgmt.responsibleServant')}</label>
               <select value={form.responsible_servant_id} onChange={(e) => setForm({ ...form, responsible_servant_id: e.target.value })} className="input-field">
                 <option value="">--</option>
-                {servants.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                {filteredServants.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
+              {form.responsible_servant_id && (() => {
+                const selected = filteredServants.find(s => s.id === Number(form.responsible_servant_id))
+                if (!selected) return null
+                return (
+                  <div className="rounded-lg bg-surface-secondary p-2 text-xs space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-sm">{selected.name}</span>
+                      <span className="rounded-full bg-primary/10 px-2 py-0.5 text-primary text-xs">{t('events.type_servant')}</span>
+                    </div>
+                    {selected.phone && <div className="text-secondary">{selected.phone}</div>}
+                  </div>
+                )
+              })()}
             </div>
           )}
-          {form.type === 'conference' && !editing && (
-            <div className="space-y-2">
-              <label className="block text-sm font-medium">{t('eventMgmt.tabAccommodation')} - {t('eventMgmt.addRooms')}</label>
-              {form.room_groups.map((group, idx) => (
-                <div key={idx} className="flex gap-2 items-center">
-                  <input type="number" min={1} placeholder={t('eventMgmt.numberOfRooms')} value={group.count || ''}
-                    onChange={(e) => { const g = [...form.room_groups]; g[idx] = { ...g[idx], count: Number(e.target.value) } as RoomGroup; setForm({ ...form, room_groups: g }) }}
-                    className="input-field flex-1" />
-                  <input type="number" min={1} placeholder={t('eventMgmt.capacityPerRoom')} value={group.capacity || ''}
-                    onChange={(e) => { const g = [...form.room_groups]; g[idx] = { ...g[idx], capacity: Number(e.target.value) } as RoomGroup; setForm({ ...form, room_groups: g }) }}
-                    className="input-field flex-1" />
-                  <button type="button" onClick={() => setForm({ ...form, room_groups: form.room_groups.filter((_, i) => i !== idx) })}
-                    className="btn-icon btn-ghost text-red-500">✕</button>
+          {['conference', 'trip'].includes(form.type) && !editing && (
+            <>
+              <div className="space-y-2 rounded-lg border border-border p-3">
+                <label className="block text-sm font-medium">{t('eventMgmt.accommodation')}</label>
+                <div>
+                  <label className="block text-xs text-secondary mb-1">{t('eventMgmt.totalRoomsLabel')}</label>
+                  <input type="number" min={1} placeholder={t('eventMgmt.totalRoomsLabel')} value={form.total_rooms}
+                    onChange={(e) => setForm({ ...form, total_rooms: e.target.value })} className="input-field w-32" />
                 </div>
-              ))}
-              <button type="button" onClick={() => setForm({ ...form, room_groups: [...form.room_groups, { count: 1, capacity: 6 }] })}
-                className="text-sm text-primary hover:underline">+ {t('eventMgmt.addRoomGroup')}</button>
-            </div>
-          )}
-          {form.type === 'trip' && !editing && (
-            <div className="space-y-2">
-              <label className="block text-sm font-medium">{t('eventMgmt.tabBuses')} - {t('eventMgmt.addBus')}</label>
-              {form.bus_config.map((group, idx) => (
-                <div key={idx} className="flex gap-2 items-center">
-                  <input type="number" min={1} placeholder={t('eventMgmt.numberOfRooms')} value={group.count || ''}
-                    onChange={(e) => { const g = [...form.bus_config]; g[idx] = { ...g[idx], count: Number(e.target.value) } as BusConfig; setForm({ ...form, bus_config: g }) }}
-                    className="input-field flex-1" />
-                  <input type="number" min={1} placeholder={t('eventMgmt.seats')} value={group.capacity || ''}
-                    onChange={(e) => { const g = [...form.bus_config]; g[idx] = { ...g[idx], capacity: Number(e.target.value) } as BusConfig; setForm({ ...form, bus_config: g }) }}
-                    className="input-field flex-1" />
-                  <button type="button" onClick={() => setForm({ ...form, bus_config: form.bus_config.filter((_, i) => i !== idx) })}
-                    className="btn-icon btn-ghost text-red-500">✕</button>
-                </div>
-              ))}
-              <button type="button" onClick={() => setForm({ ...form, bus_config: [...form.bus_config, { count: 1, capacity: 20 }] })}
-                className="text-sm text-primary hover:underline">+ {t('eventMgmt.addBus')}</button>
-            </div>
+                {form.room_groups.map((group, idx) => (
+                  <div key={idx} className="flex gap-2 items-center">
+                    <input type="number" min={1} placeholder={t('eventMgmt.numberOfRooms')} value={group.count || ''}
+                      onChange={(e) => { const g = [...form.room_groups]; g[idx] = { ...g[idx], count: Number(e.target.value) } as RoomGroup; setForm({ ...form, room_groups: g }) }}
+                      className="input-field flex-1" />
+                    <span className="text-xs text-secondary">→</span>
+                    <input type="number" min={2} placeholder={t('eventMgmt.capacityPerRoom')} value={group.capacity || ''}
+                      onChange={(e) => { const g = [...form.room_groups]; g[idx] = { ...g[idx], capacity: Number(e.target.value) } as RoomGroup; setForm({ ...form, room_groups: g }) }}
+                      className="input-field flex-1" />
+                    <button type="button" onClick={() => setForm({ ...form, room_groups: form.room_groups.filter((_, i) => i !== idx) })}
+                      className="btn-icon btn-ghost text-red-500">✕</button>
+                  </div>
+                ))}
+                <button type="button" onClick={() => setForm({ ...form, room_groups: [...form.room_groups, { count: 1, capacity: 5 }] })}
+                  className="text-sm text-primary hover:underline">+ {t('eventMgmt.addRoomGroup')}</button>
+                {form.room_groups.length > 0 && (() => {
+                  const totalRoomCount = form.room_groups.reduce((s, g) => s + (g.count || 0), 0)
+                  const totalCapacity = form.room_groups.reduce((s, g) => s + (g.count || 0) * (g.capacity || 0), 0)
+                  const totalMemberCapacity = form.room_groups.reduce((s, g) => s + (g.count || 0) * Math.max(0, (g.capacity || 0) - 1), 0)
+                  const totalServantCells = totalRoomCount
+                  const roomsMatch = !form.total_rooms || totalRoomCount === Number(form.total_rooms)
+                  return (
+                    <div className={`mt-2 rounded-lg p-2 text-xs space-y-1 ${roomsMatch ? 'bg-green-50 dark:bg-green-900/20' : 'bg-red-50 dark:bg-red-900/20'}`}>
+                      <div className="flex justify-between"><span className="text-secondary">{t('eventMgmt.totalRooms')}</span><span className="font-medium">{totalRoomCount}{form.total_rooms && !roomsMatch ? ` / ${form.total_rooms}` : ''}</span></div>
+                      <div className="flex justify-between"><span className="text-secondary">{t('eventMgmt.totalCapacity')}</span><span className="font-medium">{totalCapacity}</span></div>
+                      <div className="flex justify-between"><span className="text-secondary">{t('eventMgmt.memberCapacity')}</span><span className="font-medium">{totalMemberCapacity}</span></div>
+                      <div className="flex justify-between"><span className="text-secondary">{t('eventMgmt.servantCapacity')}</span><span className="font-medium">{totalServantCells}</span></div>
+                      {!roomsMatch && <p className="text-red-600 dark:text-red-400">{t('eventMgmt.roomGroupMismatch')}</p>}
+                    </div>
+                  )
+                })()}
+              </div>
+              <div className="space-y-2 rounded-lg border border-border p-3">
+                <label className="block text-sm font-medium">{t('eventMgmt.tabBuses')}</label>
+                {form.bus_config.map((bus, idx) => (
+                  <div key={idx} className="flex gap-2 items-center">
+                    <span className="text-xs text-secondary whitespace-nowrap">{t('eventMgmt.bus')} {idx + 1}</span>
+                    <span className="text-xs text-secondary">→</span>
+                    <input type="number" min={1} placeholder={t('eventMgmt.seats')} value={bus.capacity || ''}
+                      onChange={(e) => { const b = [...form.bus_config]; b[idx] = { ...b[idx], capacity: Number(e.target.value) } as BusEntry; setForm({ ...form, bus_config: b }) }}
+                      className="input-field flex-1" />
+                    <span className="text-xs text-secondary">{t('eventMgmt.seats')}</span>
+                    <button type="button" onClick={() => setForm({ ...form, bus_config: form.bus_config.filter((_, i) => i !== idx) })}
+                      className="btn-icon btn-ghost text-red-500">✕</button>
+                  </div>
+                ))}
+                <button type="button" onClick={() => setForm({ ...form, bus_config: [...form.bus_config, { capacity: 50 }] })}
+                  className="text-sm text-primary hover:underline">+ {t('eventMgmt.addBus')}</button>
+                {form.bus_config.length > 0 && (() => {
+                  const totalBusCapacity = form.bus_config.reduce((s, b) => s + (b.capacity || 0), 0)
+                  return (
+                    <div className="mt-2 rounded-lg bg-blue-50 dark:bg-blue-900/20 p-2 text-xs">
+                      <div className="flex justify-between"><span className="text-secondary">{t('eventMgmt.totalBusCapacity')}</span><span className="font-medium">{totalBusCapacity} {t('eventMgmt.seats')} ({form.bus_config.length} {t('eventMgmt.buses')})</span></div>
+                    </div>
+                  )
+                })()}
+              </div>
+            </>
           )}
           {saveError && <div className="rounded-lg bg-red-50 dark:bg-red-900/20 p-3 text-sm text-red-600 dark:text-red-400">{saveError}</div>}
         </div>
       </Modal>
 
       <EventDetailModal event={viewing} isOpen={viewing !== null} onClose={() => setViewing(null)} />
+      
+      <Modal isOpen={changeServantModalOpen} onClose={() => setChangeServantModalOpen(false)} title={t('eventMgmt.changeResponsibleServant')} size="sm">
+        <div className="space-y-4">
+          <div className="rounded-lg border border-border p-4">
+            <label className="block text-sm font-medium">{t('eventMgmt.currentResponsibleServant')}</label>
+            {servantEvent?.responsible_servant_id ? (
+              <div className="rounded-lg bg-surface-secondary p-2 text-xs space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="font-medium text-sm">{servantEvent.responsible_servant?.name ?? filteredServants.find(s => s.id === servantEvent.responsible_servant_id)?.name ?? '—'}</span>
+                  <span className="rounded-full bg-primary/10 px-2 py-0.5 text-primary text-xs">{t('events.type_servant')}</span>
+                </div>
+                {(servantEvent.responsible_servant?.phone ?? filteredServants.find(s => s.id === servantEvent.responsible_servant_id)?.phone) && (
+                  <div className="text-secondary">{servantEvent.responsible_servant?.phone ?? filteredServants.find(s => s.id === servantEvent.responsible_servant_id)?.phone}</div>
+                )}
+              </div>
+            ) : (
+              <p className="text-sm text-secondary">{t('events.noServantAssigned')}</p>
+            )}
+          </div>
+          <label className="block text-sm font-medium">{t('eventMgmt.newResponsibleServant')}</label>
+          <select value={newServantId} onChange={(e) => setNewServantId(e.target.value)} className="input-field">
+            <option value="">--</option>
+            {filteredServants.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+          <div className="mt-3">
+            <button onClick={() => { void handleChangeServant() }} disabled={!newServantId} className="btn-primary btn-md w-full disabled:opacity-50">{t('common.save')}</button>
+          </div>
+        </div>
+      </Modal>
     </div>
   )
 }
