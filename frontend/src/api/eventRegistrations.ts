@@ -219,6 +219,17 @@ export function reportUrl(eventId: number, type: 'participants' | 'financial' | 
 }
 
 /*
+ | My Assigned Events — servant
+ */
+
+export async function getMyAssignedEvents(
+  params?: Record<string, string | number | boolean | undefined>,
+): Promise<{ data: Event[]; meta: PaginationMeta }> {
+  const { data } = await client.get('/events/my-assigned', { params })
+  return data
+}
+
+/*
  | Reservations — approve / reject
  */
 
