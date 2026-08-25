@@ -21,6 +21,9 @@ export const registrationStatusVariant: Record<RegistrationStatus, BadgeVariant>
   waitlisted: 'info',
   approved: 'success',
   rejected: 'danger',
+  booked: 'success',
+  not_reserved: 'warning',
+  thinking: 'info',
 }
 
 export function registrationStatusLabelKey(status: string): string {

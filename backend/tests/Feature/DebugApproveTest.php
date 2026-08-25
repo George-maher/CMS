@@ -2,10 +2,13 @@
 
 namespace Tests\Feature;
 
+use App\Contracts\EventReservationServiceInterface;
 use App\Enums\EventStatus;
 use App\Enums\EventType;
 use App\Enums\UserRole;
 use App\Models\Church;
+use App\Models\Event;
+use App\Models\EventRegistration;
 use App\Models\Permission;
 use App\Models\User;
 use Database\Seeders\PermissionSeeder;
@@ -27,7 +30,7 @@ class DebugApproveTest extends TestCase
         $otherServant = User::factory()->create(['role' => UserRole::Servant, 'church_id' => $church->id]);
         $member = User::factory()->create(['role' => UserRole::Member, 'church_id' => $church->id]);
 
-        $event = \App\Models\Event::factory()->create([
+        $event = Event::factory()->create([
             'church_id' => $church->id,
             'type' => EventType::Conference->value,
             'status' => EventStatus::Open->value,
@@ -40,8 +43,8 @@ class DebugApproveTest extends TestCase
         dump('role class: '.get_class($otherServant->role));
 
         try {
-            app(\App\Contracts\EventReservationServiceInterface::class)
-                ->approve($event->fresh(), \App\Models\EventRegistration::findOrFail($regId), $otherServant);
+            app(EventReservationServiceInterface::class)
+                ->approve($event->fresh(), EventRegistration::findOrFail($regId), $otherServant);
             dump('direct service approve: ALLOWED');
         } catch (\Throwable $e) {
             dump('direct service approve threw: '.get_class($e).' — '.$e->getMessage());

@@ -110,7 +110,7 @@ export interface QRInvite {
 export type EventType = 'service' | 'conference' | 'trip' | 'meeting' | 'other'
 
 export type EventStatus = 'draft' | 'open' | 'closed' | 'completed' | 'cancelled'
-export type RegistrationStatus = 'pending' | 'confirmed' | 'cancelled' | 'waitlisted' | 'approved' | 'rejected'
+export type RegistrationStatus = 'pending' | 'confirmed' | 'cancelled' | 'waitlisted' | 'approved' | 'rejected' | 'booked' | 'not_reserved' | 'thinking'
 export type EventPaymentStatus = 'unpaid' | 'partially_paid' | 'paid' | 'refunded'
 export type EventAttendanceStatus = 'not_checked_in' | 'checked_in' | 'absent'
 
@@ -165,6 +165,8 @@ export interface EventRegistration {
   notes: string | null
   booking_with: string | null
   medical_notes: string | null
+  medication_name: string | null
+  medication_time: string | null
   rejection_reason: string | null
   accommodation?: {
     id: number

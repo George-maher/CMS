@@ -186,6 +186,9 @@ export default function EventParticipantsTab({ eventId, isTrip }: Props) {
             <option value="rejected">{t('eventMgmt.reg_rejected')}</option>
             <option value="waitlisted">{t('eventMgmt.reg_waitlisted')}</option>
             <option value="cancelled">{t('eventMgmt.reg_cancelled')}</option>
+            <option value="booked">{t('eventMgmt.reg_booked')}</option>
+            <option value="not_reserved">{t('eventMgmt.reg_not_reserved')}</option>
+            <option value="thinking">{t('eventMgmt.reg_thinking')}</option>
           </select>
           <button onClick={() => setShowAdd(true)} className="btn-primary btn-md whitespace-nowrap">
             <Plus className="h-4 w-4" /> {t('eventMgmt.addParticipant')}

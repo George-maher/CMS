@@ -10,6 +10,9 @@ enum RegistrationStatus: string
     case Waitlisted = 'waitlisted';
     case Approved = 'approved';
     case Rejected = 'rejected';
+    case Booked = 'booked';
+    case NotReserved = 'not_reserved';
+    case Thinking = 'thinking';
 
     public function label(): string
     {
@@ -20,6 +23,9 @@ enum RegistrationStatus: string
             self::Waitlisted => 'Waitlisted',
             self::Approved => 'Approved',
             self::Rejected => 'Rejected',
+            self::Booked => 'حجزت',
+            self::NotReserved => 'لسه ما حجزتش',
+            self::Thinking => 'بفكر',
         };
     }
 

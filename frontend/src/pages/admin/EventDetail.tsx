@@ -12,6 +12,7 @@ import EventBusesTab from '@/components/events/EventBusesTab'
 import EventScheduleTab from '@/components/events/EventScheduleTab'
 import EventCheckInTab from '@/components/events/EventCheckInTab'
 import EventAccommodationTab from '@/components/events/EventAccommodationTab'
+import EventReservationRequestsTab from '@/components/events/EventReservationRequestsTab'
 import { eventStatusVariant, eventStatusLabelKey } from '@/components/events/eventStatus'
 import {
   cancelEvent,
@@ -28,7 +29,7 @@ import type { Event, EventDashboardStats } from '@/types'
 import { useAuth } from '@/hooks/useAuth'
 import { logCatch } from '@/lib/debug'
 
-type Tab = 'overview' | 'participants' | 'payments' | 'buses' | 'schedule' | 'checkin' | 'accommodation'
+type Tab = 'overview' | 'participants' | 'payments' | 'buses' | 'schedule' | 'checkin' | 'accommodation' | 'requests'
 
 const tabs: { key: Tab; labelKey: string }[] = [
   { key: 'overview', labelKey: 'eventMgmt.tabOverview' },
@@ -38,6 +39,7 @@ const tabs: { key: Tab; labelKey: string }[] = [
   { key: 'schedule', labelKey: 'eventMgmt.tabSchedule' },
   { key: 'checkin', labelKey: 'eventMgmt.tabCheckIn' },
   { key: 'accommodation', labelKey: 'eventMgmt.tabAccommodation' },
+  { key: 'requests', labelKey: 'eventMgmt.tabRequests' },
 ]
 
 export default function EventDetail() {
@@ -185,6 +187,7 @@ export default function EventDetail() {
             .filter((tb) => (tb.key === 'buses' ? isTrip : true))
             .filter((tb) => (tb.key === 'schedule' ? isConference : true))
             .filter((tb) => (tb.key === 'accommodation' ? event?.has_accommodation : true))
+            .filter((tb) => (tb.key === 'requests' ? event?.has_accommodation : true))
             .map((tb) => (
               <button
                 key={tb.key}
@@ -207,6 +210,7 @@ export default function EventDetail() {
       {activeTab === 'schedule' && isConference ? <EventScheduleTab eventId={eventId} /> : null}
       {activeTab === 'checkin' ? <EventCheckInTab eventId={eventId} /> : null}
       {activeTab === 'accommodation' && event?.has_accommodation ? <EventAccommodationTab eventId={eventId} /> : null}
+      {activeTab === 'requests' && event?.has_accommodation ? <EventReservationRequestsTab eventId={eventId} /> : null}
 
       {/* Reports */}
       {canManage ? (

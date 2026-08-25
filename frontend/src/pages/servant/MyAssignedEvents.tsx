@@ -5,7 +5,7 @@ import toast from 'react-hot-toast'
 import { Calendar, Users, Bed, Bus, Clock, CheckCircle, AlertCircle } from 'lucide-react'
 import Badge from '@/components/common/Badge'
 import ImageWithFallback from '@/components/common/ImageWithFallback'
-import { getMyAssignedEvents } from '@/api/events'
+import { getMyAssignedEvents, listEventReservationRequests } from '@/api/eventRegistrations'
 import { logCatch } from '@/lib/debug'
 import { eventStatusVariant, eventStatusLabelKey } from '@/components/events/eventStatus'
 import type { Event, PaginationMeta } from '@/types'
@@ -16,6 +16,7 @@ export default function MyAssignedEvents() {
   const [events, setEvents] = useState<Event[]>([])
   const [meta, setMeta] = useState<PaginationMeta>({ current_page: 1, last_page: 1, per_page: 15, total: 0 })
   const [loading, setLoading] = useState(true)
+  const [reservationRequests, setReservationRequests] = useState<Map<number, EventRegistration[]>>(new Map())
 
   const fetchEvents = useCallback(async (page = 1) => {
     setLoading(true)
@@ -23,6 +24,16 @@ export default function MyAssignedEvents() {
       const res = await getMyAssignedEvents({ page, per_page: 15 })
       setEvents(res.data)
       setMeta(res.meta)
+      // Fetch reservation requests for each event
+      const requestsPromises = res.data.map((event) =>
+        listEventReservationRequests(event.id).catch(() => [])
+      )
+      const requestsLists = await Promise.all(requestsPromises)
+      const requestsMap = new Map<number, EventRegistration[]>()
+      requestsLists.forEach((requests, index) => {
+        requestsMap.set(res.data[index].id, requests)
+      })
+      setReservationRequests(requestsMap)
     } catch (e) {
       logCatch('MyAssignedEvents.fetch', e)
       toast.error(t('common.loading'))

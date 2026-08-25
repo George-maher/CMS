@@ -73,6 +73,20 @@ class EventRegistrationResource extends JsonResource
                 ),
                 fn () => $this->medical_notes,
             ),
+            'medication_time' => $this->when(
+                $currentUser !== null && (
+                    $currentUser->getAuthIdentifier() === $this->user_id
+                    || in_array($currentUser->role, [UserRole::Admin, UserRole::AssistantAdmin], true)
+                ),
+                fn () => $this->medication_time,
+            ),
+            'medication_name' => $this->when(
+                $currentUser !== null && (
+                    $currentUser->getAuthIdentifier() === $this->user_id
+                    || in_array($currentUser->role, [UserRole::Admin, UserRole::AssistantAdmin], true)
+                ),
+                fn () => $this->medication_name,
+            ),
             'rejection_reason' => $this->when(
                 $currentUser !== null && $currentUser->getAuthIdentifier() === $this->user_id,
                 fn () => $this->rejection_reason,

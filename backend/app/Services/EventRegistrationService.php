@@ -6,10 +6,15 @@ use App\Contracts\EventRegistrationRepositoryInterface;
 use App\Contracts\EventRegistrationServiceInterface;
 use App\Contracts\NotificationServiceInterface;
 use App\Enums\EventAttendanceStatus;
+use App\Enums\EventPaymentStatus;
+use App\Enums\EventStatus;
 use App\Enums\RegistrationStatus;
 use App\Http\Resources\EventRegistrationResource;
 use App\Models\Event;
+use App\Models\EventAccommodation;
 use App\Models\EventRegistration;
+use App\Models\EventRoomCell;
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -290,17 +295,127 @@ class EventRegistrationService implements EventRegistrationServiceInterface
     }
 
     /**
-     * Submit a reservation request for event accommodation.
+     * Submit a member reservation request for an event.
      *
-     * @param int $eventId
-     * @param int $userId
-     * @param string $bookingWith
-     * @param int $numberOfPeople
-     * @param float|null $amount
-     * @param string|null $medicalNotes
-     * @return EventRegistration
+     * This method handles all three reservation status options:
+     * - Booked (حجزت): Member has booked, provides details (booked_with, amount_paid, medical_notes, medication_time)
+     * - Not Reserved (لسه ما حجزتش): Member has not booked yet
+     * - Thinking (بفكر): Member is thinking about attending
+     *
+     * @param  string  $status  One of: booked, not_reserved, thinking
+     * @param  string|null  $bookedWith  Who the member booked with (for Booked status)
+     * @param  string|null  $amountPaid  Amount paid (for Booked status)
+     * @param  string|null  $medicalNotes  Optional medical/medication notes (for Booked status)
+     * @param  string|null  $medicationTime  Optional medication time (for Booked status)
      */
-    public function submitReservationRequest(int $eventId, int $userId, string $bookingWith, int $numberOfPeople, float $amount = 0, string $medicalNotes = null): EventRegistration
+    public function submitMemberReservationRequest(
+        int $eventId,
+        int $userId,
+        string $status,
+        ?string $bookedWith = null,
+        ?string $amountPaid = null,
+        ?string $medicalNotes = null,
+        ?string $medicationName = null,
+        ?string $medicationTime = null
+    ): EventRegistration {
+        return DB::transaction(function () use (
+            $eventId,
+            $userId,
+            $status,
+            $bookedWith,
+            $amountPaid,
+            $medicalNotes,
+            $medicationName,
+            $medicationTime
+        ): EventRegistration {
+            /** @var Event $event */
+            $event = Event::query()->whereKey($eventId)->lockForUpdate()->firstOrFail();
+
+            if (! $event->hasAccommodation()) {
+                throw ValidationException::withMessages([
+                    'event' => ['This event does not use the accommodation workflow.'],
+                ]);
+            }
+
+            if ($event->status !== EventStatus::Open->value) {
+                throw ValidationException::withMessages([
+                    'event' => ['Registrations are not open for this event.'],
+                ]);
+            }
+
+            // Check member doesn't already have active registration/request for this event
+            $existing = EventRegistration::query()
+                ->where('event_id', $event->id)
+                ->where('user_id', $userId)
+                ->whereIn('status', [
+                    RegistrationStatus::Pending->value,
+                    RegistrationStatus::Confirmed->value,
+                    RegistrationStatus::Approved->value,
+                    RegistrationStatus::Booked->value,
+                    RegistrationStatus::NotReserved->value,
+                    RegistrationStatus::Thinking->value,
+                ])
+                ->first();
+
+            if ($existing) {
+                throw ValidationException::withMessages([
+                    'user_id' => ['You already have an active reservation/request for this event. Please update your existing request instead.'],
+                ]);
+            }
+
+            $token = EventRegistration::generateQrToken();
+
+            $registration = $this->repository->create([
+                'event_id' => $event->id,
+                'user_id' => $userId,
+                'status' => $status,
+                'booking_with' => $bookedWith,
+                'amount_paid' => $amountPaid ?? '0.00',
+                'payment_status' => EventPaymentStatus::Unpaid->value,
+                'qr_token' => $token,
+                'notes' => null,
+                'medical_notes' => $medicalNotes,
+                'medication_name' => $medicationName,
+                'medication_time' => $medicationTime,
+                'rejection_reason' => null,
+            ]);
+
+            // Notify the responsible servant about the new reservation request
+            if ($event->responsible_servant_id) {
+                $user = User::find($userId);
+                $memberName = $user->name ?? 'A member';
+
+                $statusLabel = RegistrationStatus::from($status)?->label() ?? $status;
+
+                $amountText = $amountPaid ? "\nAmount: {$amountPaid}" : '';
+
+                $this->notificationService->create(
+                    $event->responsible_servant_id,
+                    $event->church_id ?? 0,
+                    'New Reservation Request',
+                    "{$memberName} submitted a reservation request for '{$event->name}'.\nStatus: {$statusLabel}{$amountText}",
+                    'event_reservation',
+                );
+            }
+
+            // Notify the member
+            $statusDisplay = RegistrationStatus::from($status)?->label() ?? $status;
+            $this->notificationService->create(
+                $userId,
+                $event->church_id ?? 0,
+                'Reservation Request Submitted',
+                "Your reservation request for '{$event->name}' has been submitted. Status: {$statusDisplay}.",
+                'event_registration',
+            );
+
+            return $registration;
+        });
+    }
+
+    /**
+     * Submit a reservation request for event accommodation.
+     */
+    public function submitReservationRequest(int $eventId, int $userId, string $bookingWith, int $numberOfPeople, float $amount = 0, ?string $medicalNotes = null): EventRegistration
     {
         return DB::transaction(function () use ($eventId, $userId, $bookingWith, $numberOfPeople, $amount, $medicalNotes): EventRegistration {
             /** @var Event $event */
@@ -362,13 +477,13 @@ class EventRegistrationService implements EventRegistrationServiceInterface
 
                 // Find the user's name for the notification
                 $user = User::find($userId);
-                $memberName = $user?->name ?? 'A member';
+                $memberName = $user->name ?? 'A member';
 
                 $this->notificationService->create(
                     $event->responsible_servant_id,
                     $event->church_id ?? 0,
                     'New Reservation Request',
-                    "{$memberName} wants to book accommodation for '{$event->name}.\nBooking with: {$bookingWith}\nPeople: {$numberOfPeople}'{$amount > 0 ? "\nAmount: {$amount}" : ''}",
+                    "{$memberName} wants to book accommodation for '{$event->name}.'\nBooking with: {$bookingWith}\nPeople: {$numberOfPeople}".($amount > 0 ? "\nAmount: {$amount}" : ''),
                     'event_reservation',
                 );
             }
@@ -388,10 +503,6 @@ class EventRegistrationService implements EventRegistrationServiceInterface
 
     /**
      * Approve a reservation request and assign accommodation.
-     *
-     * @param int $registrationId
-     * @param int $cellId
-     * @return EventRegistration
      */
     public function approveReservation(int $registrationId, int $cellId): EventRegistration
     {
@@ -442,7 +553,7 @@ class EventRegistrationService implements EventRegistrationServiceInterface
                 ->where('room_id', $cell->room_id)
                 ->where('type', 'member')
                 ->where('is_available', false)
-                ->whereHas('event_accommodation', function ($query) use ($registration) {
+                ->whereHas('accommodation', function ($query) use ($registration) {
                     $query->where('registration_id', $registration->id);
                 })
                 ->exists();
@@ -496,12 +607,8 @@ class EventRegistrationService implements EventRegistrationServiceInterface
 
     /**
      * Reject a reservation request.
-     *
-     * @param int $registrationId
-     * @param string $rejectionReason
-     * @return EventRegistration
      */
-    public function rejectReservation(int $registrationId, string $rejectionReason = null): EventRegistration
+    public function rejectReservation(int $registrationId, ?string $rejectionReason = null): EventRegistration
     {
         return DB::transaction(function () use ($registrationId, $rejectionReason): EventRegistration {
             $registration = $this->repository->findById($registrationId);
@@ -528,7 +635,7 @@ class EventRegistrationService implements EventRegistrationServiceInterface
                 $registration->user_id,
                 $registration->event->church_id ?? 0,
                 'Reservation Rejected',
-                "Your reservation request for '{$registration->event->name}' has been rejected." . ($rejectionReason ? "\nReason: {$rejectionReason}" : ''),
+                "Your reservation request for '{$registration->event->name}' has been rejected.".($rejectionReason ? "\nReason: {$rejectionReason}" : ''),
                 'event_registration',
             );
 
@@ -538,7 +645,7 @@ class EventRegistrationService implements EventRegistrationServiceInterface
                     $registration->event->responsible_servant_id,
                     $registration->event->church_id ?? 0,
                     'Reservation Rejected',
-                    "Your reservation request for '{$registration->event->name}' has been rejected." . ($rejectionReason ? "\nReason: {$rejectionReason}" : ''),
+                    "Your reservation request for '{$registration->event->name}' has been rejected.".($rejectionReason ? "\nReason: {$rejectionReason}" : ''),
                     'event_reservation',
                 );
             }
@@ -549,10 +656,6 @@ class EventRegistrationService implements EventRegistrationServiceInterface
 
     /**
      * Complete accommodation selection for a member.
-     *
-     * @param int $registrationId
-     * @param int $cellId
-     * @return EventRegistration
      */
     public function completeAccommodation(int $registrationId, int $cellId): EventRegistration
     {
@@ -606,10 +709,6 @@ class EventRegistrationService implements EventRegistrationServiceInterface
 
     /**
      * Get member's reservation status for an event.
-     *
-     * @param int $eventId
-     * @param int $userId
-     * @return array
      */
     public function getReservationStatus(int $eventId, int $userId): array
     {
@@ -644,58 +743,6 @@ class EventRegistrationService implements EventRegistrationServiceInterface
     }
 
     private function assertEventAcceptsRegistrations(Event $event): void
-    {
-        if (! $event->isRegistrationOpen()) {
-            throw ValidationException::withMessages([
-                'event' => ['This event is not accepting registrations (status: '.$event->status->label().').'],
-            ]);
-        }
-    }
-
-    private function resolveTargetStatus(Event $event): RegistrationStatus
-    {
-        return $event->hasAvailableCapacity()
-            ? RegistrationStatus::Pending
-            : RegistrationStatus::Waitlisted;
-    }
-
-    private function notifyRegistration(Event $event, EventRegistration $registration): void
-    {
-        $body = $registration->status === RegistrationStatus::Waitlisted
-            ? "You are on the waitlist for '{$event->name}'."
-            : "You are registered for '{$event->name}'.";
-
-        $this->notificationService->create(
-            $registration->user_id,
-            $event->church_id ?? 0,
-            'Registration Received',
-            $body,
-            'event_registration',
-        );
-
-        // Notify the responsible servant about the new registration
-        if ($event->responsible_servant_id && $event->responsible_servant_id !== $registration->user_id) {
-            $memberName = $registration->user->name ?? 'A member';
-            $this->notificationService->create(
-                $event->responsible_servant_id,
-                $event->church_id ?? 0,
-                'New Registration',
-                "{$memberName} registered for '{$event->name}'.",
-                'event_reservation',
-            );
-        }
-    }
-
-    private function notifyMember(EventRegistration $registration, string $title, string $body): void
-    {
-        $this->notificationService->create(
-            $registration->user_id,
-            $registration->event->church_id ?? 0,
-            $title,
-            $body,
-            'event_registration',
-        );
-    }
     {
         if (! $event->isRegistrationOpen()) {
             throw ValidationException::withMessages([

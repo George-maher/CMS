@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Contracts\EventRegistrationServiceInterface;
 use App\Contracts\EventScheduleServiceInterface;
+use App\Enums\RegistrationStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\EventCheckInRequest;
 use App\Http\Requests\StoreEventRegistrationRequest;
@@ -68,17 +69,38 @@ class EventRegistrationController extends Controller
         // Responsible-servant notification is created inside the registration
         // service (notifyRegistration); avoid duplicate notifications here.
         return response()->json([
-            'message' => 'Participant registered successfully.',
-            'data' => new EventRegistrationResource($registration->load(['user.classe', 'bus'])),
+            'message' => 'Reservation request submitted successfully.',
+            'data' => new EventRegistrationResource($registration->load(['user.classe', 'event'])),
         ], 201);
     }
 
-    public function selfRegister(Request $request, int $id): JsonResponse
+    public function getEventReservationRequests(int $id): JsonResponse
+    {
+        $event = $this->findEvent($id);
+
+        if (! $event) {
+            return response()->json(['message' => 'Event not found.'], 404);
+        }
+
+        $registrations = EventRegistration::query()
+            ->where('event_id', $event->id)
+            ->whereIn('status', [
+                RegistrationStatus::Booked->value,
+                RegistrationStatus::NotReserved->value,
+                RegistrationStatus::Thinking->value,
+            ])
+            ->with(['user.classe'])
+            ->get();
+
+        return response()->json([
+            'data' => EventRegistrationResource::collection($registrations->load(['user.classe', 'event'])),
+        ]);
+    }
+
+    public function submitMemberReservationRequest(Request $request, int $id): JsonResponse
     {
         /** @var User $user */
         $user = $request->user();
-        /** @var int $userId */
-        $userId = $user->id;
 
         $event = $this->findEvent($id);
 
@@ -86,11 +108,50 @@ class EventRegistrationController extends Controller
             return response()->json(['message' => 'Event not found.'], 404);
         }
 
-        $registration = $this->registrationService->registerSelf($event, $userId);
+        /** @var string $status */
+        $status = $request->input('status');
+        $bookedWith = $request->input('booked_with');
+        $amountPaid = $request->input('amount_paid');
+        $medicalNotes = $request->input('medical_notes');
+        $medicationName = $request->input('medication_name');
+        $medicationTime = $request->input('medication_time');
+
+        if (! in_array($status, [
+            RegistrationStatus::Booked->value,
+            RegistrationStatus::NotReserved->value,
+            RegistrationStatus::Thinking->value,
+        ], true)) {
+            return response()->json(['message' => 'Invalid reservation status.'], 422);
+        }
+
+        /** @var string|null $bookedWith */
+        $bookedWith = is_string($bookedWith) ? $bookedWith : null;
+        /** @var string|null $amountPaid */
+        $amountPaid = is_string($amountPaid) ? $amountPaid : null;
+        /** @var string|null $medicalNotes */
+        $medicalNotes = is_string($medicalNotes) ? $medicalNotes : null;
+        /** @var string|null $medicationName */
+        $medicationName = is_string($medicationName) ? $medicationName : null;
+        /** @var string|null $medicationTime */
+        $medicationTime = is_string($medicationTime) ? $medicationTime : null;
+
+        /** @var int $userId */
+        $userId = $user->id;
+
+        $registration = $this->registrationService->submitMemberReservationRequest(
+            $event->id,
+            $userId,
+            $status,
+            $bookedWith,
+            $amountPaid,
+            $medicalNotes,
+            $medicationName,
+            $medicationTime
+        );
 
         return response()->json([
-            'message' => 'You are registered.',
-            'data' => new EventRegistrationResource($registration->load(['user.classe', 'bus'])),
+            'message' => 'Reservation request submitted successfully.',
+            'data' => new EventRegistrationResource($registration->load(['user.classe', 'event'])),
         ], 201);
     }
 

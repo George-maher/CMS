@@ -233,6 +233,40 @@ export async function rejectReservation(eventId: number, regId: number, reason?:
 }
 
 /*
+ | Member Reservation Requests — member submits their reservation status for Conference/Trip events
+ */
+
+export async function submitMemberReservationRequest(
+  eventId: number,
+  status: 'booked' | 'not_reserved' | 'thinking',
+  details?: {
+    booked_with?: string
+    amount_paid?: string
+    medical_notes?: string
+    medication_name?: string
+    medication_time?: string
+  },
+): Promise<EventRegistration> {
+  const { data } = await client.post<{ data: EventRegistration }>(
+    `/events/${eventId}/member-reservation-request`,
+    {
+      status,
+      ...details,
+    },
+  )
+  return data.data
+}
+
+/*
+ | Reservation Requests — for servant CRM view
+ */
+
+export async function listEventReservationRequests(eventId: number): Promise<EventRegistration[]> {
+  const { data } = await client.get<{ data: EventRegistration[] }>(`/events/${eventId}/reservation-requests`)
+  return data.data
+}
+
+/*
  | Accommodation — rooms, cells, assignments
  */
 

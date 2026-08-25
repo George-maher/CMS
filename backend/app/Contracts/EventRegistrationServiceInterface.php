@@ -33,4 +33,15 @@ interface EventRegistrationServiceInterface
     public function setAttendanceStatus(EventRegistration $registration, string $status): EventRegistration;
 
     public function myRegistrations(int $userId): array;
+
+    public function submitMemberReservationRequest(
+        int $eventId,
+        int $userId,
+        string $status,
+        ?string $bookedWith = null,
+        ?string $amountPaid = null,
+        ?string $medicalNotes = null,
+        ?string $medicationName = null,
+        ?string $medicationTime = null
+    ): EventRegistration;
 }

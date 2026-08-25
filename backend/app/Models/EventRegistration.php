@@ -31,6 +31,8 @@ use Illuminate\Support\Str;
  * @property string|null $notes
  * @property string|null $medical_notes
  * @property string|null $booking_with
+ * @property string|null $medication_name
+ * @property string|null $medication_time
  * @property string|null $rejection_reason
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
@@ -62,6 +64,8 @@ class EventRegistration extends Model
         'notes',
         'medical_notes',
         'booking_with',
+        'medication_name',
+        'medication_time',
         'rejection_reason',
     ];
 
@@ -73,6 +77,7 @@ class EventRegistration extends Model
             'attendance_status' => EventAttendanceStatus::class,
             'amount_paid' => 'decimal:2',
             'checked_in_at' => 'datetime',
+            'medication_time' => 'datetime',
         ];
     }
 

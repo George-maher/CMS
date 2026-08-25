@@ -66,6 +66,13 @@ class EventRegistrationRepository implements EventRegistrationRepositoryInterfac
             ->first();
     }
 
+    public function findById(int $id): ?EventRegistration
+    {
+        return EventRegistration::query()
+            ->with(['user.classe', 'event', 'bus'])
+            ->find($id);
+    }
+
     /** @param array<string, mixed> $data */
     public function create(array $data): EventRegistration
     {
