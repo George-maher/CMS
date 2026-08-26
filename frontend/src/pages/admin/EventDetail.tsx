@@ -186,6 +186,8 @@ export default function EventDetail() {
           {tabs
             .filter((tb) => (tb.key === 'buses' ? isTrip : true))
             .filter((tb) => (tb.key === 'schedule' ? isConference : true))
+            // Payments endpoint requires manage_event_payments (admin-only).
+            .filter((tb) => (tb.key === 'payments' ? isAdmin : true))
             .filter((tb) => (tb.key === 'accommodation' ? event?.has_accommodation : true))
             .filter((tb) => (tb.key === 'requests' ? event?.has_accommodation : true))
             .map((tb) => (

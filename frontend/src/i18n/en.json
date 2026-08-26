@@ -1252,6 +1252,8 @@
         "noServantsAvailable": "No active servants available in your church.",
         "youAreResponsible": "You will be the responsible servant for this event.",
         "reservationStatus": "Reservation Status",
+        "accountInfo": "Your account information (read-only)",
+        "selectStatusFirst": "Please choose a booking status first.",
         "booked": "Booked",
         "notReserved": "Not Reserved",
         "thinking": "Thinking",

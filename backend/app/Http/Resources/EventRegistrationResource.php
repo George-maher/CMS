@@ -24,6 +24,7 @@ class EventRegistrationResource extends JsonResource
             'user' => $this->when($this->relationLoaded('user'), fn (): array => [
                 'id' => $this->user->id,
                 'name' => strval($this->user->name),
+                'email' => strval($this->user->email),
                 'phone' => $this->user->phone ?? null,
                 'avatar' => $this->user->avatar ?? null,
                 'class_name' => $this->user->classe->name ?? null,

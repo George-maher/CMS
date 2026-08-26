@@ -153,6 +153,23 @@ class AuthTest extends TestCase
         $response->assertStatus(422);
     }
 
+    public function test_user_with_placeholder_like_email_local_part_can_login(): void
+    {
+        // Placeholder checks belong to registration, not login. A real account
+        // whose email local part looks like a placeholder must still be able
+        // to authenticate.
+        $user = User::factory()->create([
+            'email' => 'user@mail.com',
+            'password' => bcrypt('Test@1234'),
+            'application_status' => 'approved',
+        ]);
+
+        $this->postJson('/api/v1/auth/login', [
+            'email' => 'USER@mail.com',
+            'password' => 'Test@1234',
+        ])->assertStatus(200);
+    }
+
     public function test_rejected_user_can_login(): void
     {
         User::factory()->create([

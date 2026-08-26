@@ -424,22 +424,42 @@ class EventRegistrationService implements EventRegistrationServiceInterface
                 ]);
             }
 
-            // Notify the responsible servant about the new/updated reservation request
+            // Notify the responsible servant about the new/updated reservation request.
+            // Includes the member's account identity (name/email/phone) resolved
+            // server-side from the authenticated user — never from frontend input.
+            // Medical details are deliberately excluded from notifications; they
+            // are only visible on the authorized request details page.
             if ($event->responsible_servant_id) {
-                $user = User::find($userId);
-                $memberName = $user->name ?? 'A member';
+                /** @var User|null $requester */
+                $requester = User::find($userId);
+                $memberName = $requester !== null ? $requester->name : 'A member';
+                $memberEmail = $requester !== null ? $requester->email : '—';
+                $memberPhone = $requester !== null ? strval($requester->phone ?? '—') : '—';
 
                 /** @var RegistrationStatus $statusEnum */
                 $statusEnum = RegistrationStatus::from($statusValue);
                 $statusLabel = $statusEnum->label();
 
-                $amountText = $amountPaid ? "\nAmount: {$amountPaid}" : '';
+                $lines = [
+                    "Member: {$memberName}",
+                    "Email: {$memberEmail}",
+                    "Phone: {$memberPhone}",
+                    "Status: {$statusLabel}",
+                ];
+
+                if ($bookedWith !== null && $bookedWith !== '') {
+                    $lines[] = "Booked With: {$bookedWith}";
+                }
+
+                if ($amountPaid !== null && (float) $amountPaid > 0) {
+                    $lines[] = "Amount: {$amountPaid}";
+                }
 
                 $this->notificationService->create(
                     $event->responsible_servant_id,
                     $event->church_id ?? 0,
                     'Reservation Request Update',
-                    "{$memberName} submitted a reservation request for '{$event->name}'.\nStatus: {$statusLabel}{$amountText}",
+                    "{$memberName} submitted a reservation request for '{$event->name}'.\n".implode("\n", $lines),
                     'event_reservation',
                     $event->id,
                 );

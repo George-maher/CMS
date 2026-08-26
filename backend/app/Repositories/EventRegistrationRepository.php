@@ -48,12 +48,16 @@ class EventRegistrationRepository implements EventRegistrationRepositoryInterfac
             });
         }
 
-        return $query->orderByRaw("FIELD(status, '".implode("','", [
-            RegistrationStatus::Confirmed->value,
-            RegistrationStatus::Pending->value,
-            RegistrationStatus::Waitlisted->value,
-            RegistrationStatus::Cancelled->value,
-        ])."')")
+        // Portable status priority ordering (MySQL's FIELD() does not exist on
+        // PostgreSQL/SQLite). Bindings keep literals safely quoted.
+        return $query->orderByRaw(
+            'CASE status WHEN ? THEN 1 WHEN ? THEN 2 WHEN ? THEN 3 ELSE 4 END',
+            [
+                RegistrationStatus::Confirmed->value,
+                RegistrationStatus::Pending->value,
+                RegistrationStatus::Waitlisted->value,
+            ]
+        )
             ->orderBy('created_at')
             ->paginate($perPage);
     }

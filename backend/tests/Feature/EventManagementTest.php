@@ -874,6 +874,50 @@ class EventManagementTest extends TestCase
         $this->assertSame(1, $count);
     }
 
+    public function test_admin_can_list_event_registrations(): void
+    {
+        // Regression: the participants list previously used MySQL-only
+        // FIELD() ordering, which crashed with a 500 on PostgreSQL.
+        $church = Church::factory()->create();
+        $admin = $this->makeUser($church, UserRole::Admin);
+        $event = $this->makeTripEvent($church);
+        $member = $this->makeUser($church, UserRole::Member);
+
+        EventRegistration::factory()->create([
+            'event_id' => $event->id,
+            'user_id' => $member->id,
+            'status' => RegistrationStatus::Booked->value,
+        ]);
+
+        $this->actAs($admin)
+            ->getJson("/api/v1/events/{$event->id}/registrations?page=1&per_page=20")
+            ->assertStatus(200)
+            ->assertJsonCount(1, 'data');
+    }
+
+    public function test_member_reservation_requires_valid_status(): void
+    {
+        $church = Church::factory()->create();
+        $servant = $this->makeUser($church, UserRole::Servant);
+        $event = $this->makeTripEvent($church, $servant);
+        $member = $this->makeUser($church, UserRole::Member);
+
+        // Missing status.
+        $this->actAs($member)
+            ->postJson("/api/v1/events/{$event->id}/member-reservation-request", [])
+            ->assertStatus(422);
+
+        // Servant-managed status submitted by a member is rejected.
+        $this->actAs($member)
+            ->postJson("/api/v1/events/{$event->id}/member-reservation-request", [
+                'status' => RegistrationStatus::Approved->value,
+            ])
+            ->assertStatus(422);
+
+        $count = EventRegistration::query()->where('event_id', $event->id)->count();
+        $this->assertSame(0, $count);
+    }
+
     public function test_member_cannot_override_servant_managed_registration(): void
     {
         $church = Church::factory()->create();

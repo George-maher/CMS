@@ -2,7 +2,6 @@
 
 namespace App\Http\Requests;
 
-use App\Rules\NotPlaceholder;
 use Illuminate\Foundation\Http\FormRequest;
 
 class LoginRequest extends FormRequest
@@ -15,8 +14,13 @@ class LoginRequest extends FormRequest
     /** @return array<string, mixed> */
     public function rules(): array
     {
+        // No NotPlaceholder rule here: placeholder checks belong to
+        // registration. Blocking them at login would permanently lock out any
+        // real account whose email local part happens to look like a
+        // placeholder (e.g. user@..., name@...) — credential verification is
+        // what actually authenticates.
         return [
-            'email' => ['required', 'email', new NotPlaceholder],
+            'email' => ['required', 'email'],
             'password' => ['required', 'string'],
         ];
     }

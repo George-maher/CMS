@@ -10,17 +10,21 @@ import EventActiveStatus from '@/components/events/EventActiveStatus'
 import type { Event, EventRegistration } from '@/types'
 import { getEvent, trackEventView } from '@/api/events'
 import { myRegistrations, submitMemberReservationRequest } from '@/api/eventRegistrations'
+import { useAuth } from '@/hooks/useAuth'
 import { logCatch } from '@/lib/debug'
 
 export default function MemberEventDetail() {
   const { t } = useTranslation()
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const { user } = useAuth()
   const [event, setEvent] = useState<Event | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
   const [registration, setRegistration] = useState<EventRegistration | null>(null)
-  const [selectedStatus, setSelectedStatus] = useState<'booked' | 'not_reserved' | 'thinking'>('booked')
+  // NEW requests start with NO status — the member must make an explicit choice.
+  // EDITING an existing request loads its saved status instead (see load effect).
+  const [selectedStatus, setSelectedStatus] = useState<'booked' | 'not_reserved' | 'thinking' | null>(null)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [showDetails, setShowDetails] = useState(false)
@@ -42,11 +46,17 @@ export default function MemberEventDetail() {
         const existingReg = regs.find((r) => r.event_id === ev.id) ?? null
         setRegistration(existingReg)
         if (existingReg) {
-          setSelectedStatus(existingReg.status as 'booked' | 'not_reserved' | 'thinking')
-          setBookedWith(existingReg.booking_with || '')
-          setAmountPaid(existingReg.amount_paid || '')
-          setMedicalNotes(existingReg.medical_notes || '')
-          setMedicationTime(existingReg.medication_time ? new Date(existingReg.medication_time).toISOString().slice(11, 16) : '')
+          // Editing an EXISTING request: load its saved status. Only the three
+          // member-editable statuses are selectable; servant-managed states
+          // stay read-only (no radio is pre-selected).
+          const status = existingReg.status as 'booked' | 'not_reserved' | 'thinking'
+          if (['booked', 'not_reserved', 'thinking'].includes(status)) {
+            setSelectedStatus(status)
+            setBookedWith(existingReg.booking_with || '')
+            setAmountPaid(existingReg.amount_paid || '')
+            setMedicalNotes(existingReg.medical_notes || '')
+            setMedicationTime(existingReg.medication_time ? new Date(existingReg.medication_time).toISOString().slice(11, 16) : '')
+          }
         }
       })
       .catch((e) => {
@@ -58,6 +68,11 @@ export default function MemberEventDetail() {
 
   const handleSubmitReservation = async () => {
     if (!event) return
+    // Explicit choice required — never silently default.
+    if (selectedStatus === null) {
+      setSaveError(t('eventMgmt.selectStatusFirst'))
+      return
+    }
     setSubmitting(true)
     setSaveError(null)
     try {
@@ -238,8 +253,29 @@ export default function MemberEventDetail() {
           {/* Reservation Status Options — creates or updates the member's request */}
           {canEditReservation ? (
             <div className="mt-4 p-3 border rounded-lg bg-surface/50 text-sm">
+              {/* Member identity comes from the authenticated account (read-only). */}
+              <div className="mb-3 p-3 rounded-lg border bg-background">
+                <p className="font-medium text-secondary mb-2">{t('eventMgmt.accountInfo')}</p>
+                <dl className="space-y-1 text-sm">
+                  <div className="flex gap-2">
+                    <dt className="text-muted shrink-0">{t('auth.name')}:</dt>
+                    <dd className="font-medium break-all">{user?.name ?? '—'}</dd>
+                  </div>
+                  <div className="flex gap-2">
+                    <dt className="text-muted shrink-0">{t('auth.email')}:</dt>
+                    <dd className="break-all">{user?.email ?? '—'}</dd>
+                  </div>
+                  {user?.phone ? (
+                    <div className="flex gap-2">
+                      <dt className="text-muted shrink-0">{t('auth.phone')}:</dt>
+                      <dd className="break-all">{user.phone}</dd>
+                    </div>
+                  ) : null}
+                </dl>
+              </div>
+
               <p className="font-medium text-secondary mb-3">{t('eventMgmt.reservationStatus')}</p>
-              <div className="space-y-2">
+              <div className="space-y-2" role="radiogroup" aria-label={t('eventMgmt.reservationStatus')}>
                 <label className="flex items-center gap-2 cursor-pointer select-none">
                   <input
                     type="radio"
@@ -343,18 +379,22 @@ export default function MemberEventDetail() {
                 </div>
               )}
 
+              {selectedStatus === null && (
+                <p className="mt-2 text-sm text-warning">{t('eventMgmt.selectStatusFirst')}</p>
+              )}
+
               {selectedStatus && saveError && (
                 <p className="mt-2 text-sm text-red-600">{saveError}</p>
               )}
 
-              {selectedStatus && (
+              {selectedStatus ? (
                 <button
                   onClick={handleSubmitReservation}
                   disabled={submitting}
                   className="mt-2 w-full btn-primary">
                   {submitting ? t('common.saving') : t('eventMgmt.submitReservation')}
                 </button>
-              )}
+              ) : null}
             </div>
           ) : null}
 

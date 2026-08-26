@@ -1276,6 +1276,8 @@
         "noServantsAvailable": "لا يوجد خدام نشطون في كنيستك.",
         "youAreResponsible": "ستكون أنت الخادم المسؤول عن هذه الفعالية.",
         "reservationStatus": "حالة الحجز",
+        "accountInfo": "بيانات حسابك (للقراءة فقط)",
+        "selectStatusFirst": "من فضلك اختر حالة الحجز أولاً.",
         "booked": "حجزت",
         "notReserved": "لسه ما حجزتش",
         "thinking": "بفكر",
