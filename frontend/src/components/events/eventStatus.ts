@@ -14,6 +14,15 @@ export function eventStatusLabelKey(status: string): string {
   return `eventMgmt.status_${status}`
 }
 
+/**
+ * Single canonical Active/Inactive indicator state for events.
+ * The UI must never show two competing status badges for the same event;
+ * lists render this (dot + label) and the lifecycle stays internal.
+ */
+export function isEventActive(e: { is_active?: boolean | null }): boolean {
+  return e.is_active === true
+}
+
 export const registrationStatusVariant: Record<RegistrationStatus, BadgeVariant> = {
   pending: 'warning',
   confirmed: 'success',

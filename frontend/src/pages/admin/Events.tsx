@@ -17,7 +17,7 @@ import { listEvents, getEvent, createEvent, updateEvent, deleteEvent } from '@/a
 import { listAllClasses } from '@/api/structure'
 import { getServants } from '@/api/users'
 import { logCatch } from '@/lib/debug'
-import { eventStatusVariant, eventStatusLabelKey } from '@/components/events/eventStatus'
+import EventActiveStatus from '@/components/events/EventActiveStatus'
 
 interface RoomGroup { count: number; capacity: number }
 interface BusEntry { capacity: number }
@@ -38,16 +38,11 @@ export default function AdminEvents() {
     ) : <div className="h-10 w-16 rounded bg-surface-tertiary" /> },
     { key: 'name', header: t('events.eventName'), render: (e) => <span className="font-medium">{e.name}</span> },
     { key: 'type', header: t('events.eventType'), render: (e) => <Badge variant="info">{t(`events.type_${e.type}`)}</Badge> },
-    { key: 'status', header: t('common.status'), render: (e) => (
-      <Badge variant={eventStatusVariant[(e.status ?? 'draft') as keyof typeof eventStatusVariant]}>
-        {t(eventStatusLabelKey(e.status ?? 'draft'))}
-      </Badge>
-    ) },
+    { key: 'status', header: t('common.status'), render: (e) => <EventActiveStatus event={e} /> },
     { key: 'capacity', header: t('eventMgmt.capacity'), render: (e) => e.max_capacity ? `${e.registered_count ?? 0} / ${e.max_capacity}` : '-' },
     { key: 'event_date', header: t('events.eventDate'), render: (e) => e.event_date ? new Date(e.event_date).toLocaleDateString() : '-' },
     { key: 'location', header: t('events.location') },
     { key: 'class_id', header: t('events.target'), render: (e) => e.classe?.name ?? t('events.allClasses') },
-    { key: 'is_active', header: t('common.status'), render: (e) => <Badge variant={e.is_active ? 'success' : 'danger'}>{e.is_active ? t('common.active') : t('common.inactive')}</Badge> },
     { key: 'creator', header: t('events.createdBy'), render: (e) => e.creator?.name ?? '-' },
   ]
   const [events, setEvents] = useState<Event[]>([])

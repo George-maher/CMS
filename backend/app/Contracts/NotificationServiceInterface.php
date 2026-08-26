@@ -20,5 +20,5 @@ interface NotificationServiceInterface
 
     public function createForBonusPoints(int $pointsId, int $userId, int $churchId, string $title, string $body): void;
 
-    public function create(int $userId, int $churchId, string $title, string $body, string $type = 'general'): void;
+    public function create(int $userId, int $churchId, string $title, string $body, string $type = 'general', ?int $eventId = null): void;
 }

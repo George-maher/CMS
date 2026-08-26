@@ -6,6 +6,7 @@ import { Calendar, MapPin, Users, ArrowLeft, QrCode, CheckCircle, Clock, AlertTr
 import Badge from '@/components/common/Badge'
 import LoadingSpinner from '@/components/common/LoadingSpinner'
 import ImageWithFallback from '@/components/common/ImageWithFallback'
+import EventActiveStatus from '@/components/events/EventActiveStatus'
 import type { Event, EventRegistration } from '@/types'
 import { getEvent, trackEventView } from '@/api/events'
 import { myRegistrations, registerSelf, submitMemberReservationRequest } from '@/api/eventRegistrations'
@@ -155,11 +156,6 @@ export default function MemberEventDetail() {
           <div className="flex items-center gap-2 flex-wrap">
             <h2 className="text-2xl font-bold">{event.name}</h2>
             <Badge variant="info">{event.type_label}</Badge>
-            {event.status ? (
-              <Badge variant={event.status === 'open' ? 'success' : event.status === 'cancelled' ? 'danger' : 'warning'}>
-                {t(`eventMgmt.status_${event.status}`)}
-              </Badge>
-            ) : null}
           </div>
 
           <p className="flex items-center gap-2 text-sm text-secondary">
@@ -174,6 +170,11 @@ export default function MemberEventDetail() {
               <MapPin className="h-4 w-4 shrink-0" /> {event.location}
             </p>
           )}
+
+          <div className="flex items-center gap-2 text-sm">
+            <span className="font-medium text-secondary">{t('common.status')}:</span>
+            <EventActiveStatus event={event} size="md" />
+          </div>
 
           <p className="flex items-center gap-2 text-sm text-muted">
             <Users className="h-4 w-4 shrink-0" />

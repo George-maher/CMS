@@ -187,9 +187,16 @@ class Event extends Model
 
     /**
      * Whether the event accepts new registrations right now.
+     *
+     * Canonical rule: an event must be Active (is_active) AND in the open
+     * lifecycle state (and not past its date) to accept participation.
      */
     public function isRegistrationOpen(): bool
     {
+        if (! $this->is_active) {
+            return false;
+        }
+
         if ($this->status !== EventStatus::Open) {
             return false;
         }

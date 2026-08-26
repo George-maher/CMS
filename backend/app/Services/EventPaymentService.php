@@ -87,6 +87,7 @@ class EventPaymentService implements EventPaymentServiceInterface
                 'Payment Received',
                 sprintf('A payment of %.2f was recorded for %s.', $amount, $event->name),
                 'event_payment',
+                $event->id,
             );
 
             return $payment->fresh(['registration.user']) ?? $payment;

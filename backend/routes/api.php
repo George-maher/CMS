@@ -404,6 +404,13 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'approval', 'throttle:api'])->g
         Route::post('/events/{id}/registrations/check-in-by-token', [EventRegistrationController::class, 'checkInByToken'])
             ->middleware('throttle:attendance-record');
 
+        Route::post('/events/{id}/registrations/{regId}/check-in', [EventRegistrationController::class, 'checkIn'])
+            ->middleware('throttle:attendance-record');
+        Route::post('/events/{id}/registrations/{regId}/undo-check-in', [EventRegistrationController::class, 'undoCheckIn'])
+            ->middleware('throttle:attendance-record');
+        Route::post('/events/{id}/registrations/{regId}/assign-bus', [EventRegistrationController::class, 'assignBus'])
+            ->middleware('throttle:event-crud');
+
         Route::post('/events/{id}/registrations/{regId}/confirm', [EventRegistrationController::class, 'confirm'])
             ->middleware('throttle:event-crud');
         Route::post('/events/{id}/registrations/{regId}/cancel', [EventRegistrationController::class, 'cancel'])

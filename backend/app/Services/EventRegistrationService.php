@@ -395,6 +395,7 @@ class EventRegistrationService implements EventRegistrationServiceInterface
                     'New Reservation Request',
                     "{$memberName} submitted a reservation request for '{$event->name}'.\nStatus: {$statusLabel}{$amountText}",
                     'event_reservation',
+                    $event->id,
                 );
             }
 
@@ -406,6 +407,7 @@ class EventRegistrationService implements EventRegistrationServiceInterface
                 'Reservation Request Submitted',
                 "Your reservation request for '{$event->name}' has been submitted. Status: {$statusDisplay}.",
                 'event_registration',
+                $event->id,
             );
 
             return $registration;
@@ -485,6 +487,7 @@ class EventRegistrationService implements EventRegistrationServiceInterface
                     'New Reservation Request',
                     "{$memberName} wants to book accommodation for '{$event->name}.'\nBooking with: {$bookingWith}\nPeople: {$numberOfPeople}".($amount > 0 ? "\nAmount: {$amount}" : ''),
                     'event_reservation',
+                    $event->id,
                 );
             }
 
@@ -495,6 +498,7 @@ class EventRegistrationService implements EventRegistrationServiceInterface
                 'Reservation Request Submitted',
                 "Your reservation request for '{$event->name}' has been submitted. Status: {$status->label()}.",
                 'event_registration',
+                $event->id,
             );
 
             return $registration;
@@ -588,6 +592,7 @@ class EventRegistrationService implements EventRegistrationServiceInterface
                 'Reservation Approved',
                 "Your reservation for '{$registration->event->name}' has been approved. You can now choose your accommodation cell.",
                 'event_registration',
+                $registration->event_id,
             );
 
             // Notify the responsible servant
@@ -598,6 +603,7 @@ class EventRegistrationService implements EventRegistrationServiceInterface
                     'Reservation Approved',
                     "Your reservation request for '{$registration->event->name}' has been approved.",
                     'event_reservation',
+                    $registration->event_id,
                 );
             }
 
@@ -637,6 +643,7 @@ class EventRegistrationService implements EventRegistrationServiceInterface
                 'Reservation Rejected',
                 "Your reservation request for '{$registration->event->name}' has been rejected.".($rejectionReason ? "\nReason: {$rejectionReason}" : ''),
                 'event_registration',
+                $registration->event_id,
             );
 
             // Notify the responsible servant
@@ -647,6 +654,7 @@ class EventRegistrationService implements EventRegistrationServiceInterface
                     'Reservation Rejected',
                     "Your reservation request for '{$registration->event->name}' has been rejected.".($rejectionReason ? "\nReason: {$rejectionReason}" : ''),
                     'event_reservation',
+                    $registration->event_id,
                 );
             }
 
@@ -701,6 +709,7 @@ class EventRegistrationService implements EventRegistrationServiceInterface
                 'Accommodation Assigned',
                 "Your accommodation has been assigned for '{$registration->event->name}'.",
                 'event_registration',
+                $registration->event_id,
             );
 
             return $registration;
@@ -770,6 +779,7 @@ class EventRegistrationService implements EventRegistrationServiceInterface
             'Registration Received',
             $body,
             'event_registration',
+            $event->id,
         );
 
         // Notify the responsible servant about the new registration
@@ -781,6 +791,7 @@ class EventRegistrationService implements EventRegistrationServiceInterface
                 'New Registration',
                 "{$memberName} registered for '{$event->name}'.",
                 'event_reservation',
+                $event->id,
             );
         }
     }
@@ -793,6 +804,7 @@ class EventRegistrationService implements EventRegistrationServiceInterface
             $title,
             $body,
             'event_registration',
+            $registration->event_id,
         );
     }
 }

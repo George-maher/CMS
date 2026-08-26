@@ -3,13 +3,11 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { useTheme } from '@/hooks/useTheme'
 import { useTranslation } from 'react-i18next'
-import { Menu, Moon, Sun, Languages, LogOut, Home, Bell, BellRing, Eye, Calendar, Church, Download } from 'lucide-react'
+import { Menu, Moon, Sun, Languages, LogOut, Home, Bell, BellRing, Eye, Church, Download } from 'lucide-react'
 import { usePWAInstall } from '@/hooks/usePwaInstall'
 import InstallAppModal from '@/components/common/InstallAppModal'
 import { getUnreadCount, listNotifications, markAsRead, markAllAsRead } from '@/api/notifications'
 import type { NotificationItem } from '@/types'
-import { getEvent } from '@/api/events'
-import Modal from '@/components/common/Modal'
 import { logCatch } from '@/lib/debug'
 
 interface Props {
@@ -70,8 +68,6 @@ export default function Header({ onMenuClick }: Props) {
   const [unreadCount, setUnreadCount] = useState(0)
   const [notifications, setNotifications] = useState<NotificationItem[]>([])
   const [showPanel, setShowPanel] = useState(false)
-  const [viewingEvent, setViewingEvent] = useState<{ id: number; name: string; description: string | null; event_date: string | null; location: string | null } | null>(null)
-  const [eventModalOpen, setEventModalOpen] = useState(false)
   const [installModalOpen, setInstallModalOpen] = useState(false)
   const { isInstallable, isInstalled, install } = usePWAInstall()
   const panelRef = useRef<HTMLDivElement>(null)
@@ -124,20 +120,43 @@ export default function Header({ onMenuClick }: Props) {
 
   const handleBellClick = () => setShowPanel((prev) => !prev)
 
-  const handleNotificationClick = async (notif: NotificationItem) => {
+  const eventTarget = (notif: NotificationItem): string | null => {
+    if (!notif.event_id) return null
+    if (user?.role === 'member') return `/member/events/${notif.event_id}`
+    if (user?.role === 'servant') return `/servant/events/${notif.event_id}`
+    return `/${user?.role === 'assistant_admin' ? 'assistant-admin' : 'admin'}/events/${notif.event_id}`
+  }
+
+  const handleNotificationClick = (notif: NotificationItem) => {
+    // Mark as read in the background — navigation must never wait on the API.
     if (!notif.is_read) {
-      try {
-        await markAsRead(notif.id)
-        setUnreadCount((prev) => Math.max(0, prev - 1))
-        setNotifications((prev) =>
-          prev.map((n) => (n.id === notif.id ? { ...n, is_read: true, read_at: new Date().toISOString() } : n)),
-        )
-      } catch (e) { logCatch('Header.markAsRead', e) }
+      markAsRead(notif.id)
+        .then(() => {
+          setUnreadCount((prev) => Math.max(0, prev - 1))
+          setNotifications((prev) =>
+            prev.map((n) => (n.id === notif.id ? { ...n, is_read: true, read_at: new Date().toISOString() } : n)),
+          )
+        })
+        .catch((e: unknown) => logCatch('Header.markAsRead', e))
     }
     setShowPanel(false)
 
+    // Resolve the target synchronously from the notification payload and navigate now.
+    const target = eventTarget(notif)
+    if (
+      notif.type === 'event_reservation' ||
+      notif.type === 'event_registration' ||
+      notif.type === 'event_payment' ||
+      notif.type === 'event'
+    ) {
+      if (target) {
+        navigate(target)
+      }
+      return
+    }
     if (notif.type === 'feedback_reply' && notif.feedback_id) {
-      navigate(`/${user?.role === 'member' ? 'member' : 'admin'}/feedback?feedbackId=${notif.feedback_id}`)
+      const rolePath = user?.role === 'member' ? 'member' : user?.role === 'servant' ? 'servant' : user?.role === 'assistant_admin' ? 'assistant-admin' : 'admin'
+      navigate(`/${rolePath}/feedback?feedbackId=${notif.feedback_id}`)
       return
     }
     if (notif.type === 'bonus_points') {
@@ -152,16 +171,8 @@ export default function Header({ onMenuClick }: Props) {
       }
       return
     }
-    if (notif.event_id) {
-      if (user?.role === 'member') {
-        navigate(`/member/events/${notif.event_id}`)
-      } else {
-        try {
-          const event = await getEvent(notif.event_id)
-          setViewingEvent({ id: event.id, name: event.name, description: event.description, event_date: event.event_date, location: event.location })
-          setEventModalOpen(true)
-        } catch (e) { logCatch('Header.getEvent', e) }
-      }
+    if (target) {
+      navigate(target)
     }
   }
 
@@ -288,26 +299,6 @@ export default function Header({ onMenuClick }: Props) {
       </header>
 
       <InstallAppModal isOpen={installModalOpen} onClose={() => setInstallModalOpen(false)} />
-      <Modal isOpen={eventModalOpen} onClose={() => setEventModalOpen(false)} title={viewingEvent?.name ?? ''}>
-        {viewingEvent && (
-          <div className="space-y-3">
-            {viewingEvent.event_date && (
-              <p className="flex items-center gap-2 text-sm text-secondary">
-                <Calendar className="h-4 w-4 shrink-0" />
-                {new Date(viewingEvent.event_date).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-              </p>
-            )}
-            {viewingEvent.location && <p className="text-sm text-secondary">{viewingEvent.location}</p>}
-            {viewingEvent.description && <p className="text-sm text-secondary whitespace-pre-wrap">{viewingEvent.description}</p>}
-            <div className="pt-3">
-              <button onClick={() => { setEventModalOpen(false); const rolePath = user?.role === 'member' ? '/member' : user?.role === 'servant' ? '/servant' : '/admin'; navigate(`${rolePath}/events`) }} className="btn-primary btn-sm w-full">
-                <Eye className="h-4 w-4" />
-                {t('events.seeMore')}
-              </button>
-            </div>
-          </div>
-        )}
-      </Modal>
     </>
   )
 }

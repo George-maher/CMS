@@ -50,6 +50,7 @@ class EventReservationService implements EventReservationServiceInterface
                 'Reservation Approved',
                 "Your reservation for '{$event->name}' has been approved.",
                 'event_reservation',
+                $event->id,
             );
 
             // Notify the responsible servant
@@ -60,6 +61,7 @@ class EventReservationService implements EventReservationServiceInterface
                     'Reservation Approved',
                     "Reservation for user #{$locked->user_id} has been approved for '{$event->name}'.",
                     'event_reservation',
+                    $event->id,
                 );
             }
 
@@ -102,6 +104,7 @@ class EventReservationService implements EventReservationServiceInterface
                 'Reservation Rejected',
                 "Your reservation for '{$event->name}' has been rejected.".($reason ? " Reason: {$reason}" : ''),
                 'event_reservation',
+                $event->id,
             );
 
             return $locked->fresh(['user.classe', 'bus', 'accommodation.cell.room']) ?? $locked;

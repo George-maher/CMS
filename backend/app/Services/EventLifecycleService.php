@@ -78,6 +78,7 @@ class EventLifecycleService implements EventLifecycleServiceInterface
                     'Event Cancelled',
                     "The event '{$updated->name}' has been cancelled.",
                     'event',
+                    $updated->id,
                 );
             });
 
@@ -137,9 +138,11 @@ class EventLifecycleService implements EventLifecycleServiceInterface
             'status' => $status->value,
         ];
 
+        // Keep the Active flag coherent with the lifecycle: only open events
+        // are Active; cancelled/completed events are always Inactive.
         if ($status === EventStatus::Open) {
             $data['is_active'] = true;
-        } elseif ($status === EventStatus::Cancelled) {
+        } elseif (in_array($status, [EventStatus::Cancelled, EventStatus::Completed], true)) {
             $data['is_active'] = false;
         }
 

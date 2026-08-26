@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Contracts\EventRepositoryInterface;
 use App\Contracts\EventServiceInterface;
 use App\Contracts\NotificationServiceInterface;
+use App\Enums\EventStatus;
 use App\Enums\UserRole;
 use App\Http\Resources\EventResource;
 use App\Models\Event;
@@ -126,6 +127,8 @@ class EventService implements EventServiceInterface
             ...$data,
             'created_by' => $creatorId,
         ];
+
+        $createData = $this->normalizeActiveStatus($createData, null);
 
         $event = DB::transaction(function () use ($createData, $roomGroups, $busConfig) {
             /** @var Event $event */
@@ -261,6 +264,16 @@ class EventService implements EventServiceInterface
     public function update(int $id, array $data): array
     {
         /** @var array<string, mixed> $data */
+        /** @var Event|null $current */
+        $current = $this->eventRepository->findById($id);
+
+        if (! $current) {
+            throw ValidationException::withMessages([
+                'event' => ['Event not found.'],
+            ]);
+        }
+
+        $data = $this->normalizeActiveStatus($data, $current);
         $updated = $this->eventRepository->update($id, $data);
 
         if (! $updated) {
@@ -282,6 +295,72 @@ class EventService implements EventServiceInterface
         return [
             'data' => new EventResource($event),
         ];
+    }
+
+    /**
+     * Keep the single user-facing Active state coherent with the internal
+     * lifecycle status.
+     *
+     * Canonical model:
+     * - is_active (Active/Inactive) is what the UI shows and controls.
+     * - status (draft/open/closed/completed/cancelled) drives registration
+     *   gating and stays internal.
+     *
+     * Rules applied here:
+     * - Activating a draft/closed event opens it (publish-on-activate).
+     * - Deactivating an open event closes it.
+     * - An explicit status in the payload always wins; derived flags are then
+     *   recomputed so the two fields can never visibly contradict each other.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function normalizeActiveStatus(array $data, ?Event $current): array
+    {
+        $hasActive = array_key_exists('is_active', $data);
+        $hasStatus = array_key_exists('status', $data) && $data['status'] !== null;
+
+        if (! $hasActive && ! $hasStatus) {
+            return $data;
+        }
+
+        $isActive = $hasActive
+            ? in_array($data['is_active'], [true, 1, '1', 'true'], true)
+            : ($current->is_active ?? false);
+
+        $status = null;
+        if ($hasStatus && is_string($data['status'])) {
+            $status = $data['status'];
+        }
+        if ($status === null) {
+            $status = $current->status->value ?? null;
+        }
+
+        if ($hasActive && ! $hasStatus && $current !== null) {
+            if ($isActive && in_array($status, [EventStatus::Draft->value, EventStatus::Closed->value], true)) {
+                $status = EventStatus::Open->value;
+            } elseif (! $isActive && $status === EventStatus::Open->value) {
+                $status = EventStatus::Closed->value;
+            }
+        }
+
+        // On creation with no explicit lifecycle, Active means open, Inactive means closed.
+        if ($current === null && ! $hasStatus) {
+            $status = $isActive ? EventStatus::Open->value : EventStatus::Closed->value;
+        }
+
+        if ($status === EventStatus::Open->value) {
+            $isActive = true;
+        } elseif (in_array($status, [EventStatus::Cancelled->value, EventStatus::Completed->value], true)) {
+            $isActive = false;
+        }
+
+        if ($hasStatus || $status !== null) {
+            $data['status'] = $status;
+        }
+        $data['is_active'] = $isActive;
+
+        return $data;
     }
 
     public function delete(int $id): void

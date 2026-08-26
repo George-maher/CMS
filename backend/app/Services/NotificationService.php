@@ -109,11 +109,12 @@ class NotificationService implements NotificationServiceInterface
         ]);
     }
 
-    public function create(int $userId, int $churchId, string $title, string $body, string $type = 'general'): void
+    public function create(int $userId, int $churchId, string $title, string $body, string $type = 'general', ?int $eventId = null): void
     {
         Notification::create([
             'church_id' => $churchId,
             'user_id' => $userId,
+            'event_id' => $eventId,
             'title' => $title,
             'body' => $body,
             'type' => $type,
