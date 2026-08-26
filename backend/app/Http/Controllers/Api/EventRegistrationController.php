@@ -166,6 +166,27 @@ class EventRegistrationController extends Controller
         return response()->json($result);
     }
 
+    public function selfRegister(Request $request, int $id): JsonResponse
+    {
+        /** @var User $user */
+        $user = $request->user();
+        /** @var int $userId */
+        $userId = $user->id;
+
+        $event = $this->findEvent($id);
+
+        if (! $event) {
+            return response()->json(['message' => 'Event not found.'], 404);
+        }
+
+        $registration = $this->registrationService->registerSelf($event, $userId);
+
+        return response()->json([
+            'message' => 'Reservation request submitted successfully.',
+            'data' => new EventRegistrationResource($registration->load(['user.classe', 'event'])),
+        ], 201);
+    }
+
     public function confirm(int $id, int $regId): JsonResponse
     {
         [$event, $registration] = $this->resolveRegistration($id, $regId);

@@ -571,7 +571,7 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'approval', 'throttle:api'])->g
     | My Class Servants — any authenticated user (members need this to see contacts)
     | Placed here before manage_users group to avoid /users/{id} catching it.
     */
-    Route::get('/users/my-class-servants', [UserController::class, 'myClassServants'])
+    Route::get('/users/my-class-servants', [StructureController::class, 'myClassServants'])
         ->middleware('throttle:user-list');
 
     /*
