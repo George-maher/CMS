@@ -7,7 +7,6 @@ use App\Contracts\EventRegistrationServiceInterface;
 use App\Contracts\NotificationServiceInterface;
 use App\Enums\EventAttendanceStatus;
 use App\Enums\EventPaymentStatus;
-use App\Enums\EventStatus;
 use App\Enums\RegistrationStatus;
 use App\Http\Resources\EventRegistrationResource;
 use App\Models\Event;
@@ -302,6 +301,10 @@ class EventRegistrationService implements EventRegistrationServiceInterface
      * - Not Reserved (لسه ما حجزتش): Member has not booked yet
      * - Thinking (بفكر): Member is thinking about attending
      *
+     * If the member already has an editable (pending/booked/not_reserved/thinking)
+     * request for the event, it is updated in place instead of creating a duplicate.
+     * Servant-managed states (confirmed/approved/waitlisted/rejected) are final.
+     *
      * @param  string  $status  One of: booked, not_reserved, thinking
      * @param  string|null  $bookedWith  Who the member booked with (for Booked status)
      * @param  string|null  $amountPaid  Amount paid (for Booked status)
@@ -337,13 +340,31 @@ class EventRegistrationService implements EventRegistrationServiceInterface
                 ]);
             }
 
-            if ($event->status !== EventStatus::Open->value) {
+            if (! $event->isRegistrationOpen()) {
                 throw ValidationException::withMessages([
                     'event' => ['Registrations are not open for this event.'],
                 ]);
             }
 
-            // Check member doesn't already have active registration/request for this event
+            // Member-editable statuses. Servant-managed states (approved /
+            // confirmed / waitlisted / rejected) must not be overwritten here.
+            $memberEditable = [
+                RegistrationStatus::Booked->value,
+                RegistrationStatus::NotReserved->value,
+                RegistrationStatus::Thinking->value,
+            ];
+
+            $statusEnum = RegistrationStatus::tryFrom($status);
+
+            if ($statusEnum === null || ! in_array($statusEnum->value, $memberEditable, true)) {
+                throw ValidationException::withMessages([
+                    'status' => ['Invalid reservation status.'],
+                ]);
+            }
+
+            $statusValue = $statusEnum->value;
+
+            // Check for an existing active registration/request for this event
             $existing = EventRegistration::query()
                 ->where('event_id', $event->id)
                 ->where('user_id', $userId)
@@ -351,48 +372,73 @@ class EventRegistrationService implements EventRegistrationServiceInterface
                     RegistrationStatus::Pending->value,
                     RegistrationStatus::Confirmed->value,
                     RegistrationStatus::Approved->value,
+                    RegistrationStatus::Waitlisted->value,
+                    RegistrationStatus::Rejected->value,
                     RegistrationStatus::Booked->value,
                     RegistrationStatus::NotReserved->value,
                     RegistrationStatus::Thinking->value,
                 ])
+                ->lockForUpdate()
                 ->first();
 
-            if ($existing) {
+            // Servant-managed states are final from the member's side.
+            $servantManaged = [
+                RegistrationStatus::Confirmed->value,
+                RegistrationStatus::Approved->value,
+                RegistrationStatus::Waitlisted->value,
+                RegistrationStatus::Rejected->value,
+            ];
+
+            if ($existing !== null && in_array($existing->status->value, $servantManaged, true)) {
                 throw ValidationException::withMessages([
-                    'user_id' => ['You already have an active reservation/request for this event. Please update your existing request instead.'],
+                    'user_id' => ['Your reservation is already being handled by the event servant and can no longer be edited.'],
                 ]);
             }
 
-            $token = EventRegistration::generateQrToken();
+            if ($existing !== null) {
+                // Update the existing request in place — never create duplicates.
+                $registration = $this->repository->update($existing, [
+                    'status' => $statusValue,
+                    'booking_with' => $bookedWith,
+                    'amount_paid' => $amountPaid ?? '0.00',
+                    'medical_notes' => $medicalNotes,
+                    'medication_name' => $medicationName,
+                    'medication_time' => $medicationTime,
+                ]);
+            } else {
+                $token = EventRegistration::generateQrToken();
 
-            $registration = $this->repository->create([
-                'event_id' => $event->id,
-                'user_id' => $userId,
-                'status' => $status,
-                'booking_with' => $bookedWith,
-                'amount_paid' => $amountPaid ?? '0.00',
-                'payment_status' => EventPaymentStatus::Unpaid->value,
-                'qr_token' => $token,
-                'notes' => null,
-                'medical_notes' => $medicalNotes,
-                'medication_name' => $medicationName,
-                'medication_time' => $medicationTime,
-                'rejection_reason' => null,
-            ]);
+                $registration = $this->repository->create([
+                    'event_id' => $event->id,
+                    'user_id' => $userId,
+                    'status' => $statusValue,
+                    'booking_with' => $bookedWith,
+                    'amount_paid' => $amountPaid ?? '0.00',
+                    'payment_status' => EventPaymentStatus::Unpaid->value,
+                    'qr_token' => $token,
+                    'notes' => null,
+                    'medical_notes' => $medicalNotes,
+                    'medication_name' => $medicationName,
+                    'medication_time' => $medicationTime,
+                    'rejection_reason' => null,
+                ]);
+            }
 
-            // Notify the responsible servant about the new reservation request
+            // Notify the responsible servant about the new/updated reservation request
             if ($event->responsible_servant_id) {
                 $user = User::find($userId);
                 $memberName = $user->name ?? 'A member';
 
-                $statusLabel = RegistrationStatus::from($status)?->label() ?? $status;
+                /** @var RegistrationStatus $statusEnum */
+                $statusEnum = RegistrationStatus::from($statusValue);
+                $statusLabel = $statusEnum->label();
 
                 $amountText = $amountPaid ? "\nAmount: {$amountPaid}" : '';
 
                 $this->notificationService->create(
                     $event->responsible_servant_id,
                     $event->church_id ?? 0,
-                    'New Reservation Request',
+                    'Reservation Request Update',
                     "{$memberName} submitted a reservation request for '{$event->name}'.\nStatus: {$statusLabel}{$amountText}",
                     'event_reservation',
                     $event->id,
@@ -400,12 +446,13 @@ class EventRegistrationService implements EventRegistrationServiceInterface
             }
 
             // Notify the member
-            $statusDisplay = RegistrationStatus::from($status)?->label() ?? $status;
+            /** @var RegistrationStatus $memberStatusEnum */
+            $memberStatusEnum = RegistrationStatus::from($statusValue);
             $this->notificationService->create(
                 $userId,
                 $event->church_id ?? 0,
                 'Reservation Request Submitted',
-                "Your reservation request for '{$event->name}' has been submitted. Status: {$statusDisplay}.",
+                "Your reservation request for '{$event->name}' has been submitted. Status: {$memberStatusEnum->label()}.",
                 'event_registration',
                 $event->id,
             );
@@ -429,7 +476,7 @@ class EventRegistrationService implements EventRegistrationServiceInterface
                 ]);
             }
 
-            if ($event->status !== EventStatus::Open->value) {
+            if (! $event->isRegistrationOpen()) {
                 throw ValidationException::withMessages([
                     'event' => ['Registrations are not open for this event.'],
                 ]);

@@ -802,4 +802,147 @@ class EventManagementTest extends TestCase
             ])
             ->assertStatus(404);
     }
+
+    private function makeTripEvent(Church $church, ?User $servant = null): Event
+    {
+        return Event::factory()->trip()->create([
+            'church_id' => $church->id,
+            'status' => EventStatus::Open->value,
+            'is_active' => true,
+            'responsible_servant_id' => $servant?->id,
+        ]);
+    }
+
+    public function test_member_can_submit_reservation_request(): void
+    {
+        $church = Church::factory()->create();
+        $servant = $this->makeUser($church, UserRole::Servant);
+        $event = $this->makeTripEvent($church, $servant);
+        $member = $this->makeUser($church, UserRole::Member);
+
+        $response = $this->actAs($member)
+            ->postJson("/api/v1/events/{$event->id}/member-reservation-request", [
+                'status' => RegistrationStatus::Booked->value,
+                'booked_with' => 'Hotel Nile',
+                'amount_paid' => '250.00',
+            ]);
+
+        $response->assertStatus(201)
+            ->assertJsonPath('data.status', RegistrationStatus::Booked->value);
+
+        $this->assertDatabaseHas('event_registrations', [
+            'event_id' => $event->id,
+            'user_id' => $member->id,
+            'status' => RegistrationStatus::Booked->value,
+            'booking_with' => 'Hotel Nile',
+        ]);
+
+        // Responsible servant notified in-app.
+        $this->assertDatabaseHas('notifications', [
+            'user_id' => $servant->id,
+            'type' => 'event_reservation',
+            'event_id' => $event->id,
+        ]);
+    }
+
+    public function test_member_reservation_submission_updates_existing_request(): void
+    {
+        $church = Church::factory()->create();
+        $servant = $this->makeUser($church, UserRole::Servant);
+        $event = $this->makeTripEvent($church, $servant);
+        $member = $this->makeUser($church, UserRole::Member);
+
+        $this->actAs($member)
+            ->postJson("/api/v1/events/{$event->id}/member-reservation-request", [
+                'status' => RegistrationStatus::Thinking->value,
+            ])
+            ->assertStatus(201);
+
+        $response = $this->actAs($member)
+            ->postJson("/api/v1/events/{$event->id}/member-reservation-request", [
+                'status' => RegistrationStatus::NotReserved->value,
+            ]);
+
+        $response->assertStatus(201)
+            ->assertJsonPath('data.status', RegistrationStatus::NotReserved->value);
+
+        // Exactly one registration — updated in place, not duplicated.
+        $count = EventRegistration::query()
+            ->where('event_id', $event->id)
+            ->where('user_id', $member->id)
+            ->count();
+        $this->assertSame(1, $count);
+    }
+
+    public function test_member_cannot_override_servant_managed_registration(): void
+    {
+        $church = Church::factory()->create();
+        $servant = $this->makeUser($church, UserRole::Servant);
+        $admin = $this->makeUser($church, UserRole::Admin);
+        $event = $this->makeTripEvent($church, $servant);
+        $member = $this->makeUser($church, UserRole::Member);
+
+        EventRegistration::factory()->create([
+            'event_id' => $event->id,
+            'user_id' => $member->id,
+            'status' => RegistrationStatus::Approved->value,
+        ]);
+
+        $this->actAs($member)
+            ->postJson("/api/v1/events/{$event->id}/member-reservation-request", [
+                'status' => RegistrationStatus::Thinking->value,
+            ])
+            ->assertStatus(422);
+
+        $this->assertDatabaseHas('event_registrations', [
+            'event_id' => $event->id,
+            'user_id' => $member->id,
+            'status' => RegistrationStatus::Approved->value,
+        ]);
+    }
+
+    public function test_member_identity_is_taken_from_token_not_payload(): void
+    {
+        $church = Church::factory()->create();
+        $servant = $this->makeUser($church, UserRole::Servant);
+        $event = $this->makeTripEvent($church, $servant);
+        $memberA = $this->makeUser($church, UserRole::Member);
+        $memberB = $this->makeUser($church, UserRole::Member);
+
+        // Member A tries to submit on behalf of Member B — must be ignored.
+        $this->actAs($memberA)
+            ->postJson("/api/v1/events/{$event->id}/member-reservation-request", [
+                'status' => RegistrationStatus::Booked->value,
+                'user_id' => $memberB->id,
+            ])
+            ->assertStatus(201);
+
+        $this->assertDatabaseHas('event_registrations', [
+            'event_id' => $event->id,
+            'user_id' => $memberA->id,
+            'status' => RegistrationStatus::Booked->value,
+        ]);
+
+        $this->assertDatabaseMissing('event_registrations', [
+            'event_id' => $event->id,
+            'user_id' => $memberB->id,
+        ]);
+    }
+
+    public function test_member_cannot_submit_reservation_for_cross_church_event(): void
+    {
+        $churchA = Church::factory()->create();
+        $churchB = Church::factory()->create();
+        $memberA = $this->makeUser($churchA, UserRole::Member);
+        $eventB = $this->makeTripEvent($churchB);
+
+        $this->actAs($memberA)
+            ->postJson("/api/v1/events/{$eventB->id}/member-reservation-request", [
+                'status' => RegistrationStatus::Booked->value,
+            ])
+            ->assertStatus(404);
+
+        $count = EventRegistration::query()->where('event_id', $eventB->id)->count();
+        $this->assertSame(0, $count);
+    }
 }

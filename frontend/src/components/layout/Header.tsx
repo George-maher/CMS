@@ -67,6 +67,7 @@ export default function Header({ onMenuClick }: Props) {
 
   const [unreadCount, setUnreadCount] = useState(0)
   const [notifications, setNotifications] = useState<NotificationItem[]>([])
+  const [notificationsLoaded, setNotificationsLoaded] = useState(false)
   const [showPanel, setShowPanel] = useState(false)
   const [installModalOpen, setInstallModalOpen] = useState(false)
   const { isInstallable, isInstalled, install } = usePWAInstall()
@@ -101,12 +102,20 @@ export default function Header({ onMenuClick }: Props) {
   }
 
   useEffect(() => {
+    // Prefetch in parallel on mount so the panel renders instantly when opened.
     getUnreadCount().then(c => setUnreadCount(c)).catch(e => logCatch('Header.fetchUnreadCount', e))
+    listNotifications({ per_page: 10 })
+      .then(res => {
+        setNotifications(res.data ?? [])
+        setNotificationsLoaded(true)
+      })
+      .catch((e) => logCatch('Header.prefetchNotifications', e))
     const interval = setInterval(() => getUnreadCount().then(c => setUnreadCount(c)).catch(e => logCatch('Header.fetchUnreadCount', e)), 15000)
     return () => clearInterval(interval)
   }, [])
 
   useEffect(() => {
+    // Stale-while-revalidate: cached data is already rendered; refresh silently.
     if (showPanel) listNotifications({ per_page: 10 }).then(res => setNotifications(res.data ?? [])).catch(e => logCatch('Header.fetchNotifications', e))
   }, [showPanel])
 
@@ -245,7 +254,19 @@ export default function Header({ onMenuClick }: Props) {
                     )}
                   </div>
                   <div className="max-h-96 overflow-y-auto">
-                    {notifications.length === 0 ? (
+                    {!notificationsLoaded ? (
+                      <div className="px-4 py-3 space-y-3" aria-busy="true">
+                        {[0, 1, 2].map((i) => (
+                          <div key={i} className="flex items-start gap-3 animate-pulse">
+                            <div className="mt-1 h-2 w-2 shrink-0 rounded-full bg-border" />
+                            <div className="flex-1 space-y-2">
+                              <div className="h-3 w-3/4 rounded bg-border" />
+                              <div className="h-2.5 w-1/2 rounded bg-border" />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : notifications.length === 0 ? (
                       <div className="px-4 py-8 text-center text-sm text-muted">{t('notifications.empty')}</div>
                     ) : (
                       notifications.map((notif) => (

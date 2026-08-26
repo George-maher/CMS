@@ -226,8 +226,16 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'approval', 'throttle:api'])->g
     /*
     | Events — member self-registration
     */
+    /*
+    | Events — member self-registration + own reservation requests.
+    | Identity and tenant are derived from the authenticated user; members may
+    | only act on their own behalf. Management endpoints stay behind
+    | manage_event_registrations below.
+    */
     Route::post('/events/{id}/register-self', [EventRegistrationController::class, 'selfRegister'])
         ->middleware(['throttle:event-crud']);
+    Route::post('/events/{id}/member-reservation-request', [EventRegistrationController::class, 'submitMemberReservationRequest'])
+        ->middleware('throttle:event-crud');
 
     /*
     | QR Invite Accept
@@ -439,9 +447,6 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'approval', 'throttle:api'])->g
          | Event Lifecycle + Schedule — permission: manage_events
          |--------------------------------------------------------------------------
          */
-        Route::post('/events/{id}/member-reservation-request', [EventRegistrationController::class, 'submitMemberReservationRequest'])
-            ->middleware('throttle:event-crud');
-
         /*
          | Buses for trips
          */

@@ -9,7 +9,7 @@ import ImageWithFallback from '@/components/common/ImageWithFallback'
 import EventActiveStatus from '@/components/events/EventActiveStatus'
 import type { Event, EventRegistration } from '@/types'
 import { getEvent, trackEventView } from '@/api/events'
-import { myRegistrations, registerSelf, submitMemberReservationRequest } from '@/api/eventRegistrations'
+import { myRegistrations, submitMemberReservationRequest } from '@/api/eventRegistrations'
 import { logCatch } from '@/lib/debug'
 
 export default function MemberEventDetail() {
@@ -20,7 +20,6 @@ export default function MemberEventDetail() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
   const [registration, setRegistration] = useState<EventRegistration | null>(null)
-  const [registering, setRegistering] = useState(false)
   const [selectedStatus, setSelectedStatus] = useState<'booked' | 'not_reserved' | 'thinking'>('booked')
   const [saveError, setSaveError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -56,21 +55,6 @@ export default function MemberEventDetail() {
       })
       .finally(() => setLoading(false))
   }, [id])
-
-  const handleRegister = async () => {
-    if (!event) return
-    setRegistering(true)
-    try {
-      const reg = await registerSelf(event.id)
-      setRegistration(reg)
-      toast.success(t('eventMgmt.participantAdded'))
-    } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
-      toast.error(msg || t('eventMgmt.actionFailed'))
-    } finally {
-      setRegistering(false)
-    }
-  }
 
   const handleSubmitReservation = async () => {
     if (!event) return
@@ -117,7 +101,9 @@ export default function MemberEventDetail() {
     )
   }
 
-  const canSelfRegister = event.status === 'open' && !registration
+  // Statuses the member can still edit (submission updates in place on the backend).
+  const memberEditableStatuses = ['pending', 'booked', 'not_reserved', 'thinking']
+  const canEditReservation = event.status === 'open' && (!registration || memberEditableStatuses.includes(registration.status))
 
   // Determine status display
   const statusLabels: Record<string, string> = {
@@ -181,12 +167,6 @@ export default function MemberEventDetail() {
             {event.is_all_classes ? t('events.allClasses') : (event.classe?.name ?? event.target_classes?.map(c => c.name).join(', ') ?? t('events.allClasses'))}
           </p>
 
-          {canSelfRegister ? (
-            <button onClick={handleRegister} disabled={registering} className="btn-primary btn-md w-full sm:w-auto">
-              {registering ? t('common.saving') : t('eventMgmt.addParticipant')}
-            </button>
-          ) : null}
-
           {/* Member's Current Reservation Status Display */}
           {registration && registration.status !== 'cancelled' && (
             <div className="rounded-xl border border-border bg-surface p-4">
@@ -235,8 +215,8 @@ export default function MemberEventDetail() {
             </div>
           )}
 
-          {/* Success Message After Submission */}
-          {registration && !canSelfRegister && (
+          {/* Success Message After Submission (servant-managed or event closed) */}
+          {registration && !canEditReservation && (
             <div className="rounded-xl border border-success bg-success/10 p-4">
               <div className="flex items-center gap-2 text-success">
                 <CheckCircle className="h-5 w-5" />
@@ -255,8 +235,8 @@ export default function MemberEventDetail() {
             </div>
           )}
 
-          {/* Reservation Status Options */}
-          {event.status === 'open' && !registration ? (
+          {/* Reservation Status Options — creates or updates the member's request */}
+          {canEditReservation ? (
             <div className="mt-4 p-3 border rounded-lg bg-surface/50 text-sm">
               <p className="font-medium text-secondary mb-3">{t('eventMgmt.reservationStatus')}</p>
               <div className="space-y-2">
