@@ -95,7 +95,8 @@
         "optional": "optional",
         "remove": "Remove",
         "clear": "Clear",
-        "gotIt": "Got it"
+        "gotIt": "Got it",
+        "refresh": "Refresh"
     },
     "auth": {
         "signIn": "Sign In",
@@ -278,7 +279,8 @@
         "selectedClasses": "Selected Classes",
         "selectMultipleClasses": "Select multiple classes (optional)",
         "targetSection": "Target Audience",
-        "allClassesDesc": "Event will be visible to all members in all classes"
+        "allClassesDesc": "Event will be visible to all members in all classes",
+        "inactive": "Inactive"
     },
     "attendance": {
         "attendance": "Attendance",
@@ -1273,7 +1275,6 @@
         "bookingWithPlaceholder": "Name of servant or person you booked with",
         "amountPaid": "Amount Paid",
         "amountPaidPlaceholder": "Amount paid (e.g., 500)",
-        "medicalNotes": "Medical Notes",
         "medicalNotesPlaceholder": "Any medical conditions, allergies, or special needs (optional)",
         "medicalNotesHelp": "This information is private and only visible to event administrators.",
         "medicationTime": "Medication Time",
@@ -1283,6 +1284,17 @@
         "medicationNameHelp": "Specify the medication name or type of injection if applicable (optional).",
         "notReservedMessage": "You indicated that you have not booked yet. The responsible servant has been notified.",
         "thinkingMessage": "You are thinking about attending. The responsible servant has been notified.",
-        "yourReservationStatus": "Your Reservation Status"
+        "yourReservationStatus": "Your Reservation Status",
+        "searchRoom": "Search room number…",
+        "filterStatus": "Filter by status",
+        "filterAll": "All rooms",
+        "filterHasAvailable": "Has available cells",
+        "filterFull": "Full",
+        "noUnaccommodated": "No members are waiting for accommodation.",
+        "accommodationRemoved": "Accommodation removed",
+        "removeAccommodationTitle": "Remove Assignment",
+        "removeAccommodationConfirm": "Remove the accommodation assignment for :name and free this cell?",
+        "occupiedBy": "Occupied by",
+        "noAvailableCells": "No available cells are currently available. Please contact the event's responsible servant."
     }
 }

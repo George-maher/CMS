@@ -31,8 +31,8 @@ export async function listEvents(
   return data
 }
 
-export async function getEvent(id: number): Promise<Event> {
-  const { data } = await client.get<{ data: Event }>(`/events/${id}`)
+export async function getEvent(id: number, opts?: { signal?: AbortSignal }): Promise<Event> {
+  const { data } = await client.get<{ data: Event }>(`/events/${id}`, { signal: opts?.signal })
   return data.data
 }
 

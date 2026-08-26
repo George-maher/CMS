@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Carbon;
 
 /**
@@ -40,10 +41,15 @@ class EventRoomCell extends Model
         return $this->belongsTo(EventRoom::class, 'room_id');
     }
 
-    /** @return BelongsTo<EventAccommodation, $this> */
-    public function accommodation(): BelongsTo
+    /**
+     * The accommodation assignment occupying this cell. The FK (cell_id) lives
+     * on event_accommodations, so this is a HasOne — a previous belongsTo()
+     * declaration referenced the wrong side and always resolved to null.
+     */
+    /** @return HasOne<EventAccommodation, $this> */
+    public function accommodation(): HasOne
     {
-        return $this->belongsTo(EventAccommodation::class, 'cell_id');
+        return $this->hasOne(EventAccommodation::class, 'cell_id');
     }
 
     public function isServantReserved(): bool

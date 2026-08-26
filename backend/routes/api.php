@@ -436,17 +436,13 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'approval', 'throttle:api'])->g
             ->middleware('throttle:event-crud');
 
         /*
-         | Reservation Requests — for Conference/Trip accommodation
+         | Reservation Requests list — for Conference/Trip accommodation CRM.
+         | (The old reservation-request submit/approve/reject/complete routes
+         | were removed: they pointed at controller methods that no longer
+         | exist. The live flow is member-reservation-request + /registrations
+         | /{regId}/approve|reject via EventReservationController.)
          */
         Route::middleware(['permission:manage_event_registrations,approved'])->group(function () {
-            Route::post('/events/{id}/reservation-request', [EventRegistrationController::class, 'submitReservationRequest'])
-                ->middleware('throttle:event-crud');
-            Route::post('/events/{id}/reservation-request/{regId}/approve', [EventRegistrationController::class, 'approveReservation'])
-                ->middleware('throttle:event-crud');
-            Route::post('/events/{id}/reservation-request/{regId}/reject', [EventRegistrationController::class, 'rejectReservation'])
-                ->middleware('throttle:sensitive');
-            Route::post('/events/{id}/reservation-request/{regId}/complete', [EventRegistrationController::class, 'completeAccommodation'])
-                ->middleware('throttle:event-crud');
             Route::get('/events/{id}/reservation-requests', [EventRegistrationController::class, 'getEventReservationRequests'])
                 ->middleware('throttle:event-read');
         });

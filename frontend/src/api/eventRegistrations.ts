@@ -37,8 +37,8 @@ export async function registerSelf(eventId: number): Promise<EventRegistration> 
   return data.data
 }
 
-export async function myRegistrations(): Promise<EventRegistration[]> {
-  const { data } = await client.get<{ data: EventRegistration[] }>('/events/my-registrations')
+export async function myRegistrations(opts?: { signal?: AbortSignal }): Promise<EventRegistration[]> {
+  const { data } = await client.get<{ data: EventRegistration[] }>('/events/my-registrations', { signal: opts?.signal })
   return data.data
 }
 
@@ -370,8 +370,8 @@ export interface MemberAccommodationView {
   rooms: MemberRoomView[]
 }
 
-export async function myAccommodationView(eventId: number): Promise<MemberAccommodationView> {
-  const { data } = await client.get<{ data: MemberAccommodationView }>(`/events/${eventId}/accommodation/my-view`)
+export async function myAccommodationView(eventId: number, opts?: { signal?: AbortSignal }): Promise<MemberAccommodationView> {
+  const { data } = await client.get<{ data: MemberAccommodationView }>(`/events/${eventId}/accommodation/my-view`, { signal: opts?.signal })
   return data.data
 }
 

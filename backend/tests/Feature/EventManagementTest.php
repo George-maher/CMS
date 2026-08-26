@@ -1310,4 +1310,158 @@ class EventManagementTest extends TestCase
             ->postJson("/api/v1/events/{$event->id}/registrations/{$regId}/reject")
             ->assertStatus(422);
     }
+
+    /** Rooms list includes cells with occupant names (staff view) — no N+1, single request. */
+    public function test_rooms_list_includes_cells_and_occupant_names(): void
+    {
+        $church = Church::factory()->create();
+        $event = $this->makeTripEvent($church);
+        $admin = $this->makeUser($church, UserRole::Admin);
+
+        $this->actAs($admin)
+            ->postJson("/api/v1/events/{$event->id}/accommodation/rooms", [
+                'room_groups' => [['count' => 2, 'capacity' => 4]],
+            ])->assertStatus(201);
+
+        $member = $this->makeApprovedMember($church, $event);
+        $cell = EventRoomCell::query()
+            ->whereHas('room', fn ($q) => $q->where('event_id', $event->id))
+            ->where('type', 'member')
+            ->where('is_available', true)
+            ->first();
+
+        $this->actAs($member)->postJson("/api/v1/events/{$event->id}/accommodation/select-cell", [
+            'cell_id' => $cell->id,
+        ])->assertStatus(201);
+
+        $response = $this->actAs($admin)
+            ->getJson("/api/v1/events/{$event->id}/accommodation/rooms")
+            ->assertStatus(200);
+
+        $rooms = $response->json('data');
+        $this->assertCount(2, $rooms);
+
+        foreach ($rooms as $room) {
+            $this->assertNotEmpty($room['cells']);
+            $this->assertCount(4, $room['cells']);
+        }
+
+        // The occupied cell carries the authorized occupant info.
+        $allCells = collect($rooms)->flatMap(fn ($r) => $r['cells']);
+        $occupied = $allCells->first(fn ($c) => $c['id'] === $cell->id);
+        $this->assertFalse($occupied['is_available']);
+        $this->assertSame($member->name, $occupied['accommodation']['user']['name']);
+    }
+
+    /** Member view exposes availability but never other members' personal data. */
+    public function test_member_room_view_hides_occupant_identity(): void
+    {
+        $church = Church::factory()->create();
+        $event = $this->makeTripEvent($church);
+        $member = $this->makeApprovedMember($church, $event);
+        $other = $this->makeApprovedMember($church, $event);
+
+        $this->actAs($this->makeUser($church, UserRole::Admin))
+            ->postJson("/api/v1/events/{$event->id}/accommodation/rooms", [
+                'room_groups' => [['count' => 1, 'capacity' => 3]],
+            ])->assertStatus(201);
+
+        $cell = EventRoomCell::query()
+            ->whereHas('room', fn ($q) => $q->where('event_id', $event->id))
+            ->where('type', 'member')
+            ->where('is_available', true)
+            ->first();
+
+        $this->actAs($other)->postJson("/api/v1/events/{$event->id}/accommodation/select-cell", [
+            'cell_id' => $cell->id,
+        ])->assertStatus(201);
+
+        $view = $this->actAs($member)
+            ->getJson("/api/v1/events/{$event->id}/accommodation/my-view")
+            ->assertStatus(200)
+            ->json('data');
+
+        $this->assertCount(1, $view['rooms']);
+
+        $occupied = collect($view['rooms'][0]['cells'])->first(fn ($c) => $c['id'] === $cell->id);
+        $this->assertArrayNotHasKey('accommodation', $occupied);
+        $this->assertArrayNotHasKey('user', $occupied);
+    }
+
+    /** Losing the selection race returns a friendly business conflict — never a 500. */
+    public function test_selecting_occupied_cell_returns_friendly_conflict(): void
+    {
+        $church = Church::factory()->create();
+        $event = $this->makeTripEvent($church);
+        $first = $this->makeApprovedMember($church, $event);
+        $second = $this->makeApprovedMember($church, $event);
+
+        $this->actAs($this->makeUser($church, UserRole::Admin))
+            ->postJson("/api/v1/events/{$event->id}/accommodation/rooms", [
+                'room_groups' => [['count' => 1, 'capacity' => 3]],
+            ])->assertStatus(201);
+
+        $cell = EventRoomCell::query()
+            ->whereHas('room', fn ($q) => $q->where('event_id', $event->id))
+            ->where('type', 'member')
+            ->where('is_available', true)
+            ->first();
+
+        $this->actAs($first)->postJson("/api/v1/events/{$event->id}/accommodation/select-cell", [
+            'cell_id' => $cell->id,
+        ])->assertStatus(201);
+
+        // Second member manually replays the API call for the now-occupied cell.
+        $response = $this->actAs($second)
+            ->postJson("/api/v1/events/{$event->id}/accommodation/select-cell", [
+                'cell_id' => $cell->id,
+            ])
+            ->assertStatus(422);
+
+        $message = $response->json('message');
+        $this->assertIsString($message);
+        $this->assertStringContainsStringIgnoringCase('another', $message);
+
+        // Exactly one accommodation exists for that cell.
+        $this->assertDatabaseCount('event_accommodations', 1);
+    }
+
+    /** Dashboard aggregates are correct after assignments. */
+    public function test_accommodation_dashboard_aggregates(): void
+    {
+        $church = Church::factory()->create();
+        $event = $this->makeTripEvent($church);
+        $admin = $this->makeUser($church, UserRole::Admin);
+
+        $this->actAs($admin)
+            ->postJson("/api/v1/events/{$event->id}/accommodation/rooms", [
+                'room_groups' => [['count' => 2, 'capacity' => 4]],
+            ])->assertStatus(201);
+
+        $member = $this->makeApprovedMember($church, $event);
+        $cell = EventRoomCell::query()
+            ->whereHas('room', fn ($q) => $q->where('event_id', $event->id))
+            ->where('type', 'member')
+            ->where('is_available', true)
+            ->first();
+
+        $this->actAs($member)->postJson("/api/v1/events/{$event->id}/accommodation/select-cell", [
+            'cell_id' => $cell->id,
+        ])->assertStatus(201);
+
+        $data = $this->actAs($admin)
+            ->getJson("/api/v1/events/{$event->id}/accommodation/dashboard")
+            ->assertStatus(200)
+            ->json('data');
+
+        $this->assertSame(2, $data['total_rooms']);
+        $this->assertSame(8, $data['total_capacity']);
+        $this->assertSame(2, $data['servant_capacity']);
+        $this->assertSame(6, $data['member_capacity']);
+        $this->assertSame(1, $data['occupied_member_cells']);
+        $this->assertSame(5, $data['available_member_cells']);
+        $this->assertSame(1, $data['approved_reservations']);
+        $this->assertSame(1, $data['accommodated']);
+        $this->assertSame(0, $data['not_accommodated']);
+    }
 }

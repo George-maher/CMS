@@ -39,10 +39,15 @@ export default function MemberEventDetail() {
 
   useEffect(() => {
     if (!id) return
+    // AbortController prevents StrictMode double-mount from issuing duplicate
+    // network requests: the discarded mount's requests are cancelled in-flight
+    // instead of completing silently in the background.
+    const controller = new AbortController()
+    const opts = { signal: controller.signal }
     Promise.all([
-      getEvent(Number(id)),
-      myRegistrations().catch(() => []),
-      myAccommodationView(Number(id)).catch(() => null),
+      getEvent(Number(id), opts),
+      myRegistrations(opts).catch(() => []),
+      myAccommodationView(Number(id), opts).catch(() => null),
     ])
       .then(([ev, regs, acc]) => {
         setEvent(ev)
@@ -65,10 +70,14 @@ export default function MemberEventDetail() {
         }
       })
       .catch((e) => {
+        if (controller.signal.aborted) return
         logCatch('MemberEventDetail.load', e)
         setError(true)
       })
-      .finally(() => setLoading(false))
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false)
+      })
+    return () => controller.abort()
   }, [id])
 
   const handleSubmitReservation = async () => {
@@ -294,37 +303,71 @@ export default function MemberEventDetail() {
                     <p className="flex items-center gap-2 font-medium text-success">
                       <CheckCircle className="h-5 w-5" /> {t('eventMgmt.reg_approved')}
                     </p>
-                    <p className="mt-1 mb-3 text-sm text-secondary">{t('eventMgmt.chooseCell')}</p>
-                    <div className="space-y-3">
-                      {accommodation.rooms.map((room) => (
-                        <div key={room.id} className="rounded-lg border border-border p-3">
-                          <p className="mb-2 text-sm font-medium">
-                            {t('eventMgmt.room')} #{room.room_number} ({room.capacity})
-                          </p>
-                          <div className="flex flex-wrap gap-2">
-                            {room.cells.map((cell) => {
-                              const selectable = cell.type === 'member' && cell.is_available
-                              return (
-                                <button
-                                  key={cell.id}
-                                  disabled={!selectable || selectingCell !== null}
-                                  onClick={() => handleSelectCell(cell.id)}
-                                  className={`rounded-lg px-3 py-2 text-sm transition-colors ${
-                                    cell.type === 'servant_reserved'
-                                      ? 'bg-gold-100 text-gold-800 dark:bg-gold-900/30 dark:text-gold-400 cursor-not-allowed'
-                                      : selectable
-                                        ? 'bg-success/10 text-success hover:bg-success/20 cursor-pointer'
-                                        : 'bg-danger/10 text-danger cursor-not-allowed'
-                                  }`}
-                                >
-                                  {cell.type === 'servant_reserved' ? 'S' : 'M'}{cell.cell_number}
-                                </button>
-                              )
-                            })}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                    {accommodation.rooms.every((room) => !room.cells.some((c) => c.type === 'member' && c.is_available)) ? (
+                      <div className="mt-2 rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm text-secondary">
+                        {t('eventMgmt.noAvailableCells')}
+                      </div>
+                    ) : (
+                      <>
+                        <p className="mt-1 mb-3 text-sm text-secondary">{t('eventMgmt.chooseCell')}</p>
+                        <ul className="space-y-3">
+                          {accommodation.rooms.map((room) => (
+                            <li key={room.id} className="rounded-lg border border-border p-3">
+                              <p className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-medium">
+                                <span>
+                                  {t('eventMgmt.room')} #{room.room_number} ({room.capacity})
+                                </span>
+                                <span className="text-xs font-normal text-success">
+                                  ● {room.cells.filter((c) => c.type === 'member' && c.is_available).length} {t('eventMgmt.available')}
+                                </span>
+                              </p>
+                              <div className="grid grid-cols-4 gap-1.5 sm:flex sm:flex-wrap">
+                                {room.cells.map((cell) => {
+                                  const selectable = cell.type === 'member' && cell.is_available
+                                  const busy = selectingCell !== null
+                                  return (
+                                    <button
+                                      key={cell.id}
+                                      type="button"
+                                      disabled={!selectable || busy}
+                                      onClick={() => handleSelectCell(cell.id)}
+                                      aria-label={
+                                        cell.type === 'servant_reserved'
+                                          ? t('eventMgmt.servantCell')
+                                          : selectable
+                                            ? `${t('eventMgmt.availableCell')} ${cell.cell_number}`
+                                            : t('eventMgmt.occupiedCell')
+                                      }
+                                      title={
+                                        cell.type === 'servant_reserved'
+                                          ? t('eventMgmt.servantCell')
+                                          : selectable
+                                            ? t('eventMgmt.availableCell')
+                                            : t('eventMgmt.occupiedCell')
+                                      }
+                                      className={`flex items-center justify-center gap-1 rounded-lg px-2 py-2 text-xs font-medium transition-colors ${
+                                        cell.type === 'servant_reserved'
+                                          ? 'cursor-not-allowed bg-purple-50 text-purple-700 dark:bg-purple-500/10 dark:text-purple-300'
+                                          : selectable
+                                            ? 'bg-success/10 text-success enabled:cursor-pointer enabled:hover:bg-success/20'
+                                            : 'cursor-not-allowed bg-danger/10 text-danger line-through opacity-80'
+                                      }`}
+                                    >
+                                      <span
+                                        className={`inline-block h-2 w-2 shrink-0 rounded-full ${
+                                          cell.type === 'servant_reserved' ? 'bg-purple-500 dark:bg-purple-400' : selectable ? 'bg-success' : 'bg-danger'
+                                        }`}
+                                      />
+                                      {cell.cell_number}
+                                    </button>
+                                  )
+                                })}
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
+                      </>
+                    )}
                   </>
                 )
               ) : accommodation.registration_status === 'rejected' ? (

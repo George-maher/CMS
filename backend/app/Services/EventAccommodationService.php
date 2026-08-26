@@ -20,13 +20,16 @@ class EventAccommodationService implements EventAccommodationServiceInterface
     /** @return array<string, mixed> */
     public function dashboard(Event $event): array
     {
-        $totalRooms = $event->rooms()->count();
-        $totalCapacity = (int) $event->rooms()->sum('capacity');
-        $totalMemberCapacity = (int) $event->rooms()->sum('member_capacity');
-        $totalServantCells = EventRoomCell::query()
+        // Two aggregate queries total: rooms and cells fetched lean, aggregated
+        // in memory. The previous implementation issued seven separate queries,
+        // each re-deriving the event→room join through whereHas subqueries.
+        $rooms = $event->rooms()->get(['id', 'capacity', 'member_capacity']);
+
+        $cellGroups = EventRoomCell::query()
             ->whereHas('room', fn ($q) => $q->where('event_id', $event->id))
-            ->where('type', 'servant_reserved')
-            ->count();
+            ->get(['type', 'is_available'])
+            ->groupBy(fn (EventRoomCell $cell): string => strval($cell->type).'|'.($cell->is_available ? '1' : '0'))
+            ->map(fn ($group): int => $group->count());
 
         $approvedCount = EventRegistration::query()
             ->where('event_id', $event->id)
@@ -37,28 +40,16 @@ class EventAccommodationService implements EventAccommodationServiceInterface
             ->whereHas('registration', fn ($q) => $q->where('event_id', $event->id))
             ->count();
 
-        $occupiedMemberCells = EventRoomCell::query()
-            ->whereHas('room', fn ($q) => $q->where('event_id', $event->id))
-            ->where('type', 'member')
-            ->where('is_available', false)
-            ->count();
-
-        $availableMemberCells = EventRoomCell::query()
-            ->whereHas('room', fn ($q) => $q->where('event_id', $event->id))
-            ->where('type', 'member')
-            ->where('is_available', true)
-            ->count();
-
         return [
-            'total_rooms' => $totalRooms,
-            'total_capacity' => $totalCapacity,
-            'servant_capacity' => $totalServantCells,
-            'member_capacity' => $totalMemberCapacity,
+            'total_rooms' => $rooms->count(),
+            'total_capacity' => $rooms->sum('capacity'),
+            'servant_capacity' => $cellGroups->get('servant_reserved|0', 0),
+            'member_capacity' => $rooms->sum('member_capacity'),
             'approved_reservations' => $approvedCount,
             'accommodated' => $accommodatedCount,
             'not_accommodated' => max(0, $approvedCount - $accommodatedCount),
-            'occupied_member_cells' => $occupiedMemberCells,
-            'available_member_cells' => $availableMemberCells,
+            'occupied_member_cells' => $cellGroups->get('member|0', 0),
+            'available_member_cells' => $cellGroups->get('member|1', 0),
         ];
     }
 
@@ -71,7 +62,7 @@ class EventAccommodationService implements EventAccommodationServiceInterface
         $existingRooms = $event->rooms()->count();
         if ($existingRooms > 0) {
             throw ValidationException::withMessages([
-                'rooms' => ["Accommodation structure already exists for this event ({$existingRooms} rooms). Modify the existing rooms instead of creating duplicates."],
+                'rooms' => [__('eventAccommodation.structure_exists', ['count' => $existingRooms])],
             ]);
         }
 
@@ -191,7 +182,7 @@ class EventAccommodationService implements EventAccommodationServiceInterface
         $occupiedCells = $room->cells()->where('is_available', false)->count();
         if ($occupiedCells > 0) {
             throw ValidationException::withMessages([
-                'room' => ['Cannot delete room with assigned accommodations. Remove accommodations first.'],
+                'room' => [__('eventAccommodation.room_has_assignments')],
             ]);
         }
 
@@ -200,6 +191,10 @@ class EventAccommodationService implements EventAccommodationServiceInterface
 
     public function listRooms(Event $event, int $perPage = 20): LengthAwarePaginator
     {
+        // Cells are included with selective columns so the management UI can
+        // render the full room/cell map from this single request — no N+1 and
+        // no follow-up per-room fetches. Occupant names are exposed only here
+        // (authorized staff view); the member view never includes them.
         return $event->rooms()
             ->withCount([
                 'cells as total_cells_count',
@@ -209,6 +204,12 @@ class EventAccommodationService implements EventAccommodationServiceInterface
                 'cells as available_cells_count' => function (Builder $q) {
                     $q->where('is_available', true);
                 },
+            ])
+            ->with([
+                'cells:id,room_id,cell_number,type,is_available',
+                'cells.accommodation:id,registration_id,cell_id',
+                'cells.accommodation.registration:id,user_id,event_id',
+                'cells.accommodation.registration.user:id,name',
             ])
             ->orderBy('room_number')
             ->paginate($perPage);
@@ -231,13 +232,13 @@ class EventAccommodationService implements EventAccommodationServiceInterface
 
             if (! $registration) {
                 throw ValidationException::withMessages([
-                    'registration' => ['Registration not found.'],
+                    'registration' => [__('eventAccommodation.registration_not_found')],
                 ]);
             }
 
             if ($registration->status !== RegistrationStatus::Approved) {
                 throw ValidationException::withMessages([
-                    'status' => ['Only approved reservations can be assigned accommodation.'],
+                    'status' => [__('eventAccommodation.only_approved_can_be_assigned')],
                 ]);
             }
 
@@ -251,7 +252,7 @@ class EventAccommodationService implements EventAccommodationServiceInterface
 
             if ($existingAccommodation) {
                 throw ValidationException::withMessages([
-                    'accommodation' => ['This user already has an accommodation assignment for this event.'],
+                    'accommodation' => [__('eventAccommodation.user_already_assigned')],
                 ]);
             }
 
@@ -264,19 +265,19 @@ class EventAccommodationService implements EventAccommodationServiceInterface
 
             if (! $cell) {
                 throw ValidationException::withMessages([
-                    'cell' => ['Cell not found.'],
+                    'cell' => [__('eventAccommodation.cell_not_found')],
                 ]);
             }
 
             if ($cell->type === 'servant_reserved') {
                 throw ValidationException::withMessages([
-                    'cell' => ['Cannot assign members to servant-reserved cells.'],
+                    'cell' => [__('eventAccommodation.cannot_assign_servant_cell')],
                 ]);
             }
 
             if (! $cell->is_available) {
                 throw ValidationException::withMessages([
-                    'cell' => ['This cell is already occupied.'],
+                    'cell' => [__('eventAccommodation.cell_taken')],
                 ]);
             }
 
@@ -314,7 +315,7 @@ class EventAccommodationService implements EventAccommodationServiceInterface
 
             if (! $accommodation) {
                 throw ValidationException::withMessages([
-                    'accommodation' => ['No accommodation assignment found.'],
+                    'accommodation' => [__('eventAccommodation.accommodation_removed_nothing')],
                 ]);
             }
 
@@ -356,7 +357,7 @@ class EventAccommodationService implements EventAccommodationServiceInterface
 
         if (! $room) {
             throw ValidationException::withMessages([
-                'room' => ['Room not found for this event.'],
+                'room' => [__('eventAccommodation.room_not_found')],
             ]);
         }
 
@@ -418,7 +419,7 @@ class EventAccommodationService implements EventAccommodationServiceInterface
 
             if (! $registration) {
                 throw ValidationException::withMessages([
-                    'registration' => ['You do not have a registration for this event.'],
+                    'registration' => [__('eventAccommodation.no_registration')],
                 ]);
             }
 
@@ -426,7 +427,7 @@ class EventAccommodationService implements EventAccommodationServiceInterface
             // never only in the frontend.
             if ($registration->status !== RegistrationStatus::Approved) {
                 throw ValidationException::withMessages([
-                    'status' => ['Your reservation must be approved by the responsible servant before you can choose accommodation.'],
+                    'status' => [__('eventAccommodation.not_approved')],
                 ]);
             }
 
@@ -440,7 +441,7 @@ class EventAccommodationService implements EventAccommodationServiceInterface
 
             if ($existingAccommodation) {
                 throw ValidationException::withMessages([
-                    'accommodation' => ['You already have an accommodation assignment for this event.'],
+                    'accommodation' => [__('eventAccommodation.already_assigned')],
                 ]);
             }
 
@@ -453,25 +454,25 @@ class EventAccommodationService implements EventAccommodationServiceInterface
 
             if (! $cell || ! $cell->room || $cell->room->event_id !== $event->id) {
                 throw ValidationException::withMessages([
-                    'cell' => ['Cell not found for this event.'],
+                    'cell' => [__('eventAccommodation.cell_not_found')],
                 ]);
             }
 
             if ($cell->isServantReserved()) {
                 throw ValidationException::withMessages([
-                    'cell' => ['This cell is reserved for the servant.'],
+                    'cell' => [__('eventAccommodation.cell_servant_reserved')],
                 ]);
             }
 
             if ($cell->room->is_active === false) {
                 throw ValidationException::withMessages([
-                    'cell' => ['This room is no longer available.'],
+                    'cell' => [__('eventAccommodation.room_inactive')],
                 ]);
             }
 
             if (! $cell->is_available) {
                 throw ValidationException::withMessages([
-                    'cell' => ['This cell is no longer available.'],
+                    'cell' => [__('eventAccommodation.cell_taken')],
                 ]);
             }
 

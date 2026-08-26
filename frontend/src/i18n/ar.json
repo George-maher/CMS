@@ -95,7 +95,8 @@
         "optional": "اختياري",
         "remove": "إزالة",
         "clear": "مسح",
-        "gotIt": "حسناً"
+        "gotIt": "حسناً",
+        "refresh": "تحديث"
     },
     "auth": {
         "signIn": "دخول",
@@ -303,7 +304,8 @@
         "selectedClasses": "الفصول المختارة",
         "selectMultipleClasses": "اختيار فصول متعددة (اختياري)",
         "targetSection": "الفئة المستهدفة",
-        "allClassesDesc": "ستكون النشاط مرئي لجميع الأعضاء في جميع الفصول"
+        "allClassesDesc": "ستكون النشاط مرئي لجميع الأعضاء في جميع الفصول",
+        "inactive": "غير نشطة"
     },
     "attendance": {
         "attendance": "الحضور",
@@ -1099,7 +1101,7 @@
         "browserRestriction": "متصفحك لا يسمح لمواقع الويب بفرض التثبيت. يرجى اتباع الخطوات اليدوية أدناه لتثبيت التطبيق على جهازك.",
         "manualInstall": "التثبيت اليدوي"
     },
-"eventMgmt": {
+    "eventMgmt": {
         "tabOverview": "إدارة",
         "listView": "قائمة",
         "calendarView": "تقويم",
@@ -1250,7 +1252,7 @@
         "availableCell": "متاح",
         "occupiedCell": "مشغول",
         "bookingWith": "الحجز مع",
-        "medicalNotes": "ملاحظات طبية",
+        "medicalNotes": "ملاحظات صحية",
         "rejectionReason": "سبب الرفض",
         "notes": "ملاحظات",
         "responsibleServant": "الخادم المسؤول",
@@ -1297,7 +1299,6 @@
         "bookingWithPlaceholder": "اسم الخادم أو الشخص اللي حجزت معاه",
         "amountPaid": "دفعت كام؟",
         "amountPaidPlaceholder": "المبلغ المدفوع (مثال: 500)",
-        "medicalNotes": "ملاحظات صحية",
         "medicalNotesPlaceholder": "أي أمراض مزمنة أو حساسية أو احتياجات خاصة (اختياري)",
         "medicalNotesHelp": "المعلومات دي خاصة ومش هتتظهر غير للمسؤولين عن الفعالية.",
         "medicationTime": "ميعاد الدواء / الحقنة",
@@ -1307,6 +1308,17 @@
         "medicationNameHelp": " حدد اسم الدواء أو نوع الحقنة لو موجود (اختياري).",
         "notReservedMessage": "أوضحت إنك لسه ما حجزتش. الخادم المسؤول اتبلغ.",
         "thinkingMessage": "بفكر في الحضور. الخادم المسؤول اتبلغ.",
-        "yourReservationStatus": "حالة حجزك"
+        "yourReservationStatus": "حالة حجزك",
+        "searchRoom": "ابحث برقم الغرفة…",
+        "filterStatus": "تصفية حسب الحالة",
+        "filterAll": "كل الغرف",
+        "filterHasAvailable": "لديها خلايا متاحة",
+        "filterFull": "ممتلئة",
+        "noUnaccommodated": "لا يوجد أعضاء بانتظار السكن.",
+        "accommodationRemoved": "تمت إزالة السكن",
+        "removeAccommodationTitle": "إزالة التعيين",
+        "removeAccommodationConfirm": "إزالة تعيين السكن عن :name وتحرير هذه الخلية؟",
+        "occupiedBy": "مشغولة بواسطة",
+        "noAvailableCells": "لا توجد خلايا متاحة حاليًا. يرجى التواصل مع الخادم المسؤول عن الفعالية."
     }
 }
