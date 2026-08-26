@@ -345,3 +345,43 @@ export async function listUnaccommodated(
   const { data } = await client.get(`/events/${eventId}/accommodation/unaccommodated`, { params })
   return data
 }
+
+/*
+ | Member accommodation — approval-gated view + self-selection
+ */
+
+export interface MemberCell {
+  id: number
+  cell_number: number
+  type: 'servant_reserved' | 'member'
+  is_available: boolean
+}
+
+export interface MemberRoomView {
+  id: number
+  room_number: number
+  capacity: number
+  cells: MemberCell[]
+}
+
+export interface MemberAccommodationView {
+  registration_status: string | null
+  accommodation: { cell_id: number; room_number: number | null; cell_number: number | null } | null
+  rooms: MemberRoomView[]
+}
+
+export async function myAccommodationView(eventId: number): Promise<MemberAccommodationView> {
+  const { data } = await client.get<{ data: MemberAccommodationView }>(`/events/${eventId}/accommodation/my-view`)
+  return data.data
+}
+
+export async function selectMyCell(
+  eventId: number,
+  cellId: number,
+): Promise<{ cell_id: number; room_number: number | null; cell_number: number | null }> {
+  const { data } = await client.post<{ message: string; data: { cell_id: number; room_number: number | null; cell_number: number | null } }>(
+    `/events/${eventId}/accommodation/select-cell`,
+    { cell_id: cellId },
+  )
+  return data.data
+}

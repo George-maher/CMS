@@ -238,6 +238,15 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'approval', 'throttle:api'])->g
         ->middleware('throttle:event-crud');
 
     /*
+    | Member accommodation — approval-gated on the backend. Identity is derived
+    | from the authenticated user; members can only view/select for themselves.
+    */
+    Route::get('/events/{id}/accommodation/my-view', [EventAccommodationController::class, 'memberView'])
+        ->middleware('throttle:event-read');
+    Route::post('/events/{id}/accommodation/select-cell', [EventAccommodationController::class, 'selectCell'])
+        ->middleware('throttle:event-crud');
+
+    /*
     | QR Invite Accept
     */
     Route::post('/invite/{token}/accept', [QRInviteController::class, 'accept'])

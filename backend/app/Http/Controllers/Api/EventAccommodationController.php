@@ -6,6 +6,7 @@ use App\Contracts\EventAccommodationServiceInterface;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\EventRoomResource;
 use App\Models\Event;
+use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -206,6 +207,69 @@ class EventAccommodationController extends Controller
         $result = $this->accommodationService->unaccommodated($event, $perPage);
 
         return response()->json($result);
+    }
+
+    /**
+     * Member-facing accommodation view: own status + (approval-gated) rooms.
+     */
+    public function memberView(Request $request, int $id): JsonResponse
+    {
+        /** @var User $user */
+        $user = $request->user();
+
+        $event = $this->findEvent($id);
+
+        if (! $event) {
+            return response()->json(['message' => 'Event not found.'], 404);
+        }
+
+        return response()->json([
+            'data' => $this->accommodationService->viewFor($event, (int) $user->id),
+        ]);
+    }
+
+    /**
+     * An approved member selects an available member cell for themselves.
+     * Identity is derived from the authenticated user — never from payload.
+     */
+    public function selectCell(Request $request, int $id): JsonResponse
+    {
+        /** @var User $user */
+        $user = $request->user();
+
+        $event = $this->findEvent($id);
+
+        if (! $event) {
+            return response()->json(['message' => 'Event not found.'], 404);
+        }
+
+        $validated = $request->validate([
+            'cell_id' => ['required', 'integer', 'exists:event_room_cells,id'],
+        ]);
+
+        /** @var array{cell_id: int} $validated */
+        $cellId = (int) $validated['cell_id'];
+
+        try {
+            $accommodation = $this->accommodationService->selectCell($event, (int) $user->id, $cellId);
+
+            return response()->json([
+                'message' => 'Cell assigned.',
+                'data' => [
+                    'cell_id' => $accommodation->cell_id,
+                    'room_number' => $accommodation->cell?->room?->room_number,
+                    'cell_number' => $accommodation->cell?->cell_number,
+                ],
+            ], 201);
+        } catch (ValidationException $e) {
+            $errors = $e->errors();
+            $first = reset($errors);
+
+            /** @var array<int, string> $first */
+            return response()->json([
+                'message' => is_array($first) && $first !== [] ? strval($first[0]) : __('eventMgmt.actionFailed'),
+            ], 422);
+        }
     }
 
     private function findEvent(int $id): ?Event

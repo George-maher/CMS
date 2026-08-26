@@ -10,6 +10,7 @@ import EventActiveStatus from '@/components/events/EventActiveStatus'
 import type { Event, EventRegistration } from '@/types'
 import { getEvent, trackEventView } from '@/api/events'
 import { myRegistrations, submitMemberReservationRequest } from '@/api/eventRegistrations'
+import { myAccommodationView, selectMyCell, type MemberAccommodationView } from '@/api/eventRegistrations'
 import { useAuth } from '@/hooks/useAuth'
 import { logCatch } from '@/lib/debug'
 
@@ -28,6 +29,8 @@ export default function MemberEventDetail() {
   const [saveError, setSaveError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [showDetails, setShowDetails] = useState(false)
+  const [accommodation, setAccommodation] = useState<MemberAccommodationView | null>(null)
+  const [selectingCell, setSelectingCell] = useState<number | null>(null)
   const [bookedWith, setBookedWith] = useState('')
   const [amountPaid, setAmountPaid] = useState('')
   const [medicalNotes, setMedicalNotes] = useState('')
@@ -39,12 +42,14 @@ export default function MemberEventDetail() {
     Promise.all([
       getEvent(Number(id)),
       myRegistrations().catch(() => []),
+      myAccommodationView(Number(id)).catch(() => null),
     ])
-      .then(([ev, regs]) => {
+      .then(([ev, regs, acc]) => {
         setEvent(ev)
         trackEventView(ev.id).catch(() => {})
         const existingReg = regs.find((r) => r.event_id === ev.id) ?? null
         setRegistration(existingReg)
+        if (acc) setAccommodation(acc)
         if (existingReg) {
           // Editing an EXISTING request: load its saved status. Only the three
           // member-editable statuses are selectable; servant-managed states
@@ -101,6 +106,24 @@ export default function MemberEventDetail() {
       setShowDetails(true)
     } else {
       setShowDetails(false)
+    }
+  }
+
+  const handleSelectCell = async (cellId: number) => {
+    if (!event || selectingCell !== null) return
+    setSelectingCell(cellId)
+    try {
+      await selectMyCell(event.id, cellId)
+      const refreshed = await myAccommodationView(event.id).catch(() => null)
+      if (refreshed) setAccommodation(refreshed)
+      toast.success(t('eventMgmt.cellAssigned'))
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+      toast.error(msg || t('eventMgmt.actionFailed'))
+      // Refresh in case the cell was taken by someone else (race).
+      myAccommodationView(event.id).then((refreshed) => setAccommodation(refreshed)).catch(() => {})
+    } finally {
+      setSelectingCell(null)
     }
   }
 
@@ -246,6 +269,80 @@ export default function MemberEventDetail() {
                   <span className="font-medium">{t('eventMgmt.responsibleServant')}: </span>
                   {event.responsible_servant.name}
                 </p>
+              )}
+            </div>
+          )}
+
+          {/* Accommodation — approval-gated (backend enforces, UI reflects) */}
+          {event.has_accommodation && accommodation && (
+            <div className="rounded-xl border border-border bg-surface p-4">
+              {accommodation.registration_status === 'approved' ? (
+                accommodation.accommodation ? (
+                  <>
+                    <div className="flex items-center gap-2 text-success">
+                      <CheckCircle className="h-5 w-5" />
+                      <p className="font-medium">{t('eventMgmt.accommodationConfirmed')}</p>
+                    </div>
+                    <p className="mt-2 text-sm">
+                      <span className="font-medium">{t('eventMgmt.room')}:</span> #{accommodation.accommodation.room_number}
+                      {' · '}
+                      <span className="font-medium">{t('eventMgmt.room')} Cell:</span> #{accommodation.accommodation.cell_number}
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="flex items-center gap-2 font-medium text-success">
+                      <CheckCircle className="h-5 w-5" /> {t('eventMgmt.reg_approved')}
+                    </p>
+                    <p className="mt-1 mb-3 text-sm text-secondary">{t('eventMgmt.chooseCell')}</p>
+                    <div className="space-y-3">
+                      {accommodation.rooms.map((room) => (
+                        <div key={room.id} className="rounded-lg border border-border p-3">
+                          <p className="mb-2 text-sm font-medium">
+                            {t('eventMgmt.room')} #{room.room_number} ({room.capacity})
+                          </p>
+                          <div className="flex flex-wrap gap-2">
+                            {room.cells.map((cell) => {
+                              const selectable = cell.type === 'member' && cell.is_available
+                              return (
+                                <button
+                                  key={cell.id}
+                                  disabled={!selectable || selectingCell !== null}
+                                  onClick={() => handleSelectCell(cell.id)}
+                                  className={`rounded-lg px-3 py-2 text-sm transition-colors ${
+                                    cell.type === 'servant_reserved'
+                                      ? 'bg-gold-100 text-gold-800 dark:bg-gold-900/30 dark:text-gold-400 cursor-not-allowed'
+                                      : selectable
+                                        ? 'bg-success/10 text-success hover:bg-success/20 cursor-pointer'
+                                        : 'bg-danger/10 text-danger cursor-not-allowed'
+                                  }`}
+                                >
+                                  {cell.type === 'servant_reserved' ? 'S' : 'M'}{cell.cell_number}
+                                </button>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )
+              ) : accommodation.registration_status === 'rejected' ? (
+                <>
+                  <div className="flex items-center gap-2 text-danger">
+                    <AlertTriangle className="h-5 w-5" />
+                    <p className="font-medium">{t('eventMgmt.reg_rejected')}</p>
+                  </div>
+                  <p className="mt-2 flex items-center gap-1.5 text-sm text-secondary">🔒 {t('eventMgmt.accommodationLockedRejected')}</p>
+                </>
+              ) : (
+                <>
+                  <div className="flex items-center gap-2 text-warning">
+                    <Clock className="h-5 w-5" />
+                    <p className="font-medium">{t('eventMgmt.reg_pending')}</p>
+                  </div>
+                  <p className="mt-2 flex items-center gap-1.5 text-sm text-secondary">🔒 {t('eventMgmt.accommodationLockedPending')}</p>
+                </>
               )}
             </div>
           )}

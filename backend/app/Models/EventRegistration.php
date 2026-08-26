@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -105,10 +106,14 @@ class EventRegistration extends Model
         return $this->belongsTo(EventBus::class, 'bus_id');
     }
 
-    /** @return BelongsTo<EventAccommodation, $this> */
-    public function accommodation(): BelongsTo
+    /** @return HasOne<EventAccommodation, $this> */
+    public function accommodation(): HasOne
     {
-        return $this->belongsTo(EventAccommodation::class);
+        // Inverse of EventAccommodation::registration() — the FK
+        // (registration_id) lives on event_accommodations. This was previously
+        // belongsTo(), which referenced a nonexistent event_accommodation_id
+        // column and crashed every query touching it on PostgreSQL.
+        return $this->hasOne(EventAccommodation::class, 'registration_id');
     }
 
     /** @return HasMany<EventPayment, $this> */

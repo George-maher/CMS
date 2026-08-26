@@ -65,6 +65,16 @@ class EventAccommodationService implements EventAccommodationServiceInterface
     /** @param array<int, array{count: int, capacity: int}> $roomGroups */
     public function bulkCreateRooms(Event $event, array $roomGroups): array
     {
+        // One accommodation structure per event. The (event_id, room_number)
+        // unique index would reject a second generation with a raw 500; give a
+        // clear message instead and never duplicate rooms.
+        $existingRooms = $event->rooms()->count();
+        if ($existingRooms > 0) {
+            throw ValidationException::withMessages([
+                'rooms' => ["Accommodation structure already exists for this event ({$existingRooms} rooms). Modify the existing rooms instead of creating duplicates."],
+            ]);
+        }
+
         $totalRooms = 0;
         $cellsCreated = 0;
         $totalCapacity = 0;
@@ -351,5 +361,155 @@ class EventAccommodationService implements EventAccommodationServiceInterface
         }
 
         return $room;
+    }
+
+    public function viewFor(Event $event, int $userId): array
+    {
+        /** @var EventRegistration|null $registration */
+        $registration = EventRegistration::query()
+            ->where('event_id', $event->id)
+            ->where('user_id', $userId)
+            ->whereIn('status', [
+                RegistrationStatus::Pending->value,
+                RegistrationStatus::Confirmed->value,
+                RegistrationStatus::Approved->value,
+                RegistrationStatus::Rejected->value,
+                RegistrationStatus::Booked->value,
+                RegistrationStatus::NotReserved->value,
+                RegistrationStatus::Thinking->value,
+            ])
+            ->first();
+
+        // Accommodation is approval-gated on the backend: rooms are only
+        // exposed once the member's registration is Approved.
+        $rooms = [];
+        $accommodation = null;
+
+        if ($registration !== null && $registration->status === RegistrationStatus::Approved) {
+            /** @var EventAccommodation|null $accommodation */
+            $accommodation = EventAccommodation::query()
+                ->whereHas('registration', fn ($q) => $q->where('event_id', $event->id)->where('user_id', $userId))
+                ->with(['cell.room'])
+                ->first();
+
+            $rooms = $this->memberRoomView($event);
+        }
+
+        return [
+            'registration_status' => $registration?->status->value,
+            'accommodation' => $accommodation !== null ? [
+                'cell_id' => $accommodation->cell_id,
+                'room_number' => $accommodation->cell?->room?->room_number,
+                'cell_number' => $accommodation->cell?->cell_number,
+            ] : null,
+            'rooms' => $rooms,
+        ];
+    }
+
+    public function selectCell(Event $event, int $userId, int $cellId): EventAccommodation
+    {
+        return DB::transaction(function () use ($event, $userId, $cellId): EventAccommodation {
+            /** @var EventRegistration|null $registration */
+            $registration = EventRegistration::query()
+                ->where('event_id', $event->id)
+                ->where('user_id', $userId)
+                ->lockForUpdate()
+                ->first();
+
+            if (! $registration) {
+                throw ValidationException::withMessages([
+                    'registration' => ['You do not have a registration for this event.'],
+                ]);
+            }
+
+            // Approval gates accommodation — enforced here on the backend,
+            // never only in the frontend.
+            if ($registration->status !== RegistrationStatus::Approved) {
+                throw ValidationException::withMessages([
+                    'status' => ['Your reservation must be approved by the responsible servant before you can choose accommodation.'],
+                ]);
+            }
+
+            $existingAccommodation = EventAccommodation::query()
+                ->whereHas('registration', function ($q) use ($registration) {
+                    $q->where('event_id', $registration->event_id)
+                        ->where('user_id', $registration->user_id);
+                })
+                ->lockForUpdate()
+                ->exists();
+
+            if ($existingAccommodation) {
+                throw ValidationException::withMessages([
+                    'accommodation' => ['You already have an accommodation assignment for this event.'],
+                ]);
+            }
+
+            /** @var EventRoomCell|null $cell */
+            $cell = EventRoomCell::query()
+                ->whereHas('room', fn ($q) => $q->where('event_id', $event->id))
+                ->whereKey($cellId)
+                ->lockForUpdate()
+                ->first();
+
+            if (! $cell || ! $cell->room || $cell->room->event_id !== $event->id) {
+                throw ValidationException::withMessages([
+                    'cell' => ['Cell not found for this event.'],
+                ]);
+            }
+
+            if ($cell->isServantReserved()) {
+                throw ValidationException::withMessages([
+                    'cell' => ['This cell is reserved for the servant.'],
+                ]);
+            }
+
+            if ($cell->room->is_active === false) {
+                throw ValidationException::withMessages([
+                    'cell' => ['This room is no longer available.'],
+                ]);
+            }
+
+            if (! $cell->is_available) {
+                throw ValidationException::withMessages([
+                    'cell' => ['This cell is no longer available.'],
+                ]);
+            }
+
+            $cell->update(['is_available' => false]);
+
+            /** @var EventAccommodation $accommodation */
+            $accommodation = EventAccommodation::create([
+                'registration_id' => $registration->id,
+                'cell_id' => $cell->id,
+            ]);
+
+            return $accommodation->fresh(['cell.room']) ?? $accommodation;
+        });
+    }
+
+    /**
+     * Minimal room/cell structure for member cell selection.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function memberRoomView(Event $event): array
+    {
+        return $event->rooms()
+            ->with(['cells:id,room_id,cell_number,type,is_available'])
+            ->where('is_active', true)
+            ->orderBy('room_number')
+            ->get()
+            ->map(fn (EventRoom $room): array => [
+                'id' => $room->id,
+                'room_number' => $room->room_number,
+                'capacity' => $room->capacity,
+                'cells' => $room->cells->map(fn (EventRoomCell $cell): array => [
+                    'id' => $cell->id,
+                    'cell_number' => $cell->cell_number,
+                    'type' => $cell->type,
+                    'is_available' => $cell->is_available,
+                ])->all(),
+            ])
+            ->all();
     }
 }

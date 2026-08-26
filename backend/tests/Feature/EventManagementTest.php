@@ -989,4 +989,202 @@ class EventManagementTest extends TestCase
         $count = EventRegistration::query()->where('event_id', $eventB->id)->count();
         $this->assertSame(0, $count);
     }
+
+    private function makeApprovedMember(Church $church, Event $event): User
+    {
+        $member = $this->makeUser($church, UserRole::Member);
+
+        EventRegistration::factory()->create([
+            'event_id' => $event->id,
+            'user_id' => $member->id,
+            'status' => RegistrationStatus::Approved->value,
+        ]);
+
+        return $member;
+    }
+
+    /**
+     * Regression: the unaccommodated endpoint previously crashed on
+     * PostgreSQL because EventRegistration::accommodation() was declared as
+     * belongsTo() referencing a nonexistent event_accommodation_id column.
+     */
+    public function test_unaccommodated_lists_approved_registrations_without_accommodation(): void
+    {
+        $church = Church::factory()->create();
+        $admin = $this->makeUser($church, UserRole::Admin);
+        $event = $this->makeTripEvent($church);
+        $this->makeApprovedMember($church, $event);
+
+        $this->actAs($admin)
+            ->getJson("/api/v1/events/{$event->id}/accommodation/unaccommodated?per_page=50")
+            ->assertStatus(200)
+            ->assertJsonCount(1, 'data');
+    }
+
+    public function test_accommodation_structure_cannot_be_created_twice(): void
+    {
+        $church = Church::factory()->create();
+        $admin = $this->makeUser($church, UserRole::Admin);
+        $event = $this->makeTripEvent($church);
+
+        $this->actAs($admin)
+            ->postJson("/api/v1/events/{$event->id}/accommodation/rooms", [
+                'room_groups' => [
+                    ['count' => 15, 'capacity' => 5],
+                    ['count' => 5, 'capacity' => 7],
+                ],
+            ])
+            ->assertStatus(201)
+            ->assertJsonPath('data.rooms_created', 20);
+
+        // Exactly one servant-reserved cell per room.
+        $servantCells = EventRoomCell::query()
+            ->whereHas('room', fn ($q) => $q->where('event_id', $event->id))
+            ->where('type', 'servant_reserved')
+            ->count();
+        $this->assertSame(20, $servantCells);
+
+        // Second generation must be rejected with a clear validation error,
+        // never a 500 or duplicated rooms.
+        $this->actAs($admin)
+            ->postJson("/api/v1/events/{$event->id}/accommodation/rooms", [
+                'room_groups' => [['count' => 1, 'capacity' => 5]],
+            ])
+            ->assertStatus(422);
+
+        $roomCount = EventRoom::query()->where('event_id', $event->id)->count();
+        $this->assertSame(20, $roomCount);
+    }
+
+    public function test_member_accommodation_view_is_gated_by_approval(): void
+    {
+        $church = Church::factory()->create();
+        $admin = $this->makeUser($church, UserRole::Admin);
+        $event = $this->makeTripEvent($church);
+        $member = $this->makeUser($church, UserRole::Member);
+
+        $this->actAs($admin)->postJson("/api/v1/events/{$event->id}/accommodation/rooms", [
+            'room_groups' => [['count' => 1, 'capacity' => 5]],
+        ])->assertStatus(201);
+
+        EventRegistration::factory()->create([
+            'event_id' => $event->id,
+            'user_id' => $member->id,
+            'status' => RegistrationStatus::Thinking->value,
+        ]);
+
+        // Pending: rooms hidden.
+        $response = $this->actAs($member)
+            ->getJson("/api/v1/events/{$event->id}/accommodation/my-view")
+            ->assertStatus(200)
+            ->assertJsonPath('data.registration_status', RegistrationStatus::Thinking->value);
+
+        $this->assertCount(0, $response->json('data.rooms'));
+
+        // Approved: rooms exposed.
+        EventRegistration::query()
+            ->where('event_id', $event->id)
+            ->where('user_id', $member->id)
+            ->update(['status' => RegistrationStatus::Approved->value]);
+
+        $response = $this->actAs($member)
+            ->getJson("/api/v1/events/{$event->id}/accommodation/my-view")
+            ->assertStatus(200)
+            ->assertJsonPath('data.registration_status', RegistrationStatus::Approved->value);
+
+        $this->assertCount(1, $response->json('data.rooms'));
+    }
+
+    public function test_approved_member_can_select_an_available_member_cell(): void
+    {
+        $church = Church::factory()->create();
+        $event = $this->makeTripEvent($church);
+        $member = $this->makeApprovedMember($church, $event);
+
+        $this->actAs($this->makeUser($church, UserRole::Admin))
+            ->postJson("/api/v1/events/{$event->id}/accommodation/rooms", [
+                'room_groups' => [['count' => 1, 'capacity' => 5]],
+            ])->assertStatus(201);
+
+        /** @var EventRoomCell $cell */
+        $cell = EventRoomCell::query()
+            ->whereHas('room', fn ($q) => $q->where('event_id', $event->id))
+            ->where('type', 'member')
+            ->where('is_available', true)
+            ->first();
+
+        $this->actAs($member)
+            ->postJson("/api/v1/events/{$event->id}/accommodation/select-cell", [
+                'cell_id' => $cell->id,
+            ])
+            ->assertStatus(201)
+            ->assertJsonPath('data.cell_id', $cell->id);
+
+        $this->assertDatabaseHas('event_room_cells', [
+            'id' => $cell->id,
+            'is_available' => false,
+        ]);
+
+        $this->assertDatabaseHas('event_accommodations', [
+            'cell_id' => $cell->id,
+        ]);
+
+        // Selecting again is blocked (already has accommodation).
+        $this->actAs($member)
+            ->postJson("/api/v1/events/{$event->id}/accommodation/select-cell", [
+                'cell_id' => $cell->id,
+            ])
+            ->assertStatus(422);
+    }
+
+    public function test_member_cannot_select_pending_servant_or_occupied_cells(): void
+    {
+        $church = Church::factory()->create();
+        $event = $this->makeTripEvent($church);
+        $pendingMember = $this->makeUser($church, UserRole::Member);
+        $approvedMember = $this->makeApprovedMember($church, $event);
+        $secondApproved = $this->makeApprovedMember($church, $event);
+
+        $this->actAs($this->makeUser($church, UserRole::Admin))
+            ->postJson("/api/v1/events/{$event->id}/accommodation/rooms", [
+                'room_groups' => [['count' => 1, 'capacity' => 3]],
+            ])->assertStatus(201);
+
+        $cells = EventRoomCell::query()
+            ->whereHas('room', fn ($q) => $q->where('event_id', $event->id))
+            ->orderBy('id')
+            ->get();
+
+        $servantCell = $cells->firstWhere('type', 'servant_reserved');
+        $freeMemberCell = $cells->firstWhere(fn ($c) => $c->type === 'member' && $c->is_available);
+
+        // Pending member cannot select any cell.
+        $this->actAs($pendingMember)
+            ->postJson("/api/v1/events/{$event->id}/accommodation/select-cell", [
+                'cell_id' => $freeMemberCell->id,
+            ])
+            ->assertStatus(422);
+
+        // Servant-reserved cell is blocked even for approved members.
+        $this->actAs($approvedMember)
+            ->postJson("/api/v1/events/{$event->id}/accommodation/select-cell", [
+                'cell_id' => $servantCell->id,
+            ])
+            ->assertStatus(422);
+
+        // First approved member takes the free member cell.
+        $this->actAs($approvedMember)
+            ->postJson("/api/v1/events/{$event->id}/accommodation/select-cell", [
+                'cell_id' => $freeMemberCell->id,
+            ])
+            ->assertStatus(201);
+
+        // A second approved member hitting the same (now occupied) cell loses
+        // the race and receives a clear error.
+        $this->actAs($secondApproved)
+            ->postJson("/api/v1/events/{$event->id}/accommodation/select-cell", [
+                'cell_id' => $freeMemberCell->id,
+            ])
+            ->assertStatus(422);
+    }
 }

@@ -62,4 +62,21 @@ interface EventAccommodationServiceInterface
      * @return array{data: mixed, meta: array<string, int>}
      */
     public function unaccommodated(Event $event, int $perPage = 20): array;
+
+    /**
+     * Member-facing accommodation view: own registration status, own
+     * assignment (if any), and the room/cell structure. Approval-gated on the
+     * backend — rooms are only returned when the member's registration is
+     * approved.
+     *
+     * @return array<string, mixed>
+     */
+    public function viewFor(Event $event, int $userId): array;
+
+    /**
+     * An approved member selects an available member cell for themselves.
+     * Validates approval, cell ownership/availability, and prevents duplicate
+     * assignments under lock.
+     */
+    public function selectCell(Event $event, int $userId, int $cellId): EventAccommodation;
 }

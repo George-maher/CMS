@@ -155,11 +155,14 @@ export default function EventAccommodationTab({ eventId }: Props) {
         </div>
       )}
 
-      {/* Actions */}
+      {/* Actions — rooms are generated at event creation; once the structure
+          exists it can only be modified, never recreated (backend enforces). */}
       <div className="flex flex-wrap gap-2">
-        <button onClick={() => setShowCreateModal(true)} className="btn-primary btn-sm">
-          <Plus className="h-4 w-4" /> {t('eventMgmt.addRooms')}
-        </button>
+        {rooms.length === 0 && (
+          <button onClick={() => setShowCreateModal(true)} className="btn-primary btn-sm">
+            <Plus className="h-4 w-4" /> {t('eventMgmt.addRooms')}
+          </button>
+        )}
         {unaccommodated.length > 0 && (
           <button onClick={() => { setSelectedRegistration(unaccommodated[0] ?? null); setShowAssignModal(true) }} className="btn-secondary btn-sm">
             <Home className="h-4 w-4" /> {t('eventMgmt.assignAccommodation')} ({unaccommodated.length})
