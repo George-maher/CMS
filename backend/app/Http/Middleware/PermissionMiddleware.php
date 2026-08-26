@@ -35,6 +35,7 @@ class PermissionMiddleware
 
         foreach ($requiredPermissions as $permission) {
             if (Permission::userHasPermission($user, $permission)) {
+
                 /** @var Response $response */
                 $response = $next($request);
 

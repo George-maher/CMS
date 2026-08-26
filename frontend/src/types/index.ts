@@ -149,7 +149,7 @@ export interface EventBusItem {
 export interface EventRegistration {
   id: number
   event_id: number
-  user: { id: number; name: string; phone: string | null; avatar: string | null; class_name: string | null } | null
+  user: { id: number; name: string; email?: string; phone: string | null; avatar: string | null; class_name: string | null } | null
   registrar?: { id: number; name: string } | null
   bus?: { id: number; bus_number: string } | null
   bus_id: number | null
@@ -168,6 +168,10 @@ export interface EventRegistration {
   medication_name: string | null
   medication_time: string | null
   rejection_reason: string | null
+  approved_at?: string | null
+  rejected_at?: string | null
+  approved_by_name?: string | null
+  rejected_by_name?: string | null
   accommodation?: {
     id: number
     cell: {

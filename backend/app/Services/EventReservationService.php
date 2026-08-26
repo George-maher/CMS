@@ -14,6 +14,20 @@ use Illuminate\Validation\ValidationException;
 
 class EventReservationService implements EventReservationServiceInterface
 {
+    /**
+     * Statuses a reservation request can be reviewed from. Member-submitted
+     * requests arrive as booked/not_reserved/thinking (plus pending for
+     * direct registrations) — all of them are actionable.
+     *
+     * @return array<int, RegistrationStatus>
+     */
+    private const REVIEWABLE_STATUSES = [
+        RegistrationStatus::Pending,
+        RegistrationStatus::Booked,
+        RegistrationStatus::NotReserved,
+        RegistrationStatus::Thinking,
+    ];
+
     public function __construct(
         private readonly NotificationServiceInterface $notificationService,
     ) {}
@@ -22,7 +36,7 @@ class EventReservationService implements EventReservationServiceInterface
     {
         $this->authorizeAction($event, $registration, $approver);
 
-        return DB::transaction(function () use ($event, $registration): EventRegistration {
+        return DB::transaction(function () use ($event, $registration, $approver): EventRegistration {
             /** @var EventRegistration|null $locked */
             $locked = EventRegistration::query()
                 ->whereKey($registration->id)
@@ -35,13 +49,20 @@ class EventReservationService implements EventReservationServiceInterface
                 ]);
             }
 
-            if ($locked->status !== RegistrationStatus::Pending) {
+            if (! in_array($locked->status, self::REVIEWABLE_STATUSES, true)) {
                 throw ValidationException::withMessages([
                     'status' => ['Only pending reservations can be approved. Current status: '.$locked->status->label().'.'],
                 ]);
             }
 
-            $locked->update(['status' => RegistrationStatus::Approved->value]);
+            $locked->update([
+                'status' => RegistrationStatus::Approved->value,
+                'approved_by' => $approver->id,
+                'approved_at' => now(),
+                // Clear any stale opposite-side metadata from a prior review cycle.
+                'rejected_by' => null,
+                'rejected_at' => null,
+            ]);
 
             // Notify the member
             $this->notificationService->create(
@@ -73,7 +94,7 @@ class EventReservationService implements EventReservationServiceInterface
     {
         $this->authorizeAction($event, $registration, $rejector);
 
-        return DB::transaction(function () use ($event, $registration, $reason): EventRegistration {
+        return DB::transaction(function () use ($event, $registration, $rejector, $reason): EventRegistration {
             /** @var EventRegistration|null $locked */
             $locked = EventRegistration::query()
                 ->whereKey($registration->id)
@@ -86,7 +107,7 @@ class EventReservationService implements EventReservationServiceInterface
                 ]);
             }
 
-            if ($locked->status !== RegistrationStatus::Pending) {
+            if (! in_array($locked->status, self::REVIEWABLE_STATUSES, true)) {
                 throw ValidationException::withMessages([
                     'status' => ['Only pending reservations can be rejected. Current status: '.$locked->status->label().'.'],
                 ]);
@@ -95,6 +116,11 @@ class EventReservationService implements EventReservationServiceInterface
             $locked->update([
                 'status' => RegistrationStatus::Rejected->value,
                 'rejection_reason' => $reason,
+                'rejected_by' => $rejector->id,
+                'rejected_at' => now(),
+                // Clear any stale opposite-side metadata from a prior review cycle.
+                'approved_by' => null,
+                'approved_at' => null,
             ]);
 
             // Notify the member

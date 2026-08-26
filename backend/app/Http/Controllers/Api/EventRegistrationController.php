@@ -85,11 +85,21 @@ class EventRegistrationController extends Controller
         $registrations = EventRegistration::query()
             ->where('event_id', $event->id)
             ->whereIn('status', [
+                RegistrationStatus::Pending->value,
+                RegistrationStatus::Booked->value,
+                RegistrationStatus::NotReserved->value,
+                RegistrationStatus::Thinking->value,
+                RegistrationStatus::Approved->value,
+                RegistrationStatus::Rejected->value,
+            ])
+            ->with(['user.classe', 'event', 'approver', 'rejecter'])
+            ->orderByRaw('CASE status WHEN ? THEN 1 WHEN ? THEN 2 WHEN ? THEN 3 WHEN ? THEN 4 ELSE 5 END', [
+                RegistrationStatus::Pending->value,
                 RegistrationStatus::Booked->value,
                 RegistrationStatus::NotReserved->value,
                 RegistrationStatus::Thinking->value,
             ])
-            ->with(['user.classe'])
+            ->orderBy('created_at')
             ->get();
 
         return response()->json([

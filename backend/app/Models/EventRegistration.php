@@ -35,11 +35,17 @@ use Illuminate\Support\Str;
  * @property string|null $medication_name
  * @property string|null $medication_time
  * @property string|null $rejection_reason
+ * @property int|null $approved_by
+ * @property Carbon|null $approved_at
+ * @property int|null $rejected_by
+ * @property Carbon|null $rejected_at
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read Event $event
  * @property-read User $user
  * @property-read User|null $registrar
+ * @property-read User|null $approver
+ * @property-read User|null $rejecter
  * @property-read EventBus|null $bus
  * @property-read EventAccommodation|null $accommodation
  * @property-read Collection<int, EventPayment> $payments
@@ -68,6 +74,10 @@ class EventRegistration extends Model
         'medication_name',
         'medication_time',
         'rejection_reason',
+        'approved_by',
+        'approved_at',
+        'rejected_by',
+        'rejected_at',
     ];
 
     protected function casts(): array
@@ -79,7 +89,21 @@ class EventRegistration extends Model
             'amount_paid' => 'decimal:2',
             'checked_in_at' => 'datetime',
             'medication_time' => 'datetime',
+            'approved_at' => 'datetime',
+            'rejected_at' => 'datetime',
         ];
+    }
+
+    /** @return BelongsTo<User, $this> */
+    public function approver(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    /** @return BelongsTo<User, $this> */
+    public function rejecter(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'rejected_by');
     }
 
     /** @return BelongsTo<Event, $this> */

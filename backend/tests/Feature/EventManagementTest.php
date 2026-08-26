@@ -46,6 +46,11 @@ class EventManagementTest extends TestCase
 
     private function actAs(User $user): self
     {
+        // actingAs() re-syncs the sanctum guard when switching users within
+        // the same test — without it the guard may serve its memoized user
+        // from an earlier request regardless of the Authorization header.
+        $this->actingAs($user, 'sanctum');
+
         return $this->withHeader('Authorization', 'Bearer '.$this->token($user));
     }
 
@@ -1185,6 +1190,124 @@ class EventManagementTest extends TestCase
             ->postJson("/api/v1/events/{$event->id}/accommodation/select-cell", [
                 'cell_id' => $freeMemberCell->id,
             ])
+            ->assertStatus(422);
+    }
+
+    /**
+     * Regression: member requests arrive with status booked/not_reserved/
+     * thinking — the review service previously only accepted Pending, so a
+     * responsible servant could never approve a real member request.
+     */
+    public function test_responsible_servant_can_approve_booked_member_request(): void
+    {
+        $church = Church::factory()->create();
+        $servant = $this->makeUser($church, UserRole::Servant);
+        $event = $this->makeTripEvent($church, $servant);
+        $member = $this->makeUser($church, UserRole::Member);
+
+        // Member submits a real request through the API (status = booked).
+        $regId = $this->actAs($member)
+            ->postJson("/api/v1/events/{$event->id}/member-reservation-request", [
+                'status' => RegistrationStatus::Booked->value,
+            ])
+            ->assertStatus(201)
+            ->json('data.id');
+
+        $response = $this->actAs($servant)
+            ->postJson("/api/v1/events/{$event->id}/registrations/{$regId}/approve")
+            ->assertStatus(200)
+            ->assertJsonPath('data.status', RegistrationStatus::Approved->value);
+
+        $approvedAt = $response->json('data.approved_at');
+        $this->assertNotNull($approvedAt);
+
+        $registration = EventRegistration::query()->findOrFail($regId);
+        $this->assertSame($servant->id, $registration->approved_by);
+        $this->assertNotNull($registration->approved_at);
+
+        // Member notified in-app.
+        $this->assertDatabaseHas('notifications', [
+            'user_id' => $member->id,
+            'type' => 'event_reservation',
+            'event_id' => $event->id,
+        ]);
+    }
+
+    public function test_double_approve_is_rejected(): void
+    {
+        $church = Church::factory()->create();
+        $servant = $this->makeUser($church, UserRole::Servant);
+        $event = $this->makeTripEvent($church, $servant);
+        $member = $this->makeApprovedMember($church, $event);
+
+        $regId = EventRegistration::query()
+            ->where('event_id', $event->id)
+            ->where('user_id', $member->id)
+            ->value('id');
+
+        // Already approved — approving again must not create another approval.
+        $this->actAs($servant)
+            ->postJson("/api/v1/events/{$event->id}/registrations/{$regId}/approve")
+            ->assertStatus(422);
+
+        $registration = EventRegistration::query()->findOrFail($regId);
+        $this->assertSame(RegistrationStatus::Approved->value, $registration->status->value);
+    }
+
+    public function test_rejection_records_metadata_and_keeps_accommodation_locked(): void
+    {
+        $church = Church::factory()->create();
+        $servant = $this->makeUser($church, UserRole::Servant);
+        $event = $this->makeTripEvent($church, $servant);
+        $member = $this->makeUser($church, UserRole::Member);
+
+        $regId = $this->actAs($member)
+            ->postJson("/api/v1/events/{$event->id}/member-reservation-request", [
+                'status' => RegistrationStatus::Thinking->value,
+            ])
+            ->assertStatus(201)
+            ->json('data.id');
+
+        $admin = $this->makeUser($church, UserRole::Admin);
+        $roomsResp = $this->actAs($admin)->postJson("/api/v1/events/{$event->id}/accommodation/rooms", [
+            'room_groups' => [['count' => 1, 'capacity' => 5]],
+        ]);
+        if (! $roomsResp->isSuccessful()) {
+            fwrite(STDERR, 'DEBUG admin-tok='.substr($this->token($admin), 0, 12).' member-tok='.substr($this->token($member), 0, 12).PHP_EOL);
+            fwrite(STDERR, 'DEBUG rooms response: '.$roomsResp->getContent().PHP_EOL);
+        }
+        $roomsResp->assertStatus(201);
+
+        $this->actAs($servant)
+            ->postJson("/api/v1/events/{$event->id}/registrations/{$regId}/reject", [
+                'reason' => 'No spaces left with the group',
+            ])
+            ->assertStatus(200)
+            ->assertJsonPath('data.status', RegistrationStatus::Rejected->value);
+
+        $registration = EventRegistration::query()->findOrFail($regId);
+        $this->assertSame($servant->id, $registration->rejected_by);
+        $this->assertNotNull($registration->rejected_at);
+        $this->assertSame('No spaces left with the group', $registration->rejection_reason);
+
+        // Member notified.
+        $this->assertDatabaseHas('notifications', [
+            'user_id' => $member->id,
+            'type' => 'event_reservation',
+        ]);
+
+        // Accommodation stays locked for rejected members.
+        $view = $this->actAs($member)
+            ->getJson("/api/v1/events/{$event->id}/accommodation/my-view")
+            ->assertStatus(200)
+            ->json('data');
+
+        $this->assertSame(RegistrationStatus::Rejected->value, $view['registration_status']);
+        $this->assertCount(0, $view['rooms']);
+
+        // Double rejection is not processed again.
+        $this->actAs($servant)
+            ->postJson("/api/v1/events/{$event->id}/registrations/{$regId}/reject")
             ->assertStatus(422);
     }
 }

@@ -89,9 +89,27 @@ class EventRegistrationResource extends JsonResource
                 fn () => $this->medication_name,
             ),
             'rejection_reason' => $this->when(
-                $currentUser !== null && $currentUser->getAuthIdentifier() === $this->user_id,
+                $currentUser !== null && (
+                    $currentUser->getAuthIdentifier() === $this->user_id
+                    || in_array($currentUser->role, [UserRole::Admin, UserRole::AssistantAdmin, UserRole::Servant], true)
+                ),
                 fn () => $this->rejection_reason,
             ),
+            // Review metadata — who approved/rejected and when.
+            'approved_at' => $this->approved_at?->toISOString(),
+            'rejected_at' => $this->rejected_at?->toISOString(),
+            'approved_by_name' => $this->whenLoaded('approver', function () {
+                /** @var User|null $approver */
+                $approver = $this->approver;
+
+                return $approver !== null ? strval($approver->name) : null;
+            }),
+            'rejected_by_name' => $this->whenLoaded('rejecter', function () {
+                /** @var User|null $rejecter */
+                $rejecter = $this->rejecter;
+
+                return $rejecter !== null ? strval($rejecter->name) : null;
+            }),
             'accommodation' => $this->when(
                 $this->relationLoaded('accommodation') && $this->accommodation !== null,
                 function (): array {
