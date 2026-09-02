@@ -39,6 +39,7 @@
     "common": {
         "overview": "نظرة عامة",
         "save": "حفظ",
+        "saveChanges": "حفظ التغييرات",
         "saving": "جارٍ الحفظ...",
         "cancel": "إلغاء",
         "delete": "حذف",
@@ -51,6 +52,7 @@
         "loading": "جارٍ التحميل...",
         "noData": "لا توجد بيانات.",
         "noDataYet": "لا توجد بيانات بعد.",
+        "notAddedYet": "لم تتم الإضافة بعد.",
         "search": "بحث",
         "filter": "تصفية",
         "prev": "السابق",
@@ -1327,8 +1329,9 @@
     },
     "profile": {
         "title": "ملفي الشخصي",
-        "directDescription": "تعديل ملفك الشخصي. يتم تطبيق التغييرات فوراً.",
-        "memberDescription": "تعديل ملفك الشخصي. تتطلب التغييرات موافقة الخادم المسؤول.",
+        "directDescription": "عرض وتعديل ملفك الشخصي. يتم تطبيق التغييرات فوراً.",
+        "memberDescription": "عرض وتعديل ملفك الشخصي. تتطلب التغييرات موافقة الخادم المسؤول.",
+        "editProfile": "تعديل الملف الشخصي",
         "updateSuccess": "تم تحديث الملف الشخصي بنجاح.",
         "updateFailed": "فشل تحديث الملف الشخصي.",
         "requestSubmitted": "تم تقديم طلب تحديث الملف الشخصي وهو بانتظار المراجعة.",
@@ -1340,7 +1343,12 @@
         "newValue": "الجديد",
         "rejectionReason": "سبب الرفض",
         "reviewedBy": "تمت المراجعة بواسطة",
-        "submitRequest": "إرسال طلب التحديث"
+        "submitRequest": "إرسال طلب التحديث",
+        "notAddedYet": "لم تتم الإضافة بعد.",
+        "namePlaceholder": "أدخل اسمك",
+        "phonePlaceholder": "أدخل رقم هاتفك",
+        "emailPlaceholder": "أدخل بريدك الإلكتروني",
+        "addressPlaceholder": "أدخل عنوانك"
     },
     "profileUpdateRequests": {
         "title": "طلبات تحديث الملف الشخصي",

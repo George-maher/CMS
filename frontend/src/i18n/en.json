@@ -39,6 +39,7 @@
     "common": {
         "overview": "Overview",
         "save": "Save",
+        "saveChanges": "Save Changes",
         "saving": "Saving...",
         "cancel": "Cancel",
         "delete": "Delete",
@@ -51,6 +52,7 @@
         "loading": "Loading...",
         "noData": "No data found.",
         "noDataYet": "No data yet.",
+        "notAddedYet": "Not added yet.",
         "search": "Search",
         "filter": "Filter",
         "prev": "Prev",
@@ -1303,8 +1305,9 @@
     },
     "profile": {
         "title": "My Profile",
-        "directDescription": "Edit your profile. Changes are applied immediately.",
-        "memberDescription": "Edit your profile. Changes require approval from your responsible servant.",
+        "directDescription": "View and edit your profile. Changes are applied immediately.",
+        "memberDescription": "View and edit your profile. Changes require approval from your responsible servant.",
+        "editProfile": "Edit Profile",
         "updateSuccess": "Profile updated successfully.",
         "updateFailed": "Failed to update profile.",
         "requestSubmitted": "Your profile update request has been submitted and is awaiting review.",
@@ -1316,7 +1319,12 @@
         "newValue": "New",
         "rejectionReason": "Rejection Reason",
         "reviewedBy": "Reviewed by",
-        "submitRequest": "Submit Update Request"
+        "submitRequest": "Submit Update Request",
+        "notAddedYet": "Not added yet.",
+        "namePlaceholder": "Enter your name",
+        "phonePlaceholder": "Enter your phone number",
+        "emailPlaceholder": "Enter your email address",
+        "addressPlaceholder": "Enter your address"
     },
     "profileUpdateRequests": {
         "title": "Profile Update Requests",
