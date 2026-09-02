@@ -30,6 +30,8 @@
         "attendanceContexts": "مواقع الحضور",
         "membershipRequests": "طلبات الانضمام",
         "passwordResetRequests": "طلبات إعادة تعيين كلمة المرور",
+        "profileUpdateRequests": "طلبات تحديث الملف الشخصي",
+        "profile": "ملفي الشخصي",
         "leaderboard": "لوحة المتصدرين",
         "churchManagement": "إدارة الكنائس",
         "deletedChurches": "الكنائس المحذوفة"
@@ -820,7 +822,9 @@
         "bonusPointsTitle": "تمت إضافة نقاط مكافأة",
         "bonusPointsBody": "لقد تلقيت {points} نقاط مكافأة.",
         "passwordResetTitle": "طلب إعادة تعيين كلمة المرور",
-        "passwordResetBody": "طلب أحد الأعضاء إعادة تعيين كلمة المرور."
+        "passwordResetBody": "طلب أحد الأعضاء إعادة تعيين كلمة المرور.",
+        "profileUpdateTitle": "طلب تحديث الملف الشخصي",
+        "profileUpdateBody": "طلب تحديث ملف شخصي بانتظار مراجعتك."
     },
     "absentMembers": {
         "title": "الأعضاء الغائبون",
@@ -1320,5 +1324,42 @@
         "removeAccommodationConfirm": "إزالة تعيين السكن عن :name وتحرير هذه الخلية؟",
         "occupiedBy": "مشغولة بواسطة",
         "noAvailableCells": "لا توجد خلايا متاحة حاليًا. يرجى التواصل مع الخادم المسؤول عن الفعالية."
+    },
+    "profile": {
+        "title": "ملفي الشخصي",
+        "directDescription": "تعديل ملفك الشخصي. يتم تطبيق التغييرات فوراً.",
+        "memberDescription": "تعديل ملفك الشخصي. تتطلب التغييرات موافقة الخادم المسؤول.",
+        "updateSuccess": "تم تحديث الملف الشخصي بنجاح.",
+        "updateFailed": "فشل تحديث الملف الشخصي.",
+        "requestSubmitted": "تم تقديم طلب تحديث الملف الشخصي وهو بانتظار المراجعة.",
+        "requestFailed": "فشل تقديم طلب تحديث الملف الشخصي.",
+        "pendingRequestNote": "لديك طلب تحديث ملف شخصي قيد المراجعة. لا يمكنك تقديم طلب آخر حتى تتم مراجعة الطلب الحالي.",
+        "requestHistory": "سجل الطلبات",
+        "requestDetail": "تفاصيل الطلب",
+        "currentValue": "الحالي",
+        "newValue": "الجديد",
+        "rejectionReason": "سبب الرفض",
+        "reviewedBy": "تمت المراجعة بواسطة",
+        "submitRequest": "إرسال طلب التحديث"
+    },
+    "profileUpdateRequests": {
+        "title": "طلبات تحديث الملف الشخصي",
+        "description": "مراجعة والموافقة على طلبات تحديث الملف الشخصي من الأعضاء المخصصين لك.",
+        "member": "العضو",
+        "class": "الفصل",
+        "submittedAt": "تاريخ التقديم",
+        "requestDetail": "تفاصيل الطلب",
+        "requestedChanges": "التغييرات المطلوبة",
+        "current": "الحالي",
+        "new": "الجديد",
+        "rejectionReason": "سبب الرفض",
+        "rejectionReasonPlaceholder": "أدخل سبب الرفض...",
+        "confirmApprove": "الموافقة على تحديث الملف الشخصي",
+        "approveWarning": "سيتم تحديث ملف العضو بالتغييرات المطلوبة.",
+        "confirmReject": "رفض تحديث الملف الشخصي",
+        "approved": "تمت الموافقة على تحديث الملف الشخصي.",
+        "approveFailed": "فشلت الموافقة على تحديث الملف الشخصي.",
+        "rejected": "تم رفض تحديث الملف الشخصي.",
+        "rejectFailed": "فشل رفض تحديث الملف الشخصي."
     }
 }

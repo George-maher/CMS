@@ -30,6 +30,8 @@
         "attendanceContexts": "Attendance Contexts",
         "membershipRequests": "Join Requests",
         "passwordResetRequests": "Password Reset Requests",
+        "profileUpdateRequests": "Profile Update Requests",
+        "profile": "My Profile",
         "leaderboard": "Leaderboard",
         "churchManagement": "Church Management",
         "deletedChurches": "Deleted Churches"
@@ -796,7 +798,9 @@
         "bonusPointsTitle": "Bonus Points Added",
         "bonusPointsBody": "You received {points} bonus points.",
         "passwordResetTitle": "Password Reset Request",
-        "passwordResetBody": "A member requested a password reset."
+        "passwordResetBody": "A member requested a password reset.",
+        "profileUpdateTitle": "Profile Update Request",
+        "profileUpdateBody": "A profile update request is awaiting your review."
     },
     "absentMembers": {
         "title": "Absent Members",
@@ -1296,5 +1300,42 @@
         "removeAccommodationConfirm": "Remove the accommodation assignment for :name and free this cell?",
         "occupiedBy": "Occupied by",
         "noAvailableCells": "No available cells are currently available. Please contact the event's responsible servant."
+    },
+    "profile": {
+        "title": "My Profile",
+        "directDescription": "Edit your profile. Changes are applied immediately.",
+        "memberDescription": "Edit your profile. Changes require approval from your responsible servant.",
+        "updateSuccess": "Profile updated successfully.",
+        "updateFailed": "Failed to update profile.",
+        "requestSubmitted": "Your profile update request has been submitted and is awaiting review.",
+        "requestFailed": "Failed to submit profile update request.",
+        "pendingRequestNote": "You have a pending profile update request. You cannot submit another request until the current one is reviewed.",
+        "requestHistory": "Request History",
+        "requestDetail": "Request Detail",
+        "currentValue": "Current",
+        "newValue": "New",
+        "rejectionReason": "Rejection Reason",
+        "reviewedBy": "Reviewed by",
+        "submitRequest": "Submit Update Request"
+    },
+    "profileUpdateRequests": {
+        "title": "Profile Update Requests",
+        "description": "Review and approve profile update requests from your assigned members.",
+        "member": "Member",
+        "class": "Class",
+        "submittedAt": "Submitted At",
+        "requestDetail": "Request Detail",
+        "requestedChanges": "Requested Changes",
+        "current": "Current",
+        "new": "New",
+        "rejectionReason": "Rejection Reason",
+        "rejectionReasonPlaceholder": "Enter the reason for rejection...",
+        "confirmApprove": "Approve Profile Update",
+        "approveWarning": "This will update the member's profile with the requested changes.",
+        "confirmReject": "Reject Profile Update",
+        "approved": "Profile update approved.",
+        "approveFailed": "Failed to approve profile update.",
+        "rejected": "Profile update rejected.",
+        "rejectFailed": "Failed to reject profile update."
     }
 }

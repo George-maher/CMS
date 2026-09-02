@@ -26,6 +26,7 @@ use App\Http\Controllers\Api\PasswordResetRequestController;
 use App\Http\Controllers\Api\PendingDashboardController;
 use App\Http\Controllers\Api\PlatformController;
 use App\Http\Controllers\Api\PointController;
+use App\Http\Controllers\Api\ProfileUpdateRequestController;
 use App\Http\Controllers\Api\QRInviteController;
 use App\Http\Controllers\Api\StageController;
 use App\Http\Controllers\Api\StorageController;
@@ -120,6 +121,16 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'approval', 'throttle:api'])->g
     */
     Route::post('/auth/logout', [AuthController::class, 'logout']);
     Route::get('/auth/me', [AuthController::class, 'me']);
+
+    /*
+    | Profile — own profile update (admin/servant direct, member via request)
+    */
+    Route::put('/profile', [ProfileUpdateRequestController::class, 'updateOwnProfile'])
+        ->middleware('throttle:user-update');
+    Route::post('/profile-update-requests', [ProfileUpdateRequestController::class, 'store'])
+        ->middleware('throttle:sensitive');
+    Route::get('/profile-update-requests/my', [ProfileUpdateRequestController::class, 'myRequests'])
+        ->middleware('throttle:api');
 
     /*
     | Storage — direct file uploads to Supabase
@@ -402,6 +413,18 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'approval', 'throttle:api'])->g
             ->middleware('throttle:attendance-context-crud');
         Route::delete('/attendance-contexts/{id}', [AttendanceContextController::class, 'destroy'])
             ->middleware('throttle:attendance-context-crud');
+
+        /*
+        | Profile Update Requests — servant/admin review
+        */
+        Route::get('/profile-update-requests', [ProfileUpdateRequestController::class, 'index'])
+            ->middleware('throttle:api');
+        Route::get('/profile-update-requests/{id}', [ProfileUpdateRequestController::class, 'show'])
+            ->middleware('throttle:api');
+        Route::post('/profile-update-requests/{id}/approve', [ProfileUpdateRequestController::class, 'approve'])
+            ->middleware('throttle:sensitive');
+        Route::post('/profile-update-requests/{id}/reject', [ProfileUpdateRequestController::class, 'reject'])
+            ->middleware('throttle:sensitive');
     });
 
     /*

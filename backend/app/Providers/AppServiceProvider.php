@@ -32,6 +32,7 @@ use App\Contracts\NotificationServiceInterface;
 use App\Contracts\PasswordResetRequestServiceInterface;
 use App\Contracts\PointRepositoryInterface;
 use App\Contracts\PointServiceInterface;
+use App\Contracts\ProfileUpdateRequestServiceInterface;
 use App\Contracts\QRInviteRepositoryInterface;
 use App\Contracts\QRInviteServiceInterface;
 use App\Contracts\StageRepositoryInterface;
@@ -52,6 +53,7 @@ use App\Models\Event;
 use App\Models\Feedback;
 use App\Models\MembershipRequest as MembershipRequestModel;
 use App\Models\PasswordResetRequest;
+use App\Models\ProfileUpdateRequest;
 use App\Models\QRInvite;
 use App\Models\User;
 use App\Models\User as UserModel;
@@ -69,6 +71,7 @@ use App\Policies\DailyVersePolicy;
 use App\Policies\EventPolicy;
 use App\Policies\FeedbackPolicy;
 use App\Policies\PasswordResetRequestPolicy;
+use App\Policies\ProfileUpdateRequestPolicy;
 use App\Policies\QRInvitePolicy;
 use App\Repositories\AttendanceContextRepository;
 use App\Repositories\AttendanceRepository;
@@ -105,6 +108,7 @@ use App\Services\MembershipRequestService;
 use App\Services\NotificationService;
 use App\Services\PasswordResetRequestService;
 use App\Services\PointService;
+use App\Services\ProfileUpdateRequestService;
 use App\Services\QRInviteService;
 use App\Services\StageService;
 use App\Services\SupabaseStorageService;
@@ -166,6 +170,8 @@ class AppServiceProvider extends ServiceProvider
 
         $this->app->bind(PasswordResetRequestServiceInterface::class, PasswordResetRequestService::class);
 
+        $this->app->bind(ProfileUpdateRequestServiceInterface::class, ProfileUpdateRequestService::class);
+
         $this->app->singleton(CacheService::class, fn () => new CacheService);
 
         $this->app->bind(ChurchApplicationServiceInterface::class, ChurchApplicationService::class);
@@ -207,6 +213,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(DailyVerse::class, DailyVersePolicy::class);
         Gate::policy(AttendanceContext::class, AttendanceContextPolicy::class);
         Gate::policy(PasswordResetRequest::class, PasswordResetRequestPolicy::class);
+        Gate::policy(ProfileUpdateRequest::class, ProfileUpdateRequestPolicy::class);
         Gate::policy(Church::class, ChurchDeletionPolicy::class);
 
         // ──────────────────────────────────────────────

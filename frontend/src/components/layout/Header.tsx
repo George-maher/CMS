@@ -27,6 +27,8 @@ const routeTitles: Record<string, string> = {
   '/admin/attendance': 'nav.attendance',
   '/admin/absent-members': 'nav.absentMembers',
   '/admin/attendance-contexts': 'nav.attendanceContexts',
+  '/admin/profile': 'nav.profile',
+  '/admin/profile-update-requests': 'nav.profileUpdateRequests',
   '/assistant-admin': 'nav.dashboard',
   '/assistant-admin/users': 'nav.users',
   '/assistant-admin/structure': 'nav.structure',
@@ -38,6 +40,8 @@ const routeTitles: Record<string, string> = {
   '/assistant-admin/attendance': 'nav.attendance',
   '/assistant-admin/absent-members': 'nav.absentMembers',
   '/assistant-admin/attendance-contexts': 'nav.attendanceContexts',
+  '/assistant-admin/profile': 'nav.profile',
+  '/assistant-admin/profile-update-requests': 'nav.profileUpdateRequests',
   '/servant': 'nav.dashboard',
   '/servant/leaderboard': 'nav.leaderboard',
   '/servant/members': 'nav.myMembers',
@@ -49,6 +53,8 @@ const routeTitles: Record<string, string> = {
   '/servant/feedback': 'nav.feedback',
   '/servant/absent-members': 'nav.absentMembers',
   '/servant/attendance-contexts': 'nav.attendanceContexts',
+  '/servant/profile': 'nav.profile',
+  '/servant/profile-update-requests': 'nav.profileUpdateRequests',
   '/member': 'nav.dashboard',
   '/member/leaderboard': 'nav.leaderboard',
   '/member/qr': 'nav.myQRCode',
@@ -56,6 +62,7 @@ const routeTitles: Record<string, string> = {
   '/member/attendance': 'nav.myAttendance',
   '/member/feedback': 'nav.submitFeedback',
   '/member/points': 'nav.myPoints',
+  '/member/profile': 'nav.profile',
 }
 
 export default function Header({ onMenuClick }: Props) {
@@ -86,6 +93,7 @@ export default function Header({ onMenuClick }: Props) {
     if (n.type === 'bonus_points') return t('notifications.bonusPointsTitle')
     if (n.type === 'event') return t('notifications.newEvent')
     if (n.type === 'password_reset') return t('notifications.passwordResetTitle')
+    if (n.type === 'profile_update') return t('notifications.profileUpdateTitle')
     return n.title
   }
 
@@ -94,6 +102,7 @@ export default function Header({ onMenuClick }: Props) {
     if (n.type === 'bonus_points') return t('notifications.bonusPointsBody', { points: n.point?.points ?? '' })
     if (n.type === 'event') return n.body
     if (n.type === 'password_reset') return n.body ?? t('notifications.passwordResetBody')
+    if (n.type === 'profile_update') return n.body ?? t('notifications.profileUpdateBody')
     return n.body
   }
 
@@ -177,6 +186,16 @@ export default function Header({ onMenuClick }: Props) {
         navigate(`/${user.role}/password-reset-requests`)
       } else {
         navigate(`/${user?.role === 'servant' ? 'servant' : 'member'}`)
+      }
+      return
+    }
+    if (notif.type === 'profile_update') {
+      if (user?.role === 'admin' || user?.role === 'assistant_admin') {
+        navigate(`/${user.role}/profile-update-requests`)
+      } else if (user?.role === 'servant') {
+        navigate('/servant/profile-update-requests')
+      } else {
+        navigate('/member/profile')
       }
       return
     }

@@ -592,6 +592,40 @@ export interface PasswordResetRequest {
   } | null
 }
 
+export interface ProfileUpdateRequest {
+  id: number
+  user_id: number
+  church_id: number | null
+  reviewer_id: number | null
+  status: 'pending' | 'approved' | 'rejected'
+  status_label: string
+  old_values: Record<string, string | null>
+  new_values: Record<string, string | null>
+  changes: Record<string, { old: string | null; new: string | null }>
+  rejection_reason: string | null
+  reviewer: { id: number; name: string } | null
+  reviewed_at: string | null
+  created_at: string
+  updated_at: string
+  user: {
+    id: number
+    member_id: string | null
+    name: string
+    email: string
+    role: string
+    role_label: string
+    phone: string | null
+    address: string | null
+    avatar: string | null
+    class_id: number | null
+    classe: {
+      id: number
+      name: string
+      stage: { id: number; name: string } | null
+    } | null
+  } | null
+}
+
 export interface LeaderboardEntry {
   rank: number
   user_id: number

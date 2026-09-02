@@ -38,6 +38,9 @@ const AdminEventDetail = lazy(() => import('@/pages/admin/EventDetail'))
 const AdminLeaderboard = lazy(() => import('@/pages/admin/Leaderboard'))
 const AdminPasswordResetRequests = lazy(() => import('@/pages/admin/PasswordResetRequests'))
 
+const Profile = lazy(() => import('@/pages/Profile'))
+const ServantProfileUpdateRequests = lazy(() => import('@/pages/servant/ProfileUpdateRequests'))
+
 const ServantDashboard = lazy(() => import('@/pages/servant/Dashboard'))
 const ServantMembers = lazy(() => import('@/pages/servant/Members'))
 const ServantMemberDetail = lazy(() => import('@/pages/servant/MemberDetail'))
@@ -120,6 +123,8 @@ export default function App() {
                 <Route path="/admin/attendance-contexts" element={<AttendanceContextManagement />} />
                 <Route path="/admin/leaderboard" element={<AdminLeaderboard />} />
                 <Route path="/admin/password-reset-requests" element={<AdminPasswordResetRequests />} />
+                <Route path="/admin/profile" element={<Profile />} />
+                <Route path="/admin/profile-update-requests" element={<ServantProfileUpdateRequests />} />
 
                 <Route path="/assistant-admin" element={<AdminDashboard />} />
                 <Route path="/assistant-admin/users" element={<AdminUsers />} />
@@ -137,6 +142,8 @@ export default function App() {
                 <Route path="/assistant-admin/attendance-contexts" element={<AttendanceContextManagement />} />
                 <Route path="/assistant-admin/leaderboard" element={<AdminLeaderboard />} />
                 <Route path="/assistant-admin/password-reset-requests" element={<AdminPasswordResetRequests />} />
+                <Route path="/assistant-admin/profile" element={<Profile />} />
+                <Route path="/assistant-admin/profile-update-requests" element={<ServantProfileUpdateRequests />} />
               </Route>
 
               <Route element={<AppLayout allowedRoles={['servant']} />}>
@@ -153,6 +160,8 @@ export default function App() {
                 <Route path="/servant/absent-members" element={<AbsentMembers />} />
                 <Route path="/servant/attendance-contexts" element={<AttendanceContextManagement />} />
                 <Route path="/servant/leaderboard" element={<ServantLeaderboard />} />
+                <Route path="/servant/profile" element={<Profile />} />
+                <Route path="/servant/profile-update-requests" element={<ServantProfileUpdateRequests />} />
               </Route>
 
               <Route element={<AppLayout allowedRoles={['member']} />}>
@@ -164,6 +173,7 @@ export default function App() {
                 <Route path="/member/qr" element={<MemberMyQR />} />
                 <Route path="/member/feedback" element={<FeedbackSubmit />} />
                 <Route path="/member/leaderboard" element={<MemberLeaderboard />} />
+                <Route path="/member/profile" element={<Profile />} />
               </Route>
 
               <Route path="/403" element={<Forbidden />} />

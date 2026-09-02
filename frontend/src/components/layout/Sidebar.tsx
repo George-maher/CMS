@@ -7,7 +7,7 @@ import {
   LayoutDashboard, Users, Calendar, MessageSquare,
   ClipboardList, QrCode,
   BookMarked, Camera, Star, Trophy,
-  Church, Moon, Sun, Languages, X, UserX, Layers, Trash2, Clock,
+  Church, Moon, Sun, Languages, X, UserX, Layers, Trash2, Clock, User, UserCheck,
 } from 'lucide-react'
 
 interface NavItem {
@@ -35,6 +35,8 @@ const adminNav: NavItem[] = [
   { labelKey: 'nav.absentMembers', path: '/admin/absent-members', icon: <UserX className="h-5 w-5 text-gold-400" /> },
   { labelKey: 'nav.attendanceContexts', path: '/admin/attendance-contexts', icon: <Layers className="h-5 w-5 text-gold-400" /> },
   { labelKey: 'nav.passwordResetRequests', path: '/admin/password-reset-requests', icon: <ClipboardList className="h-5 w-5 text-gold-400" /> },
+  { labelKey: 'nav.profileUpdateRequests', path: '/admin/profile-update-requests', icon: <UserCheck className="h-5 w-5 text-gold-400" /> },
+  { labelKey: 'nav.profile', path: '/admin/profile', icon: <User className="h-5 w-5 text-gold-400" /> },
 ]
 
 const servantNav: NavItem[] = [
@@ -49,6 +51,8 @@ const servantNav: NavItem[] = [
   { labelKey: 'nav.feedback', path: '/servant/feedback', icon: <MessageSquare className="h-5 w-5 text-gold-400" /> },
   { labelKey: 'nav.absentMembers', path: '/servant/absent-members', icon: <UserX className="h-5 w-5 text-gold-400" /> },
   { labelKey: 'nav.attendanceContexts', path: '/servant/attendance-contexts', icon: <Layers className="h-5 w-5 text-gold-400" /> },
+  { labelKey: 'nav.profileUpdateRequests', path: '/servant/profile-update-requests', icon: <UserCheck className="h-5 w-5 text-gold-400" /> },
+  { labelKey: 'nav.profile', path: '/servant/profile', icon: <User className="h-5 w-5 text-gold-400" /> },
 ]
 
 const memberNav: NavItem[] = [
@@ -59,6 +63,7 @@ const memberNav: NavItem[] = [
   { labelKey: 'nav.myAttendance', path: '/member/attendance', icon: <ClipboardList className="h-5 w-5 text-gold-400" /> },
   { labelKey: 'nav.submitFeedback', path: '/member/feedback', icon: <MessageSquare className="h-5 w-5 text-gold-400" /> },
   { labelKey: 'nav.myPoints', path: '/member/points', icon: <Star className="h-5 w-5 text-gold-400" /> },
+  { labelKey: 'nav.profile', path: '/member/profile', icon: <User className="h-5 w-5 text-gold-400" /> },
 ]
 
 interface Props {
