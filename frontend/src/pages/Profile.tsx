@@ -84,10 +84,10 @@ export default function Profile() {
     setSaving(true)
     try {
       await updateOwnProfile({
-        name: name || null,
-        phone: phone || null,
-        email: email || null,
-        address: address || null,
+        name: name || undefined,
+        phone: phone || undefined,
+        email: email || undefined,
+        address: address || undefined,
       })
       toast.success(t('profile.updateSuccess'))
       await refreshUser()
@@ -106,10 +106,10 @@ export default function Profile() {
     setSaving(true)
     try {
       await submitProfileUpdateRequest({
-        name: name || null,
-        phone: phone || null,
-        email: email || null,
-        address: address || null,
+        name: name || undefined,
+        phone: phone || undefined,
+        email: email || undefined,
+        address: address || undefined,
       })
       toast.success(t('profile.requestSubmitted'))
       setEditing(false)
