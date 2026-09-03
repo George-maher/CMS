@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { ClipboardList, CheckCircle, XCircle, Building2, Users, Activity, Ban, SearchX } from 'lucide-react'
+import type { TFunction } from 'i18next'
 import StatCard from '@/components/common/StatCard'
 import DataTable from '@/components/common/DataTable'
 import Badge from '@/components/common/Badge'
@@ -21,6 +22,15 @@ const tabVariants: Record<string, 'warning' | 'success' | 'danger' | 'default'> 
   pending: 'warning',
   approved: 'success',
   rejected: 'danger',
+}
+
+function translateStatus(status: string, t: TFunction): string {
+  const map: Record<string, string> = {
+    pending: t('platform.pendingOnly'),
+    approved: t('platform.approvedOnly'),
+    rejected: t('platform.rejectedOnly'),
+  }
+  return map[status] || status
 }
 
 const emptyMessages: Record<string, string> = {
@@ -70,7 +80,7 @@ export default function PlatformDashboard() {
     { key: 'church_name', header: t('platform.churchName'), render: (a) => <span className="font-medium">{a.church_name}</span> },
     { key: 'priest_name', header: t('platform.priestName') },
     { key: 'phone', header: t('platform.phone'), render: (a) => <span>{a.phone || a.priest_phone}</span> },
-    { key: 'status', header: t('platform.status'), render: (a) => <Badge variant={statusBadge[a.status]}>{a.status}</Badge> },
+    { key: 'status', header: t('platform.status'), render: (a) => <Badge variant={statusBadge[a.status]}>{translateStatus(a.status, t)}</Badge> },
     { key: 'created_at', header: t('platform.date'), render: (a) => new Date(a.created_at).toLocaleDateString() },
   ]
 
@@ -83,7 +93,7 @@ export default function PlatformDashboard() {
       <h1 className="text-2xl font-bold">{t('platform.title')}</h1>
 
       {stats && (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-7 stagger-children">
+        <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 stagger-children">
           <StatCard title={t('platform.pending')} value={stats.pending_applications} icon={<ClipboardList className="h-5 w-5" />} color="warning" />
           <StatCard title={t('platform.approved')} value={stats.approved_applications} icon={<CheckCircle className="h-5 w-5" />} color="success" />
           <StatCard title={t('platform.rejected')} value={stats.rejected_applications} icon={<XCircle className="h-5 w-5" />} color="danger" />

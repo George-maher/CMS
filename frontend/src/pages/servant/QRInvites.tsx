@@ -291,7 +291,7 @@ export default function ServantQRInvites() {
       <Modal isOpen={showCreate} onClose={() => { setShowCreate(false); resetForm() }} title={t('qr.createInviteTitle')}>
         <div className="space-y-3">
           <div className="rounded-lg bg-primary-50 dark:bg-primary-900/20 p-3 text-xs text-primary-700 dark:text-primary-400">
-            <Info className="inline h-3 w-3 mr-1" />
+            <Info className="inline h-3 w-3 me-1" />
             {t('qr.inviteHelpText')}
           </div>
           {createError && <div className="form-error">{createError}</div>}
@@ -322,7 +322,7 @@ export default function ServantQRInvites() {
             <p className="font-medium">{t('qr.memberInvite')}</p>
             <p className="text-sm text-secondary">{t('qr.memberInviteNoClass')}</p>
             <button onClick={() => handleCreate('servant_to_member_invite')} disabled={creating}
-              className="btn-primary btn-md mt-3 w-full">{creating ? <><Loader2 className="h-4 w-4 animate-spin inline mr-2" />{t('qr.generating')}</> : t('qr.createMemberInvite')}</button>
+              className="btn-primary btn-md mt-3 w-full">{creating ? <><Loader2 className="h-4 w-4 animate-spin inline me-2" />{t('qr.generating')}</> : t('qr.createMemberInvite')}</button>
           </div>
 
         </div>

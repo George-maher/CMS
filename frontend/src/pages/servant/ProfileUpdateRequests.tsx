@@ -103,9 +103,9 @@ export default function ProfileUpdateRequests() {
 
   const statusBadge = (status: string) => {
     switch (status) {
-      case 'pending': return <Badge variant="warning"><Clock className="h-3 w-3 mr-1 inline" />{t('common.pending')}</Badge>
-      case 'approved': return <Badge variant="success"><CheckCircle className="h-3 w-3 mr-1 inline" />{t('common.approved')}</Badge>
-      case 'rejected': return <Badge variant="danger"><XCircle className="h-3 w-3 mr-1 inline" />{t('common.rejected')}</Badge>
+      case 'pending': return <Badge variant="warning"><Clock className="h-3 w-3 me-1 inline" />{t('common.pending')}</Badge>
+      case 'approved': return <Badge variant="success"><CheckCircle className="h-3 w-3 me-1 inline" />{t('common.approved')}</Badge>
+      case 'rejected': return <Badge variant="danger"><XCircle className="h-3 w-3 me-1 inline" />{t('common.rejected')}</Badge>
       default: return <Badge>{status}</Badge>
     }
   }
@@ -293,13 +293,13 @@ export default function ProfileUpdateRequests() {
                   onClick={() => { setApproveOpen(true); setApproveId(detail.id); setDetailOpen(false) }}
                   className="flex-1 btn-primary bg-success hover:bg-success/90"
                 >
-                  <CheckCircle className="h-4 w-4 mr-2" />{t('common.approve')}
+                  <CheckCircle className="h-4 w-4 me-2" />{t('common.approve')}
                 </button>
                 <button
                   onClick={() => { setRejectOpen(true); setRejectId(detail.id); setDetailOpen(false) }}
                   className="flex-1 btn-primary bg-danger hover:bg-danger/90"
                 >
-                  <XCircle className="h-4 w-4 mr-2" />{t('common.reject')}
+                  <XCircle className="h-4 w-4 me-2" />{t('common.reject')}
                 </button>
               </div>
             )}

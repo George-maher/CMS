@@ -327,7 +327,7 @@ export default function AdminQRManagement() {
       <Modal isOpen={showCreate} onClose={() => { setShowCreate(false); resetForm() }} title={t('qr.createInviteTitle')} size="lg">
         <div className="space-y-3">
           <div className="rounded-lg bg-primary-50 dark:bg-primary-900/20 p-3 text-xs text-primary-700 dark:text-primary-400">
-            <Info className="inline h-3 w-3 mr-1" />
+            <Info className="inline h-3 w-3 me-1" />
             {t('qr.inviteHelpText')}
           </div>
           {createError && <div className="rounded-lg bg-red-50 dark:bg-red-900/20 p-3 text-sm text-red-600 dark:text-red-400">{createError}</div>}
@@ -335,13 +335,13 @@ export default function AdminQRManagement() {
           <div className="rounded-xl border border-border bg-surface-secondary p-4">
             <p className="font-medium">{t('qr.memberInvite')}</p>
             <p className="text-sm text-secondary">{t('qr.memberInviteDesc')}</p>
-            <button onClick={() => handleCreate('servant_to_member_invite')} disabled={creating} className="mt-3 w-full btn-primary btn-md">{creating ? <><Loader2 className="h-4 w-4 animate-spin inline mr-2" />{t('qr.generating')}</> : t('qr.createMemberInvite')}</button>
+            <button onClick={() => handleCreate('servant_to_member_invite')} disabled={creating} className="mt-3 w-full btn-primary btn-md">{creating ? <><Loader2 className="h-4 w-4 animate-spin inline me-2" />{t('qr.generating')}</> : t('qr.createMemberInvite')}</button>
           </div>
 
           <div className="rounded-xl border border-border bg-surface-secondary p-4">
             <p className="font-medium">{t('qr.servantInvite')}</p>
             <p className="text-sm text-secondary">{t('qr.servantInviteDesc')}</p>
-            <button onClick={() => handleCreate('admin_to_servant_invite')} disabled={creating} className="mt-3 w-full btn-primary btn-md">{creating ? <><Loader2 className="h-4 w-4 animate-spin inline mr-2" />{t('qr.generating')}</> : t('qr.createServantInvite')}</button>
+            <button onClick={() => handleCreate('admin_to_servant_invite')} disabled={creating} className="mt-3 w-full btn-primary btn-md">{creating ? <><Loader2 className="h-4 w-4 animate-spin inline me-2" />{t('qr.generating')}</> : t('qr.createServantInvite')}</button>
           </div>
 
           <div className="rounded-xl border border-border bg-surface-secondary p-4 space-y-4">

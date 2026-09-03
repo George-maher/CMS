@@ -25,12 +25,12 @@ export default function StatCard({ title, value, subtitle, icon, color = 'primar
     >
       <div className="flex items-start justify-between">
         <div className="flex-1 min-w-0">
-          <p className="stat-label truncate">{title}</p>
+          <p className="stat-label break-words">{title}</p>
           <p className="stat-value">{value}</p>
           {subtitle && <p className="mt-1 text-xs text-muted">{subtitle}</p>}
         </div>
         {icon && (
-          <div className={`shrink-0 ml-3 p-2.5 rounded-xl ${iconBg[color] || iconBg.primary}`}>
+          <div className={`shrink-0 ms-3 p-2 rounded-lg sm:p-2.5 sm:rounded-xl ${iconBg[color] || iconBg.primary}`}>
             {icon}
           </div>
         )}

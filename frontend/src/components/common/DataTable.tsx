@@ -99,7 +99,7 @@ export default function DataTable<T extends { id: number }>({
             >
               {columns.map((col) => (
                 <div key={col.key} className="flex items-start gap-2">
-                  <span className="text-xs font-medium text-muted uppercase shrink-0 min-w-[80px]">{col.header}</span>
+                  <span className="text-xs font-medium text-muted uppercase shrink-0 min-w-[6rem]">{col.header}</span>
                   <span className="text-sm flex-1 break-words">{renderCell(item, col)}</span>
                 </div>
               ))}

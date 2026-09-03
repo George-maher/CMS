@@ -106,7 +106,7 @@ export default function Sidebar({ isOpen, onClose }: Props) {
             </div>
             <div>
               <span className="text-lg font-bold gold-text">{t('app.name')}</span>
-              <p className="text-[10px] text-muted leading-none mt-0.5">Church Management</p>
+              <p className="text-[10px] text-muted leading-none mt-0.5">{t('app.tagline')}</p>
             </div>
           </div>
           <button onClick={onClose} className="btn-icon btn-ghost rounded-lg" aria-label={t('common.closeSidebar')}>

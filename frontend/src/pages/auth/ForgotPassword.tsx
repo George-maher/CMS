@@ -104,7 +104,7 @@ export default function ForgotPassword() {
               </button>
               <div className="text-center">
                 <Link to="/login" className="text-sm gold-text hover:opacity-80">
-                  <ArrowLeft className="mr-1 inline-block h-4 w-4" />
+                  <ArrowLeft className="me-1 inline-block h-4 w-4 rtl-flip" />
                   {t('auth.backToLogin')}
                 </Link>
               </div>

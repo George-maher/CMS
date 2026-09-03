@@ -13,7 +13,7 @@ import Modal from '@/components/common/Modal'
 function ProfileField({ label, value }: { label: string; value: string | null | undefined }) {
   const { t } = useTranslation()
   return (
-    <div className="py-3 border-b border-border last:border-b-0">
+    <div className="py-3 border-b border-border last:border-b-0 min-w-0">
       <p className="text-xs font-medium text-muted uppercase tracking-wide mb-1">{label}</p>
       {value ? (
         <p className="text-sm text-card-foreground break-words whitespace-normal">{value}</p>
@@ -122,9 +122,9 @@ export default function Profile() {
 
   const statusBadge = (status: string) => {
     switch (status) {
-      case 'pending': return <Badge variant="warning"><Clock className="h-3 w-3 mr-1 inline" />{t('common.pending')}</Badge>
-      case 'approved': return <Badge variant="success"><CheckCircle className="h-3 w-3 mr-1 inline" />{t('common.approved')}</Badge>
-      case 'rejected': return <Badge variant="danger"><XCircle className="h-3 w-3 mr-1 inline" />{t('common.rejected')}</Badge>
+      case 'pending': return <Badge variant="warning"><Clock className="h-3 w-3 me-1 inline" />{t('common.pending')}</Badge>
+      case 'approved': return <Badge variant="success"><CheckCircle className="h-3 w-3 me-1 inline" />{t('common.approved')}</Badge>
+      case 'rejected': return <Badge variant="danger"><XCircle className="h-3 w-3 me-1 inline" />{t('common.rejected')}</Badge>
       default: return <Badge>{status}</Badge>
     }
   }
@@ -140,7 +140,7 @@ export default function Profile() {
   }
 
   return (
-    <div className="space-y-6 max-w-2xl mx-auto">
+    <div className="space-y-6 w-full max-w-2xl mx-auto min-w-0">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl gold-gradient shadow-lg">
@@ -154,15 +154,15 @@ export default function Profile() {
           </div>
         </div>
         {!editing && (
-          <button onClick={openEdit} className="btn-primary btn-sm">
-            <Pencil className="h-4 w-4 mr-1.5" />{t('profile.editProfile')}
+          <button onClick={openEdit} className="btn-primary btn-sm shrink-0">
+            <Pencil className="h-4 w-4 me-1.5" />{t('profile.editProfile')}
           </button>
         )}
       </div>
 
       {/* View Mode */}
       {!editing && (
-        <div className="card p-6">
+        <div className="card p-4 sm:p-6 min-w-0">
           <ProfileField label={t('auth.name')} value={user?.name} />
           <ProfileField label={t('auth.email')} value={user?.email} />
           <ProfileField label={t('auth.phone')} value={user?.phone} />
@@ -172,50 +172,50 @@ export default function Profile() {
 
       {/* Edit Mode */}
       {editing && (
-        <div className="card p-6 space-y-4">
+        <div className="card p-4 sm:p-6 space-y-4 min-w-0">
           <div>
             <label className="label">{t('auth.name')}</label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="input"
-              placeholder={t('profile.namePlaceholder')}
-              disabled={pendingRequest !== null && isMember}
-            />
-          </div>
-          <div>
-            <label className="label">{t('auth.phone')}</label>
-            <input
-              type="tel"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value.slice(0, 11))}
-              className="input"
-              placeholder={t('profile.phonePlaceholder')}
-              disabled={pendingRequest !== null && isMember}
-            />
-          </div>
-          <div>
-            <label className="label">{t('auth.email')}</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="input"
-              placeholder={t('profile.emailPlaceholder')}
-              disabled={pendingRequest !== null && isMember}
-            />
-          </div>
-          <div>
-            <label className="label">{t('common.address')}</label>
-            <input
-              type="text"
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              className="input"
-              placeholder={t('profile.addressPlaceholder')}
-              disabled={pendingRequest !== null && isMember}
-            />
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="input w-full"
+                placeholder={t('profile.namePlaceholder')}
+                disabled={pendingRequest !== null && isMember}
+              />
+            </div>
+            <div>
+              <label className="label">{t('auth.phone')}</label>
+              <input
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value.slice(0, 11))}
+                className="input w-full"
+                placeholder={t('profile.phonePlaceholder')}
+                disabled={pendingRequest !== null && isMember}
+              />
+            </div>
+            <div>
+              <label className="label">{t('auth.email')}</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="input w-full"
+                placeholder={t('profile.emailPlaceholder')}
+                disabled={pendingRequest !== null && isMember}
+              />
+            </div>
+            <div>
+              <label className="label">{t('common.address')}</label>
+              <input
+                type="text"
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                className="input w-full"
+                placeholder={t('profile.addressPlaceholder')}
+                disabled={pendingRequest !== null && isMember}
+              />
           </div>
 
           {pendingRequest && isMember && (
@@ -227,15 +227,15 @@ export default function Profile() {
 
           <div className="flex gap-2 justify-end">
             <button onClick={() => setEditing(false)} className="btn-ghost border">
-              <X className="h-4 w-4 mr-1.5" />{t('common.cancel')}
+              <X className="h-4 w-4 me-1.5" />{t('common.cancel')}
             </button>
             {isDirectEditor ? (
               <button onClick={handleDirectSave} disabled={saving} className="btn-primary">
-                {saving ? t('common.saving') : <><Save className="h-4 w-4 mr-1.5" />{t('common.saveChanges')}</>}
+                {saving ? t('common.saving') : <><Save className="h-4 w-4 me-1.5" />{t('common.saveChanges')}</>}
               </button>
             ) : (
               <button onClick={handleSubmitRequest} disabled={saving || pendingRequest !== null} className="btn-primary">
-                {saving ? t('common.saving') : <><Send className="h-4 w-4 mr-1.5" />{t('profile.submitRequest')}</>}
+                {saving ? t('common.saving') : <><Send className="h-4 w-4 me-1.5" />{t('profile.submitRequest')}</>}
               </button>
             )}
           </div>

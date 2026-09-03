@@ -395,6 +395,9 @@
     border-color: var(--color-border);
     color: var(--color-text-primary);
     transition: all 0.3s ease;
+    max-width: 100%;
+    min-width: 0;
+    overflow-wrap: anywhere;
   }
   .input-field::placeholder { color: var(--color-text-muted); opacity: 0.85; }
   .input-field:focus {
@@ -448,6 +451,27 @@
     color: var(--color-text-secondary);
   }
 
+  .input {
+    @apply block w-full rounded-xl border px-4 py-3 text-sm;
+    background: var(--color-surface);
+    border-color: var(--color-border);
+    color: var(--color-text-primary);
+    transition: all 0.3s ease;
+    max-width: 100%;
+    min-width: 0;
+  }
+  .input::placeholder { color: var(--color-text-muted); opacity: 0.85; }
+  .input:focus {
+    border-color: var(--color-gold-400);
+    box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.2);
+    outline: none;
+  }
+  .input:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: var(--color-surface-tertiary);
+  }
+
   .form-error {
     @apply text-xs mt-1.5;
     color: var(--color-danger);
@@ -466,6 +490,7 @@
   /* ─── Layout ─── */
   .page-container {
     @apply w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6;
+    overflow-wrap: anywhere;
   }
   .page-header {
     @apply flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6;
@@ -572,16 +597,20 @@
   .stat-card {
     @apply rounded-xl border overflow-hidden;
     background: var(--color-surface);
-    padding: 1.25rem;
+    padding: 1rem;
     transition: all 0.3s ease;
+    min-width: 0;
+  }
+  @media (min-width: 640px) {
+    .stat-card { padding: 1.25rem; }
   }
   .stat-card:hover {
     transform: translateY(-2px);
     box-shadow: 0 8px 32px var(--color-glass-shadow);
     border-color: var(--color-gold-300);
   }
-  .stat-label { @apply text-sm font-medium; color: var(--color-text-secondary); }
-  .stat-value { @apply text-2xl font-bold mt-1 break-words; color: var(--color-text-primary); }
+  .stat-label { @apply text-xs sm:text-sm font-medium; color: var(--color-text-secondary); overflow-wrap: anywhere; }
+  .stat-value { @apply text-xl sm:text-2xl font-bold mt-1 break-words; color: var(--color-text-primary); }
   .stat-trend { @apply inline-flex items-center gap-1 text-xs font-medium mt-2; }
   .stat-trend.up { color: var(--color-success); }
   .stat-trend.down { color: var(--color-danger); }

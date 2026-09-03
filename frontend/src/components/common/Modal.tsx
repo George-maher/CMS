@@ -36,7 +36,7 @@ export default function Modal({
       <div ref={dialogRef} className={`modal-content ${size}`} onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <div className="flex-1 min-w-0">
-            <h2 id="modal-title" className="text-lg font-semibold truncate gold-text">{title}</h2>
+            <h2 id="modal-title" className="text-lg font-semibold break-words gold-text">{title}</h2>
           </div>
           <button onClick={onClose} className="btn-icon btn-ghost rounded-lg shrink-0" aria-label="Close">
             <X className="h-5 w-5" />
