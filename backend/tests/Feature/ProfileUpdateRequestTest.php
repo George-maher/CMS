@@ -422,4 +422,164 @@ class ProfileUpdateRequestTest extends TestCase
 
         $response->assertStatus(422);
     }
+
+    // ─── Phone from null: Regression Tests ───
+
+    public function test_admin_can_add_phone_when_previously_null(): void
+    {
+        $this->admin->update(['phone' => null]);
+        Sanctum::actingAs($this->admin);
+
+        $response = $this->putJson('/api/v1/profile', [
+            'name' => $this->admin->name,
+            'phone' => '01012345678',
+            'email' => $this->admin->email,
+        ]);
+
+        $response->assertOk();
+
+        $this->admin->refresh();
+        $this->assertEquals('01012345678', $this->admin->phone);
+    }
+
+    public function test_servant_can_add_phone_when_previously_null(): void
+    {
+        $this->servant->update(['phone' => null]);
+        Sanctum::actingAs($this->servant);
+
+        $response = $this->putJson('/api/v1/profile', [
+            'name' => $this->servant->name,
+            'phone' => '01012345678',
+            'email' => $this->servant->email,
+        ]);
+
+        $response->assertOk();
+
+        $this->servant->refresh();
+        $this->assertEquals('01012345678', $this->servant->phone);
+    }
+
+    public function test_member_can_submit_phone_when_previously_null(): void
+    {
+        $this->member->update(['phone' => null]);
+        Sanctum::actingAs($this->member);
+
+        $response = $this->postJson('/api/v1/profile-update-requests', [
+            'name' => $this->member->name,
+            'phone' => '01012345678',
+            'email' => $this->member->email,
+        ]);
+
+        $response->assertOk();
+
+        $request = ProfileUpdateRequest::where('user_id', $this->member->id)->first();
+        $this->assertNotNull($request);
+        $this->assertEquals('01012345678', $request->new_values['phone']);
+    }
+
+    public function test_empty_phone_is_allowed_for_direct_update(): void
+    {
+        $this->admin->update(['phone' => '01012345678']);
+        Sanctum::actingAs($this->admin);
+
+        $response = $this->putJson('/api/v1/profile', [
+            'name' => 'New Name',
+            'phone' => '',
+        ]);
+
+        $response->assertOk();
+
+        $this->admin->refresh();
+        $this->assertEquals('New Name', $this->admin->name);
+    }
+
+    public function test_empty_phone_is_allowed_for_member_request(): void
+    {
+        $this->member->update(['phone' => '01012345678']);
+        Sanctum::actingAs($this->member);
+
+        $response = $this->postJson('/api/v1/profile-update-requests', [
+            'name' => 'New Member Name',
+            'phone' => '',
+        ]);
+
+        $response->assertOk();
+    }
+
+    public function test_invalid_phone_rejected(): void
+    {
+        Sanctum::actingAs($this->admin);
+
+        $response = $this->putJson('/api/v1/profile', [
+            'phone' => '123',
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors('phone');
+    }
+
+    public function test_duplicate_phone_rejected_on_direct_update(): void
+    {
+        User::factory()->create([
+            'role' => UserRole::Member,
+            'church_id' => $this->church->id,
+            'phone' => '01012345678',
+        ]);
+
+        Sanctum::actingAs($this->admin);
+
+        $response = $this->putJson('/api/v1/profile', [
+            'phone' => '01012345678',
+        ]);
+
+        $response->assertStatus(422);
+    }
+
+    public function test_same_phone_is_accepted(): void
+    {
+        $this->admin->update(['phone' => '01012345678']);
+        Sanctum::actingAs($this->admin);
+
+        $response = $this->putJson('/api/v1/profile', [
+            'name' => $this->admin->name,
+            'phone' => '01012345678',
+        ]);
+
+        $response->assertOk();
+    }
+
+    public function test_validation_error_contains_field_specific_message(): void
+    {
+        Sanctum::actingAs($this->admin);
+
+        $response = $this->putJson('/api/v1/profile', [
+            'phone' => '123',
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonStructure([
+            'success',
+            'message',
+            'errors' => ['phone'],
+        ]);
+        $response->assertJsonFragment(['success' => false]);
+    }
+
+    public function test_member_request_with_only_phone_change_works(): void
+    {
+        $this->member->update(['phone' => null, 'name' => 'Test Member', 'email' => 'testmember@test.com']);
+        Sanctum::actingAs($this->member);
+
+        $response = $this->postJson('/api/v1/profile-update-requests', [
+            'name' => 'Test Member',
+            'phone' => '01012345678',
+            'email' => 'testmember@test.com',
+        ]);
+
+        $response->assertOk();
+
+        $request = ProfileUpdateRequest::where('user_id', $this->member->id)->first();
+        $this->assertNotNull($request);
+        $this->assertEquals(['phone' => '01012345678'], $request->new_values);
+    }
 }

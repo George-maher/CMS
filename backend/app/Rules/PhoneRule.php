@@ -17,7 +17,11 @@ class PhoneRule implements ValidationRule
         $stringValue = (string) $value;
         $cleaned = preg_replace('/\s+/', '', $stringValue);
 
-        if ($cleaned !== null && ! preg_match('/^\d{11}$/', $cleaned)) {
+        if ($cleaned === '' || $cleaned === null) {
+            return;
+        }
+
+        if (! preg_match('/^\d{11}$/', $cleaned)) {
             $fail(__('validation.phone_exact_11'))->translate();
         }
     }

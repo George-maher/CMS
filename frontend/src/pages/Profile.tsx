@@ -83,14 +83,20 @@ export default function Profile() {
   const handleDirectSave = async () => {
     setSaving(true)
     try {
-      await updateOwnProfile({ name, phone, email, address })
+      await updateOwnProfile({
+        name: name || null,
+        phone: phone || null,
+        email: email || null,
+        address: address || null,
+      })
       toast.success(t('profile.updateSuccess'))
       await refreshUser()
       setEditing(false)
     } catch (e: unknown) {
       logCatch('Profile.updateOwnProfile', e)
-      const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message
-      toast.error(msg || t('profile.updateFailed'))
+      const err = (e as { response?: { data?: { message?: string; errors?: Record<string, string[]> } } })?.response?.data
+      const fieldError = err?.errors ? Object.values(err.errors).flat()[0] : null
+      toast.error(fieldError || err?.message || t('profile.updateFailed'))
     } finally {
       setSaving(false)
     }
@@ -99,7 +105,12 @@ export default function Profile() {
   const handleSubmitRequest = async () => {
     setSaving(true)
     try {
-      await submitProfileUpdateRequest({ name, phone, email, address })
+      await submitProfileUpdateRequest({
+        name: name || null,
+        phone: phone || null,
+        email: email || null,
+        address: address || null,
+      })
       toast.success(t('profile.requestSubmitted'))
       setEditing(false)
       const res = await listMyProfileUpdateRequests({ per_page: 10 })
@@ -108,8 +119,9 @@ export default function Profile() {
       setPendingRequest(pending ?? null)
     } catch (e: unknown) {
       logCatch('Profile.submitRequest', e)
-      const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message
-      toast.error(msg || t('profile.requestFailed'))
+      const err = (e as { response?: { data?: { message?: string; errors?: Record<string, string[]> } } })?.response?.data
+      const fieldError = err?.errors ? Object.values(err.errors).flat()[0] : null
+      toast.error(fieldError || err?.message || t('profile.requestFailed'))
     } finally {
       setSaving(false)
     }
