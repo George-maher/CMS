@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Rules\NotPlaceholder;
+use App\Rules\PhoneRule;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreProfileUpdateRequest extends FormRequest
@@ -19,7 +20,7 @@ class StoreProfileUpdateRequest extends FormRequest
     {
         return [
             'name' => ['sometimes', 'required', 'string', 'max:255', new NotPlaceholder],
-            'phone' => ['sometimes', 'required', 'string', 'max:20', new NotPlaceholder],
+            'phone' => ['sometimes', 'nullable', 'string', 'max:20', new NotPlaceholder, new PhoneRule],
             'email' => ['sometimes', 'required', 'email', new NotPlaceholder],
             'address' => ['sometimes', 'nullable', 'string', 'max:500', new NotPlaceholder],
         ];

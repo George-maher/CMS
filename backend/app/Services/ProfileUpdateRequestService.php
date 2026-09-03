@@ -51,9 +51,17 @@ class ProfileUpdateRequestService implements ProfileUpdateRequestServiceInterfac
             ];
 
             // Build new values (only changed fields)
+            // Normalize empty strings to null for consistent comparison
             $newValues = [];
             foreach (['name', 'phone', 'email', 'address'] as $field) {
-                if (isset($data[$field]) && $data[$field] !== ($oldValues[$field] ?? null)) {
+                if (! isset($data[$field])) {
+                    continue;
+                }
+                /** @var mixed $newValue */
+                $newValue = $data[$field] === '' ? null : $data[$field];
+                /** @var mixed $oldValue */
+                $oldValue = $oldValues[$field] ?? null;
+                if ($newValue !== $oldValue) {
                     $newValues[$field] = $data[$field];
                 }
             }

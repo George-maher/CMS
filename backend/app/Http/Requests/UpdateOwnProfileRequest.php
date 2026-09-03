@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Models\User;
+use App\Rules\PhoneRule;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateOwnProfileRequest extends FormRequest
@@ -20,7 +21,7 @@ class UpdateOwnProfileRequest extends FormRequest
     {
         return [
             'name' => ['sometimes', 'required', 'string', 'max:255'],
-            'phone' => ['sometimes', 'nullable', 'string', 'max:20'],
+            'phone' => ['sometimes', 'nullable', 'string', 'max:20', new PhoneRule],
             'email' => ['sometimes', 'required', 'email'],
             'address' => ['sometimes', 'nullable', 'string', 'max:500'],
         ];
