@@ -17,11 +17,21 @@ class AttendancePolicy
         if ($user->isAdmin()) {
             return true;
         }
-        if ($user->isServant() && $attendance->class_year_id === $user->class_year_id) {
+
+        // Member can only view their own attendance
+        if ($user->id === $attendance->user_id) {
             return true;
         }
 
-        return $user->id === $attendance->user_id;
+        // Servant can view members of their assigned class
+        if ($user->isServant()) {
+            $servantClassIds = $user->getServantClassIds();
+            if ($servantClassIds !== null && $attendance->user?->class_id !== null && in_array($attendance->user->class_id, $servantClassIds)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public function viewHistory(User $user, ?User $target = null): bool
@@ -29,14 +39,22 @@ class AttendancePolicy
         if ($user->isAdmin()) {
             return true;
         }
+
         if ($target === null) {
             return true;
         }
+
+        // Member can only view their own history
         if ($user->id === $target->id) {
             return true;
         }
-        if ($user->isServant() && $target->class_year_id === $user->class_year_id) {
-            return true;
+
+        // Servant can view history of members in their assigned class
+        if ($user->isServant()) {
+            $servantClassIds = $user->getServantClassIds();
+            if ($servantClassIds !== null && $target->class_id !== null && in_array($target->class_id, $servantClassIds)) {
+                return true;
+            }
         }
 
         return false;

@@ -127,7 +127,7 @@ export default function AttendancePage() {
                     <th className="whitespace-nowrap px-4 py-3 text-xs font-semibold uppercase tracking-wider text-secondary">{t('attendance.time')}</th>
                     <th className="whitespace-nowrap px-4 py-3 text-xs font-semibold uppercase tracking-wider text-secondary">{t('attendance.method')}</th>
                     <th className="whitespace-nowrap px-4 py-3 text-xs font-semibold uppercase tracking-wider text-secondary">{t('attendance.recordedBy')}</th>
-                    <th className="whitespace-nowrap px-4 py-3 text-xs font-semibold uppercase tracking-wider text-secondary">{t('common.status')}</th>
+                    <th className="whitespace-nowrap px-4 py-3 text-xs font-semibold uppercase tracking-wider text-secondary">{t('attendance.status')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
@@ -142,7 +142,13 @@ export default function AttendancePage() {
                         {a.method === 'qr' ? t('attendance.methodQR') : a.method === 'token' ? t('attendance.methodToken') : a.method === 'id' ? t('attendance.methodID') : '-'}
                       </td>
                       <td className="whitespace-nowrap px-4 py-3 text-sm text-secondary">{a.recorder?.name || '-'}</td>
-                      <td className="whitespace-nowrap px-4 py-3"><Badge variant="success">{t('attendance.present')}</Badge></td>
+                      <td className="whitespace-nowrap px-4 py-3">
+                        {a.status === 'present' ? (
+                          <Badge variant="success">{t('attendance.present')}</Badge>
+                        ) : (
+                          <Badge variant="danger">{t('attendance.absent')}</Badge>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -156,7 +162,11 @@ export default function AttendancePage() {
               <div key={a.id} className="rounded-xl border border-border bg-surface p-4 space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="font-medium text-sm">{a.user?.name || t('common.unknown')}</span>
-                  <Badge variant="success">{t('attendance.present')}</Badge>
+                  {a.status === 'present' ? (
+                    <Badge variant="success">{t('attendance.present')}</Badge>
+                  ) : (
+                    <Badge variant="danger">{t('attendance.absent')}</Badge>
+                  )}
                 </div>
                 <div className="grid grid-cols-2 gap-1 text-xs text-secondary">
                   <span>{t('users.class')}: {a.classe?.name || '-'}</span>

@@ -236,15 +236,18 @@ class AttendanceController extends Controller
         /** @var int $id */
         $id = $userId ?? (int) $user->id;
 
-        if ($user->role === UserRole::Servant && $id !== (int) $user->id) {
+        // Member can only view their own history
+        if ($user->role === UserRole::Member) {
+            $id = (int) $user->id;
+        }
+        // Servant can only view members of their assigned class
+        elseif ($user->role === UserRole::Servant && $id !== (int) $user->id) {
             $member = User::byChurch()->find($id);
             /** @var array<int, int>|null $servantClassIds */
             $servantClassIds = $user->getServantClassIds();
             if (! $member || ! in_array($member->class_id, (array) $servantClassIds)) {
                 $id = (int) $user->id;
             }
-        } elseif ($user->role === UserRole::Member) {
-            $id = (int) $user->id;
         }
 
         /** @var int $perPage */
@@ -267,8 +270,8 @@ class AttendanceController extends Controller
         if ($user->role === UserRole::Servant) {
             /** @var array<int, int>|null $servantClassIds */
             $servantClassIds = $user->getServantClassIds();
-            if (! in_array($classYearId, (array) $servantClassIds)) {
-                $classYearId = ($servantClassIds[0] ?? $classYearId);
+            if ($servantClassIds !== null && ! in_array($classYearId, $servantClassIds)) {
+                return response()->json(['message' => 'Unauthorized access to another class.'], 403);
             }
         }
 
@@ -299,6 +302,10 @@ class AttendanceController extends Controller
         /** @var array<int, int>|null $classYearIds */
         $classYearIds = $user->role === UserRole::Servant ? $user->getServantClassIds() : null;
 
+        if ($user->role === UserRole::Servant && $classYearIds === null) {
+            return response()->json(['data' => [], 'count' => 0, 'meta' => ['current_page' => 1, 'last_page' => 1, 'per_page' => 15, 'total' => 0]]);
+        }
+
         $result = $this->attendanceService->getTodayAttendance(
             classYearIds: $classYearIds,
             perPage: $request->integer('per_page', 15),
@@ -327,7 +334,7 @@ class AttendanceController extends Controller
         /** @var User $user */
         $user = $request->user();
 
-        // Servants: silently fix class_id instead of rejecting
+        // Servants: enforce class access
         if ($user->role === UserRole::Servant) {
             /** @var array<int, int>|null $servantClassIds */
             $servantClassIds = $user->getServantClassIds();
@@ -374,7 +381,7 @@ class AttendanceController extends Controller
         /** @var string|null $dateTo */
         $dateTo = $request->input('date_to');
 
-        // Servants: silently override to their assigned class — never error, always enforce
+        // Servants: enforce class access
         if ($user->role === UserRole::Servant) {
             /** @var array<int, int>|null $servantClassIds */
             $servantClassIds = $user->getServantClassIds();
@@ -382,6 +389,10 @@ class AttendanceController extends Controller
                 $classYearId = $servantClassIds[0];
             } elseif (empty($servantClassIds)) {
                 return response()->json(['data' => ['summary' => ['total_members' => 0, 'present_count' => 0, 'absent_count' => 0], 'absent_members' => []]]);
+            }
+            // If the requested class is not the servant's class, return 403
+            if (! in_array($classYearId, $servantClassIds)) {
+                return response()->json(['message' => 'Unauthorized access to another class\'s members.'], 403);
             }
         }
 
@@ -404,15 +415,18 @@ class AttendanceController extends Controller
         /** @var int $id */
         $id = $userId ?? (int) $user->id;
 
-        if ($user->role === UserRole::Servant && $id !== (int) $user->id) {
+        // Member can only view their own stats
+        if ($user->role === UserRole::Member) {
+            $id = (int) $user->id;
+        }
+        // Servant can only view stats of members in their assigned class
+        elseif ($user->role === UserRole::Servant && $id !== (int) $user->id) {
             $member = User::byChurch()->find($id);
             /** @var array<int, int>|null $servantClassIds */
             $servantClassIds = $user->getServantClassIds();
             if (! $member || ! in_array($member->class_id, (array) $servantClassIds)) {
                 $id = (int) $user->id;
             }
-        } elseif ($user->role === UserRole::Member) {
-            $id = (int) $user->id;
         }
 
         $result = $this->attendanceService->getAttendanceStats($id);

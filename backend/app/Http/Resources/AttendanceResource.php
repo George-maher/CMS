@@ -61,6 +61,7 @@ class AttendanceResource extends JsonResource
             'method' => $this->method,
             'attended_at' => $this->attended_at,
             'points_earned' => $this->points_earned,
+            'status' => $this->status,
             'created_at' => $this->created_at,
         ];
     }

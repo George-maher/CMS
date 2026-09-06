@@ -3,10 +3,21 @@ import { useTranslation } from 'react-i18next'
 import DataTable from '@/components/common/DataTable'
 import StatCard from '@/components/common/StatCard'
 import { useTheme } from '@/hooks/useTheme'
-import { ctxName } from '@/lib/contextLabels'
 import type { Column } from '@/components/common/DataTable'
 import type { Attendance } from '@/types'
-import { getAttendanceHistory, getAttendanceStats } from '@/api/attendance'
+import { getAttendanceStats, getAttendanceHistory } from '@/api/attendance'
+
+function statusLabel(status: string | null | undefined, t: (key: string) => string): string {
+  if (!status) return '-'
+  switch (status.toLowerCase()) {
+    case 'present':
+      return t('attendance.present')
+    case 'absent':
+      return t('attendance.absent')
+    default:
+      return status
+  }
+}
 
 export default function MemberAttendance() {
   const { t } = useTranslation()
@@ -16,6 +27,7 @@ export default function MemberAttendance() {
     { key: 'attended_at', header: t('attendance.date'), render: (a) => a.attended_at ? new Date(a.attended_at).toLocaleDateString() : '-' },
     { key: 'context', header: t('context.context'), render: (a) => a.attendance_context ? ctxName(a.attendance_context, language) : '-' },
     { key: 'event', header: t('attendance.event'), render: (a) => a.event?.name ?? '-' },
+    { key: 'status', header: t('attendance.status'), render: (a) => statusLabel(a.status, t) },
     { key: 'points_earned', header: t('attendance.pointsEarnedCol') },
     { key: 'recorder', header: t('attendance.recordedBy'), render: (a) => a.recorder?.name ?? '-' },
   ]

@@ -47,6 +47,7 @@ class Attendance extends Model
         'attended_date',
         'points_earned',
         'church_id',
+        'status',
     ];
 
     protected static function booted(): void
@@ -66,6 +67,7 @@ class Attendance extends Model
             'attended_at' => 'datetime',
             'attended_date' => 'date:Y-m-d',
             'points_earned' => 'integer',
+            'status' => 'string',
         ];
     }
 

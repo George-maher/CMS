@@ -126,6 +126,7 @@ class AttendanceService implements AttendanceServiceInterface
                     'method' => $method,
                     'attended_at' => now(),
                     'points_earned' => self::POINTS_PER_ATTENDANCE,
+                    'status' => 'present',
                 ]);
 
                 $this->pointService->addPoints(
