@@ -340,6 +340,7 @@ export interface Attendance {
   attendance_context: { id: number; name: string; name_ar?: string | null; slug: string } | null
   attendance_context_id: number | null
   method: string | null
+  status: string | null
   attended_at: string
   points_earned: number
   created_at: string

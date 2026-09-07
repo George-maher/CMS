@@ -6,6 +6,7 @@ import { useTheme } from '@/hooks/useTheme'
 import type { Column } from '@/components/common/DataTable'
 import type { Attendance } from '@/types'
 import { getAttendanceStats, getAttendanceHistory } from '@/api/attendance'
+import { ctxName } from '@/lib/contextLabels'
 
 function statusLabel(status: string | null | undefined, t: (key: string) => string): string {
   if (!status) return '-'
