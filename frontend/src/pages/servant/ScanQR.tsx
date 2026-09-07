@@ -34,6 +34,8 @@ export default function ServantScanQR() {
   const [pendingMemberId, setPendingMemberId] = useState<string | null>(null)
   const [confirmContextId, setConfirmContextId] = useState<number | ''>('')
   const [qrContextName, setQrContextName] = useState<string | null>(null)
+  const [membersSectionOpen, setMembersSectionOpen] = useState(false)
+  const [membersLoaded, setMembersLoaded] = useState(false)
 
   const scannerRef = useRef<HTMLDivElement>(null)
   const html5QrCodeRef = useRef<{ stop: () => Promise<void> } | null>(null)
@@ -52,14 +54,6 @@ export default function ServantScanQR() {
       .then((ctxs) => { setContexts(ctxs ?? []); setContextsLoading(false) })
       .catch((e) => { logCatch('ScanQR.getActiveContexts', e); setContextsLoading(false); toast.error(t('common.failedToLoad')) })
 
-    getMembers()
-      .then((m) => setMembers(m ?? []))
-      .catch((e) => logCatch('ScanQR.getMembers', e))
-
-    getTodayAttendance()
-      .then((today) => setTodayAttended(new Set(today.data?.map((a) => a.user?.id).filter(Boolean) ?? [])))
-      .catch((e) => logCatch('ScanQR.getTodayAttendance', e))
-
     listAllClasses()
       .then(setStructureClasses)
       .catch((e) => logCatch('ScanQR.listAllClasses', e))
@@ -67,7 +61,18 @@ export default function ServantScanQR() {
     return () => {
       if (html5QrCodeRef.current) { try { html5QrCodeRef.current.stop() } catch (e) { logCatch('ScanQR.stopScanner(cleanup)', e) }; html5QrCodeRef.current = null }
     }
-  }, [t])
+  }, [])
+
+  useEffect(() => {
+    if (membersSectionOpen && !membersLoaded) {
+      getMembers()
+        .then((m) => { setMembers(m ?? []); setMembersLoaded(true) })
+        .catch((e) => logCatch('ScanQR.getMembers', e))
+      getTodayAttendance()
+        .then((today) => setTodayAttended(new Set(today.data?.map((a) => a.user?.id).filter(Boolean) ?? [])))
+        .catch((e) => logCatch('ScanQR.getTodayAttendance', e))
+    }
+  }, [membersSectionOpen, membersLoaded])
 
   const confirmAttendance = async (token: string, memberId?: string) => {
     if (!confirmContextId) {
@@ -438,17 +443,20 @@ export default function ServantScanQR() {
       )}
 
       <div className="card p-5">
-        <details className="group">
-          <summary className="cursor-pointer list-none">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="font-semibold">{t('attendance.myMembersToday')}</h3>
-                <p className="mt-1 text-sm text-secondary">{members.length} {t('dashboard.myMembers')}</p>
-              </div>
-              <span className="text-xs text-muted group-open:hidden">{t('common.show')}</span>
-              <span className="text-xs text-muted hidden group-open:inline">{t('common.hide')}</span>
+        <button
+          type="button"
+          onClick={() => setMembersSectionOpen(!membersSectionOpen)}
+          className="w-full text-left cursor-pointer"
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="font-semibold">{t('attendance.myMembersToday')}</h3>
+              <p className="mt-1 text-sm text-secondary">{membersLoaded ? `${members.length} ${t('dashboard.myMembers')}` : t('common.loading')}</p>
             </div>
-          </summary>
+            <span className="text-xs text-muted">{membersSectionOpen ? t('common.hide') : t('common.show')}</span>
+          </div>
+        </button>
+        {membersSectionOpen && (
           <div className="mt-4 space-y-2">
             {members.length === 0 ? (
               <p className="text-sm text-muted">{t('attendance.noMembersAssigned')}</p>
@@ -471,7 +479,7 @@ export default function ServantScanQR() {
               })
             )}
           </div>
-        </details>
+        )}
       </div>
     </div>
   )

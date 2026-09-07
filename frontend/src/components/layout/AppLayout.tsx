@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import { Navigate, Outlet, useLocation } from 'react-router-dom'
+import { Navigate, Outlet } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import Sidebar from './Sidebar'
 import Header from './Header'
@@ -12,7 +12,6 @@ interface Props {
 export default function AppLayout({ allowedRoles }: Props) {
   const { user, isAuthenticated, isLoading } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const location = useLocation()
   const closeSidebar = useCallback(() => setSidebarOpen(false), [])
 
   if (isLoading) return (
@@ -31,7 +30,7 @@ export default function AppLayout({ allowedRoles }: Props) {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-surface-secondary" key={location.pathname}>
+    <div className="flex h-screen overflow-hidden bg-surface-secondary">
       <Sidebar isOpen={sidebarOpen} onClose={closeSidebar} />
       <div className="flex flex-1 flex-col overflow-hidden min-w-0">
         <Header onMenuClick={() => setSidebarOpen(true)} />

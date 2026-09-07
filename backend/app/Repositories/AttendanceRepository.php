@@ -158,7 +158,7 @@ class AttendanceRepository implements AttendanceRepositoryInterface
     public function getAttendanceByDateRange(string $startDate, string $endDate): Collection
     {
         return Attendance::whereBetween('attended_at', [$startDate, $endDate])
-            ->with(['user', 'recorder', 'classe', 'attendanceContext'])
+            ->with(['user', 'attendanceContext'])
             ->get();
     }
 
@@ -169,7 +169,6 @@ class AttendanceRepository implements AttendanceRepositoryInterface
     {
         return Attendance::where('user_id', $userId)
             ->whereBetween('attended_at', [$startDate, $endDate])
-            ->with(['user', 'recorder', 'classe', 'attendanceContext'])
             ->get();
     }
 

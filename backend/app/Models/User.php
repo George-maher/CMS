@@ -287,6 +287,13 @@ class User extends Authenticatable
 
     public function getTotalPointsAttribute(): int
     {
+        if (isset($this->attributes['points_sum'])) {
+            /** @var string|int|float $val */
+            $val = $this->attributes['points_sum'];
+
+            return (int) $val;
+        }
+
         return (int) $this->points()->sum('points');
     }
 

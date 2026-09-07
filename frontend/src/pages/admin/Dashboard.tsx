@@ -19,24 +19,16 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    getDashboardStats()
-      .then((stats) => {
-        setMemberStats({
-          total_members: stats.total_members,
-          active_members: stats.active_members,
-          total_attendances: stats.total_attendances,
-          total_points: stats.total_points,
-        })
-        setServantSummary({
-          total_servants: stats.total_servants,
-          total_members_managed: stats.total_members_managed,
-        })
-      }).catch((e) => logCatch('AdminDashboard.getDashboardStats', e))
-    getTodayAttendance()
-      .then((td) => setTodayCount(td.count)).catch((e) => logCatch('AdminDashboard.getTodayAttendance', e))
-    getLeaderboard(5)
-      .then((lb) => setLeaderboard(lb.data)).catch((e) => { logCatch('AdminDashboard.getLeaderboard', e); setLeaderboard([]) })
-      .finally(() => setLoading(false))
+    Promise.all([
+      getDashboardStats().catch((e) => { logCatch('AdminDashboard.getDashboardStats', e); return { total_members: 0, active_members: 0, total_attendances: 0, total_points: 0, total_servants: 0, total_members_managed: 0 } }),
+      getTodayAttendance().catch((e) => { logCatch('AdminDashboard.getTodayAttendance', e); return { data: [], count: 0 } }),
+      getLeaderboard(5).catch((e) => { logCatch('AdminDashboard.getLeaderboard', e); return { data: [] } }),
+    ]).then(([stats, td, lb]) => {
+      setMemberStats({ total_members: stats.total_members, active_members: stats.active_members, total_attendances: stats.total_attendances, total_points: stats.total_points })
+      setServantSummary({ total_servants: stats.total_servants, total_members_managed: stats.total_members_managed })
+      setTodayCount(td.count)
+      setLeaderboard(lb.data)
+    }).finally(() => setLoading(false))
   }, [])
 
   if (loading) return <LoadingSpinner className="py-20" />

@@ -111,16 +111,51 @@ export default function Header({ onMenuClick }: Props) {
   }
 
   useEffect(() => {
-    // Prefetch in parallel on mount so the panel renders instantly when opened.
-    getUnreadCount().then(c => setUnreadCount(c)).catch(e => logCatch('Header.fetchUnreadCount', e))
-    listNotifications({ per_page: 10 })
-      .then(res => {
-        setNotifications(res.data ?? [])
-        setNotificationsLoaded(true)
-      })
-      .catch((e) => logCatch('Header.prefetchNotifications', e))
-    const interval = setInterval(() => getUnreadCount().then(c => setUnreadCount(c)).catch(e => logCatch('Header.fetchUnreadCount', e)), 15000)
-    return () => clearInterval(interval)
+    let active = true
+    const fetchCount = () => {
+      if (!active) return
+      getUnreadCount()
+        .then(c => { if (active) setUnreadCount(c) })
+        .catch(e => logCatch('Header.fetchUnreadCount', e))
+    }
+    const fetchNotifications = () => {
+      if (!active) return
+      listNotifications({ per_page: 10 })
+        .then(res => { if (active) { setNotifications(res.data ?? []); setNotificationsLoaded(true) } })
+        .catch((e) => logCatch('Header.prefetchNotifications', e))
+    }
+
+    fetchCount()
+    fetchNotifications()
+
+    const POLL_INTERVAL = 30000
+    let intervalId: ReturnType<typeof setInterval> | null = null
+
+    const startPolling = () => {
+      if (intervalId) return
+      intervalId = setInterval(fetchCount, POLL_INTERVAL)
+    }
+    const stopPolling = () => {
+      if (intervalId) { clearInterval(intervalId); intervalId = null }
+    }
+
+    startPolling()
+
+    const handleVisibility = () => {
+      if (document.hidden) {
+        stopPolling()
+      } else {
+        fetchCount()
+        startPolling()
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibility)
+
+    return () => {
+      active = false
+      stopPolling()
+      document.removeEventListener('visibilitychange', handleVisibility)
+    }
   }, [])
 
   useEffect(() => {

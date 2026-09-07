@@ -94,7 +94,7 @@ class UserRepository implements UserRepositoryInterface
             $query->where('created_by', $filters['created_by']);
         }
 
-        return $query->with('classe')->latest()->paginate($perPage);
+        return $query->with('classe')->withSum('points as points_sum', 'points')->latest()->paginate($perPage);
     }
 
     /**
@@ -119,6 +119,7 @@ class UserRepository implements UserRepositoryInterface
                             ->orWhere('class_year_id', $fallbackClassId);
                     })
                     ->active()
+                    ->withSum('points as points_sum', 'points')
                     ->get();
             }
 
@@ -129,6 +130,7 @@ class UserRepository implements UserRepositoryInterface
             ->byRole(UserRole::Member)
             ->whereIn('class_id', $classIds)
             ->active()
+            ->withSum('points as points_sum', 'points')
             ->get();
     }
 
@@ -145,6 +147,7 @@ class UserRepository implements UserRepositoryInterface
             })
             ->active()
             ->with(['servant', 'classe'])
+            ->withSum('points as points_sum', 'points')
             ->get();
     }
 
@@ -161,6 +164,7 @@ class UserRepository implements UserRepositoryInterface
             })
             ->active()
             ->with(['servant', 'classe'])
+            ->withSum('points as points_sum', 'points')
             ->paginate($perPage);
     }
 

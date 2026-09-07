@@ -34,13 +34,18 @@ export default function MemberDashboard() {
       getBalance().catch((e) => { logCatch('MemberDashboard.getBalance', e); return 0 }),
       getAttendanceHistory(undefined, { page: 1, per_page: 5 }).catch((e) => { logCatch('MemberDashboard.getHistory', e); return ({ data: [], meta: null }) }),
       listEvents({ upcoming: true, active_only: true, per_page: 3 }).catch((e) => { logCatch('MemberDashboard.listEvents', e); return ({ data: [] }) }),
-      getMyClassServants().then(setClassContacts).catch((e) => { logCatch('MemberDashboard.getClassServants', e); setClassContacts([]) }),
     ]).then(([s, b, att, ev]) => { setStats(s); setBalance(b); setRecentAttendances(att.data); setUpcomingEvents(ev.data) }).finally(() => setLoading(false))
 
+    getMyClassServants()
+      .then(setClassContacts)
+      .catch((e) => { logCatch('MemberDashboard.getClassServants', e); setClassContacts([]) })
+  }, [])
+
+  useEffect(() => {
     if (user?.attendance_qr_token) {
       QRCodeLib.toDataURL(user.attendance_qr_token, { width: 400, margin: 2 }).then(setQrDataUrl).catch((e) => logCatch('MemberDashboard.qrCode', e))
     }
-  }, [user])
+  }, [user?.attendance_qr_token])
 
   if (loading) return <LoadingSpinner className="py-20" />
 

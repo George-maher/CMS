@@ -128,19 +128,12 @@ export default function AdminUsers() {
   }, [t])
 
   useEffect(() => {
-    let active = true
+    const controller = new AbortController()
     listStages()
-      .then((data) => {
-        if (active) setStages(data)
-      })
-      .catch((error) => {
-        logCatch('AdminUsers.listStages', error)
-        if (active) setStagesError(t('common.failedToLoad'))
-      })
-      .finally(() => {
-        if (active) setStagesLoading(false)
-      })
-    return () => { active = false }
+      .then((data) => { if (!controller.signal.aborted) setStages(data) })
+      .catch((e) => { logCatch('AdminUsers.listStages', e); if (!controller.signal.aborted) setStagesError(t('common.failedToLoad')) })
+      .finally(() => { if (!controller.signal.aborted) setStagesLoading(false) })
+    return () => controller.abort()
   }, [t])
 
   const handleStageChange = useCallback(async (stageId: number | null) => {

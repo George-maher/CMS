@@ -47,7 +47,7 @@ export default function Profile() {
 
   useEffect(() => {
     if (user) {
-      Promise.resolve().then(() => {
+      queueMicrotask(() => {
         setName(user.name || '')
         setPhone(user.phone || '')
         setEmail(user.email || '')

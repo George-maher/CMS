@@ -21,13 +21,15 @@ export default function ServantDashboard() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    getAttendanceStats()
-      .then(setStats).catch((e) => logCatch('ServantDashboard.getStats', e))
-    getMembers()
-      .then(setMembers).catch((e) => { logCatch('ServantDashboard.getMembers', e); setMembers([]) })
-    listEvents({ upcoming: true, per_page: 3 })
-      .then((ev) => setUpcomingEvents(ev.data)).catch((e) => { logCatch('ServantDashboard.listEvents', e); setUpcomingEvents([]) })
-      .finally(() => setLoading(false))
+    Promise.all([
+      getAttendanceStats().catch((e) => { logCatch('ServantDashboard.getStats', e); return { total_attendances: 0, this_month: 0 } }),
+      getMembers().catch((e) => { logCatch('ServantDashboard.getMembers', e); return [] }),
+      listEvents({ upcoming: true, per_page: 3 }).catch((e) => { logCatch('ServantDashboard.listEvents', e); return { data: [] } }),
+    ]).then(([s, m, ev]) => {
+      setStats(s)
+      setMembers(m)
+      setUpcomingEvents(ev.data)
+    }).finally(() => setLoading(false))
   }, [])
 
   if (loading) return <LoadingSpinner className="py-20" />
