@@ -100,7 +100,10 @@
         "remove": "Remove",
         "clear": "Clear",
         "gotIt": "Got it",
-        "refresh": "Refresh"
+        "refresh": "Refresh",
+        "pending": "Pending",
+        "approved": "Approved",
+        "rejected": "Rejected"
     },
     "auth": {
         "signIn": "Sign In",

@@ -100,7 +100,10 @@
         "remove": "إزالة",
         "clear": "مسح",
         "gotIt": "حسناً",
-        "refresh": "تحديث"
+        "refresh": "تحديث",
+        "pending": "قيد الانتظار",
+        "approved": "مقبول",
+        "rejected": "مرفوض"
     },
     "auth": {
         "signIn": "دخول",
