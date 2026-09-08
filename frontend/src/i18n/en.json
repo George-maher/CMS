@@ -34,7 +34,8 @@
         "profile": "My Profile",
         "leaderboard": "Leaderboard",
         "churchManagement": "Church Management",
-        "deletedChurches": "Deleted Churches"
+        "deletedChurches": "Deleted Churches",
+        "spiritualLog": "Spiritual Log"
     },
     "common": {
         "overview": "Overview",
@@ -1348,5 +1349,17 @@
         "approveFailed": "Failed to approve profile update.",
         "rejected": "Profile update rejected.",
         "rejectFailed": "Failed to reject profile update."
+    },
+    "spiritualLog": {
+        "title": "Spiritual Activity Log",
+        "attendedMass": "Attended Mass",
+        "confessed": "Confessed",
+        "receivedCommunion": "Received Communion",
+        "mass": "Mass",
+        "confession": "Confession",
+        "communion": "Communion",
+        "noRecordsYet": "No spiritual records yet.",
+        "selectDateHint": "Tap a date above to log your activities.",
+        "recentRecords": "Recent Records"
     }
 }

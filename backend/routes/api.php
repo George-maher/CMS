@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ChurchApplicationController;
 use App\Http\Controllers\Api\ChurchDeletionController;
 use App\Http\Controllers\Api\ClasseController;
+use App\Http\Controllers\Api\DailySpiritualRecordController;
 use App\Http\Controllers\Api\DailyVerseController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\EventAccommodationController;
@@ -297,6 +298,18 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'approval', 'throttle:api'])->g
         ->middleware('throttle:feedback-read');
     Route::post('/feedback/{id}/mark-seen', [FeedbackController::class, 'markSeen'])
         ->middleware('throttle:feedback-read');
+
+    /*
+    | Daily Spiritual Records — member self-service + admin/servant read
+    */
+    Route::get('/spiritual-records', [DailySpiritualRecordController::class, 'index'])
+        ->middleware('throttle:spiritual-record');
+    Route::get('/spiritual-records/{activityDate}', [DailySpiritualRecordController::class, 'show'])
+        ->middleware('throttle:spiritual-record');
+    Route::post('/spiritual-records', [DailySpiritualRecordController::class, 'store'])
+        ->middleware('throttle:spiritual-record');
+    Route::delete('/spiritual-records/{activityDate}', [DailySpiritualRecordController::class, 'destroy'])
+        ->middleware('throttle:spiritual-record');
 
     /*
     |--------------------------------------------------------------------------

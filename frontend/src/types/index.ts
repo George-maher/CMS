@@ -721,3 +721,21 @@ export interface EventAccommodationDashboard {
   occupied_member_cells: number
   available_member_cells: number
 }
+
+export interface DailySpiritualRecord {
+  id: number
+  user_id: number
+  church_id: number
+  activity_date: string
+  attended_mass: boolean
+  confessed: boolean
+  received_communion: boolean
+  member?: {
+    id: number
+    name: string
+    member_id: string | null
+    class_id: number | null
+  }
+  created_at: string
+  updated_at: string
+}

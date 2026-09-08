@@ -11,6 +11,7 @@ use App\Contracts\AuthServiceInterface;
 use App\Contracts\ChurchApplicationServiceInterface;
 use App\Contracts\ClasseRepositoryInterface;
 use App\Contracts\ClasseServiceInterface;
+use App\Contracts\DailySpiritualRecordServiceInterface;
 use App\Contracts\EmailServiceInterface;
 use App\Contracts\EventAccommodationServiceInterface;
 use App\Contracts\EventLifecycleServiceInterface;
@@ -48,6 +49,7 @@ use App\Models\Attendance;
 use App\Models\AttendanceContext;
 use App\Models\Church;
 use App\Models\ChurchApplication;
+use App\Models\DailySpiritualRecord;
 use App\Models\DailyVerse;
 use App\Models\Event;
 use App\Models\Feedback;
@@ -67,6 +69,7 @@ use App\Observers\UserObserver;
 use App\Policies\AttendanceContextPolicy;
 use App\Policies\AttendancePolicy;
 use App\Policies\ChurchDeletionPolicy;
+use App\Policies\DailySpiritualRecordPolicy;
 use App\Policies\DailyVersePolicy;
 use App\Policies\EventPolicy;
 use App\Policies\FeedbackPolicy;
@@ -91,6 +94,7 @@ use App\Services\AuthService;
 use App\Services\CacheService;
 use App\Services\ChurchApplicationService;
 use App\Services\ClasseService;
+use App\Services\DailySpiritualRecordService;
 use App\Services\EmailService;
 use App\Services\EventAccommodationService;
 use App\Services\EventLifecycleService;
@@ -175,6 +179,8 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(CacheService::class, fn () => new CacheService);
 
         $this->app->bind(ChurchApplicationServiceInterface::class, ChurchApplicationService::class);
+        $this->app->bind(DailySpiritualRecordServiceInterface::class, DailySpiritualRecordService::class);
+
         $this->app->bind(AuditServiceInterface::class, AuditService::class);
         $this->app->bind(FileUploadServiceInterface::class, FileUploadService::class);
 
@@ -215,6 +221,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(PasswordResetRequest::class, PasswordResetRequestPolicy::class);
         Gate::policy(ProfileUpdateRequest::class, ProfileUpdateRequestPolicy::class);
         Gate::policy(Church::class, ChurchDeletionPolicy::class);
+        Gate::policy(DailySpiritualRecord::class, DailySpiritualRecordPolicy::class);
 
         // ──────────────────────────────────────────────
         // Model Observers — File Cleanup on Delete
@@ -503,6 +510,13 @@ class AppServiceProvider extends ServiceProvider
         // Attendance context CRUD — 30 req/min per user
         RateLimiter::for('attendance-context-crud', function (Request $request) {
             return Limit::perMinute(30)
+                ->by($request->user()?->id ?: $request->ip())
+                ->response(fn () => self::rateLimitResponse());
+        });
+
+        // Spiritual record CRUD — 60 req/min per user
+        RateLimiter::for('spiritual-record', function (Request $request) {
+            return Limit::perMinute(60)
                 ->by($request->user()?->id ?: $request->ip())
                 ->response(fn () => self::rateLimitResponse());
         });

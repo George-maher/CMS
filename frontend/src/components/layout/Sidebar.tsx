@@ -7,7 +7,7 @@ import {
   LayoutDashboard, Users, Calendar, MessageSquare,
   ClipboardList, QrCode,
   BookMarked, Camera, Star, Trophy,
-  Church, Moon, Sun, Languages, X, UserX, Layers, Trash2, Clock, User, UserCheck,
+  Church, Moon, Sun, Languages, X, UserX, Layers, Trash2, Clock, User, UserCheck, Sparkles,
 } from 'lucide-react'
 
 interface NavItem {
@@ -61,6 +61,7 @@ const memberNav: NavItem[] = [
   { labelKey: 'nav.myQRCode', path: '/member/qr', icon: <QrCode className="h-5 w-5 text-gold-400" /> },
   { labelKey: 'nav.events', path: '/member/events', icon: <Calendar className="h-5 w-5 text-gold-400" /> },
   { labelKey: 'nav.myAttendance', path: '/member/attendance', icon: <ClipboardList className="h-5 w-5 text-gold-400" /> },
+  { labelKey: 'nav.spiritualLog', path: '/member/spiritual-log', icon: <Sparkles className="h-5 w-5 text-gold-400" /> },
   { labelKey: 'nav.submitFeedback', path: '/member/feedback', icon: <MessageSquare className="h-5 w-5 text-gold-400" /> },
   { labelKey: 'nav.myPoints', path: '/member/points', icon: <Star className="h-5 w-5 text-gold-400" /> },
   { labelKey: 'nav.profile', path: '/member/profile', icon: <User className="h-5 w-5 text-gold-400" /> },

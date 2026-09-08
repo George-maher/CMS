@@ -65,6 +65,7 @@ use Laravel\Sanctum\PersonalAccessToken;
  * @property-read Collection<int, Point> $points
  * @property-read Collection<int, QRInvite> $createdQrInvites
  * @property-read Collection<int, QRInvite> $usedQrInvites
+ * @property-read Collection<int, DailySpiritualRecord> $dailySpiritualRecords
  * @property-read int $total_points
  * @property-read int|null $age
  * @property Carbon|null $viewed_at
@@ -235,6 +236,14 @@ class User extends Authenticatable
     public function usedQrInvites(): HasMany
     {
         return $this->hasMany(QRInvite::class, 'used_by');
+    }
+
+    /**
+     * @return HasMany<DailySpiritualRecord, $this>
+     */
+    public function dailySpiritualRecords(): HasMany
+    {
+        return $this->hasMany(DailySpiritualRecord::class);
     }
 
     /**

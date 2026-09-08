@@ -59,6 +59,7 @@ const MemberEvents = lazy(() => import('@/pages/member/Events'))
 const MemberEventDetail = lazy(() => import('@/pages/member/EventDetail'))
 const MemberMyQR = lazy(() => import('@/pages/member/MyQR'))
 const MemberLeaderboard = lazy(() => import('@/pages/member/Leaderboard'))
+const MemberSpiritualLog = lazy(() => import('@/pages/member/SpiritualLog'))
 const FeedbackSubmit = lazy(() => import('@/pages/FeedbackSubmit'))
 const FeedbackManagement = lazy(() => import('@/pages/FeedbackManagement'))
 const VerseManagement = lazy(() => import('@/pages/VerseManagement'))
@@ -173,6 +174,7 @@ export default function App() {
                 <Route path="/member/qr" element={<MemberMyQR />} />
                 <Route path="/member/feedback" element={<FeedbackSubmit />} />
                 <Route path="/member/leaderboard" element={<MemberLeaderboard />} />
+                <Route path="/member/spiritual-log" element={<MemberSpiritualLog />} />
                 <Route path="/member/profile" element={<Profile />} />
               </Route>
 

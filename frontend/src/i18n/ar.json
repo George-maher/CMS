@@ -34,7 +34,8 @@
         "profile": "ملفي الشخصي",
         "leaderboard": "لوحة المتصدرين",
         "churchManagement": "إدارة الكنائس",
-        "deletedChurches": "الكنائس المحذوفة"
+        "deletedChurches": "الكنائس المحذوفة",
+        "spiritualLog": "السجل الروحي"
     },
     "common": {
         "overview": "نظرة عامة",
@@ -1372,5 +1373,17 @@
         "approveFailed": "فشلت الموافقة على تحديث الملف الشخصي.",
         "rejected": "تم رفض تحديث الملف الشخصي.",
         "rejectFailed": "فشل رفض تحديث الملف الشخصي."
+    },
+    "spiritualLog": {
+        "title": "سجل الأنشطة الروحية",
+        "attendedMass": "حضر القداس",
+        "confessed": "اعترف",
+        "receivedCommunion": "تناول الإفخارستيا",
+        "mass": "القداس",
+        "confession": "الاعتراف",
+        "communion": "الإفخارستيا",
+        "noRecordsYet": "لا توجد سجلات روحية بعد.",
+        "selectDateHint": "اضغط على تاريخ أعلاه لتسجيل أنشطتك.",
+        "recentRecords": "السجلات الأخيرة"
     }
 }
