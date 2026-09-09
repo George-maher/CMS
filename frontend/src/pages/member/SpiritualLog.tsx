@@ -126,7 +126,7 @@ export default function SpiritualLog() {
   )
 
   const days = getMonthDays(currentYear, currentMonth)
-  const firstDayOfWeek = days[0].getDay()
+  const firstDayOfWeek = days[0]?.getDay() ?? 0
 
   const dayNames = language === 'ar'
     ? ['أحد', 'إثنين', 'ثلاثاء', 'أربعاء', 'خميس', 'جمعة', 'سبت']
