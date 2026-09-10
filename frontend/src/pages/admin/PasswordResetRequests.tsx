@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { CheckCircle, XCircle, Clock, Search, FileText, Phone, MessageSquare, KeyRound, Eye, EyeOff } from 'lucide-react'
 import Badge from '@/components/common/Badge'
@@ -21,6 +21,7 @@ export default function AdminPasswordResetRequests() {
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState('')
   const [page, setPage] = useState(1)
+  const hasLoadedRef = useRef(false)
 
   const [detailOpen, setDetailOpen] = useState(false)
   const [detail, setDetail] = useState<PasswordResetRequest | null>(null)
@@ -41,32 +42,29 @@ export default function AdminPasswordResetRequests() {
   const [showNewPassword, setShowNewPassword] = useState(false)
   const [resetting, setResetting] = useState(false)
 
-  const fetch = async (p = 1) => {
-    setLoading(true)
+  const fetchData = useCallback(async (p: number, filter: string, showSpinner: boolean) => {
+    if (showSpinner) setLoading(true)
     const params: Record<string, string | number> = { page: p, per_page: 15 }
-    if (statusFilter) params.status = statusFilter
+    if (filter) params.status = filter
     try {
       const res = await listPasswordResetRequests(params)
       setRequests(res.data)
       setMeta(res.meta)
+      setPage(res.meta.current_page)
     } catch (e) {
       logCatch('PasswordResetRequests.fetch', e)
       setRequests([])
     } finally {
       setLoading(false)
+      hasLoadedRef.current = true
     }
-  }
+  }, [])
 
-  useEffect(() => {
-    Promise.resolve().then(() => setPage(1))
-    const params: Record<string, string | number> = { page: 1, per_page: 15 }
-    if (statusFilter) params.status = statusFilter
-    listPasswordResetRequests(params).then(res => { setRequests(res.data); setMeta(res.meta) }).catch(() => setRequests([])).finally(() => setLoading(false))
-  }, [statusFilter])
+  useEffect(() => { fetchData(1, statusFilter, false) }, [statusFilter, fetchData])
 
   const handlePageChange = (newPage: number) => {
     setPage(newPage)
-    fetch(newPage)
+    fetchData(newPage, statusFilter, false)
   }
 
   const openDetail = (req: PasswordResetRequest) => {
@@ -82,7 +80,7 @@ export default function AdminPasswordResetRequests() {
       toast.success(t('passwordResetRequests.approved'))
       setApproveOpen(false)
       setApproveId(null)
-      fetch(page)
+      fetchData(page, statusFilter, false)
     } catch {
       toast.error(t('common.failedToSave'))
     } finally {
@@ -99,7 +97,7 @@ export default function AdminPasswordResetRequests() {
       setRejectOpen(false)
       setRejectId(null)
       setRejectReason('')
-      fetch(page)
+      fetchData(page, statusFilter, false)
     } catch {
       toast.error(t('common.failedToSave'))
     } finally {
@@ -136,7 +134,7 @@ export default function AdminPasswordResetRequests() {
       setNewPassword('')
       setConfirmNewPassword('')
       setShowNewPassword(false)
-      fetch(page)
+      fetchData(page, statusFilter, false)
     } catch (e: unknown) {
       logCatch('PasswordResetRequests.resetPassword', e)
       const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message

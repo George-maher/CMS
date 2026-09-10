@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
@@ -37,6 +37,7 @@ export default function ServantEvents() {
   const [events, setEvents] = useState<Event[]>([])
   const [meta, setMeta] = useState({ current_page: 1, last_page: 1, per_page: 15, total: 0 })
   const [loading, setLoading] = useState(true)
+  const hasLoadedRef = useRef(false)
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState<Event | null>(null)
   const [classes, setClasses] = useState<{ id: number; name: string }[]>([])
@@ -53,16 +54,16 @@ export default function ServantEvents() {
     finally { setViewLoading(false) }
   }
 
-  const fetch = async (page = 1) => {
-    setLoading(true)
+  const fetch = useCallback(async (page = 1, showSpinner = false) => {
+    if (showSpinner) setLoading(true)
     try { const res = await getMyAssignedEvents({ page, per_page: 15 }); setEvents(res.data); setMeta(res.meta) }
-    finally { setLoading(false) }
-  }
+    finally { setLoading(false); hasLoadedRef.current = true }
+  }, [])
 
   useEffect(() => {
-    getMyAssignedEvents({ page: 1, per_page: 15 }).then(res => { setEvents(res.data); setMeta(res.meta) }).finally(() => setLoading(false))
+    fetch()
     getMyClasses().then(setClasses).catch((e) => logCatch('ServantEvents.getMyClasses', e))
-  }, [])
+  }, [fetch])
 
   const openCreate = () => {
     setEditing(null)

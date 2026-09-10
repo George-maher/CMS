@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
@@ -48,6 +48,7 @@ export default function AdminEvents() {
   const [events, setEvents] = useState<Event[]>([])
   const [meta, setMeta] = useState({ current_page: 1, last_page: 1, per_page: 15, total: 0 })
   const [loading, setLoading] = useState(true)
+  const hasLoadedRef = useRef(false)
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState<Event | null>(null)
   const [classes, setClasses] = useState<{ id: number; name: string }[]>([])
@@ -71,10 +72,14 @@ export default function AdminEvents() {
     finally { setViewLoading(false) }
   }
 
+  const fetchEvents = useCallback(async (page = 1, showSpinner = false) => {
+    if (showSpinner) setLoading(true)
+    try { const res = await listEvents({ page, per_page: 15, upcoming: false }); setEvents(res.data); setMeta(res.meta) }
+    finally { setLoading(false); hasLoadedRef.current = true }
+  }, [])
+
   useEffect(() => {
-    listEvents({ page: 1, per_page: 15, upcoming: false })
-      .then((res) => { setEvents(res.data); setMeta(res.meta) })
-      .finally(() => setLoading(false))
+    fetchEvents()
     listAllClasses().then(setClasses).catch((e) => logCatch('AdminEvents.listAllClasses', e))
     getServants().then(servants => {
       const churchId = user?.church_id ?? 0
@@ -86,13 +91,7 @@ export default function AdminEvents() {
       logCatch('AdminEvents.getServants', e)
       setServantsLoading(false)
     })
-  }, [user?.church_id])
-
-  const fetch = async (page = 1) => {
-    setLoading(true)
-    try { const res = await listEvents({ page, per_page: 15, upcoming: false }); setEvents(res.data); setMeta(res.meta) }
-    finally { setLoading(false) }
-  }
+  }, [user?.church_id, fetchEvents])
 
   const openCreate = () => {
     setEditing(null)
@@ -154,7 +153,7 @@ export default function AdminEvents() {
         }
       }
       if (editing) { await updateEvent(editing.id, payload) } else { await createEvent(payload) }
-      setShowModal(false); fetch(); toast.success(editing ? t('common.update') : t('common.create'))
+      setShowModal(false); fetchEvents(); toast.success(editing ? t('common.update') : t('common.create'))
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { errors?: Record<string, string[]>; message?: string } } })?.response?.data
       setSaveError(msg?.errors ? Object.values(msg.errors).flat().join(', ') : msg?.message || t('common.save'))
@@ -163,7 +162,7 @@ export default function AdminEvents() {
 
   const handleDelete = async (id: number) => {
     if (window.confirm(t('events.deleteConfirm'))) {
-      try { await deleteEvent(id); fetch(); toast.success(t('common.delete')) }
+      try { await deleteEvent(id); fetchEvents(); toast.success(t('common.delete')) }
       catch (e) { logCatch('AdminEvents.deleteEvent', e); toast.error(t('common.saving')) }
     }
   }
@@ -182,7 +181,7 @@ export default function AdminEvents() {
     try {
       await updateEvent(servantEvent.id, { responsible_servant_id: Number(newServantId) })
       setChangeServantModalOpen(false)
-      fetch()
+      fetchEvents()
       toast.success(t('common.update'))
     } catch (e) {
       logCatch('AdminEvents.changeServant', e)
@@ -229,7 +228,7 @@ export default function AdminEvents() {
               )}
               <button onClick={() => handleDelete(e.id)} className="btn-icon btn-ghost">{t('common.delete')}</button>
             </div>
-          )}]} data={events} meta={meta} isLoading={loading} onPageChange={fetch} />
+          )}]} data={events} meta={meta} isLoading={loading} onPageChange={fetchEvents} />
         </>
       )}
 

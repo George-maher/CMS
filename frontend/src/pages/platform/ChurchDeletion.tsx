@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import toast from 'react-hot-toast'
 import {
@@ -46,6 +46,7 @@ export default function ChurchDeletion() {
   const [churches, setChurches] = useState<ChurchItem[]>([])
   const [deletedChurches, setDeletedChurches] = useState<DeletedChurchInfo[]>([])
   const [loading, setLoading] = useState(true)
+  const hasLoadedRef = useRef(false)
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const [summary, setSummary] = useState<ChurchDeletionSummary | null>(null)
   const [summaryLoading, setSummaryLoading] = useState(false)
@@ -56,8 +57,8 @@ export default function ChurchDeletion() {
   const [modalOpen, setModalOpen] = useState(false)
   const [modalMode, setModalMode] = useState<ModalMode>(null)
 
-  const fetchChurches = async () => {
-    setLoading(true)
+  const fetchChurches = useCallback(async (showSpinner = false) => {
+    if (showSpinner) setLoading(true)
     try {
       const { data: active } = await client.get('/platform/churches', { params: { _t: Date.now() } })
       const items = active.data || []
@@ -71,23 +72,10 @@ export default function ChurchDeletion() {
         recoverable_until: c.recoverable_until,
       } as DeletedChurchInfo)))
     } catch { /* ignore */ }
-    finally { setLoading(false) }
-  }
-
-  useEffect(() => {
-    client.get('/platform/churches', { params: { _t: Date.now() } }).then(({ data }) => {
-      const items = data.data || []
-      setChurches(items.filter((c: ChurchItem) => !c.is_deleted))
-      setDeletedChurches(items.filter((c: ChurchItem) => c.is_deleted).map((c: ChurchItem) => ({
-        id: c.id,
-        name: c.name,
-        deleted_at: c.deleted_at,
-        is_recoverable: c.is_recoverable,
-        days_until_purge: c.days_until_purge,
-        recoverable_until: c.recoverable_until,
-      } as DeletedChurchInfo)))
-    }).finally(() => setLoading(false))
+    finally { setLoading(false); hasLoadedRef.current = true }
   }, [])
+
+  useEffect(() => { fetchChurches() }, [fetchChurches])
 
   const openModal = async (churchId: number, mode: ModalMode) => {
     setSelectedId(churchId)

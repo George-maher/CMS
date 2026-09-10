@@ -126,23 +126,20 @@ export default function AdminQRManagement() {
 
   const [filters, setFilters] = useState<Record<string, string | number>>({})
   const [searchInput, setSearchInput] = useState('')
+  const hasLoadedRef = useRef(false)
 
-  const fetch = useCallback(async (page = 1) => {
-    setLoading(true)
+  const fetch = useCallback(async (page = 1, showSpinner = false) => {
+    if (showSpinner) setLoading(true)
     try {
       const params: Record<string, string | number> = { page, per_page: 15, ...filters }
       if (params.search === '') delete params.search
       const res = await listQRInvites(params)
       setInvites(res.data)
       setMeta(res.meta)
-    } finally { setLoading(false) }
+    } finally { setLoading(false); hasLoadedRef.current = true }
   }, [filters])
 
-  useEffect(() => {
-    const params: Record<string, string | number> = { page: 1, per_page: 15, ...filters }
-    if (params.search === '') delete params.search
-    listQRInvites(params).then(res => { setInvites(res.data); setMeta(res.meta) }).finally(() => setLoading(false))
-  }, [filters])
+  useEffect(() => { fetch() }, [fetch])
 
   useEffect(() => {
     listStructureClasses()

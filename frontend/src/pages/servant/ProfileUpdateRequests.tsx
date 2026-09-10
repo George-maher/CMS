@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { CheckCircle, XCircle, Clock, FileText, AlertCircle, UserCheck, Eye, User, Phone, Mail, MapPin, ArrowRight } from 'lucide-react'
 import Badge from '@/components/common/Badge'
@@ -34,6 +34,7 @@ export default function ProfileUpdateRequests() {
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState('')
   const [page, setPage] = useState(1)
+  const hasLoadedRef = useRef(false)
 
   const [detailOpen, setDetailOpen] = useState(false)
   const [detail, setDetail] = useState<ProfileUpdateRequest | null>(null)
@@ -47,10 +48,10 @@ export default function ProfileUpdateRequests() {
   const [approveId, setApproveId] = useState<number | null>(null)
   const [approving, setApproving] = useState(false)
 
-  const fetchData = async (p = 1) => {
-    setLoading(true)
+  const fetchData = useCallback(async (p: number, filter: string, showSpinner: boolean) => {
+    if (showSpinner) setLoading(true)
     const params: Record<string, string | number> = { page: p, per_page: 15 }
-    if (statusFilter) params.status = statusFilter
+    if (filter) params.status = filter
     try {
       const res = await listProfileUpdateRequests(params)
       setRequests(res.data)
@@ -60,24 +61,17 @@ export default function ProfileUpdateRequests() {
       setRequests([])
     } finally {
       setLoading(false)
+      hasLoadedRef.current = true
     }
-  }
+  }, [])
 
   useEffect(() => {
-    const params: Record<string, string | number> = { page: 1, per_page: 15 }
-    if (statusFilter) params.status = statusFilter
-    listProfileUpdateRequests(params)
-      .then((res) => {
-        setRequests(res.data)
-        setMeta(res.meta)
-      })
-      .catch(() => setRequests([]))
-      .finally(() => setLoading(false))
-  }, [statusFilter])
+    fetchData(1, statusFilter, !hasLoadedRef.current)
+  }, [statusFilter, fetchData])
 
   const handlePageChange = (newPage: number) => {
     setPage(newPage)
-    fetchData(newPage)
+    fetchData(newPage, statusFilter, false)
   }
 
   const openDetail = (req: ProfileUpdateRequest) => {
@@ -93,7 +87,7 @@ export default function ProfileUpdateRequests() {
       toast.success(t('profileUpdateRequests.approved'))
       setApproveOpen(false)
       setApproveId(null)
-      fetchData(page)
+      fetchData(page, statusFilter, false)
     } catch (e) {
       logCatch('ProfileUpdateRequests.approve', e)
       toast.error(t('profileUpdateRequests.approveFailed'))
@@ -111,7 +105,7 @@ export default function ProfileUpdateRequests() {
       setRejectOpen(false)
       setRejectId(null)
       setRejectReason('')
-      fetchData(page)
+      fetchData(page, statusFilter, false)
     } catch (e) {
       logCatch('ProfileUpdateRequests.reject', e)
       toast.error(t('profileUpdateRequests.rejectFailed'))

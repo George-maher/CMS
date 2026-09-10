@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import toast from 'react-hot-toast'
@@ -16,15 +16,16 @@ export default function StageDetail() {
   const [stage, setStage] = useState<Stage | null>(null)
   const [classes, setClasses] = useState<Classe[]>([])
   const [loading, setLoading] = useState(true)
+  const hasLoadedRef = useRef(false)
   const [search, setSearch] = useState('')
 
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState<Classe | null>(null)
   const [form, setForm] = useState({ name: '', description: '' })
 
-  const fetch = useCallback(async (q?: string) => {
+  const fetch = useCallback(async (q?: string, showSpinner = false) => {
     if (!id) return
-    setLoading(true)
+    if (showSpinner) setLoading(true)
     try {
       const [stageData, classesData] = await Promise.all([
         getStage(Number(id)),
@@ -34,16 +35,14 @@ export default function StageDetail() {
       setClasses(classesData)
     } finally {
       setLoading(false)
+      hasLoadedRef.current = true
     }
   }, [id, search])
 
   useEffect(() => {
     if (!id) return
-    Promise.all([
-      getStage(Number(id)),
-      getStageClasses(Number(id), ''),
-    ]).then(([stageData, classesData]) => { setStage(stageData); setClasses(classesData) }).finally(() => setLoading(false))
-  }, [id])
+    fetch()
+  }, [id, fetch])
   useEffect(() => {
     const timer = setTimeout(() => fetch(search), 300)
     return () => clearTimeout(timer)

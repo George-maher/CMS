@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Plus, Pencil, Trash2, CheckCircle, Archive, FolderOpen } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -22,13 +22,14 @@ export default function AttendanceContextManagement() {
   const [contexts, setContexts] = useState<AttendanceContext[]>([])
   const [meta, setMeta] = useState<PaginationMeta>({ current_page: 1, last_page: 1, per_page: 15, total: 0 })
   const [loading, setLoading] = useState(true)
+  const hasLoadedRef = useRef(false)
   const [saving, setSaving] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
   const [editingContext, setEditingContext] = useState<AttendanceContext | null>(null)
   const [form, setForm] = useState<AttendanceContextFormData>({ name: '', description: '', is_active: true })
 
-  const fetchContexts = useCallback(async (page = 1) => {
-    setLoading(true)
+  const fetchContexts = useCallback(async (page = 1, showSpinner = false) => {
+    if (showSpinner) setLoading(true)
     try {
       const res = await getContextsForManagement({ page, per_page: 20 })
       setContexts(res.data)
@@ -38,13 +39,11 @@ export default function AttendanceContextManagement() {
       toast.error(t('common.failedToLoad'))
     } finally {
       setLoading(false)
+      hasLoadedRef.current = true
     }
   }, [t])
 
-  useEffect(() => {
-    const params: Record<string, string | number> = { page: 1, per_page: 100 }
-    getContextsForManagement(params).then((res: { data: AttendanceContext[]; meta: PaginationMeta }) => { setContexts(res.data); setMeta(res.meta) }).catch((e: unknown) => { logCatch('AttendanceContextManagement.fetch', e); toast.error(t('common.failedToLoad')) }).finally(() => setLoading(false))
-  }, [t])
+  useEffect(() => { fetchContexts() }, [fetchContexts])
 
   const openCreate = () => {
     setEditingContext(null)

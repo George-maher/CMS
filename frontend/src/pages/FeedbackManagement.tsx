@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import toast from 'react-hot-toast'
 import { Reply, Eye, EyeOff, Phone } from 'lucide-react'
@@ -20,26 +20,23 @@ export default function FeedbackManagement() {
   const [unresolvedCount, setUnresolvedCount] = useState(0)
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('')
+  const hasLoadedRef = useRef(false)
   const [selectedFeedback, setSelectedFeedback] = useState<Feedback | null>(null)
   const [replyText, setReplyText] = useState('')
   const [replying, setReplying] = useState(false)
 
-  const fetchData = async (page = 1) => {
-    setLoading(true)
+  const fetchData = useCallback(async (page = 1, showSpinner = false) => {
+    if (showSpinner) setLoading(true)
     try {
       const params: Record<string, string | number | boolean> = { page, per_page: 15 }
       if (filter === 'unresolved') params.unresolved = true
       if (filter === 'resolved') params.is_resolved = true
       const res = await listFeedback(params)
       setFeedback(res.data); setMeta(res.meta); setUnresolvedCount(res.unresolved_count)
-    } finally { setLoading(false) }
-  }
-
-  useEffect(() => {
-    if (filter === 'unresolved') { listFeedback({ page: 1, per_page: 15, unresolved: true }).then(res => { setFeedback(res.data); setMeta(res.meta); setUnresolvedCount(res.unresolved_count) }).finally(() => setLoading(false)) }
-    else if (filter === 'resolved') { listFeedback({ page: 1, per_page: 15, is_resolved: true }).then(res => { setFeedback(res.data); setMeta(res.meta); setUnresolvedCount(res.unresolved_count) }).finally(() => setLoading(false)) }
-    else { listFeedback({ page: 1, per_page: 15 }).then(res => { setFeedback(res.data); setMeta(res.meta); setUnresolvedCount(res.unresolved_count) }).finally(() => setLoading(false)) }
+    } finally { setLoading(false); hasLoadedRef.current = true }
   }, [filter])
+
+  useEffect(() => { fetchData() }, [fetchData])
 
   const handleResolve = async (id: number) => {
     try { await resolveFeedback(id); fetchData(); toast.success(t('feedback.markedResolved')) }

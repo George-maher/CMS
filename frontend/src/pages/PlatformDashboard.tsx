@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { ClipboardList, CheckCircle, XCircle, Building2, Users, Activity, Ban, SearchX } from 'lucide-react'
@@ -47,10 +47,11 @@ export default function PlatformDashboard() {
   const [meta, setMeta] = useState({ current_page: 1, last_page: 1, per_page: 15, total: 0 })
   const [counts, setCounts] = useState<ApplicationCounts>({ pending: 0, approved: 0, rejected: 0, total: 0 })
   const [loading, setLoading] = useState(true)
+  const hasLoadedRef = useRef(false)
   const [filter, setFilter] = useState('')
 
-  const fetchData = useCallback(async (page = 1) => {
-    setLoading(true)
+  const fetchData = useCallback(async (page = 1, showSpinner = false) => {
+    if (showSpinner) setLoading(true)
     try {
       const [s, a] = await Promise.all([
         getPlatformDashboard(),
@@ -61,13 +62,10 @@ export default function PlatformDashboard() {
       setMeta(a.meta)
       setCounts(a.counts)
     } catch (e) { logCatch('PlatformDashboard.fetchData', e) }
-    finally { setLoading(false) }
+    finally { setLoading(false); hasLoadedRef.current = true }
   }, [filter])
 
-  useEffect(() => {
-    getPlatformDashboard().then(s => setStats(s))
-    listApplications(filter || undefined, 1, 15).then(a => { setApps(a.data); setMeta(a.meta); setCounts(a.counts) }).finally(() => setLoading(false))
-  }, [filter])
+  useEffect(() => { fetchData() }, [fetchData])
 
   const tabs = [
     { key: '', label: t('common.all'), count: counts.total, variant: 'default' as const },

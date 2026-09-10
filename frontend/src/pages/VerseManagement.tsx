@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import toast from 'react-hot-toast'
 import { Plus } from 'lucide-react'
@@ -23,6 +23,7 @@ export default function VerseManagement() {
   const [verses, setVerses] = useState<DailyVerse[]>([])
   const [meta, setMeta] = useState({ current_page: 1, last_page: 1, per_page: 15, total: 0 })
   const [loading, setLoading] = useState(true)
+  const hasLoadedRef = useRef(false)
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState<DailyVerse | null>(null)
   const [saving, setSaving] = useState(false)
@@ -30,17 +31,13 @@ export default function VerseManagement() {
   const [form, setForm] = useState({ verse_text: '', reference: '', is_active: false })
   const [activating, setActivating] = useState<number | null>(null)
 
-  useEffect(() => {
-    listVerses({ page: 1, per_page: 15 })
-      .then((res) => { setVerses(res.data); setMeta(res.meta) })
-      .finally(() => setLoading(false))
+  const fetchVerses = useCallback(async (page = 1, showSpinner = false) => {
+    if (showSpinner) setLoading(true)
+    try { const res = await listVerses({ page, per_page: 15 }); setVerses(res.data); setMeta(res.meta) }
+    finally { setLoading(false); hasLoadedRef.current = true }
   }, [])
 
-  const fetch = useCallback(async (page = 1) => {
-    setLoading(true)
-    try { const res = await listVerses({ page, per_page: 15 }); setVerses(res.data); setMeta(res.meta) }
-    finally { setLoading(false) }
-  }, [])
+  useEffect(() => { fetchVerses() }, [fetchVerses])
 
   const openCreate = () => { setEditing(null); setForm({ verse_text: '', reference: '', is_active: false }); setSaveError(''); setShowModal(true) }
   const openEdit = (verse: DailyVerse) => { setEditing(verse); setForm({ verse_text: verse.verse_text, reference: verse.reference, is_active: verse.is_active }); setSaveError(''); setShowModal(true) }
@@ -50,7 +47,7 @@ export default function VerseManagement() {
     setSaving(true); setSaveError('')
     try {
       if (editing) { await updateVerse(editing.id, form) } else { await createVerse(form) }
-      setShowModal(false); fetch(); toast.success(editing ? t('verse.updated') : t('verse.created'))
+      setShowModal(false); fetchVerses(); toast.success(editing ? t('verse.updated') : t('verse.created'))
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { errors?: Record<string, string[]>; message?: string } } })?.response?.data
       setSaveError(msg?.errors ? Object.values(msg.errors).flat().join(', ') : msg?.message || t('common.loading'))
@@ -59,13 +56,13 @@ export default function VerseManagement() {
 
   const handleDelete = async (id: number) => {
     if (!window.confirm(t('verse.deleteConfirm'))) return
-    try { await deleteVerse(id); fetch(); toast.success(t('verse.deleted')) }
+    try { await deleteVerse(id); fetchVerses(); toast.success(t('verse.deleted')) }
     catch (e) { logCatch('VerseManagement.delete', e); toast.error(t('common.saving')) }
   }
 
   const handleActivate = async (id: number) => {
     setActivating(id)
-    try { await activateVerse(id); fetch(); toast.success(t('verse.activated')) }
+    try { await activateVerse(id); fetchVerses(); toast.success(t('verse.activated')) }
     catch (e) { logCatch('VerseManagement.activate', e); setSaveError(t('verse.failedActivate')) }
     finally { setActivating(null) }
   }
@@ -85,7 +82,7 @@ export default function VerseManagement() {
           <button onClick={() => openEdit(v)} className="btn-ghost btn-sm text-primary-500">{t('common.edit')}</button>
           <button onClick={() => handleDelete(v.id)} className="btn-ghost btn-sm text-red-500">{t('common.delete')}</button>
         </div>
-      )}]} data={verses} meta={meta} isLoading={loading} onPageChange={fetch} />
+      )}]} data={verses} meta={meta} isLoading={loading} onPageChange={fetchVerses} />
 
       <Modal isOpen={showModal} onClose={() => setShowModal(false)} title={editing ? t('verse.editVerse') : t('verse.addVerse')}
         footer={

@@ -96,20 +96,22 @@ export default function AdminUsers() {
     { key: 'total_points', header: t('common.points') },
   ]
 
-  const fetchUsers = useCallback(async (page = 1) => {
-    setLoading(true)
+  const hasLoadedRef = useRef(false)
+
+  const fetchUsers = useCallback(async (page = 1, showSpinner = false) => {
+    if (showSpinner) setLoading(true)
     try {
       const params: Record<string, string | number> = { page, per_page: 15 }
       if (search.trim()) params.search = search.trim()
       const res = await listUsers(params)
       setUsers(res.data)
       setMeta(res.meta)
-    } finally { setLoading(false) }
+    } finally { setLoading(false); hasLoadedRef.current = true }
   }, [search])
 
   useEffect(() => {
     if (searchTimeout.current) clearTimeout(searchTimeout.current)
-    searchTimeout.current = setTimeout(() => fetchUsers(), 400)
+    searchTimeout.current = setTimeout(() => fetchUsers(1, !hasLoadedRef.current), 400)
     return () => { if (searchTimeout.current) clearTimeout(searchTimeout.current) }
   }, [search, fetchUsers])
 

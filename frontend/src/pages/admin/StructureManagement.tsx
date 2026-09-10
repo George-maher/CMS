@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
@@ -15,6 +15,7 @@ export default function StructureManagement() {
   const [stages, setStages] = useState<Stage[]>([])
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
+  const hasLoadedRef = useRef(false)
 
   const [showWizard, setShowWizard] = useState(false)
   const [stageCount, setStageCount] = useState(3)
@@ -24,8 +25,8 @@ export default function StructureManagement() {
   const [editing, setEditing] = useState<Stage | null>(null)
   const [form, setForm] = useState({ name: '' })
 
-  const fetch = useCallback(async (q?: string) => {
-    setLoading(true)
+  const fetch = useCallback(async (q?: string, showSpinner = false) => {
+    if (showSpinner) setLoading(true)
     try {
       if (q) {
         const structure = await listStructureClasses(q)
@@ -42,6 +43,7 @@ export default function StructureManagement() {
       }
     } finally {
       setLoading(false)
+      hasLoadedRef.current = true
     }
   }, [])
 
