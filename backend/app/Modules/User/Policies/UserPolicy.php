@@ -14,11 +14,16 @@ class UserPolicy
     public function view(User $user, User $target): bool
     {
         if ($user->isAdmin()) {
-            return true;
+            return $target->church_id === $user->church_id;
         }
         if ($user->isServant() && $target->isMember()) {
-            return $target->church_id === $user->church_id
-                && $target->class_year_id === $user->class_year_id;
+            if ($target->church_id !== $user->church_id) {
+                return false;
+            }
+
+            $servantClassIds = $user->getServantClassIds();
+
+            return $servantClassIds === null || in_array($target->class_id, $servantClassIds, true);
         }
 
         return $user->id === $target->id;

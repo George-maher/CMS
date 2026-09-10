@@ -1,5 +1,6 @@
 import type {
   CreateUserPayload,
+  MemberProfile,
   PaginationMeta,
   User,
 } from '@/types'
@@ -19,6 +20,11 @@ export async function getUser(id: number): Promise<User> {
 
 export async function getMemberDetail(id: number): Promise<User> {
   const { data } = await client.get<{ data: User }>(`/users/member-detail/${id}`)
+  return data.data
+}
+
+export async function getMemberProfile(id: number): Promise<MemberProfile> {
+  const { data } = await client.get<{ data: MemberProfile }>(`/member-profile/${id}`)
   return data.data
 }
 

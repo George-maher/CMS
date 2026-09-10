@@ -24,6 +24,9 @@ import {
   QrCode,
   MessageCircle,
   User as UserIcon,
+  Sparkles,
+  Church,
+  TrendingUp,
 } from 'lucide-react'
 import Badge from '@/components/common/Badge'
 import CopyButton from '@/components/common/CopyButton'
@@ -32,9 +35,8 @@ import LoadingSpinner from '@/components/common/LoadingSpinner'
 import Modal from '@/components/common/Modal'
 import StatCard from '@/components/common/StatCard'
 import { useTheme } from '@/hooks/useTheme'
-import type { User } from '@/types'
-import { getUser, updateUser, deleteUser, promoteToAdmin, demoteFromAdmin } from '@/api/users'
-import { getAttendanceStats } from '@/api/attendance'
+import type { User, MemberProfile, MemberProfileAttendance, MemberProfileSpiritual } from '@/types'
+import { updateUser, deleteUser, promoteToAdmin, demoteFromAdmin, getMemberProfile } from '@/api/users'
 import { getUserBalance, addBonusPoints } from '@/api/points'
 import { roleBadgeVariant, roleTranslationKey } from '@/lib/roles'
 import { logCatch } from '@/lib/debug'
@@ -73,13 +75,76 @@ function SectionCard({ title, icon, children }: { title: string; icon: React.Rea
   )
 }
 
+function AttendanceSummaryCard({ attendance, t }: { attendance: MemberProfileAttendance; t: (key: string) => string }) {
+  return (
+    <SectionCard title={t('memberProfile.attendanceSummary')} icon={<TrendingUp className="h-4 w-4" />}>
+      <div className="grid grid-cols-2 gap-3 py-2">
+        <div className="rounded-xl bg-info-50 dark:bg-info-900/20 p-3 text-center">
+          <p className="text-2xl font-bold text-info-600 dark:text-info-400">{attendance.total_attended}</p>
+          <p className="text-xs font-medium text-info-700 dark:text-info-300 mt-0.5">{t('memberProfile.attended')}</p>
+        </div>
+        <div className="rounded-xl bg-danger-50 dark:bg-danger-900/20 p-3 text-center">
+          <p className="text-2xl font-bold text-danger-600 dark:text-danger-400">{attendance.absences}</p>
+          <p className="text-xs font-medium text-danger-700 dark:text-danger-300 mt-0.5">{t('memberProfile.absences')}</p>
+        </div>
+        <div className="rounded-xl bg-success-50 dark:bg-success-900/20 p-3 text-center">
+          <p className="text-2xl font-bold text-success-600 dark:text-success-400">{attendance.percentage}%</p>
+          <p className="text-xs font-medium text-success-700 dark:text-success-300 mt-0.5">{t('memberProfile.attendancePercentage')}</p>
+        </div>
+        <div className="rounded-xl bg-gold-50 dark:bg-gold-900/20 p-3 text-center">
+          <p className="text-2xl font-bold text-gold-600 dark:text-gold-400">{attendance.this_month}</p>
+          <p className="text-xs font-medium text-gold-700 dark:text-gold-300 mt-0.5">{t('memberProfile.thisMonth')}</p>
+        </div>
+      </div>
+      <p className="text-xs text-muted text-center mt-1">
+        {t('memberProfile.totalSessions')}: {attendance.total_sessions} | {t('memberProfile.thisMonthSessions')}: {attendance.this_month_total}
+      </p>
+    </SectionCard>
+  )
+}
+
+function SpiritualSummaryCard({ spiritual, t }: { spiritual: MemberProfileSpiritual; t: (key: string) => string }) {
+  return (
+    <SectionCard title={t('memberProfile.spiritualSummary')} icon={<Sparkles className="h-4 w-4" />}>
+      <div className="grid grid-cols-3 gap-3 py-2">
+        <div className="rounded-xl bg-success-50 dark:bg-success-900/20 p-3 text-center">
+          <div className="flex justify-center mb-1">
+            <Church className="h-5 w-5 text-success-600 dark:text-success-400" />
+          </div>
+          <p className="text-2xl font-bold text-success-600 dark:text-success-400">{spiritual.mass_count}</p>
+          <p className="text-xs font-medium text-success-700 dark:text-success-300 mt-0.5">{t('spiritualLog.mass')}</p>
+        </div>
+        <div className="rounded-xl bg-info-50 dark:bg-info-900/20 p-3 text-center">
+          <div className="flex justify-center mb-1">
+            <BookOpen className="h-5 w-5 text-info-600 dark:text-info-400" />
+          </div>
+          <p className="text-2xl font-bold text-info-600 dark:text-info-400">{spiritual.confession_count}</p>
+          <p className="text-xs font-medium text-info-700 dark:text-info-300 mt-0.5">{t('spiritualLog.confession')}</p>
+        </div>
+        <div className="rounded-xl bg-gold-50 dark:bg-gold-900/20 p-3 text-center">
+          <div className="flex justify-center mb-1">
+            <Sparkles className="h-5 w-5 text-gold-500" />
+          </div>
+          <p className="text-2xl font-bold text-gold-600 dark:text-gold-400">{spiritual.communion_count}</p>
+          <p className="text-xs font-medium text-gold-700 dark:text-gold-300 mt-0.5">{t('spiritualLog.communion')}</p>
+        </div>
+      </div>
+      <div className="flex items-center justify-between text-xs text-muted mt-2 px-1">
+        <span>{t('memberProfile.thisMonthMass')}: {spiritual.this_month_mass}</span>
+        <span>{t('memberProfile.thisMonthConfession')}: {spiritual.this_month_confession}</span>
+        <span>{t('memberProfile.thisMonthCommunion')}: {spiritual.this_month_communion}</span>
+      </div>
+    </SectionCard>
+  )
+}
+
 export default function AdminUserDetail() {
   const { t } = useTranslation()
   const { dir } = useTheme()
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const [user, setUser] = useState<User | null>(null)
-  const [stats, setStats] = useState({ total_attendances: 0, this_month: 0 })
+  const [profile, setProfile] = useState<MemberProfile | null>(null)
   const [balance, setBalance] = useState(0)
   const [loading, setLoading] = useState(true)
   const [showDemote, setShowDemote] = useState(false)
@@ -96,17 +161,16 @@ export default function AdminUserDetail() {
     if (!id) return
     const userId = Number(id)
     Promise.all([
-      getUser(userId).catch((e) => { logCatch('UserDetail.getUser', e); return null }),
-      getAttendanceStats(userId).catch((e) => { logCatch('UserDetail.getAttendanceStats', e); return ({ total_attendances: 0, this_month: 0 }) }),
+      getMemberProfile(userId).catch((e) => { logCatch('UserDetail.getMemberProfile', e); return null }),
       getUserBalance(userId).catch((e) => { logCatch('UserDetail.getUserBalance', e); return 0 }),
-    ]).then(([u, s, b]) => {
-      if (u) {
-        setUser(u)
-        if (u.attendance_qr_token) {
-          QRCodeLib.toDataURL(u.attendance_qr_token, { width: 300, margin: 2 }).then(setQrDataUrl).catch((e) => logCatch('UserDetail.qrCode', e))
+    ]).then(([mp, b]) => {
+      if (mp) {
+        setUser(mp.member)
+        setProfile(mp)
+        if (mp.member.attendance_qr_token) {
+          QRCodeLib.toDataURL(mp.member.attendance_qr_token, { width: 300, margin: 2 }).then(setQrDataUrl).catch((e) => logCatch('UserDetail.qrCode', e))
         }
       }
-      if (s) setStats(s)
       if (b !== undefined) setBalance(b)
     }).finally(() => setLoading(false))
   }, [id])
@@ -250,8 +314,8 @@ export default function AdminUserDetail() {
 
       {/* Stats row */}
       <div className="grid gap-4 sm:grid-cols-3">
-        <StatCard title={t('attendance.attendanceHistory')} value={stats.total_attendances} color="info" />
-        <StatCard title={t('common.thisMonth')} value={stats.this_month} color="gold" />
+        <StatCard title={t('attendance.attendanceHistory')} value={profile?.attendance.total_attended ?? 0} color="info" />
+        <StatCard title={t('common.thisMonth')} value={profile?.attendance.this_month ?? 0} color="gold" />
         <StatCard title={t('dashboard.myPoints')} value={balance} color="primary" />
       </div>
 
@@ -264,7 +328,7 @@ export default function AdminUserDetail() {
         )}
       </div>
 
-      {/* QR Code card — only shown if user has an attendance QR token */}
+      {/* QR Code card */}
       {qrDataUrl && (
         <div className="card overflow-hidden">
           <div className="border-b border-border bg-surface-secondary/50 px-5 py-3.5">
@@ -281,7 +345,15 @@ export default function AdminUserDetail() {
         </div>
       )}
 
-      {/* Details grid: 2 columns on desktop, 1 on mobile */}
+      {/* Attendance + Spiritual Summary */}
+      {user.role === 'member' && profile && (
+        <div className="grid gap-6 md:grid-cols-2">
+          <AttendanceSummaryCard attendance={profile.attendance} t={t} />
+          <SpiritualSummaryCard spiritual={profile.spiritual} t={t} />
+        </div>
+      )}
+
+      {/* Details grid */}
       <div className="grid gap-6 md:grid-cols-2">
         {/* Personal Information */}
         <SectionCard title={t('auth.name')} icon={<UserCheck className="h-4 w-4" />}>

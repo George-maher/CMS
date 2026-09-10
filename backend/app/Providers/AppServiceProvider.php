@@ -27,6 +27,7 @@ use App\Contracts\FeedbackRepositoryInterface;
 use App\Contracts\FeedbackServiceInterface;
 use App\Contracts\FileUploadServiceInterface;
 use App\Contracts\LeaderboardServiceInterface;
+use App\Contracts\MemberProfileServiceInterface;
 use App\Contracts\MembershipRequestRepositoryInterface;
 use App\Contracts\MembershipRequestServiceInterface;
 use App\Contracts\NotificationServiceInterface;
@@ -108,6 +109,7 @@ use App\Services\FeedbackService;
 use App\Services\FileUploadService;
 use App\Services\LeaderboardService;
 use App\Services\LocalStorageService;
+use App\Services\MemberProfileService;
 use App\Services\MembershipRequestService;
 use App\Services\NotificationService;
 use App\Services\PasswordResetRequestService;
@@ -175,6 +177,8 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(PasswordResetRequestServiceInterface::class, PasswordResetRequestService::class);
 
         $this->app->bind(ProfileUpdateRequestServiceInterface::class, ProfileUpdateRequestService::class);
+
+        $this->app->bind(MemberProfileServiceInterface::class, MemberProfileService::class);
 
         $this->app->singleton(CacheService::class, fn () => new CacheService);
 

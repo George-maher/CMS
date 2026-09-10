@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { CheckCircle, XCircle, Clock, FileText, AlertCircle } from 'lucide-react'
+import { CheckCircle, XCircle, Clock, FileText, AlertCircle, UserCheck, ChevronRight, Eye } from 'lucide-react'
 import Badge from '@/components/common/Badge'
 import LoadingSpinner from '@/components/common/LoadingSpinner'
 import Modal from '@/components/common/Modal'
@@ -12,6 +12,13 @@ import {
 } from '@/api/profileUpdateRequests'
 import { logCatch } from '@/lib/debug'
 import toast from 'react-hot-toast'
+
+const statusTabs = [
+  { value: '', labelKey: 'common.all' },
+  { value: 'pending', labelKey: 'common.pending' },
+  { value: 'approved', labelKey: 'common.approved' },
+  { value: 'rejected', labelKey: 'common.rejected' },
+] as const
 
 export default function ProfileUpdateRequests() {
   const { t } = useTranslation()
@@ -50,10 +57,15 @@ export default function ProfileUpdateRequests() {
   }
 
   useEffect(() => {
-    Promise.resolve().then(() => setPage(1))
     const params: Record<string, string | number> = { page: 1, per_page: 15 }
     if (statusFilter) params.status = statusFilter
-    listProfileUpdateRequests(params).then(res => { setRequests(res.data); setMeta(res.meta) }).catch(() => setRequests([])).finally(() => setLoading(false))
+    listProfileUpdateRequests(params)
+      .then((res) => {
+        setRequests(res.data)
+        setMeta(res.meta)
+      })
+      .catch(() => setRequests([]))
+      .finally(() => setLoading(false))
   }, [statusFilter])
 
   const handlePageChange = (newPage: number) => {
@@ -103,10 +115,29 @@ export default function ProfileUpdateRequests() {
 
   const statusBadge = (status: string) => {
     switch (status) {
-      case 'pending': return <Badge variant="warning"><Clock className="h-3 w-3 me-1 inline" />{t('common.pending')}</Badge>
-      case 'approved': return <Badge variant="success"><CheckCircle className="h-3 w-3 me-1 inline" />{t('common.approved')}</Badge>
-      case 'rejected': return <Badge variant="danger"><XCircle className="h-3 w-3 me-1 inline" />{t('common.rejected')}</Badge>
-      default: return <Badge>{status}</Badge>
+      case 'pending':
+        return (
+          <Badge variant="warning">
+            <Clock className="h-3 w-3 me-1 inline" />
+            {t('common.pending')}
+          </Badge>
+        )
+      case 'approved':
+        return (
+          <Badge variant="success">
+            <CheckCircle className="h-3 w-3 me-1 inline" />
+            {t('common.approved')}
+          </Badge>
+        )
+      case 'rejected':
+        return (
+          <Badge variant="danger">
+            <XCircle className="h-3 w-3 me-1 inline" />
+            {t('common.rejected')}
+          </Badge>
+        )
+      default:
+        return <Badge>{status}</Badge>
     }
   }
 
@@ -120,35 +151,62 @@ export default function ProfileUpdateRequests() {
     return map[field] || field
   }
 
+  const pendingCount = requests.filter((r) => r.status === 'pending').length
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">{t('profileUpdateRequests.title')}</h1>
-          <p className="text-sm text-muted">{t('profileUpdateRequests.description')}</p>
+      {/* Header */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl gold-gradient shadow-md">
+            <UserCheck className="h-5 w-5 text-navy-900" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold sm:text-2xl">{t('profileUpdateRequests.title')}</h1>
+            <p className="text-sm text-muted">{t('profileUpdateRequests.description')}</p>
+          </div>
         </div>
+        {pendingCount > 0 && (
+          <div className="flex items-center gap-2 rounded-lg bg-warning-50 dark:bg-warning-900/20 border border-warning-200 dark:border-warning-800 px-3 py-2">
+            <AlertCircle className="h-4 w-4 text-warning-600 dark:text-warning-400" />
+            <span className="text-sm font-medium text-warning-700 dark:text-warning-300">
+              {pendingCount} {pendingCount === 1 ? 'request' : 'requests'} pending
+            </span>
+          </div>
+        )}
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-2">
-        {['', 'pending', 'approved', 'rejected'].map((s) => (
+      {/* Status Filter Tabs */}
+      <div className="flex flex-wrap gap-2">
+        {statusTabs.map(({ value, labelKey }) => (
           <button
-            key={s}
-            onClick={() => setStatusFilter(s)}
-            className={`btn-sm ${statusFilter === s ? 'btn-primary' : 'btn-ghost border'}`}
+            key={value}
+            onClick={() => setStatusFilter(value)}
+            className={`rounded-lg px-4 py-2 text-sm font-medium transition-all ${
+              statusFilter === value
+                ? 'bg-primary text-white shadow-md shadow-primary/25'
+                : 'bg-surface border border-border text-muted hover:bg-surface-hover hover:text-secondary'
+            }`}
           >
-            {s ? t(`common.${s}`) : t('common.all')}
+            {t(labelKey)}
           </button>
         ))}
       </div>
 
-      {/* Table / Cards */}
+      {/* Content */}
       {loading ? (
-        <LoadingSpinner />
+        <LoadingSpinner className="py-16" />
       ) : requests.length === 0 ? (
         <div className="card p-12 text-center">
-          <FileText className="h-12 w-12 text-muted mx-auto mb-3" />
-          <p className="text-muted">{t('common.noData')}</p>
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-surface-secondary mb-4">
+            <FileText className="h-8 w-8 text-muted" />
+          </div>
+          <p className="text-lg font-medium text-secondary">{t('common.noData')}</p>
+          <p className="mt-1 text-sm text-muted">
+            {statusFilter
+              ? `No ${statusFilter} requests found.`
+              : 'No profile update requests yet.'}
+          </p>
         </div>
       ) : (
         <>
@@ -162,28 +220,41 @@ export default function ProfileUpdateRequests() {
                     <th>{t('profileUpdateRequests.class')}</th>
                     <th>{t('common.status')}</th>
                     <th>{t('profileUpdateRequests.submittedAt')}</th>
-                    <th>{t('common.actions')}</th>
+                    <th className="text-end">{t('common.actions')}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {requests.map((req) => (
-                    <tr key={req.id}>
+                    <tr key={req.id} className="group hover:bg-surface-hover/50 transition-colors">
                       <td>
-                        <div className="flex items-center gap-2">
-                          <div className="h-8 w-8 rounded-full gold-gradient flex items-center justify-center text-sm font-bold text-navy-900">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full gold-gradient text-sm font-bold text-navy-900 ring-2 ring-gold-400/20">
                             {req.user?.name?.charAt(0).toUpperCase()}
                           </div>
-                          <div>
-                            <p className="font-medium text-sm">{req.user?.name}</p>
-                            <p className="text-xs text-muted">{req.user?.email}</p>
+                          <div className="min-w-0">
+                            <p className="font-medium text-sm truncate">{req.user?.name}</p>
+                            <p className="text-xs text-muted truncate">{req.user?.email}</p>
                           </div>
                         </div>
                       </td>
-                      <td className="text-sm">{req.user?.classe?.name || '-'}</td>
-                      <td>{statusBadge(req.status)}</td>
-                      <td className="text-sm text-muted">{new Date(req.created_at).toLocaleDateString()}</td>
                       <td>
-                        <button onClick={() => openDetail(req)} className="btn-ghost btn-sm text-primary-600">
+                        <span className="inline-flex items-center gap-1 text-sm">
+                          {req.user?.classe?.name || '-'}
+                          {req.user?.classe?.stage && (
+                            <span className="text-xs text-muted">({req.user.classe.stage.name})</span>
+                          )}
+                        </span>
+                      </td>
+                      <td>{statusBadge(req.status)}</td>
+                      <td className="text-sm text-muted">
+                        {new Date(req.created_at).toLocaleDateString()}
+                      </td>
+                      <td className="text-end">
+                        <button
+                          onClick={() => openDetail(req)}
+                          className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors"
+                        >
+                          <Eye className="h-3.5 w-3.5" />
                           {t('common.view')}
                         </button>
                       </td>
@@ -197,22 +268,31 @@ export default function ProfileUpdateRequests() {
           {/* Mobile Cards */}
           <div className="sm:hidden space-y-3">
             {requests.map((req) => (
-              <div
+              <button
                 key={req.id}
                 onClick={() => openDetail(req)}
-                className="card p-4 cursor-pointer hover:bg-surface-hover transition-colors"
+                className="w-full card p-4 text-left hover:bg-surface-hover transition-all active:scale-[0.98]"
               >
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <div className="h-8 w-8 rounded-full gold-gradient flex items-center justify-center text-sm font-bold text-navy-900">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full gold-gradient text-sm font-bold text-navy-900 ring-2 ring-gold-400/20">
                       {req.user?.name?.charAt(0).toUpperCase()}
                     </div>
-                    <span className="font-medium text-sm">{req.user?.name}</span>
+                    <div className="min-w-0">
+                      <p className="font-semibold text-sm truncate">{req.user?.name}</p>
+                      <p className="text-xs text-muted truncate">{req.user?.email}</p>
+                    </div>
                   </div>
                   {statusBadge(req.status)}
                 </div>
-                <p className="text-xs text-muted">{req.user?.classe?.name} · {new Date(req.created_at).toLocaleDateString()}</p>
-              </div>
+                <div className="flex items-center justify-between text-xs text-muted">
+                  <span>{req.user?.classe?.name || '-'}</span>
+                  <span className="flex items-center gap-1">
+                    {new Date(req.created_at).toLocaleDateString()}
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  </span>
+                </div>
+              </button>
             ))}
           </div>
 
@@ -222,15 +302,17 @@ export default function ProfileUpdateRequests() {
               <button
                 onClick={() => handlePageChange(page - 1)}
                 disabled={page <= 1}
-                className="btn-ghost btn-sm"
+                className="btn-ghost btn-sm rounded-lg border"
               >
                 {t('common.prev')}
               </button>
-              <span className="text-sm text-muted">{t('common.page')} {page} {t('common.of')} {meta.last_page}</span>
+              <span className="px-4 text-sm font-medium text-muted">
+                {t('common.page')} {page} / {meta.last_page}
+              </span>
               <button
                 onClick={() => handlePageChange(page + 1)}
                 disabled={page >= meta.last_page}
-                className="btn-ghost btn-sm"
+                className="btn-ghost btn-sm rounded-lg border"
               >
                 {t('common.next')}
               </button>
@@ -240,66 +322,114 @@ export default function ProfileUpdateRequests() {
       )}
 
       {/* Detail Modal */}
-      <Modal isOpen={detailOpen} onClose={() => setDetailOpen(false)} title={t('profileUpdateRequests.requestDetail')}>
+      <Modal
+        isOpen={detailOpen}
+        onClose={() => setDetailOpen(false)}
+        title={t('profileUpdateRequests.requestDetail')}
+      >
         {detail && (
-          <div className="space-y-4">
-            {/* Member info */}
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-full gold-gradient flex items-center justify-center text-sm font-bold text-navy-900">
+          <div className="space-y-5">
+            {/* Member Info Header */}
+            <div className="flex items-center gap-3 rounded-xl bg-surface-secondary/50 p-4">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full gold-gradient text-lg font-bold text-navy-900 ring-2 ring-gold-400/20">
                 {detail.user?.name?.charAt(0).toUpperCase()}
               </div>
-              <div>
-                <p className="font-semibold">{detail.user?.name}</p>
-                <p className="text-sm text-muted">{detail.user?.classe?.name} {detail.user?.classe?.stage ? `· ${detail.user.classe.stage.name}` : ''}</p>
+              <div className="min-w-0 flex-1">
+                <p className="font-semibold truncate">{detail.user?.name}</p>
+                <p className="text-sm text-muted truncate">{detail.user?.email}</p>
+                <p className="text-xs text-muted mt-0.5">
+                  {detail.user?.classe?.name}
+                  {detail.user?.classe?.stage ? ` - ${detail.user.classe.stage.name}` : ''}
+                </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            {/* Status & Date */}
+            <div className="flex items-center gap-3">
               {statusBadge(detail.status)}
-              <span className="text-sm text-muted">{new Date(detail.created_at).toLocaleString()}</span>
+              <span className="text-sm text-muted">
+                {new Date(detail.created_at).toLocaleString()}
+              </span>
             </div>
 
             {/* Changes */}
             <div className="space-y-3">
-              <h3 className="text-sm font-semibold">{t('profileUpdateRequests.requestedChanges')}</h3>
+              <h3 className="text-sm font-semibold text-secondary">
+                {t('profileUpdateRequests.requestedChanges')}
+              </h3>
               {Object.entries(detail.changes || {}).map(([field, change]) => (
-                <div key={field} className="p-3 rounded-lg bg-surface border border-border">
-                  <p className="text-sm font-medium mb-1">{fieldLabel(field)}</p>
-                  <div className="grid grid-cols-2 gap-2 text-sm">
-                    <div>
-                      <span className="text-muted">{t('profileUpdateRequests.current')}: </span>
-                      <span className="line-through text-muted">{change.old || '-'}</span>
+                <div
+                  key={field}
+                  className="rounded-xl border border-border bg-surface p-4 space-y-2"
+                >
+                  <p className="text-xs font-semibold text-muted uppercase tracking-wide">
+                    {fieldLabel(field)}
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+                    <div className="rounded-lg bg-surface-secondary/50 p-2.5">
+                      <p className="text-xs text-muted mb-0.5">
+                        {t('profileUpdateRequests.current')}
+                      </p>
+                      <p className="line-through text-muted break-words">
+                        {change.old || '-'}
+                      </p>
                     </div>
-                    <div>
-                      <span className="text-muted">{t('profileUpdateRequests.new')}: </span>
-                      <span className="font-medium text-success-600">{change.new || '-'}</span>
+                    <div className="rounded-lg bg-success-50 dark:bg-success-900/20 p-2.5">
+                      <p className="text-xs text-success-600 dark:text-success-400 mb-0.5">
+                        {t('profileUpdateRequests.new')}
+                      </p>
+                      <p className="font-medium text-success-700 dark:text-success-300 break-words">
+                        {change.new || '-'}
+                      </p>
                     </div>
                   </div>
                 </div>
               ))}
             </div>
 
+            {/* Rejection Reason */}
             {detail.rejection_reason && (
-              <div className="p-3 rounded-lg bg-danger-50 dark:bg-danger-900/20 border border-danger-200 dark:border-danger-800">
-                <p className="text-sm font-medium text-danger-700 dark:text-danger-300">{t('profileUpdateRequests.rejectionReason')}:</p>
-                <p className="text-sm text-danger-600 dark:text-danger-400 mt-1">{detail.rejection_reason}</p>
+              <div className="rounded-xl bg-danger-50 dark:bg-danger-900/20 border border-danger-200 dark:border-danger-800 p-4">
+                <p className="text-sm font-semibold text-danger-700 dark:text-danger-300 mb-1">
+                  {t('profileUpdateRequests.rejectionReason')}
+                </p>
+                <p className="text-sm text-danger-600 dark:text-danger-400">
+                  {detail.rejection_reason}
+                </p>
               </div>
+            )}
+
+            {/* Reviewer */}
+            {detail.reviewer && (
+              <p className="text-xs text-muted">
+                Reviewed by <span className="font-medium">{detail.reviewer.name}</span>
+              </p>
             )}
 
             {/* Actions */}
             {detail.status === 'pending' && (
-              <div className="flex gap-2 pt-2">
+              <div className="flex gap-3 pt-2">
                 <button
-                  onClick={() => { setApproveOpen(true); setApproveId(detail.id); setDetailOpen(false) }}
-                  className="flex-1 btn-primary bg-success hover:bg-success/90"
+                  onClick={() => {
+                    setApproveOpen(true)
+                    setApproveId(detail.id)
+                    setDetailOpen(false)
+                  }}
+                  className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-success px-4 py-2.5 text-sm font-semibold text-white hover:bg-success/90 transition-colors shadow-md shadow-success/25"
                 >
-                  <CheckCircle className="h-4 w-4 me-2" />{t('common.approve')}
+                  <CheckCircle className="h-4 w-4" />
+                  {t('common.approve')}
                 </button>
                 <button
-                  onClick={() => { setRejectOpen(true); setRejectId(detail.id); setDetailOpen(false) }}
-                  className="flex-1 btn-primary bg-danger hover:bg-danger/90"
+                  onClick={() => {
+                    setRejectOpen(true)
+                    setRejectId(detail.id)
+                    setDetailOpen(false)
+                  }}
+                  className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-danger px-4 py-2.5 text-sm font-semibold text-white hover:bg-danger/90 transition-colors shadow-md shadow-danger/25"
                 >
-                  <XCircle className="h-4 w-4 me-2" />{t('common.reject')}
+                  <XCircle className="h-4 w-4" />
+                  {t('common.reject')}
                 </button>
               </div>
             )}
@@ -308,15 +438,36 @@ export default function ProfileUpdateRequests() {
       </Modal>
 
       {/* Approve Confirmation Modal */}
-      <Modal isOpen={approveOpen} onClose={() => { setApproveOpen(false); setApproveId(null) }} title={t('profileUpdateRequests.confirmApprove')}>
+      <Modal
+        isOpen={approveOpen}
+        onClose={() => {
+          setApproveOpen(false)
+          setApproveId(null)
+        }}
+        title={t('profileUpdateRequests.confirmApprove')}
+      >
         <div className="space-y-4">
-          <div className="flex items-center gap-2 p-3 rounded-lg bg-success-50 dark:bg-success-900/20 border border-success-200 dark:border-success-800">
-            <AlertCircle className="h-5 w-5 text-success-600 dark:text-success-400" />
-            <p className="text-sm text-success-700 dark:text-success-300">{t('profileUpdateRequests.approveWarning')}</p>
+          <div className="flex items-start gap-3 rounded-xl bg-success-50 dark:bg-success-900/20 border border-success-200 dark:border-success-800 p-4">
+            <AlertCircle className="h-5 w-5 text-success-600 dark:text-success-400 shrink-0 mt-0.5" />
+            <p className="text-sm text-success-700 dark:text-success-300">
+              {t('profileUpdateRequests.approveWarning')}
+            </p>
           </div>
-          <div className="flex gap-2">
-            <button onClick={() => { setApproveOpen(false); setApproveId(null) }} className="flex-1 btn-ghost border">{t('common.cancel')}</button>
-            <button onClick={handleApprove} disabled={approving} className="flex-1 btn-primary bg-success hover:bg-success/90">
+          <div className="flex gap-3">
+            <button
+              onClick={() => {
+                setApproveOpen(false)
+                setApproveId(null)
+              }}
+              className="flex-1 btn-ghost border rounded-xl"
+            >
+              {t('common.cancel')}
+            </button>
+            <button
+              onClick={handleApprove}
+              disabled={approving}
+              className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-success px-4 py-2.5 text-sm font-semibold text-white hover:bg-success/90 transition-colors disabled:opacity-50"
+            >
               {approving ? t('common.loading') : t('common.confirm')}
             </button>
           </div>
@@ -324,21 +475,42 @@ export default function ProfileUpdateRequests() {
       </Modal>
 
       {/* Reject Modal */}
-      <Modal isOpen={rejectOpen} onClose={() => { setRejectOpen(false); setRejectId(null); setRejectReason('') }} title={t('profileUpdateRequests.confirmReject')}>
+      <Modal
+        isOpen={rejectOpen}
+        onClose={() => {
+          setRejectOpen(false)
+          setRejectId(null)
+          setRejectReason('')
+        }}
+        title={t('profileUpdateRequests.confirmReject')}
+      >
         <div className="space-y-4">
           <div>
             <label className="label">{t('profileUpdateRequests.rejectionReason')} *</label>
             <textarea
               value={rejectReason}
               onChange={(e) => setRejectReason(e.target.value)}
-              className="input min-h-[100px]"
+              className="input min-h-[100px] rounded-xl"
               placeholder={t('profileUpdateRequests.rejectionReasonPlaceholder')}
               rows={4}
             />
           </div>
-          <div className="flex gap-2">
-            <button onClick={() => { setRejectOpen(false); setRejectId(null); setRejectReason('') }} className="flex-1 btn-ghost border">{t('common.cancel')}</button>
-            <button onClick={handleReject} disabled={rejecting || !rejectReason.trim()} className="flex-1 btn-primary bg-danger hover:bg-danger/90">
+          <div className="flex gap-3">
+            <button
+              onClick={() => {
+                setRejectOpen(false)
+                setRejectId(null)
+                setRejectReason('')
+              }}
+              className="flex-1 btn-ghost border rounded-xl"
+            >
+              {t('common.cancel')}
+            </button>
+            <button
+              onClick={handleReject}
+              disabled={rejecting || !rejectReason.trim()}
+              className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-danger px-4 py-2.5 text-sm font-semibold text-white hover:bg-danger/90 transition-colors disabled:opacity-50"
+            >
               {rejecting ? t('common.loading') : t('common.reject')}
             </button>
           </div>

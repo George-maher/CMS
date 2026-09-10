@@ -21,6 +21,7 @@ use App\Http\Controllers\Api\EventReservationController;
 use App\Http\Controllers\Api\EventScheduleController;
 use App\Http\Controllers\Api\FeedbackController;
 use App\Http\Controllers\Api\LeaderboardController;
+use App\Http\Controllers\Api\MemberProfileController;
 use App\Http\Controllers\Api\MembershipRequestController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\PasswordResetRequestController;
@@ -192,6 +193,12 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'approval', 'throttle:api'])->g
         ->middleware('throttle:attendance-read');
     Route::get('/attendances/stats/{userId?}', [AttendanceController::class, 'stats'])
         ->middleware('throttle:attendance-read');
+
+    /*
+    | Member Profile — attendance + spiritual summary (admin/servant/member)
+    */
+    Route::get('/member-profile/{id}', [MemberProfileController::class, 'getProfile'])
+        ->middleware('throttle:api');
 
     /*
         | Stages + Classes — read

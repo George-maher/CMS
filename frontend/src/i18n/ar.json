@@ -1385,5 +1385,27 @@
         "noRecordsYet": "لا توجد سجلات روحية بعد.",
         "selectDateHint": "اضغط على تاريخ أعلاه لتسجيل أنشطتك.",
         "recentRecords": "السجلات الأخيرة"
+    },
+    "memberProfile": {
+        "title": "ملف العضو",
+        "attendanceSummary": "ملخص الحضور",
+        "attended": "الحضور",
+        "absences": "الغياب",
+        "totalSessions": "إجمالي الجلسات",
+        "attendancePercentage": "نسبة الحضور",
+        "thisMonth": "هذا الشهر",
+        "thisMonthSessions": "جلسات هذا الشهر",
+        "spiritualSummary": "الأنشطة الروحية",
+        "massCount": "حضور القداس",
+        "confessionCount": "الاعترافات",
+        "communionCount": "التناول",
+        "thisMonthMass": "القداس هذا الشهر",
+        "thisMonthConfession": "الاعترافات هذا الشهر",
+        "thisMonthCommunion": "التناول هذا الشهر",
+        "totalRecords": "إجمالي السجلات",
+        "viewAttendanceHistory": "عرض سجل الحضور",
+        "viewSpiritualLog": "عرض السجل الروحي",
+        "noAttendanceData": "لا توجد سجلات حضور.",
+        "noSpiritualData": "لا توجد سجلات روحية."
     }
 }

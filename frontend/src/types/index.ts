@@ -739,3 +739,28 @@ export interface DailySpiritualRecord {
   created_at: string
   updated_at: string
 }
+
+export interface MemberProfileAttendance {
+  total_attended: number
+  total_sessions: number
+  absences: number
+  percentage: number
+  this_month: number
+  this_month_total: number
+}
+
+export interface MemberProfileSpiritual {
+  total_records: number
+  mass_count: number
+  confession_count: number
+  communion_count: number
+  this_month_mass: number
+  this_month_confession: number
+  this_month_communion: number
+}
+
+export interface MemberProfile {
+  member: User
+  attendance: MemberProfileAttendance
+  spiritual: MemberProfileSpiritual
+}

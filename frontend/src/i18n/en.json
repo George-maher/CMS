@@ -1361,5 +1361,27 @@
         "noRecordsYet": "No spiritual records yet.",
         "selectDateHint": "Tap a date above to log your activities.",
         "recentRecords": "Recent Records"
+    },
+    "memberProfile": {
+        "title": "Member Profile",
+        "attendanceSummary": "Attendance Summary",
+        "attended": "Attended",
+        "absences": "Absences",
+        "totalSessions": "Total Sessions",
+        "attendancePercentage": "Attendance Rate",
+        "thisMonth": "This Month",
+        "thisMonthSessions": "This Month Sessions",
+        "spiritualSummary": "Spiritual Activities",
+        "massCount": "Mass Attendance",
+        "confessionCount": "Confessions",
+        "communionCount": "Communions",
+        "thisMonthMass": "Mass This Month",
+        "thisMonthConfession": "Confessions This Month",
+        "thisMonthCommunion": "Communions This Month",
+        "totalRecords": "Total Records",
+        "viewAttendanceHistory": "View Attendance History",
+        "viewSpiritualLog": "View Spiritual Log",
+        "noAttendanceData": "No attendance records found.",
+        "noSpiritualData": "No spiritual records found."
     }
 }
