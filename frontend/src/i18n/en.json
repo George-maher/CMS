@@ -104,7 +104,9 @@
         "refresh": "Refresh",
         "pending": "Pending",
         "approved": "Approved",
-        "rejected": "Rejected"
+        "rejected": "Rejected",
+        "approve": "Approve",
+        "reject": "Reject"
     },
     "auth": {
         "signIn": "Sign In",
@@ -1348,7 +1350,10 @@
         "approved": "Profile update approved.",
         "approveFailed": "Failed to approve profile update.",
         "rejected": "Profile update rejected.",
-        "rejectFailed": "Failed to reject profile update."
+        "rejectFailed": "Failed to reject profile update.",
+        "noRequests": "No requests found.",
+        "noRequestsYet": "No profile update requests yet.",
+        "reviewedBy": "Reviewed by"
     },
     "spiritualLog": {
         "title": "Spiritual Activity Log",
