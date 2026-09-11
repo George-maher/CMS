@@ -2,6 +2,7 @@ import axios from 'axios'
 import { logAxiosError } from '@/lib/debug'
 import { addToSyncQueue } from '@/lib/db'
 import { getCached, setCache, isStale, getInflight, setInflight, invalidateCache } from '@/lib/requestCache'
+import { recordApiTiming } from '@/lib/perf'
 
 /*
  * VITE_API_URL handling:
@@ -44,6 +45,11 @@ const OFFLINE_WRITABLE_PATTERNS = [
 ]
 
 client.interceptors.request.use(async (config) => {
+  // Record request start time for perf monitoring
+  if (config.method === 'get' && config.url && !config.url.includes('/auth/me')) {
+    ;(config as { metadata?: { startTime?: number } }).metadata = { startTime: Date.now() }
+  }
+
   if (!navigator.onLine && config.method && ['post', 'put', 'patch', 'delete'].includes(config.method) && config.url) {
     const isOfflineWritable = OFFLINE_WRITABLE_PATTERNS.some(p => p.test(config.url || ''))
     if (isOfflineWritable) {
@@ -111,6 +117,17 @@ client.interceptors.request.use(async (config) => {
 
 client.interceptors.response.use(
   (response) => {
+    // Record API timing
+    const startTime = (response.config as { metadata?: { startTime?: number } }).metadata?.startTime
+    if (startTime && response.config.url) {
+      recordApiTiming(
+        response.config.method?.toUpperCase() || 'GET',
+        response.config.url,
+        Date.now() - startTime,
+        response.status,
+      )
+    }
+
     if (response.config.method === 'get' && response.config.url) {
       const cacheKey = `${response.config.url}:${JSON.stringify(response.config.params || {})}`
       setCache(cacheKey, response.data)
@@ -138,6 +155,7 @@ client.interceptors.response.use(
       if (!onPublicPage) {
         localStorage.removeItem('auth_token')
         localStorage.removeItem('auth_user')
+        localStorage.removeItem('auth_validated_at')
         window.location.href = '/login'
       }
     }

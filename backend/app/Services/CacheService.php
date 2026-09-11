@@ -224,6 +224,42 @@ class CacheService
         }
     }
 
+    /**
+     * @template T
+     *
+     * @param  \Closure(): T  $callback
+     * @return T
+     */
+    public function rememberUserAuth(int $userId, \Closure $callback): mixed
+    {
+        $key = "user_auth:{$userId}";
+
+        return Cache::remember($key, self::DEFAULT_TTL, $callback);
+    }
+
+    public function invalidateUserAuth(int $userId): void
+    {
+        Cache::forget("user_auth:{$userId}");
+    }
+
+    /**
+     * @template T
+     *
+     * @param  \Closure(): T  $callback
+     * @return T
+     */
+    public function rememberUnreadCount(int $userId, \Closure $callback): mixed
+    {
+        $key = "notifications:unread:{$userId}";
+
+        return Cache::remember($key, 15, $callback);
+    }
+
+    public function invalidateUnreadCount(int $userId): void
+    {
+        Cache::forget("notifications:unread:{$userId}");
+    }
+
     public function flush(): void
     {
         Cache::flush();

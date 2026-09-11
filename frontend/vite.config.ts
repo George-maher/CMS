@@ -1,13 +1,57 @@
-import { defineConfig } from 'vite'
+import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 import path from 'node:path'
 
+/**
+ * Vite plugin that injects <link rel="modulepreload"> for critical initial
+ * chunks (vendor, i18n, ui) into index.html. This eliminates the waterfall
+ * where the browser must first parse the entry script before discovering
+ * these large dependency chunks.
+ */
+function modulePreloadPlugin(): Plugin {
+  return {
+    name: 'module-preload-inject',
+    apply: 'build',
+    transformIndexHtml(html, { bundle }) {
+      if (!bundle) return html
+
+      const manifest = bundle['index.html'] as { imports?: string[] } | undefined
+      if (!manifest?.imports) return html
+
+      const links: string[] = []
+      const seen = new Set<string>()
+
+      function collect(imports: string[]) {
+        for (const imp of imports) {
+          if (seen.has(imp)) continue
+          seen.add(imp)
+          const chunk = bundle[imp]
+          if (chunk?.type === 'chunk') {
+            links.push(`<link rel="modulepreload" as="script" crossorigin href="/${chunk.fileName}">`)
+            if (chunk.imports) collect(chunk.imports)
+          }
+        }
+      }
+
+      collect(manifest.imports)
+
+      if (links.length === 0) return html
+
+      return html.replace(
+        '<!-- Module preloads -->',
+        links.join('\n    '),
+      )
+    },
+  }
+}
+
 export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
+    modulePreloadPlugin(),
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'icons.svg', 'icons/*.png'],

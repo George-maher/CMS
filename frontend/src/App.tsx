@@ -1,5 +1,5 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
-import { Suspense, lazy, type ReactNode } from 'react'
+import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
+import { Suspense, lazy, useEffect, useRef, type ReactNode } from 'react'
 import { Toaster } from 'react-hot-toast'
 import { AuthProvider } from '@/contexts/AuthContext'
 import { ThemeProvider } from '@/contexts/ThemeContext'
@@ -7,6 +7,8 @@ import AppLayout from '@/components/layout/AppLayout'
 import OfflineBanner from '@/components/common/OfflineBanner'
 import { useOffline } from '@/contexts/OfflineContext'
 import { useSync } from '@/contexts/SyncContext'
+import { prefetchRoutesWhenIdle } from '@/lib/routePrefetch'
+import { recordRouteTransition } from '@/lib/perf'
 
 const FullPageSpinner = (
   <div className="flex min-h-screen items-center justify-center">
@@ -81,6 +83,53 @@ function PublicPage({ children }: { children: ReactNode }) {
   return <Suspense fallback={FullPageSpinner}>{children}</Suspense>
 }
 
+function RoutePrefetcher() {
+  useEffect(() => {
+    prefetchRoutesWhenIdle([
+      // High-frequency admin routes
+      { importFn: () => import('@/pages/admin/Dashboard'), key: 'admin-dashboard' },
+      { importFn: () => import('@/pages/admin/Users'), key: 'admin-users' },
+      { importFn: () => import('@/pages/admin/PasswordResetRequests'), key: 'admin-password-reset' },
+      { importFn: () => import('@/pages/servant/ProfileUpdateRequests'), key: 'admin-profile-update' },
+      { importFn: () => import('@/pages/admin/Events'), key: 'admin-events' },
+      { importFn: () => import('@/pages/servant/Attendance'), key: 'admin-attendance' },
+      // High-frequency servant routes
+      { importFn: () => import('@/pages/servant/Dashboard'), key: 'servant-dashboard' },
+      { importFn: () => import('@/pages/servant/Members'), key: 'servant-members' },
+      { importFn: () => import('@/pages/servant/Events'), key: 'servant-events' },
+      // High-frequency member routes
+      { importFn: () => import('@/pages/member/Dashboard'), key: 'member-dashboard' },
+      { importFn: () => import('@/pages/member/Attendance'), key: 'member-attendance' },
+      { importFn: () => import('@/pages/member/Events'), key: 'member-events' },
+    ], 150)
+  }, [])
+
+  return null
+}
+
+function RouteTimer() {
+  const location = useLocation()
+  const prevPath = useRef(location.pathname)
+  const navStart = useRef<number>(0)
+
+  useEffect(() => {
+    navStart.current = Date.now()
+  }, [])
+
+  useEffect(() => {
+    const from = prevPath.current
+    const to = location.pathname
+    if (from !== to) {
+      const duration = Date.now() - navStart.current
+      recordRouteTransition(from, to, duration)
+      prevPath.current = to
+    }
+    navStart.current = Date.now()
+  }, [location.pathname])
+
+  return null
+}
+
 export default function App() {
 
   return (
@@ -95,6 +144,8 @@ export default function App() {
         />
         <AuthProvider>
           <OfflineBannerWrapper />
+          <RoutePrefetcher />
+          <RouteTimer />
           <Routes>
               <Route path="/" element={<PublicPage><Landing /></PublicPage>} />
               <Route path="/join" element={<PublicPage><JoinNow /></PublicPage>} />

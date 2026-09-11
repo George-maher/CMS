@@ -3,7 +3,7 @@ import { Navigate, Outlet } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import Sidebar from './Sidebar'
 import Header from './Header'
-import LoadingSpinner from '@/components/common/LoadingSpinner'
+import { PageSkeleton } from '@/components/common/Skeleton'
 
 interface Props {
   allowedRoles: string[]
@@ -14,11 +14,7 @@ export default function AppLayout({ allowedRoles }: Props) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const closeSidebar = useCallback(() => setSidebarOpen(false), [])
 
-  if (isLoading) return (
-    <div className="flex h-screen items-center justify-center bg-surface-secondary">
-      <LoadingSpinner size="lg" />
-    </div>
-  )
+  if (isLoading) return <PageSkeleton />
 
   if (!isAuthenticated) return <Navigate to="/login" replace />
 

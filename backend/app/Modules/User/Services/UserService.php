@@ -10,6 +10,7 @@ use App\Contracts\UserServiceInterface;
 use App\Enums\UserRole;
 use App\Models\User;
 use App\Modules\User\Resources\UserResource;
+use App\Services\CacheService;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Hash;
@@ -20,6 +21,7 @@ class UserService implements UserServiceInterface
     public function __construct(
         private readonly UserRepositoryInterface $userRepository,
         private readonly AttendanceServiceInterface $attendanceService,
+        private readonly CacheService $cacheService,
     ) {}
 
     /** @param array<string, mixed> $filters */
@@ -112,6 +114,7 @@ class UserService implements UserServiceInterface
         /** @var array<string, mixed> $updateData */
         $updateData = $data;
         $this->userRepository->update($id, $updateData);
+        $this->cacheService->invalidateUserAuth($id);
 
         return [
             'message' => 'User updated successfully.',
@@ -128,7 +131,12 @@ class UserService implements UserServiceInterface
             return false;
         }
 
-        return $this->userRepository->delete($id);
+        $deleted = $this->userRepository->delete($id);
+        if ($deleted) {
+            $this->cacheService->invalidateUserAuth($id);
+        }
+
+        return $deleted;
     }
 
     /** @return array<string, mixed> */

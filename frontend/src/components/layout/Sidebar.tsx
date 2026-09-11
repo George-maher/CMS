@@ -3,6 +3,8 @@ import { NavLink, useLocation } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { useTheme } from '@/hooks/useTheme'
 import { useTranslation } from 'react-i18next'
+import { prefetchRoute } from '@/lib/routePrefetch'
+import { getRouteImport } from '@/lib/routeImports'
 import {
   LayoutDashboard, Users, Calendar, MessageSquare,
   ClipboardList, QrCode,
@@ -117,18 +119,22 @@ export default function Sidebar({ isOpen, onClose }: Props) {
 
         {/* Navigation */}
         <nav className="flex-1 min-h-0 space-y-0.5 overflow-y-auto p-3">
-          {navItems.map((item) => (
-            <NavLink
-              key={item.path}
-              to={item.path}
-              end={['/admin', '/servant', '/member', '/platform'].includes(item.path)}
-              onClick={onClose}
-              className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
-            >
-              {item.icon}
-              <span className="truncate">{t(item.labelKey)}</span>
-            </NavLink>
-          ))}
+          {navItems.map((item) => {
+            const importFn = getRouteImport(item.path)
+            return (
+              <NavLink
+                key={item.path}
+                to={item.path}
+                end={['/admin', '/servant', '/member', '/platform'].includes(item.path)}
+                onClick={onClose}
+                onMouseEnter={() => importFn && prefetchRoute(importFn, item.path)}
+                className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+              >
+                {item.icon}
+                <span className="truncate">{t(item.labelKey)}</span>
+              </NavLink>
+            )
+          })}
         </nav>
 
         {/* User + Controls */}

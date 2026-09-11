@@ -6,6 +6,7 @@ import App from './App'
 import { OfflineProvider } from '@/contexts/OfflineContext'
 import { SyncProvider } from '@/contexts/SyncContext'
 import { registerSW } from 'virtual:pwa-register'
+import { initPerformanceObservers, recordVisit, isFirstVisit } from '@/lib/perf'
 
 if (import.meta.env.DEV) {
   window.onerror = (message, source, lineno, colno, error) => {
@@ -41,6 +42,12 @@ if (import.meta.env.DEV) {
   }
 
   console.log('[DEBUG] Global error handlers installed')
+}
+
+initPerformanceObservers()
+recordVisit()
+if (isFirstVisit()) {
+  console.log('[PERF] First visit detected')
 }
 
 const updateSW = registerSW({

@@ -24,6 +24,7 @@ class AuthService implements AuthServiceInterface
         private readonly UserRepositoryInterface $userRepository,
         private readonly QRInviteServiceInterface $qrInviteService,
         private readonly PasswordResetRequestServiceInterface $passwordResetRequestService,
+        private readonly CacheService $cacheService,
     ) {}
 
     /** @param array<string, mixed> $credentials */
@@ -149,6 +150,9 @@ class AuthService implements AuthServiceInterface
 
     public function logout(User $user): void
     {
+        /** @var int $userId */
+        $userId = $user->id;
+        $this->cacheService->invalidateUserAuth($userId);
         $user->currentAccessToken()->delete();
     }
 
@@ -256,8 +260,21 @@ class AuthService implements AuthServiceInterface
     /** @return array<string, mixed> */
     public function getAuthenticatedUser(User $user): array
     {
+        /** @var int $userId */
+        $userId = $user->id;
+
+        $freshUser = $this->cacheService->rememberUserAuth($userId, function () use ($userId) {
+            return User::with(['classe', 'createdBy', 'invite', 'servant'])->find($userId);
+        });
+
+        if (! $freshUser) {
+            return [
+                'user' => $user->load(['classe', 'createdBy', 'invite', 'servant']),
+            ];
+        }
+
         return [
-            'user' => $user->load(['classe', 'createdBy', 'invite', 'servant']),
+            'user' => $freshUser,
         ];
     }
 

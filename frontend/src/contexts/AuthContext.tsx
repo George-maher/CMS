@@ -20,9 +20,13 @@ interface AuthContextType {
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
+const STORAGE_USER_KEY = 'auth_user'
+const STORAGE_TOKEN_KEY = 'auth_token'
+const STORAGE_VALIDATED_AT_KEY = 'auth_validated_at'
+
 function decodeUser(): User | null {
   try {
-    const raw = localStorage.getItem('auth_user')
+    const raw = localStorage.getItem(STORAGE_USER_KEY)
     return raw ? (JSON.parse(raw) as User) : null
   } catch (e) {
     logCatch('AuthContext.decodeUser', e)
@@ -30,43 +34,80 @@ function decodeUser(): User | null {
   }
 }
 
+function getLastValidatedAt(): number {
+  try {
+    return parseInt(localStorage.getItem(STORAGE_VALIDATED_AT_KEY) || '0', 10)
+  } catch {
+    return 0
+  }
+}
+
+/**
+ * Determines if the stored session needs server-side revalidation.
+ * - Never validated → must validate
+ * - Older than 5 minutes → revalidate in background
+ * - Younger than 5 minutes → trust it, skip API call entirely
+ */
+function needsValidation(): boolean {
+  const lastValidated = getLastValidatedAt()
+  return Date.now() - lastValidated > 5 * 60 * 1000
+}
+
+function markValidated(): void {
+  localStorage.setItem(STORAGE_VALIDATED_AT_KEY, String(Date.now()))
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(decodeUser)
-  const [token, setToken] = useState<string | null>(localStorage.getItem('auth_token'))
+  const [token, setToken] = useState<string | null>(() => localStorage.getItem(STORAGE_TOKEN_KEY))
   const [isLoading, setIsLoading] = useState(true)
-  const validatedRef = useRef(false)
+  const validatingRef = useRef(false)
 
   useEffect(() => {
-    if (validatedRef.current) return
-    if (token) {
-      authApi
-        .getMe()
-        .then((u) => {
-          validatedRef.current = true
-          setUser(u)
-          localStorage.setItem('auth_user', JSON.stringify(u))
-        })
-        .catch((e) => {
-          logCatch('AuthContext.getMe', e)
-          validatedRef.current = true
+    if (!token) {
+      setIsLoading(false)
+      return
+    }
+
+    if (!needsValidation()) {
+      setIsLoading(false)
+      return
+    }
+
+    if (validatingRef.current) return
+    validatingRef.current = true
+
+    authApi
+      .getMe()
+      .then((u) => {
+        setUser(u)
+        localStorage.setItem(STORAGE_USER_KEY, JSON.stringify(u))
+        markValidated()
+      })
+      .catch((e) => {
+        logCatch('AuthContext.getMe', e)
+        const status = e?.response?.status
+        if (status === 401 || !navigator.onLine || status === undefined) {
           setToken(null)
           setUser(null)
-          localStorage.removeItem('auth_token')
-          localStorage.removeItem('auth_user')
-        })
-        .finally(() => setIsLoading(false))
-    } else {
-      validatedRef.current = true
-      Promise.resolve().then(() => setIsLoading(false))
-    }
+          localStorage.removeItem(STORAGE_TOKEN_KEY)
+          localStorage.removeItem(STORAGE_USER_KEY)
+          localStorage.removeItem(STORAGE_VALIDATED_AT_KEY)
+        }
+      })
+      .finally(() => {
+        validatingRef.current = false
+        setIsLoading(false)
+      })
   }, [token])
 
   const login = async (payload: LoginPayload): Promise<AuthResult> => {
     const result = await authApi.login(payload)
     setToken(result.token)
     setUser(result.user)
-    localStorage.setItem('auth_token', result.token)
-    localStorage.setItem('auth_user', JSON.stringify(result.user))
+    localStorage.setItem(STORAGE_TOKEN_KEY, result.token)
+    localStorage.setItem(STORAGE_USER_KEY, JSON.stringify(result.user))
+    markValidated()
     return result
   }
 
@@ -74,8 +115,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const result = await authApi.platformLogin(payload)
     setToken(result.token)
     setUser(result.user)
-    localStorage.setItem('auth_token', result.token)
-    localStorage.setItem('auth_user', JSON.stringify(result.user))
+    localStorage.setItem(STORAGE_TOKEN_KEY, result.token)
+    localStorage.setItem(STORAGE_USER_KEY, JSON.stringify(result.user))
+    markValidated()
     return result
   }
 
@@ -91,15 +133,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     setToken(null)
     setUser(null)
-    localStorage.removeItem('auth_token')
-    localStorage.removeItem('auth_user')
+    localStorage.removeItem(STORAGE_TOKEN_KEY)
+    localStorage.removeItem(STORAGE_USER_KEY)
+    localStorage.removeItem(STORAGE_VALIDATED_AT_KEY)
     clearAllData().catch(e => logCatch('AuthContext.clearAllData', e))
   }
 
   const refreshUser = async () => {
     const u = await authApi.getMe()
     setUser(u)
-    localStorage.setItem('auth_user', JSON.stringify(u))
+    localStorage.setItem(STORAGE_USER_KEY, JSON.stringify(u))
+    markValidated()
   }
 
   return (
@@ -120,5 +164,4 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     </AuthContext.Provider>
   )
 }
-
 
