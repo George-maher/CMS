@@ -1,6 +1,7 @@
 import axios from 'axios'
 import { logAxiosError } from '@/lib/debug'
 import { addToSyncQueue } from '@/lib/db'
+import { getCached, setCache, isStale, getInflight, setInflight, invalidateCache } from '@/lib/requestCache'
 
 /*
  * VITE_API_URL handling:
@@ -72,11 +73,62 @@ client.interceptors.request.use(async (config) => {
     config.headers['Accept-Language'] = 'en'
   }
 
+  if (config.method === 'get' && config.url) {
+    const cacheKey = `${config.url}:${JSON.stringify(config.params || {})}`
+    const cached = getCached(cacheKey)
+
+    if (cached !== null && !isStale(cacheKey)) {
+      // Fresh cache hit — skip network entirely
+      const headers = config.headers ?? {}
+      return {
+        ...config,
+        adapter: () => Promise.resolve({ data: cached, status: 200, statusText: 'OK', headers, config }),
+      } as typeof config
+    }
+
+    if (cached !== null && isStale(cacheKey)) {
+      // Stale-while-revalidate: return stale data now, fire background refresh
+      if (!getInflight(cacheKey)) {
+        const bgHeaders = { ...(config.headers ?? {}), Authorization: config.headers?.Authorization }
+        const bgPromise = axios.get(config.url, { params: config.params, headers: bgHeaders, withCredentials: true })
+          .then((res) => {
+            setCache(cacheKey, res.data)
+            return res
+          })
+          .catch(() => {})
+        setInflight(cacheKey, bgPromise)
+      }
+      const headers = config.headers ?? {}
+      return {
+        ...config,
+        adapter: () => Promise.resolve({ data: cached, status: 200, statusText: 'OK', headers, config }),
+      } as typeof config
+    }
+  }
+
   return config
 })
 
 client.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    if (response.config.method === 'get' && response.config.url) {
+      const cacheKey = `${response.config.url}:${JSON.stringify(response.config.params || {})}`
+      setCache(cacheKey, response.data)
+    } else if (response.config.url) {
+      const url = response.config.url
+      if (url.includes('/users')) invalidateCache('/users')
+      if (url.includes('/attendances')) invalidateCache('/attendances')
+      if (url.includes('/events')) invalidateCache('/events')
+      if (url.includes('/notifications')) invalidateCache('/notifications')
+      if (url.includes('/password-reset-requests')) invalidateCache('/password-reset-requests')
+      if (url.includes('/profile-update-requests')) invalidateCache('/profile-update-requests')
+      if (url.includes('/feedback')) invalidateCache('/feedback')
+      if (url.includes('/points')) invalidateCache('/points')
+      if (url.includes('/leaderboard')) invalidateCache('/leaderboard')
+      if (url.includes('/dashboard')) invalidateCache('/dashboard')
+    }
+    return response
+  },
   (error) => {
     logAxiosError('Response Interceptor', error)
 

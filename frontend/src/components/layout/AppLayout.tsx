@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { Suspense, useCallback, useState } from 'react'
 import { Navigate, Outlet } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import Sidebar from './Sidebar'
@@ -36,7 +36,9 @@ export default function AppLayout({ allowedRoles }: Props) {
         <Header onMenuClick={() => setSidebarOpen(true)} />
         <main className="flex-1 overflow-y-auto overflow-x-hidden">
           <div className="page-container">
-            <Outlet />
+            <Suspense fallback={<div className="flex items-center justify-center py-20"><div className="h-8 w-8 animate-spin rounded-full border-2 border-primary-400 border-t-transparent" /></div>}>
+              <Outlet />
+            </Suspense>
           </div>
         </main>
       </div>

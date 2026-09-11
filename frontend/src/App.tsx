@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
-import { Suspense, lazy } from 'react'
+import { Suspense, lazy, type ReactNode } from 'react'
 import { Toaster } from 'react-hot-toast'
 import { AuthProvider } from '@/contexts/AuthContext'
 import { ThemeProvider } from '@/contexts/ThemeContext'
@@ -8,6 +8,11 @@ import OfflineBanner from '@/components/common/OfflineBanner'
 import { useOffline } from '@/contexts/OfflineContext'
 import { useSync } from '@/contexts/SyncContext'
 
+const FullPageSpinner = (
+  <div className="flex min-h-screen items-center justify-center">
+    <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary-400 border-t-transparent" />
+  </div>
+)
 
 const Landing = lazy(() => import('@/pages/Landing'))
 const JoinNow = lazy(() => import('@/pages/JoinNow'))
@@ -72,6 +77,10 @@ function OfflineBannerWrapper() {
   return <OfflineBanner isOnline={isOnline} pendingCount={pendingCount} />
 }
 
+function PublicPage({ children }: { children: ReactNode }) {
+  return <Suspense fallback={FullPageSpinner}>{children}</Suspense>
+}
+
 export default function App() {
 
   return (
@@ -86,19 +95,18 @@ export default function App() {
         />
         <AuthProvider>
           <OfflineBannerWrapper />
-          <Suspense fallback={<div className="flex min-h-screen items-center justify-center"><div className="h-8 w-8 animate-spin rounded-full border-2 border-primary-400 border-t-transparent" /></div>}>
-            <Routes>
-              <Route path="/" element={<Landing />} />
-              <Route path="/join" element={<JoinNow />} />
-              <Route path="/register" element={<InviteRegister />} />
-              <Route path="/invite/:token" element={<InviteLanding />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/forgot-password" element={<ForgotPassword />} />
-              <Route path="/verify-email" element={<VerifyEmail />} />
-              <Route path="/chconfirmation777" element={<PlatformLogin />} />
-              <Route path="/application-status" element={<ApplicationStatus />} />
-              <Route path="/pending" element={<ApplicationStatus />} />
-              <Route path="/rejected" element={<ApplicationStatus />} />
+          <Routes>
+              <Route path="/" element={<PublicPage><Landing /></PublicPage>} />
+              <Route path="/join" element={<PublicPage><JoinNow /></PublicPage>} />
+              <Route path="/register" element={<PublicPage><InviteRegister /></PublicPage>} />
+              <Route path="/invite/:token" element={<PublicPage><InviteLanding /></PublicPage>} />
+              <Route path="/login" element={<PublicPage><Login /></PublicPage>} />
+              <Route path="/forgot-password" element={<PublicPage><ForgotPassword /></PublicPage>} />
+              <Route path="/verify-email" element={<PublicPage><VerifyEmail /></PublicPage>} />
+              <Route path="/chconfirmation777" element={<PublicPage><PlatformLogin /></PublicPage>} />
+              <Route path="/application-status" element={<PublicPage><ApplicationStatus /></PublicPage>} />
+              <Route path="/pending" element={<PublicPage><ApplicationStatus /></PublicPage>} />
+              <Route path="/rejected" element={<PublicPage><ApplicationStatus /></PublicPage>} />
 
               <Route element={<AppLayout allowedRoles={['platform_admin']} />}>
                 <Route path="/platform" element={<PlatformDashboard />} />
@@ -178,11 +186,10 @@ export default function App() {
                 <Route path="/member/profile" element={<Profile />} />
               </Route>
 
-              <Route path="/403" element={<Forbidden />} />
-              <Route path="/500" element={<ServerError />} />
-              <Route path="*" element={<NotFound />} />
+              <Route path="/403" element={<PublicPage><Forbidden /></PublicPage>} />
+              <Route path="/500" element={<PublicPage><ServerError /></PublicPage>} />
+              <Route path="*" element={<PublicPage><NotFound /></PublicPage>} />
             </Routes>
-          </Suspense>
         </AuthProvider>
       </ThemeProvider>
     </BrowserRouter>

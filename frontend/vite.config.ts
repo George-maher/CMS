@@ -53,11 +53,28 @@ export default defineConfig({
         navigateFallbackDenylist: [/^\/api\//],
         runtimeCaching: [
           {
-            urlPattern: /^https?:\/\/.*\/api\/v1\/(stages|classes|members|attendance-contexts|daily-verse).*/,
+            urlPattern: /^https?:\/\/.*\/api\/v1\/(stages|classes|members|attendance-contexts|daily-verse|users\/members|users\/servants|users\/my-class-servants).*/,
+            handler: 'StaleWhileRevalidate',
+            options: {
+              cacheName: 'api-slow-cache',
+              expiration: { maxEntries: 50, maxAgeSeconds: 60 * 60 * 24 },
+            },
+          },
+          {
+            urlPattern: /^https?:\/\/.*\/api\/v1\/(dashboard|leaderboard|events|attendances\/today|notifications\/unread-count).*/,
             handler: 'NetworkFirst',
             options: {
-              cacheName: 'api-cache',
-              expiration: { maxEntries: 100, maxAgeSeconds: 60 * 60 * 24 },
+              cacheName: 'api-fast-cache',
+              expiration: { maxEntries: 30, maxAgeSeconds: 60 * 60 },
+              networkTimeoutSeconds: 3,
+            },
+          },
+          {
+            urlPattern: /^https?:\/\/.*\/api\/v1\/.*/,
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'api-default-cache',
+              expiration: { maxEntries: 50, maxAgeSeconds: 60 * 30 },
               networkTimeoutSeconds: 5,
             },
           },
