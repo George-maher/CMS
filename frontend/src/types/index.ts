@@ -22,7 +22,7 @@ export interface StageWithClasses extends Stage {
   classes: Classe[]
 }
 
-export type UserRole = 'platform_admin' | 'admin' | 'assistant_admin' | 'servant' | 'member'
+export type UserRole = 'platform_admin' | 'admin' | 'assistant_admin' | 'stage_admin' | 'servant' | 'member'
 
 export type QRInviteType =
   | 'admin_to_servant_invite'
@@ -43,6 +43,7 @@ export interface User {
   role: UserRole
   role_label: string
   class_id: number | null
+  stage_id: number | null
   classe: { id: number; name: string; stage?: { id: number; name: string } } | null
   stage: { id: number; name: string } | null
   phone: string | null
@@ -396,6 +397,7 @@ export interface CreateUserPayload {
   role: UserRole
   birthday?: string | null
   class_id?: number | null
+  stage_id?: number | null
   phone?: string | null
   address?: string | null
   member_id?: string | null

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Contracts\AttendanceServiceInterface;
+use App\Contracts\ScopeResolverInterface;
 use App\Enums\QRInviteType;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
@@ -21,7 +22,34 @@ class AttendanceController extends Controller
 {
     public function __construct(
         private readonly AttendanceServiceInterface $attendanceService,
+        private readonly ScopeResolverInterface $scopeResolver,
     ) {}
+
+    /**
+     * Whether the acting user may view/manage a given member.
+     */
+    private function canAccessMember(User $actor, User $member): bool
+    {
+        return $this->scopeResolver->canAccessUser($actor, $member);
+    }
+
+    /**
+     * Class ids a user is allowed to view/manage. Null = church-wide.
+     *
+     * @return array<int, int>|null
+     */
+    private function allowedClassScope(?User $user): ?array
+    {
+        if ($user === null) {
+            return null;
+        }
+
+        if ($user->isAdmin() || $user->isAssistantAdmin()) {
+            return null;
+        }
+
+        return $this->scopeResolver->allowedClassIds($user) ?? [];
+    }
 
     public function recordByMemberId(Request $request): JsonResponse
     {
@@ -35,10 +63,18 @@ class AttendanceController extends Controller
 
         /** @var User $user */
         $user = $request->user();
-        /** @var int $recordedBy */
-        $recordedBy = $user->id;
         /** @var string $memberId */
         $memberId = $validated['member_id'];
+
+        if (! $user->isAdmin() && ! $user->isAssistantAdmin()) {
+            $member = User::byChurch()->byMemberId($memberId)->first();
+            if (! $member || ! $this->canAccessMember($user, $member)) {
+                return response()->json(['message' => 'Forbidden.'], 403);
+            }
+        }
+
+        /** @var int $recordedBy */
+        $recordedBy = $user->id;
         /** @var int $contextId */
         $contextId = $validated['attendance_context_id'];
         /** @var string $method */
@@ -64,6 +100,15 @@ class AttendanceController extends Controller
     {
         /** @var User $user */
         $user = $request->user();
+
+        if (! $user->isAdmin() && ! $user->isAssistantAdmin()) {
+            $qrToken = $request->str('qr_token', '');
+            $member = User::byChurch()->byAttendanceQrToken((string) $qrToken)->first();
+            if (! $member || ! $this->canAccessMember($user, $member)) {
+                return response()->json(['message' => 'Forbidden.'], 403);
+            }
+        }
+
         /** @var int $recordedBy */
         $recordedBy = $user->id;
         $qrToken = $request->str('qr_token', '');
@@ -93,8 +138,8 @@ class AttendanceController extends Controller
         /** @var User $user */
         $user = $request->user();
         /** @var array<int, int>|null $classYearIds */
-        $classYearIds = $user->role === UserRole::Servant
-            ? $user->getServantClassIds()
+        $classYearIds = $user->role === UserRole::Servant || $user->isStageAdmin()
+            ? $this->allowedClassScope($user)
             : ($request->input('class_id') ? [$request->integer('class_id')] : null);
 
         /** @var string|null $dateFrom */
@@ -128,15 +173,15 @@ class AttendanceController extends Controller
         /** @var int|null $classYearId */
         $classYearId = $validated['class_id'] ?? null;
 
-        // Servants: silently fix class_id instead of rejecting
-        if ($user->role === UserRole::Servant) {
-            /** @var array<int, int>|null $servantClassIds */
-            $servantClassIds = $user->getServantClassIds();
-            if ($classYearId !== null && ! in_array($classYearId, (array) $servantClassIds)) {
-                $classYearId = null; // ignore unauthorized value, fall through to enforce servant's classes
+        // Servants and stage admins: only their own classes
+        if ($user->role === UserRole::Servant || $user->isStageAdmin()) {
+            /** @var array<int, int>|null $allowedClassIds */
+            $allowedClassIds = $this->allowedClassScope($user);
+            if ($classYearId !== null && ! in_array($classYearId, (array) $allowedClassIds)) {
+                $classYearId = null; // ignore unauthorized value
             }
             if ($classYearId === null) {
-                $classYearId = $servantClassIds;
+                $classYearId = $allowedClassIds;
             }
         }
 
@@ -164,9 +209,17 @@ class AttendanceController extends Controller
 
     public function lookupByMemberId(Request $request, string $memberId): JsonResponse
     {
+        /** @var User $user */
+        $user = $request->user();
         $member = User::byChurch()->byMemberId($memberId)->first();
 
         if (! $member) {
+            throw ValidationException::withMessages([
+                'member_id' => ['Member not found.'],
+            ]);
+        }
+
+        if (! $user->isAdmin() && ! $user->isAssistantAdmin() && ! $this->canAccessMember($user, $member)) {
             throw ValidationException::withMessages([
                 'member_id' => ['Member not found.'],
             ]);
@@ -181,7 +234,13 @@ class AttendanceController extends Controller
 
     public function lookupByToken(Request $request, string $qrToken): JsonResponse
     {
+        /** @var User $user */
+        $user = $request->user();
         $member = User::byChurch()->byAttendanceQrToken($qrToken)->first();
+
+        if ($member && ! $user->isAdmin() && ! $user->isAssistantAdmin() && ! $this->canAccessMember($user, $member)) {
+            return response()->json(['message' => 'Member not found.'], 404);
+        }
 
         $attendanceContextId = null;
 
@@ -240,12 +299,10 @@ class AttendanceController extends Controller
         if ($user->role === UserRole::Member) {
             $id = (int) $user->id;
         }
-        // Servant can only view members of their assigned class
-        elseif ($user->role === UserRole::Servant && $id !== (int) $user->id) {
+        // Servant or stage admin can only view members in scope
+        elseif (($user->role === UserRole::Servant || $user->isStageAdmin()) && $id !== (int) $user->id) {
             $member = User::byChurch()->find($id);
-            /** @var array<int, int>|null $servantClassIds */
-            $servantClassIds = $user->getServantClassIds();
-            if (! $member || ! in_array($member->class_id, (array) $servantClassIds)) {
+            if (! $member || ! $this->canAccessMember($user, $member)) {
                 $id = (int) $user->id;
             }
         }
@@ -267,10 +324,10 @@ class AttendanceController extends Controller
     {
         /** @var User $user */
         $user = $request->user();
-        if ($user->role === UserRole::Servant) {
-            /** @var array<int, int>|null $servantClassIds */
-            $servantClassIds = $user->getServantClassIds();
-            if ($servantClassIds !== null && ! in_array($classYearId, $servantClassIds)) {
+        if ($user->role === UserRole::Servant || $user->isStageAdmin()) {
+            /** @var array<int, int>|null $allowedClassIds */
+            $allowedClassIds = $this->allowedClassScope($user);
+            if ($allowedClassIds !== null && ! in_array($classYearId, $allowedClassIds)) {
                 return response()->json(['message' => 'Unauthorized access to another class.'], 403);
             }
         }
@@ -300,9 +357,11 @@ class AttendanceController extends Controller
         /** @var User $user */
         $user = $request->user();
         /** @var array<int, int>|null $classYearIds */
-        $classYearIds = $user->role === UserRole::Servant ? $user->getServantClassIds() : null;
+        $classYearIds = $user->role === UserRole::Servant || $user->isStageAdmin()
+            ? $this->allowedClassScope($user)
+            : null;
 
-        if ($user->role === UserRole::Servant && $classYearIds === null) {
+        if (($user->role === UserRole::Servant || $user->isStageAdmin()) && empty($classYearIds)) {
             return response()->json(['data' => [], 'count' => 0, 'meta' => ['current_page' => 1, 'last_page' => 1, 'per_page' => 15, 'total' => 0]]);
         }
 
@@ -334,19 +393,19 @@ class AttendanceController extends Controller
         /** @var User $user */
         $user = $request->user();
 
-        // Servants: enforce class access
-        if ($user->role === UserRole::Servant) {
-            /** @var array<int, int>|null $servantClassIds */
-            $servantClassIds = $user->getServantClassIds();
-            if (empty($servantClassIds)) {
+        // Servants and stage admins: enforce class access
+        if ($user->role === UserRole::Servant || $user->isStageAdmin()) {
+            /** @var array<int, int>|null $allowedClassIds */
+            $allowedClassIds = $this->allowedClassScope($user);
+            if (empty($allowedClassIds)) {
                 return response()->json(['data' => [], 'meta' => ['current_page' => 1, 'last_page' => 1, 'per_page' => 15, 'total' => 0]]);
             }
             /** @var int|null $validatedClassId */
             $validatedClassId = $validated['class_id'] ?? null;
-            if ($validatedClassId !== null && ! in_array($validatedClassId, $servantClassIds)) {
+            if ($validatedClassId !== null && ! in_array($validatedClassId, $allowedClassIds)) {
                 unset($validated['class_id']);
             }
-            $validated['class_ids'] = $servantClassIds;
+            $validated['class_ids'] = $allowedClassIds;
         }
 
         $result = $this->attendanceService->getFilteredAttendances(
@@ -419,12 +478,10 @@ class AttendanceController extends Controller
         if ($user->role === UserRole::Member) {
             $id = (int) $user->id;
         }
-        // Servant can only view stats of members in their assigned class
-        elseif ($user->role === UserRole::Servant && $id !== (int) $user->id) {
+        // Servant or stage admin can only view stats of members in scope
+        elseif (($user->role === UserRole::Servant || $user->isStageAdmin()) && $id !== (int) $user->id) {
             $member = User::byChurch()->find($id);
-            /** @var array<int, int>|null $servantClassIds */
-            $servantClassIds = $user->getServantClassIds();
-            if (! $member || ! in_array($member->class_id, (array) $servantClassIds)) {
+            if (! $member || ! $this->canAccessMember($user, $member)) {
                 $id = (int) $user->id;
             }
         }

@@ -3,6 +3,7 @@
 namespace App\Contracts;
 
 use App\Models\ProfileUpdateRequest;
+use App\Models\User;
 
 interface ProfileUpdateRequestServiceInterface
 {
@@ -43,6 +44,14 @@ interface ProfileUpdateRequestServiceInterface
      * @return array{data: list<ProfileUpdateRequest>, meta: array<string, mixed>}
      */
     public function listRequestsForAdmin(int $churchId, int $perPage = 15, array $filters = []): array;
+
+    /**
+     * List requests for a stage admin scoped to their stage's members.
+     *
+     * @param  array<string, mixed>  $filters
+     * @return array{data: list<ProfileUpdateRequest>, meta: array<string, mixed>}
+     */
+    public function listRequestsForStageAdmin(User $stageAdmin, int $perPage = 15, array $filters = []): array;
 
     /**
      * Get a request by ID (scoped to church for admin, or by reviewer for servant).

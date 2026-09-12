@@ -250,7 +250,7 @@ export default function Header({ onMenuClick }: Props) {
   const getHomePath = () => {
     if (!user) return '/'
     const roleMap: Record<string, string> = {
-      platform_admin: '/platform', admin: '/admin', assistant_admin: '/assistant-admin', servant: '/servant', member: '/member',
+      platform_admin: '/platform', admin: '/admin', assistant_admin: '/assistant-admin', stage_admin: '/stage', servant: '/servant', member: '/member',
     }
     return roleMap[user.role] || '/'
   }

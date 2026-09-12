@@ -41,6 +41,20 @@ const adminNav: NavItem[] = [
   { labelKey: 'nav.profile', path: '/admin/profile', icon: <User className="h-5 w-5 text-gold-400" /> },
 ]
 
+const stageNav: NavItem[] = [
+  { labelKey: 'nav.dashboard', path: '/stage', icon: <LayoutDashboard className="h-5 w-5 text-gold-400" /> },
+  { labelKey: 'nav.structure', path: '/stage/structure', icon: <Layers className="h-5 w-5 text-gold-400" /> },
+  { labelKey: 'nav.users', path: '/stage/users', icon: <Users className="h-5 w-5 text-gold-400" /> },
+  { labelKey: 'nav.events', path: '/stage/events', icon: <Calendar className="h-5 w-5 text-gold-400" /> },
+  { labelKey: 'nav.leaderboard', path: '/stage/leaderboard', icon: <Trophy className="h-5 w-5 text-gold-400" /> },
+  { labelKey: 'nav.attendance', path: '/stage/attendance', icon: <ClipboardList className="h-5 w-5 text-gold-400" /> },
+  { labelKey: 'nav.qr', path: '/stage/qr', icon: <QrCode className="h-5 w-5 text-gold-400" /> },
+  { labelKey: 'nav.absentMembers', path: '/stage/absent-members', icon: <UserX className="h-5 w-5 text-gold-400" /> },
+  { labelKey: 'nav.attendanceContexts', path: '/stage/attendance-contexts', icon: <Layers className="h-5 w-5 text-gold-400" /> },
+  { labelKey: 'nav.profileUpdateRequests', path: '/stage/profile-update-requests', icon: <UserCheck className="h-5 w-5 text-gold-400" /> },
+  { labelKey: 'nav.profile', path: '/stage/profile', icon: <User className="h-5 w-5 text-gold-400" /> },
+]
+
 const servantNav: NavItem[] = [
   { labelKey: 'nav.dashboard', path: '/servant', icon: <LayoutDashboard className="h-5 w-5 text-gold-400" /> },
   { labelKey: 'nav.leaderboard', path: '/servant/leaderboard', icon: <Trophy className="h-5 w-5 text-gold-400" /> },
@@ -84,12 +98,14 @@ export default function Sidebar({ isOpen, onClose }: Props) {
     platform_admin: 'users.rolePlatformAdmin',
     admin: 'users.roleAdmin',
     assistant_admin: 'users.roleAssistantAdmin',
+    stage_admin: 'users.roleStageAdmin',
     servant: 'users.roleServant',
     member: 'users.roleMember',
   }
 
   const navItems = user?.role === 'platform_admin' ? platformNav
     : (user?.role === 'admin' || user?.role === 'assistant_admin') ? adminNav
+    : user?.role === 'stage_admin' ? stageNav
     : user?.role === 'servant' ? servantNav
     : memberNav
 
@@ -125,7 +141,7 @@ export default function Sidebar({ isOpen, onClose }: Props) {
               <NavLink
                 key={item.path}
                 to={item.path}
-                end={['/admin', '/servant', '/member', '/platform'].includes(item.path)}
+                end={['/admin', '/servant', '/member', '/platform', '/stage'].includes(item.path)}
                 onClick={onClose}
                 onMouseEnter={() => importFn && prefetchRoute(importFn, item.path)}
                 className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}

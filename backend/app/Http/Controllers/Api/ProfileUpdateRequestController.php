@@ -154,6 +154,12 @@ class ProfileUpdateRequestController extends Controller
                 $perPage,
                 $filters,
             );
+        } elseif ($user->isStageAdmin()) {
+            $result = $this->profileUpdateRequestService->listRequestsForStageAdmin(
+                $user,
+                $perPage,
+                $filters,
+            );
         } else {
             $result = $this->profileUpdateRequestService->listRequestsForAdmin(
                 $churchId,

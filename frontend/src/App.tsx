@@ -36,6 +36,7 @@ const Forbidden = lazy(() => import('@/pages/Forbidden'))
 const ServerError = lazy(() => import('@/pages/ServerError'))
 
 const AdminDashboard = lazy(() => import('@/pages/admin/Dashboard'))
+const StageAdminDashboard = lazy(() => import('@/pages/stage/Dashboard'))
 const AdminUsers = lazy(() => import('@/pages/admin/Users'))
 const AdminUserDetail = lazy(() => import('@/pages/admin/UserDetail'))
 const StructureManagement = lazy(() => import('@/pages/admin/StructureManagement'))
@@ -216,6 +217,24 @@ export default function App() {
                 <Route path="/assistant-admin/password-reset-requests" element={<AdminPasswordResetRequests />} />
                 <Route path="/assistant-admin/profile" element={<Profile />} />
                 <Route path="/assistant-admin/profile-update-requests" element={<ServantProfileUpdateRequests />} />
+              </Route>
+
+              <Route element={<AppLayout allowedRoles={['stage_admin']} />}>
+                <Route path="/stage" element={<StageAdminDashboard />} />
+                <Route path="/stage/structure" element={<StructureManagement />} />
+                <Route path="/stage/stages/:id" element={<StageDetail />} />
+                <Route path="/stage/classes/:id" element={<ClasseDetail />} />
+                <Route path="/stage/users" element={<AdminUsers />} />
+                <Route path="/stage/users/:id" element={<AdminUserDetail />} />
+                <Route path="/stage/events" element={<AdminEvents />} />
+                <Route path="/stage/events/:id" element={<AdminEventDetail />} />
+                <Route path="/stage/attendance" element={<ServantAttendance />} />
+                <Route path="/stage/absent-members" element={<AbsentMembers />} />
+                <Route path="/stage/attendance-contexts" element={<AttendanceContextManagement />} />
+                <Route path="/stage/leaderboard" element={<AdminLeaderboard />} />
+                <Route path="/stage/qr" element={<AdminQRManagement />} />
+                <Route path="/stage/profile" element={<Profile />} />
+                <Route path="/stage/profile-update-requests" element={<ServantProfileUpdateRequests />} />
               </Route>
 
               <Route element={<AppLayout allowedRoles={['servant']} />}>

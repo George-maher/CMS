@@ -1,0 +1,16 @@
+Get-Content : Illegal characters in path.
+At line:1 char:4
++ $l=Get-Content 'C:\Users\LAPPLU~1\AppData\Local\Temp\opencode\<nonexi ...
++    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : InvalidArgument: (C:\Users\LAPPLU...e\<nonexistent>:String) [Get-Content], ArgumentExcep 
+   tion
+    + FullyQualifiedErrorId : ItemExistsArgumentError,Microsoft.PowerShell.Commands.GetContentCommand
+ 
+Get-Content : Cannot find path 'C:\Users\LAPPLU~1\AppData\Local\Temp\opencode\<nonexistent>' because it does not exist.
+At line:1 char:4
++ $l=Get-Content 'C:\Users\LAPPLU~1\AppData\Local\Temp\opencode\<nonexi ...
++    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (C:\Users\LAPPLU...e\<nonexistent>:String) [Get-Content], ItemNotFoundEx 
+   ception
+    + FullyQualifiedErrorId : PathNotFound,Microsoft.PowerShell.Commands.GetContentCommand
+ 

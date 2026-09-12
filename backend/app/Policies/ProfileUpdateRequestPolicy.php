@@ -2,14 +2,17 @@
 
 namespace App\Policies;
 
+use App\Contracts\ScopeResolverInterface;
 use App\Models\ProfileUpdateRequest;
 use App\Models\User;
 
 class ProfileUpdateRequestPolicy
 {
+    public function __construct(private readonly ScopeResolverInterface $scopeResolver) {}
+
     public function viewAny(User $user): bool
     {
-        return $user->isAdminOrAssistantAdmin() || $user->isServant();
+        return $user->isAdminOrAssistantAdmin() || $user->isServant() || $user->isStageAdmin();
     }
 
     public function view(User $user, ProfileUpdateRequest $request): bool
@@ -29,6 +32,11 @@ class ProfileUpdateRequestPolicy
             return true;
         }
 
+        // Stage admin can view requests from members within their stage
+        if ($user->isStageAdmin() && $this->canReviewRequest($user, $request)) {
+            return true;
+        }
+
         return false;
     }
 
@@ -42,11 +50,26 @@ class ProfileUpdateRequestPolicy
             return false;
         }
 
-        return $user->isAdminOrAssistantAdmin() || $user->isServant();
+        if ($user->isAdminOrAssistantAdmin()) {
+            return true;
+        }
+
+        if ($user->isServant()) {
+            return true;
+        }
+
+        return $user->isStageAdmin() && $this->canReviewRequest($user, $request);
     }
 
     public function reject(User $user, ProfileUpdateRequest $request): bool
     {
         return $this->approve($user, $request);
+    }
+
+    private function canReviewRequest(User $stageAdmin, ProfileUpdateRequest $request): bool
+    {
+        $target = $request->user;
+
+        return $target !== null && $this->scopeResolver->canAccessUser($stageAdmin, $target);
     }
 }

@@ -12,6 +12,7 @@ export function roleTranslationKey(role: UserRole): string {
     platform_admin: 'users.rolePlatformAdmin',
     admin: 'users.roleAdmin',
     assistant_admin: 'users.roleAssistantAdmin',
+    stage_admin: 'users.roleStageAdmin',
     servant: 'users.roleServant',
     member: 'users.roleMember',
   }
@@ -26,6 +27,7 @@ export function roleBadgeVariant(role: UserRole): 'warning' | 'info' | 'success'
     platform_admin: 'primary',
     admin: 'warning',
     assistant_admin: 'warning',
+    stage_admin: 'warning',
     servant: 'info',
     member: 'success',
   }

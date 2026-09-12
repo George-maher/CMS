@@ -32,7 +32,7 @@ interface UserServiceInterface
     public function getMembers(int $servantId, ?int $classYearId = null): array;
 
     /** @return array<string, mixed> */
-    public function promote(int $userId, int $authUserId, string $newRole): array;
+    public function promote(int $userId, int $authUserId, string $newRole, ?int $stageId = null): array;
 
     /** @return array<string, mixed> */
     public function demoteFromAdmin(int $userId, int $authUserId, string $newRole = 'member'): array;

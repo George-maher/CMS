@@ -3,32 +3,62 @@
 namespace App\Http\Controllers\Api;
 
 use App\Contracts\ClasseServiceInterface;
+use App\Contracts\ScopeResolverInterface;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreClasseRequest;
 use App\Http\Requests\UpdateClasseRequest;
 use App\Http\Resources\ClasseResource;
 use App\Http\Resources\UserResource;
+use App\Models\Classe;
+use App\Models\Stage;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class ClasseController extends Controller
 {
     public function __construct(
         private readonly ClasseServiceInterface $classeService,
+        private readonly ScopeResolverInterface $scopeResolver,
     ) {}
 
     public function index(Request $request): JsonResponse
     {
         /** @var string|null $search */
         $search = $request->input('search');
+        $result = $this->classeService->all($search);
 
-        return response()->json($this->classeService->all($search));
+        /** @var User|null $user */
+        $user = $request->user();
+        if ($user !== null && ! $user->isAdmin()) {
+            $allowed = $this->scopeResolver->allowedClassIds($user);
+            if ($allowed !== null && ($result['data'] ?? null) instanceof AnonymousResourceCollection && $result['data']->collection !== null) {
+                $result['data']->collection = $result['data']->collection->filter(function (mixed $resource) use ($allowed): bool {
+                    if (! $resource instanceof ClasseResource) {
+                        return false;
+                    }
+                    /** @var Classe $classe */
+                    $classe = $resource->resource;
+
+                    return in_array($classe->id, $allowed, true);
+                })->values();
+            }
+        }
+
+        return response()->json($result);
     }
 
     public function store(StoreClasseRequest $request): JsonResponse
     {
-        $result = $this->classeService->create($request->validated());
+        /** @var array<string, mixed> $data */
+        $data = $request->validated();
+        /** @var int|null $stageId */
+        $stageId = isset($data['stage_id']) && is_numeric($data['stage_id']) ? (int) $data['stage_id'] : null;
+        $stage = Stage::query()->find($stageId ?? 0);
+        $this->authorize('create', $stage ?? Stage::class);
+
+        $result = $this->classeService->create($data);
 
         return response()->json([
             'message' => 'Class created successfully.',
@@ -36,8 +66,20 @@ class ClasseController extends Controller
         ], 201);
     }
 
-    public function show(int $id): JsonResponse
+    public function show(Request $request, int $id): JsonResponse
     {
+        /** @var User|null $user */
+        $user = $request->user();
+        if ($user !== null && ! $user->isPlatformAdmin()) {
+            $classe = Classe::query()->find($id);
+            if ($classe === null) {
+                return response()->json(['message' => 'Class not found.'], 404);
+            }
+            if (! $this->scopeResolver->canAccessClass($user, $classe)) {
+                return response()->json(['message' => 'Forbidden.'], 403);
+            }
+        }
+
         $result = $this->classeService->findById($id);
 
         if (! $result) {
@@ -49,6 +91,12 @@ class ClasseController extends Controller
 
     public function update(UpdateClasseRequest $request, int $id): JsonResponse
     {
+        $classe = Classe::query()->find($id);
+        if ($classe === null) {
+            return response()->json(['message' => 'Class not found.'], 404);
+        }
+        $this->authorize('update', $classe);
+
         $this->classeService->update($id, $request->validated());
 
         /** @var array{data: ClasseResource}|null $updated */
@@ -60,8 +108,14 @@ class ClasseController extends Controller
         ]);
     }
 
-    public function destroy(int $id): JsonResponse
+    public function destroy(Request $request, int $id): JsonResponse
     {
+        $classe = Classe::query()->find($id);
+        if ($classe === null) {
+            return response()->json(['message' => 'Class not found.'], 404);
+        }
+        $this->authorize('delete', $classe);
+
         $this->classeService->delete($id);
 
         return response()->json([
@@ -69,8 +123,20 @@ class ClasseController extends Controller
         ]);
     }
 
-    public function detail(int $id): JsonResponse
+    public function detail(Request $request, int $id): JsonResponse
     {
+        /** @var User|null $user */
+        $user = $request->user();
+        if ($user !== null && ! $user->isPlatformAdmin()) {
+            $classe = Classe::query()->find($id);
+            if ($classe === null) {
+                return response()->json(['message' => 'Class not found.'], 404);
+            }
+            if (! $this->scopeResolver->canAccessClass($user, $classe)) {
+                return response()->json(['message' => 'Forbidden.'], 403);
+            }
+        }
+
         $result = $this->classeService->getDetail($id);
 
         return response()->json(['data' => $result]);
@@ -78,6 +144,12 @@ class ClasseController extends Controller
 
     public function assignServant(Request $request, int $id): JsonResponse
     {
+        $classe = Classe::query()->find($id);
+        if ($classe === null) {
+            return response()->json(['message' => 'Class not found.'], 404);
+        }
+        $this->authorize('manageServants', $classe);
+
         $request->validate(['user_id' => 'required|integer|exists:users,id']);
 
         /** @var int $servantId */
@@ -95,6 +167,12 @@ class ClasseController extends Controller
 
     public function removeServant(Request $request, int $id): JsonResponse
     {
+        $classe = Classe::query()->find($id);
+        if ($classe === null) {
+            return response()->json(['message' => 'Class not found.'], 404);
+        }
+        $this->authorize('manageServants', $classe);
+
         $request->validate(['user_id' => 'required|integer|exists:users,id']);
 
         /** @var int $servantId */
@@ -109,13 +187,20 @@ class ClasseController extends Controller
 
     public function updateOrder(Request $request): JsonResponse
     {
+        $this->authorize('reorder', Classe::class);
+
         $request->validate([
             'ordered_ids' => 'required|array',
             'ordered_ids.*' => 'integer|exists:classes,id',
         ]);
 
         /** @var array<int, int> $orderedIds */
-        $orderedIds = $request->input('ordered_ids');
+        $orderedIds = [];
+        foreach ((array) $request->input('ordered_ids') as $rawId) {
+            if (is_int($rawId)) {
+                $orderedIds[] = $rawId;
+            }
+        }
         $this->classeService->updateOrder($orderedIds);
 
         return response()->json(['message' => 'Class order updated successfully.']);
@@ -123,6 +208,18 @@ class ClasseController extends Controller
 
     public function members(Request $request, int $id): JsonResponse
     {
+        /** @var User|null $user */
+        $user = $request->user();
+        if ($user !== null && ! $user->isPlatformAdmin()) {
+            $classe = Classe::query()->find($id);
+            if ($classe === null) {
+                return response()->json(['message' => 'Class not found.'], 404);
+            }
+            if (! $this->scopeResolver->canAccessClass($user, $classe)) {
+                return response()->json(['message' => 'Forbidden.'], 403);
+            }
+        }
+
         $result = $this->classeService->getMembers(
             classeId: $id,
             perPage: $request->integer('per_page', 15),
@@ -133,6 +230,18 @@ class ClasseController extends Controller
 
     public function servants(Request $request, int $id): JsonResponse
     {
+        /** @var User|null $user */
+        $user = $request->user();
+        if ($user !== null && ! $user->isPlatformAdmin()) {
+            $classe = Classe::query()->find($id);
+            if ($classe === null) {
+                return response()->json(['message' => 'Class not found.'], 404);
+            }
+            if (! $this->scopeResolver->canAccessClass($user, $classe)) {
+                return response()->json(['message' => 'Forbidden.'], 403);
+            }
+        }
+
         $result = $this->classeService->getServants(
             classeId: $id,
             perPage: $request->integer('per_page', 15),
@@ -143,6 +252,12 @@ class ClasseController extends Controller
 
     public function assignMember(Request $request, int $id): JsonResponse
     {
+        $classe = Classe::query()->find($id);
+        if ($classe === null) {
+            return response()->json(['message' => 'Class not found.'], 404);
+        }
+        $this->authorize('manageMembers', $classe);
+
         $request->validate(['user_id' => 'required|integer|exists:users,id']);
 
         /** @var int $memberId */
@@ -150,6 +265,11 @@ class ClasseController extends Controller
         $user = User::byChurch()->find($memberId);
         if (! $user) {
             return response()->json(['message' => 'User not found.'], 404);
+        }
+        /** @var User|null $actor */
+        $actor = $request->user();
+        if ($actor === null || ! $this->scopeResolver->canAccessUser($actor, $user)) {
+            return response()->json(['message' => 'Forbidden.'], 403);
         }
 
         $user->update(['class_id' => $id]);

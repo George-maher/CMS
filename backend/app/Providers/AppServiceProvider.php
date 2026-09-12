@@ -37,6 +37,7 @@ use App\Contracts\PointServiceInterface;
 use App\Contracts\ProfileUpdateRequestServiceInterface;
 use App\Contracts\QRInviteRepositoryInterface;
 use App\Contracts\QRInviteServiceInterface;
+use App\Contracts\ScopeResolverInterface;
 use App\Contracts\StageRepositoryInterface;
 use App\Contracts\StageServiceInterface;
 use App\Contracts\StorageServiceInterface;
@@ -50,6 +51,7 @@ use App\Models\Attendance;
 use App\Models\AttendanceContext;
 use App\Models\Church;
 use App\Models\ChurchApplication;
+use App\Models\Classe;
 use App\Models\DailySpiritualRecord;
 use App\Models\DailyVerse;
 use App\Models\Event;
@@ -58,6 +60,7 @@ use App\Models\MembershipRequest as MembershipRequestModel;
 use App\Models\PasswordResetRequest;
 use App\Models\ProfileUpdateRequest;
 use App\Models\QRInvite;
+use App\Models\Stage;
 use App\Models\User;
 use App\Models\User as UserModel;
 use App\Modules\User\Policies\UserPolicy;
@@ -70,6 +73,7 @@ use App\Observers\UserObserver;
 use App\Policies\AttendanceContextPolicy;
 use App\Policies\AttendancePolicy;
 use App\Policies\ChurchDeletionPolicy;
+use App\Policies\ClassePolicy;
 use App\Policies\DailySpiritualRecordPolicy;
 use App\Policies\DailyVersePolicy;
 use App\Policies\EventPolicy;
@@ -77,6 +81,7 @@ use App\Policies\FeedbackPolicy;
 use App\Policies\PasswordResetRequestPolicy;
 use App\Policies\ProfileUpdateRequestPolicy;
 use App\Policies\QRInvitePolicy;
+use App\Policies\StagePolicy;
 use App\Repositories\AttendanceContextRepository;
 use App\Repositories\AttendanceRepository;
 use App\Repositories\ClasseRepository;
@@ -116,6 +121,7 @@ use App\Services\PasswordResetRequestService;
 use App\Services\PointService;
 use App\Services\ProfileUpdateRequestService;
 use App\Services\QRInviteService;
+use App\Services\ScopeResolver;
 use App\Services\StageService;
 use App\Services\SupabaseStorageService;
 use App\Services\VerseService;
@@ -180,6 +186,8 @@ class AppServiceProvider extends ServiceProvider
 
         $this->app->bind(MemberProfileServiceInterface::class, MemberProfileService::class);
 
+        $this->app->bind(ScopeResolverInterface::class, ScopeResolver::class);
+
         $this->app->singleton(CacheService::class, fn () => new CacheService);
 
         $this->app->bind(ChurchApplicationServiceInterface::class, ChurchApplicationService::class);
@@ -226,6 +234,8 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(ProfileUpdateRequest::class, ProfileUpdateRequestPolicy::class);
         Gate::policy(Church::class, ChurchDeletionPolicy::class);
         Gate::policy(DailySpiritualRecord::class, DailySpiritualRecordPolicy::class);
+        Gate::policy(Stage::class, StagePolicy::class);
+        Gate::policy(Classe::class, ClassePolicy::class);
 
         // ──────────────────────────────────────────────
         // Model Observers — File Cleanup on Delete

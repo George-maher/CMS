@@ -21,6 +21,7 @@ export default function Login() {
     platform_admin: '/platform',
     admin: '/admin',
     assistant_admin: '/assistant-admin',
+    stage_admin: '/stage',
     servant: '/servant',
     member: '/member',
   }

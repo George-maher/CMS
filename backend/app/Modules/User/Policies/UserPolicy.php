@@ -2,45 +2,38 @@
 
 namespace App\Modules\User\Policies;
 
+use App\Contracts\ScopeResolverInterface;
 use App\Models\User;
 
 class UserPolicy
 {
+    public function __construct(
+        private readonly ScopeResolverInterface $scopeResolver,
+    ) {}
+
     public function viewAny(User $user): bool
     {
-        return $user->isAdmin();
+        return $user->isAdmin() || $user->isStageAdmin() || $user->isServant();
     }
 
     public function view(User $user, User $target): bool
     {
-        if ($user->isAdmin()) {
-            return $target->church_id === $user->church_id;
-        }
-        if ($user->isServant() && $target->isMember()) {
-            if ($target->church_id !== $user->church_id) {
-                return false;
-            }
-
-            $servantClassIds = $user->getServantClassIds();
-
-            return $servantClassIds === null || in_array($target->class_id, $servantClassIds, true);
-        }
-
-        return $user->id === $target->id;
+        return $this->scopeResolver->canAccessUser($user, $target);
     }
 
     public function create(User $user): bool
     {
-        return $user->isAdmin();
+        return $user->isAdmin() || $user->isStageAdmin();
     }
 
     public function update(User $user, User $target): bool
     {
-        if ($user->isAdmin()) {
+        if ($user->id === $target->id) {
             return true;
         }
 
-        return $user->id === $target->id;
+        return ($user->isAdmin() || $user->isStageAdmin())
+            && $this->scopeResolver->canAccessUser($user, $target);
     }
 
     public function delete(User $user, User $target): bool
@@ -48,26 +41,50 @@ class UserPolicy
         if (! $user->isAdmin()) {
             return false;
         }
-        if ($target->isAdmin()) {
+        if ($target->isAdmin() || $target->isPlatformAdmin()) {
+            return false;
+        }
+        if ($user->church_id !== null && $user->church_id !== $target->church_id) {
             return false;
         }
 
         return true;
     }
 
-    public function promote(User $user): bool
+    public function promote(User $user, User $target): bool
     {
-        return $user->isAdmin();
+        if (! $this->canManageUserRoles($user, $target)) {
+            return false;
+        }
+
+        // Stage admins may only grant non-privileged roles (enforced upstream).
+        return $user->isAdmin() || $user->isStageAdmin();
     }
 
-    public function demote(User $user): bool
+    public function demote(User $user, User $target): bool
     {
-        return $user->isAdmin();
+        if (! $this->canManageUserRoles($user, $target)) {
+            return false;
+        }
+
+        return $user->isAdmin() || $user->isStageAdmin();
+    }
+
+    private function canManageUserRoles(User $user, User $target): bool
+    {
+        if ($target->isPlatformAdmin()) {
+            return false;
+        }
+        if (! $this->scopeResolver->canAccessUser($user, $target)) {
+            return false;
+        }
+
+        return true;
     }
 
     public function viewMembers(User $user, ?User $servant = null): bool
     {
-        if ($user->isAdmin()) {
+        if ($user->isAdmin() || $user->isStageAdmin()) {
             return true;
         }
         if ($user->isServant() && $servant && $user->id === $servant->id) {
@@ -79,13 +96,13 @@ class UserPolicy
 
     public function viewServants(User $user): bool
     {
-        return $user->isAdmin();
+        return $user->isAdmin() || $user->isStageAdmin();
     }
 
     public function regenerateQrToken(User $user, User $target): bool
     {
-        if ($user->isAdmin()) {
-            return true;
+        if ($user->isAdmin() || $user->isStageAdmin()) {
+            return $this->scopeResolver->canAccessUser($user, $target);
         }
 
         return $user->id === $target->id;

@@ -5,6 +5,7 @@ const roleHierarchy: Record<UserRole, number> = {
   platform_admin: 100,
   admin: 80,
   assistant_admin: 70,
+  stage_admin: 60,
   servant: 50,
   member: 10,
 }
@@ -13,6 +14,7 @@ const roleRedirects: Record<UserRole, string> = {
   platform_admin: '/platform',
   admin: '/admin',
   assistant_admin: '/admin',
+  stage_admin: '/stage',
   servant: '/servant',
   member: '/member',
 }

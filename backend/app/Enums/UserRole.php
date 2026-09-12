@@ -7,6 +7,7 @@ enum UserRole: string
     case PlatformAdmin = 'platform_admin';
     case Admin = 'admin';
     case AssistantAdmin = 'assistant_admin';
+    case StageAdmin = 'stage_admin';
     case Servant = 'servant';
     case Member = 'member';
 
@@ -16,6 +17,7 @@ enum UserRole: string
             self::PlatformAdmin => 'Platform Admin',
             self::Admin => 'Church Admin',
             self::AssistantAdmin => 'Assistant Admin',
+            self::StageAdmin => 'Stage Admin',
             self::Servant => 'Servant',
             self::Member => 'Member',
         };
@@ -31,6 +33,6 @@ enum UserRole: string
     /** @return array<int, self> */
     public static function adminRoles(): array
     {
-        return [self::Admin, self::AssistantAdmin];
+        return [self::Admin, self::AssistantAdmin, self::StageAdmin];
     }
 }

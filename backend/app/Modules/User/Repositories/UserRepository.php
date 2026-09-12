@@ -74,6 +74,30 @@ class UserRepository implements UserRepositoryInterface
             $query->where('role', $filters['role']);
         }
 
+        if (! empty($filters['stage_id'])) {
+            $query->where('stage_id', $filters['stage_id']);
+        }
+
+        if (array_key_exists('class_ids', $filters)) {
+            /** @var array<int, int> $classIds */
+            $classIds = [];
+            foreach ((array) ($filters['class_ids'] ?? []) as $raw) {
+                if (is_int($raw)) {
+                    $classIds[] = $raw;
+                }
+            }
+
+            $query->where(function ($q) use ($classIds) {
+                if ($classIds === []) {
+                    // Stage admin with no accessible classes: match nothing.
+                    $q->whereRaw('1 = 0');
+                } else {
+                    $q->whereIn('class_id', $classIds)
+                        ->orWhereIn('class_year_id', $classIds);
+                }
+            });
+        }
+
         if (! empty($filters['class_id'])) {
             $query->where('class_id', $filters['class_id']);
         } elseif (! empty($filters['class_year_id'])) {

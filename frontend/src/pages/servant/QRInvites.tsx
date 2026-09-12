@@ -26,7 +26,7 @@ const typeBadge: Record<string, 'info' | 'success' | 'warning'> = {
 }
 
 const roleLabel = (role?: string): string => {
-  const map: Record<string, string> = { member: 'Member', servant: 'Servant', admin: 'Admin', assistant_admin: 'Asst. Admin', platform_admin: 'Platform Admin' }
+  const map: Record<string, string> = { member: 'Member', servant: 'Servant', admin: 'Admin', assistant_admin: 'Asst. Admin', stage_admin: 'Stage Admin', platform_admin: 'Platform Admin' }
   return role ? map[role] ?? role : ''
 }
 

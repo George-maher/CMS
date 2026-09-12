@@ -70,6 +70,7 @@ export default function ApplicationStatus() {
         platform_admin: '/platform',
         admin: '/admin',
         assistant_admin: '/assistant-admin',
+        stage_admin: '/stage',
         servant: '/servant',
         member: '/member',
       }

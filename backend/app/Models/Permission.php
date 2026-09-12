@@ -118,36 +118,12 @@ class Permission extends Model
     public static function defaultRolePermissions(): array
     {
         return [
-            UserRole::Admin->value => [
-                'manage_members', 'manage_servants', 'manage_users', 'view_users',
-                'manage_events', 'view_events',
-                'manage_event_registrations', 'manage_event_payments', 'view_event_reports',
-                'manage_class_years', 'view_class_years',
-                'manage_attendance', 'record_attendance', 'view_attendance',
-                'manage_invites', 'view_invites',
-                'manage_feedback', 'view_feedback',
-                'manage_verses', 'view_verses',
-                'manage_attendance_contexts',
-                'view_analytics',
-                'manage_church_settings',
-                'manage_points', 'view_points',
-                'manage_membership_requests', 'view_membership_requests',
-            ],
-            UserRole::AssistantAdmin->value => [
-                'manage_members', 'manage_servants', 'manage_users', 'view_users',
-                'manage_events', 'view_events',
-                'manage_event_registrations', 'manage_event_payments', 'view_event_reports',
-                'manage_class_years', 'view_class_years',
-                'manage_attendance', 'record_attendance', 'view_attendance',
-                'manage_invites', 'view_invites',
-                'manage_feedback', 'view_feedback',
-                'manage_verses', 'view_verses',
-                'manage_attendance_contexts',
-                'view_analytics',
-                'manage_church_settings',
-                'manage_points', 'view_points',
-                'manage_membership_requests', 'view_membership_requests',
-            ],
+            UserRole::Admin->value => self::adminPermissionKeys(),
+            UserRole::AssistantAdmin->value => self::adminPermissionKeys(),
+            UserRole::StageAdmin->value => array_values(array_diff(
+                self::adminPermissionKeys(),
+                ['manage_church_settings'],
+            )),
             UserRole::Servant->value => [
                 'view_users',
                 'view_events', 'manage_events',
@@ -168,6 +144,28 @@ class Permission extends Model
                 'view_points',
                 'submit_feedback',
             ],
+        ];
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private static function adminPermissionKeys(): array
+    {
+        return [
+            'manage_members', 'manage_servants', 'manage_users', 'view_users',
+            'manage_events', 'view_events',
+            'manage_event_registrations', 'manage_event_payments', 'view_event_reports',
+            'manage_class_years', 'view_class_years',
+            'manage_attendance', 'record_attendance', 'view_attendance',
+            'manage_invites', 'view_invites',
+            'manage_feedback', 'view_feedback',
+            'manage_verses', 'view_verses',
+            'manage_attendance_contexts',
+            'view_analytics',
+            'manage_church_settings',
+            'manage_points', 'view_points',
+            'manage_membership_requests', 'view_membership_requests',
         ];
     }
 }

@@ -5,9 +5,12 @@ declare(strict_types=1);
 namespace App\Modules\User\Services;
 
 use App\Contracts\AttendanceServiceInterface;
+use App\Contracts\ScopeResolverInterface;
 use App\Contracts\UserRepositoryInterface;
 use App\Contracts\UserServiceInterface;
 use App\Enums\UserRole;
+use App\Enums\UserScope;
+use App\Models\Classe;
 use App\Models\User;
 use App\Modules\User\Resources\UserResource;
 use App\Services\CacheService;
@@ -22,6 +25,7 @@ class UserService implements UserServiceInterface
         private readonly UserRepositoryInterface $userRepository,
         private readonly AttendanceServiceInterface $attendanceService,
         private readonly CacheService $cacheService,
+        private readonly ScopeResolverInterface $scopeResolver,
     ) {}
 
     /** @param array<string, mixed> $filters */
@@ -62,8 +66,38 @@ class UserService implements UserServiceInterface
         /** @var User|null $authUser */
         $authUser = $authUserId ? User::find($authUserId) : null;
 
+        if ($authUser !== null && $authUser->isStageAdmin()) {
+            /** @var string $role */
+            $role = $data['role'] ?? UserRole::Member->value;
+            if (! in_array($role, [UserRole::Member->value, UserRole::Servant->value], true)) {
+                throw ValidationException::withMessages(['role' => ['Stage admins may only create members or servants.']]);
+            }
+
+            /** @var int|null $classId */
+            $classId = $data['class_id'] ?? null;
+            if ($classId === null) {
+                throw ValidationException::withMessages(['class_id' => ['A class within your stage is required.']]);
+            }
+
+            /** @var Classe|null $classe */
+            $classe = Classe::query()->where('id', $classId)->first();
+            if ($classe === null || ! $this->scopeResolver->canAccessClass($authUser, $classe)) {
+                throw ValidationException::withMessages(['class_id' => ['The selected class is outside your stage.']]);
+            }
+        }
+
         /** @var array<string, mixed> $data */
         $data['password'] = Hash::make($password);
+
+        /** @var string $role */
+        $role = $data['role'] ?? UserRole::Member->value;
+        /** @var int|null $stageId */
+        $stageId = isset($data['stage_id']) && is_numeric($data['stage_id']) ? (int) $data['stage_id'] : null;
+
+        if ($role === UserRole::StageAdmin->value && $stageId === null) {
+            throw ValidationException::withMessages(['stage_id' => ['A stage is required for stage admins.']]);
+        }
+
         $data['created_by'] = $authUserId;
         $data['church_id'] = $this->resolveChurchId($data, $authUser);
         $data['application_status'] = 'approved';
@@ -73,9 +107,11 @@ class UserService implements UserServiceInterface
             'name' => $data['name'] ?? '',
             'email' => $email,
             'password' => $data['password'],
-            'role' => $data['role'] ?? UserRole::Member->value,
+            'role' => $role,
             'class_id' => $data['class_id'] ?? null,
             'class_year_id' => $data['class_year_id'] ?? null,
+            'stage_id' => $stageId,
+            'scope' => $this->deriveScopeValue($role, $stageId),
             'phone' => $data['phone'] ?? null,
             'address' => $data['address'] ?? null,
             'birthday' => $data['birthday'] ?? null,
@@ -109,6 +145,25 @@ class UserService implements UserServiceInterface
             /** @var string $password */
             $password = $data['password'];
             $data['password'] = Hash::make($password);
+        }
+
+        /** @var string|null $currentRole */
+        $currentRole = $user->role?->value;
+        /** @var string|null $targetRole */
+        $targetRole = isset($data['role']) && is_string($data['role']) ? $data['role'] : $currentRole;
+
+        if (array_key_exists('stage_id', $data) || $targetRole !== $currentRole) {
+            /** @var int|null $stageId */
+            $stageId = array_key_exists('stage_id', $data)
+                ? (isset($data['stage_id']) && is_numeric($data['stage_id']) ? (int) $data['stage_id'] : null)
+                : ($user->stage_id !== null ? (int) $user->stage_id : null);
+
+            if ($targetRole === UserRole::StageAdmin->value && $stageId === null) {
+                throw ValidationException::withMessages(['stage_id' => ['A stage is required for stage admins.']]);
+            }
+
+            $data['stage_id'] = $stageId;
+            $data['scope'] = $this->deriveScopeValue($targetRole ?? UserRole::Member->value, $stageId);
         }
 
         /** @var array<string, mixed> $updateData */
@@ -160,7 +215,7 @@ class UserService implements UserServiceInterface
     }
 
     /** @return array<string, mixed> */
-    public function promote(int $userId, int $authUserId, string $newRole): array
+    public function promote(int $userId, int $authUserId, string $newRole, ?int $stageId = null): array
     {
         /** @var User|null $user */
         $user = $this->userRepository->findById($userId);
@@ -169,7 +224,27 @@ class UserService implements UserServiceInterface
             throw ValidationException::withMessages(['user' => ['User not found.']]);
         }
 
+        /** @var User|null $authUser */
+        $authUser = User::find($authUserId);
+        if ($authUser !== null && ! $this->scopeResolver->canAccessUser($authUser, $user)) {
+            throw ValidationException::withMessages(['user' => ['Forbidden.']]);
+        }
+
+        if (in_array($newRole, [UserRole::Admin->value, UserRole::AssistantAdmin->value, UserRole::StageAdmin->value], true)
+            && $authUser?->isAdmin() !== true) {
+            throw ValidationException::withMessages(['role' => ['Forbidden.']]);
+        }
+
+        if ($newRole === UserRole::StageAdmin->value && $stageId === null) {
+            throw ValidationException::withMessages(['stage_id' => ['A stage is required for stage admins.']]);
+        }
+
         $user->role = UserRole::from($newRole);
+
+        /** @var int|null $stageId */
+        $stageId = $newRole === UserRole::Member->value ? null : $user->stage_id;
+        $user->stage_id = $stageId;
+        $user->scope = $this->deriveScopeValue($newRole, $stageId);
         $user->save();
 
         return [
@@ -181,11 +256,33 @@ class UserService implements UserServiceInterface
     /** @return array<string, mixed> */
     public function demoteFromAdmin(int $userId, int $authUserId, string $newRole = 'member'): array
     {
+        /** @var User|null $user */
+        $user = $this->userRepository->findById($userId);
+
+        if (! $user) {
+            throw ValidationException::withMessages(['user' => ['User not found.']]);
+        }
+
+        /** @var User|null $authUser */
+        $authUser = User::find($authUserId);
+        if ($authUser !== null && ! $this->scopeResolver->canAccessUser($authUser, $user)) {
+            throw ValidationException::withMessages(['user' => ['Forbidden.']]);
+        }
+
         $result = $this->userRepository->demoteFromAdmin($userId, $newRole);
 
         if (! $result) {
             throw ValidationException::withMessages(['user' => ['User not found or cannot be demoted.']]);
         }
+
+        /** @var int|null $stageId */
+        $stageId = $newRole === UserRole::Member->value ? null : $user->stage_id;
+        $user->refresh();
+        $user->stage_id = $stageId;
+        $user->scope = $this->deriveScopeValue($newRole, $stageId);
+        $user->save();
+
+        $this->cacheService->invalidateUserAuth($userId);
 
         return ['message' => 'User demoted from admin successfully.'];
     }
@@ -225,6 +322,15 @@ class UserService implements UserServiceInterface
             throw ValidationException::withMessages(['user' => ['User not found.']]);
         }
 
+        /** @var User|null $authUser */
+        $authUser = User::find($authUserId);
+        if ($authUser !== null && ! $this->scopeResolver->canAccessUser($authUser, $user)) {
+            throw ValidationException::withMessages(['user' => ['Forbidden.']]);
+        }
+        if ($user->isAdmin() && $authUser?->isAdmin() !== true) {
+            throw ValidationException::withMessages(['user' => ['Forbidden.']]);
+        }
+
         /** @var array<int, string> $permissionList */
         $permissionList = $permissions;
         $user->syncPermissions($permissionList);
@@ -242,7 +348,16 @@ class UserService implements UserServiceInterface
         /** @var Collection<int, User> $users */
         $users = $this->userRepository->findByIds($userIds);
 
+        /** @var User|null $authUser */
+        $authUser = User::find($authUserId);
+
         foreach ($users as $user) {
+            if ($authUser !== null && ! $this->scopeResolver->canAccessUser($authUser, $user)) {
+                throw ValidationException::withMessages(['user' => ['Forbidden.']]);
+            }
+            if ($user->isAdmin() && $authUser?->isAdmin() !== true) {
+                throw ValidationException::withMessages(['user' => ['Forbidden.']]);
+            }
             $user->syncPermissions($permissions);
         }
 
@@ -279,5 +394,20 @@ class UserService implements UserServiceInterface
         $fallback = $data['church_id'] ?? null;
 
         return is_int($fallback) ? $fallback : null;
+    }
+
+    /**
+     * Derive the org scope a role should be stored with.
+     */
+    private function deriveScopeValue(string $role, ?int $stageId): UserScope
+    {
+        return match ($role) {
+            UserRole::PlatformAdmin->value,
+            UserRole::Admin->value,
+            UserRole::AssistantAdmin->value => UserScope::Church,
+            UserRole::StageAdmin->value => $stageId !== null ? UserScope::Stage : UserScope::Self,
+            UserRole::Servant->value => UserScope::ClassScope,
+            default => UserScope::Self,
+        };
     }
 }

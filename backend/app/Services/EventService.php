@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Contracts\EventRepositoryInterface;
 use App\Contracts\EventServiceInterface;
 use App\Contracts\NotificationServiceInterface;
+use App\Contracts\ScopeResolverInterface;
 use App\Enums\EventStatus;
 use App\Enums\UserRole;
 use App\Http\Resources\EventResource;
@@ -25,6 +26,7 @@ class EventService implements EventServiceInterface
         private readonly EventRepositoryInterface $eventRepository,
         private readonly NotificationServiceInterface $notificationService,
         private readonly CacheService $cacheService,
+        private readonly ScopeResolverInterface $scopeResolver,
     ) {}
 
     /** @param array<string, mixed> $filters */
@@ -41,6 +43,15 @@ class EventService implements EventServiceInterface
                 $queryFilters['class_year_ids'] = $classIds;
             } else {
                 $queryFilters['class_year_ids'] = [0];
+            }
+        }
+
+        if ($userRole === UserRole::StageAdmin->value && $userId) {
+            $stageAdmin = User::find($userId);
+            if ($stageAdmin) {
+                /** @var array<int, int> $stageClassIds */
+                $stageClassIds = $this->scopeResolver->allowedClassIds($stageAdmin) ?? [];
+                $queryFilters['class_year_ids'] = $stageClassIds === [] ? [0] : $stageClassIds;
             }
         }
 
@@ -88,7 +99,7 @@ class EventService implements EventServiceInterface
             return null;
         }
 
-        if ($userRole && in_array($userRole, [UserRole::Admin->value, UserRole::AssistantAdmin->value, UserRole::Servant->value], true)) {
+        if ($userRole && in_array($userRole, [UserRole::Admin->value, UserRole::AssistantAdmin->value, UserRole::StageAdmin->value, UserRole::Servant->value], true)) {
             $event->load(['views.user.classe', 'targets.classe', 'responsibleServant', 'rooms.cells.accommodation.registration.user']);
         }
 

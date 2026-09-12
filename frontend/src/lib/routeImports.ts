@@ -17,6 +17,19 @@ const routeImports: Record<string, ImportFn> = {
   '/admin/profile-update-requests': () => import('@/pages/servant/ProfileUpdateRequests'),
   '/admin/profile': () => import('@/pages/Profile'),
 
+  // Stage Admin routes
+  '/stage': () => import('@/pages/stage/Dashboard'),
+  '/stage/structure': () => import('@/pages/admin/StructureManagement'),
+  '/stage/events': () => import('@/pages/admin/Events'),
+  '/stage/attendance': () => import('@/pages/servant/Attendance'),
+  '/stage/leaderboard': () => import('@/pages/admin/Leaderboard'),
+  '/stage/users': () => import('@/pages/admin/Users'),
+  '/stage/qr': () => import('@/pages/admin/QRManagement'),
+  '/stage/absent-members': () => import('@/pages/AbsentMembers'),
+  '/stage/attendance-contexts': () => import('@/pages/AttendanceContextManagement'),
+  '/stage/profile-update-requests': () => import('@/pages/servant/ProfileUpdateRequests'),
+  '/stage/profile': () => import('@/pages/Profile'),
+
   // Servant routes
   '/servant': () => import('@/pages/servant/Dashboard'),
   '/servant/members': () => import('@/pages/servant/Members'),

@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Contracts\AuditServiceInterface;
 use App\Contracts\NotificationServiceInterface;
 use App\Contracts\ProfileUpdateRequestServiceInterface;
+use App\Contracts\ScopeResolverInterface;
 use App\Enums\ProfileUpdateRequestStatus;
 use App\Models\ProfileUpdateRequest;
 use App\Models\User;
@@ -17,6 +18,7 @@ class ProfileUpdateRequestService implements ProfileUpdateRequestServiceInterfac
     public function __construct(
         private readonly NotificationServiceInterface $notificationService,
         private readonly AuditServiceInterface $auditService,
+        private readonly ScopeResolverInterface $scopeResolver,
     ) {}
 
     /** @return array{message: string, request: ProfileUpdateRequest} */
@@ -340,6 +342,44 @@ class ProfileUpdateRequestService implements ProfileUpdateRequestServiceInterfac
     }
 
     /** @return array{data: list<ProfileUpdateRequest>, meta: array<string, mixed>} */
+    public function listRequestsForStageAdmin(User $stageAdmin, int $perPage = 15, array $filters = []): array
+    {
+        /** @var array<int, int> $allowedStageIds */
+        $allowedStageIds = $this->scopeResolver->allowedStageIds($stageAdmin);
+        /** @var array<int, int> $allowedClassIds */
+        $allowedClassIds = $this->scopeResolver->allowedClassIds($stageAdmin) ?? [];
+
+        $query = ProfileUpdateRequest::with(['user.classe.stage', 'reviewer'])
+            ->where('church_id', $stageAdmin->church_id)
+            ->where(function ($q) use ($allowedStageIds, $allowedClassIds) {
+                $q->whereHas('user', function ($uq) use ($allowedStageIds, $allowedClassIds) {
+                    $uq->whereIn('stage_id', $allowedStageIds)
+                        ->orWhereIn('class_id', $allowedClassIds);
+                });
+            })
+            ->orderBy('created_at', 'desc');
+
+        if (! empty($filters['status'])) {
+            $query->where('status', $filters['status']);
+        }
+
+        $paginator = $query->paginate($perPage);
+
+        /** @var list<ProfileUpdateRequest> $items */
+        $items = $paginator->items();
+
+        return [
+            'data' => $items,
+            'meta' => [
+                'current_page' => $paginator->currentPage(),
+                'last_page' => $paginator->lastPage(),
+                'per_page' => $paginator->perPage(),
+                'total' => $paginator->total(),
+            ],
+        ];
+    }
+
+    /** @return array{data: list<ProfileUpdateRequest>, meta: array<string, mixed>} */
     public function listRequestsForAdmin(int $churchId, int $perPage = 15, array $filters = []): array
     {
         $query = ProfileUpdateRequest::with(['user.classe.stage', 'reviewer'])
@@ -429,6 +469,13 @@ class ProfileUpdateRequestService implements ProfileUpdateRequestServiceInterfac
             $memberIds = $this->getServantMemberIds($reviewer);
 
             return in_array($request->user_id, $memberIds, true);
+        }
+
+        // Stage admin can review requests from members within their stage
+        if ($reviewer->isStageAdmin()) {
+            $target = $request->user;
+
+            return $target !== null && $this->scopeResolver->canAccessUser($reviewer, $target);
         }
 
         return false;

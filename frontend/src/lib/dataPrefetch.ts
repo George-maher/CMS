@@ -59,6 +59,19 @@ export function preheatData(role: UserRole | string): void {
     tasks.push(() => listProfileUpdateRequests({ page: 1, per_page: 15, status: 'rejected' }))
   }
 
+  if (role === 'stage_admin') {
+    tasks.push(() => getDashboardStats())
+    tasks.push(() => getAttendanceStats())
+    tasks.push(() => getTodayAttendance())
+    tasks.push(() => getFilteredAttendances({ per_page: 15 }))
+    tasks.push(() => listStages())
+    tasks.push(() => listStructureClasses())
+    tasks.push(() => listUsers({ page: 1, per_page: 15 }))
+    tasks.push(() => listEvents({ page: 1, per_page: 15, upcoming: false }))
+    tasks.push(() => listQRInvites({ page: 1, per_page: 15 }))
+    tasks.push(() => listProfileUpdateRequests({ page: 1, per_page: 15 }))
+  }
+
   if (role === 'servant') {
     tasks.push(() => getDashboardStats())
     tasks.push(() => getMembers())

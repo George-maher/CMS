@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Contracts\EventLifecycleServiceInterface;
 use App\Contracts\EventServiceInterface;
 use App\Contracts\FileUploadServiceInterface;
+use App\Contracts\ScopeResolverInterface;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\EventRequest;
@@ -21,35 +22,36 @@ class EventController extends Controller
         private readonly EventServiceInterface $eventService,
         private readonly EventLifecycleServiceInterface $lifecycleService,
         private readonly FileUploadServiceInterface $fileUploadService,
+        private readonly ScopeResolverInterface $scopeResolver,
     ) {}
 
     /*
     | Lifecycle actions — publish / close / reopen / cancel / complete / duplicate
     */
 
-    public function publish(int $id): JsonResponse
+    public function publish(Request $request, int $id): JsonResponse
     {
-        return $this->lifecycleResponse($id, fn ($event) => $this->lifecycleService->publish($event), 'Event published.');
+        return $this->lifecycleResponse($request, $id, fn ($event) => $this->lifecycleService->publish($event), 'Event published.');
     }
 
-    public function closeRegistration(int $id): JsonResponse
+    public function closeRegistration(Request $request, int $id): JsonResponse
     {
-        return $this->lifecycleResponse($id, fn ($event) => $this->lifecycleService->closeRegistration($event), 'Registration closed.');
+        return $this->lifecycleResponse($request, $id, fn ($event) => $this->lifecycleService->closeRegistration($event), 'Registration closed.');
     }
 
-    public function reopenRegistration(int $id): JsonResponse
+    public function reopenRegistration(Request $request, int $id): JsonResponse
     {
-        return $this->lifecycleResponse($id, fn ($event) => $this->lifecycleService->reopenRegistration($event), 'Registration reopened.');
+        return $this->lifecycleResponse($request, $id, fn ($event) => $this->lifecycleService->reopenRegistration($event), 'Registration reopened.');
     }
 
-    public function cancel(int $id): JsonResponse
+    public function cancel(Request $request, int $id): JsonResponse
     {
-        return $this->lifecycleResponse($id, fn ($event) => $this->lifecycleService->cancel($event), 'Event cancelled.');
+        return $this->lifecycleResponse($request, $id, fn ($event) => $this->lifecycleService->cancel($event), 'Event cancelled.');
     }
 
-    public function complete(int $id): JsonResponse
+    public function complete(Request $request, int $id): JsonResponse
     {
-        return $this->lifecycleResponse($id, fn ($event) => $this->lifecycleService->complete($event), 'Event completed.');
+        return $this->lifecycleResponse($request, $id, fn ($event) => $this->lifecycleService->complete($event), 'Event completed.');
     }
 
     public function duplicate(Request $request, int $id): JsonResponse
@@ -66,7 +68,7 @@ class EventController extends Controller
         /** @var Event $eventModel */
         $eventModel = $existing['data']->resource;
 
-        if ($this->servantCannotAccessEvent($user, $eventModel)) {
+        if ($this->cannotAccessEvent($user, $eventModel)) {
             return response()->json(['message' => 'Forbidden.'], 403);
         }
 
@@ -84,13 +86,20 @@ class EventController extends Controller
     /**
      * @param  callable(Event): Event  $action
      */
-    private function lifecycleResponse(int $id, callable $action, string $message): JsonResponse
+    private function lifecycleResponse(Request $request, int $id, callable $action, string $message): JsonResponse
     {
         /** @var Event|null $event */
         $event = Event::query()->find($id);
 
         if (! $event) {
             return response()->json(['message' => 'Event not found.'], 404);
+        }
+
+        /** @var User $user */
+        $user = $request->user();
+
+        if ($this->cannotAccessEvent($user, $event)) {
+            return response()->json(['message' => 'Forbidden.'], 403);
         }
 
         $updated = $action($event);
@@ -145,6 +154,10 @@ class EventController extends Controller
         }
         unset($data['class_id']);
 
+        if ($user->isStageAdmin() && ! $this->stageAdminTargetsInScope($user, $data)) {
+            return response()->json(['message' => 'Forbidden.'], 403);
+        }
+
         /** @var int $creatorId */
         $creatorId = $user->id;
         /** @var array<int, int>|null $servantClassIds */
@@ -180,7 +193,7 @@ class EventController extends Controller
         /** @var Event $eventModel */
         $eventModel = $result['data']->resource;
 
-        if ($this->servantCannotAccessEvent($user, $eventModel)) {
+        if ($this->cannotAccessEvent($user, $eventModel)) {
             return response()->json(['message' => 'Forbidden.'], 403);
         }
 
@@ -205,7 +218,7 @@ class EventController extends Controller
         /** @var Event $eventModel */
         $eventModel = $existing['data']->resource;
 
-        if ($this->servantCannotAccessEvent($user, $eventModel)) {
+        if ($this->cannotAccessEvent($user, $eventModel)) {
             return response()->json(['message' => 'Forbidden.'], 403);
         }
 
@@ -255,7 +268,7 @@ class EventController extends Controller
         /** @var Event $eventModel */
         $eventModel = $existing['data']->resource;
 
-        if ($this->servantCannotAccessEvent($user, $eventModel)) {
+        if ($this->cannotAccessEvent($user, $eventModel)) {
             return response()->json(['message' => 'Forbidden.'], 403);
         }
 
@@ -280,6 +293,79 @@ class EventController extends Controller
         $overlap = ! empty($targetClassIds) && ! empty(array_intersect($servantClassIds, $targetClassIds));
 
         return ! $hasAccess && ! $overlap && $event->class_year_id !== null && $event->class_year_id !== $user->class_year_id;
+    }
+
+    private function stageAdminCannotAccessEvent(User $user, Event $event): bool
+    {
+        $hasAllClasses = $event->is_all_classes
+            || $event->targets()->where('is_all_classes', true)->exists();
+
+        if ($hasAllClasses) {
+            return false;
+        }
+
+        /** @var array<int, int> $allowedClassIds */
+        $allowedClassIds = $this->scopeResolver->allowedClassIds($user) ?? [];
+        /** @var array<int, int> $targetClassIds */
+        $targetClassIds = $event->targets()->where('is_all_classes', false)->pluck('class_id')->filter()->values()->toArray();
+        $overlap = ! empty($allowedClassIds) && ! empty($targetClassIds) && ! empty(array_intersect($allowedClassIds, $targetClassIds));
+
+        if ($overlap) {
+            return false;
+        }
+
+        return $event->class_year_id !== null && ! in_array((int) $event->class_year_id, $allowedClassIds, true);
+    }
+
+    private function cannotAccessEvent(User $user, Event $event): bool
+    {
+        if ($user->isServant()) {
+            return $this->servantCannotAccessEvent($user, $event);
+        }
+
+        if ($user->isStageAdmin()) {
+            return $this->stageAdminCannotAccessEvent($user, $event);
+        }
+
+        return false;
+    }
+
+    /**
+     * Stage admins may only create events targeting classes inside their own
+     * stage. Church-wide (is_all_classes) events stay admin/assistant-only.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function stageAdminTargetsInScope(User $stageAdmin, array $data): bool
+    {
+        if (! empty($data['is_all_classes'])) {
+            return false;
+        }
+
+        /** @var array<int, int> $allowedClassIds */
+        $allowedClassIds = $this->scopeResolver->allowedClassIds($stageAdmin) ?? [];
+        /** @var list<int> $targetIds */
+        $targetIds = [];
+
+        if (isset($data['target_class_ids']) && is_array($data['target_class_ids'])) {
+            foreach ($data['target_class_ids'] as $classId) {
+                if (is_numeric($classId)) {
+                    $targetIds[] = (int) $classId;
+                }
+            }
+        }
+
+        if (is_numeric($data['class_year_id'] ?? null)) {
+            $targetIds[] = (int) $data['class_year_id'];
+        }
+
+        foreach ($targetIds as $classId) {
+            if (! in_array($classId, $allowedClassIds, true)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**

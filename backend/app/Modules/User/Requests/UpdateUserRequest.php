@@ -42,6 +42,7 @@ class UpdateUserRequest extends FormRequest
             'role' => ['sometimes', Rule::in($allowedRoles)],
             'class_year_id' => ['nullable', 'integer', 'exists:class_years,id'],
             'class_id' => ['nullable', 'integer', 'exists:classes,id'],
+            'stage_id' => ['nullable', 'integer', 'exists:stages,id'],
             'phone' => ['nullable', new PhoneRule, new NotPlaceholder],
             'address' => ['nullable', 'string', 'max:500', new NotPlaceholder],
             'birthday' => ['nullable', 'date', 'before:today'],

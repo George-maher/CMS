@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Contracts\FeedbackServiceInterface;
-use App\Enums\UserRole;
+use App\Contracts\ScopeResolverInterface;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\FeedbackRequest;
 use App\Models\Feedback;
@@ -17,6 +17,7 @@ class FeedbackController extends Controller
 {
     public function __construct(
         private readonly FeedbackServiceInterface $feedbackService,
+        private readonly ScopeResolverInterface $scopeResolver,
     ) {}
 
     public function submit(FeedbackRequest $request): JsonResponse
@@ -67,8 +68,17 @@ class FeedbackController extends Controller
         $user = $request->user();
 
         $classYearIds = null;
-        if ($user->role === UserRole::Servant) {
+        if ($user->isServant()) {
             $classYearIds = $user->getServantClassIds();
+            if (empty($classYearIds)) {
+                return response()->json([
+                    'data' => [],
+                    'meta' => ['current_page' => 1, 'last_page' => 1, 'per_page' => 15, 'total' => 0],
+                    'unresolved_count' => 0,
+                ]);
+            }
+        } elseif ($user->isStageAdmin()) {
+            $classYearIds = $this->scopeResolver->allowedClassIds($user) ?? [];
             if (empty($classYearIds)) {
                 return response()->json([
                     'data' => [],
@@ -96,12 +106,11 @@ class FeedbackController extends Controller
         /** @var User $user */
         $user = $request->user();
 
-        // Servants: verify the feedback belongs to one of their classes
-        if ($user->role === UserRole::Servant) {
+        // Servants/Stage admins: verify the feedback belongs to their scope
+        if ($this->isScopedReviewer($user)) {
             $feedback = Feedback::byChurch()->find($id);
-            /** @var array<int, int>|null $servantClassIds */
-            $servantClassIds = $user->getServantClassIds();
-            if (! $feedback || ! in_array($feedback->class_year_id, (array) $servantClassIds)) {
+            $scopeClassIds = $this->scopedReviewerClassIds($user);
+            if (! $feedback || ! in_array($feedback->class_year_id, $scopeClassIds, true)) {
                 throw ValidationException::withMessages([
                     'feedback' => ['Feedback not found.'],
                 ]);
@@ -122,12 +131,11 @@ class FeedbackController extends Controller
         /** @var User $user */
         $user = $request->user();
 
-        // Servants: verify the feedback belongs to one of their classes
-        if ($user->role === UserRole::Servant) {
+        // Servants/Stage admins: verify the feedback belongs to their scope
+        if ($this->isScopedReviewer($user)) {
             $feedback = Feedback::byChurch()->find($id);
-            /** @var array<int, int>|null $servantClassIds */
-            $servantClassIds = $user->getServantClassIds();
-            if (! $feedback || ! in_array($feedback->class_year_id, (array) $servantClassIds)) {
+            $scopeClassIds = $this->scopedReviewerClassIds($user);
+            if (! $feedback || ! in_array($feedback->class_year_id, $scopeClassIds, true)) {
                 throw ValidationException::withMessages([
                     'feedback' => ['Feedback not found.'],
                 ]);
@@ -167,14 +175,14 @@ class FeedbackController extends Controller
         $user = $request->user();
         $filters = ['id' => $id];
 
-        if ($user->role === UserRole::Servant) {
-            $servantClassIds = $user->getServantClassIds();
-            if (empty($servantClassIds)) {
+        if ($this->isScopedReviewer($user)) {
+            $scopeClassIds = $this->scopedReviewerClassIds($user);
+            if (empty($scopeClassIds)) {
                 throw ValidationException::withMessages([
                     'feedback' => ['Feedback not found.'],
                 ]);
             }
-            $filters['class_year_ids'] = $servantClassIds;
+            $filters['class_year_ids'] = $scopeClassIds;
         }
 
         $result = $this->feedbackService->list(
@@ -194,5 +202,25 @@ class FeedbackController extends Controller
         return response()->json([
             'data' => $feedback,
         ]);
+    }
+
+    private function isScopedReviewer(User $user): bool
+    {
+        return $user->isServant() || $user->isStageAdmin();
+    }
+
+    /**
+     * @return array<int, int>
+     */
+    private function scopedReviewerClassIds(User $user): array
+    {
+        if ($user->isStageAdmin()) {
+            return $this->scopeResolver->allowedClassIds($user) ?? [];
+        }
+
+        /** @var array<int, int> $servantClassIds */
+        $servantClassIds = $user->getServantClassIds() ?? [];
+
+        return $servantClassIds;
     }
 }

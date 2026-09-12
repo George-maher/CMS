@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\UserRole;
+use App\Enums\UserScope;
 use App\Traits\AuditableTrait;
 use App\Traits\HasPermissions;
 use Database\Factories\UserFactory;
@@ -35,6 +36,8 @@ use Laravel\Sanctum\PersonalAccessToken;
  * @property UserRole $role
  * @property int|null $class_year_id
  * @property int|null $class_id
+ * @property int|null $stage_id
+ * @property UserScope $scope
  * @property int|null $invite_id
  * @property int|null $servant_id
  * @property string|null $phone
@@ -53,6 +56,7 @@ use Laravel\Sanctum\PersonalAccessToken;
  * @property-read ChurchApplication|null $churchApplication
  * @property-read Classe|null $classe
  * @property-read Collection<int, Classe> $classes
+ * @property-read Stage|null $stage
  * @property-read QRInvite|null $invite
  * @property-read User|null $createdBy
  * @property-read User|null $servant
@@ -97,6 +101,8 @@ class User extends Authenticatable
         'role',
         'class_year_id',
         'class_id',
+        'stage_id',
+        'scope',
         'invite_id',
         'servant_id',
         'phone',
@@ -120,6 +126,7 @@ class User extends Authenticatable
             'password' => 'hashed',
             'is_active' => 'boolean',
             'role' => UserRole::class,
+            'scope' => UserScope::class,
             'birthday' => 'date:Y-m-d',
             'application_status' => 'string',
         ];
@@ -147,6 +154,14 @@ class User extends Authenticatable
     public function classe(): BelongsTo
     {
         return $this->belongsTo(Classe::class, 'class_id');
+    }
+
+    /**
+     * @return BelongsTo<Stage, $this>
+     */
+    public function stage(): BelongsTo
+    {
+        return $this->belongsTo(Stage::class, 'stage_id');
     }
 
     /**
@@ -284,9 +299,42 @@ class User extends Authenticatable
         return $this->role === UserRole::Servant;
     }
 
+    public function isStageAdmin(): bool
+    {
+        return $this->role === UserRole::StageAdmin;
+    }
+
     public function isMember(): bool
     {
         return $this->role === UserRole::Member;
+    }
+
+    /**
+     * Effective organizational scope.
+     *
+     * The role - together with stage_id - fully defines the user's scope.
+     * The stored `scope` column is a denormalized annotation (indexed for
+     * query efficiency) but is never trusted for access decisions, so a
+     * Member with a legacy `scope` of 'church' still acts as Self.
+     */
+    public function getScope(): UserScope
+    {
+        return $this->roleDefaultScope();
+    }
+
+    /**
+     * The widest scope the role is allowed to act with.
+     */
+    private function roleDefaultScope(): UserScope
+    {
+        return match ($this->role) {
+            UserRole::PlatformAdmin,
+            UserRole::Admin,
+            UserRole::AssistantAdmin => UserScope::Church,
+            UserRole::StageAdmin => $this->stage_id ? UserScope::Stage : UserScope::Self,
+            UserRole::Servant => UserScope::ClassScope,
+            UserRole::Member => UserScope::Self,
+        };
     }
 
     public function isAdminOrAssistantAdmin(): bool
