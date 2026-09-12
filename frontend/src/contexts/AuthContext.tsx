@@ -5,6 +5,7 @@ import * as authApi from '@/api/auth'
 import type { AuthResult } from '@/api/auth'
 import { logCatch } from '@/lib/debug'
 import { clearAllData } from '@/lib/db'
+import { clearRequestCache } from '@/api/client'
 
 interface AuthContextType {
   user: User | null
@@ -103,6 +104,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (payload: LoginPayload): Promise<AuthResult> => {
     const result = await authApi.login(payload)
+    clearRequestCache()
     setToken(result.token)
     setUser(result.user)
     localStorage.setItem(STORAGE_TOKEN_KEY, result.token)
@@ -113,6 +115,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const platformLogin = async (payload: LoginPayload): Promise<AuthResult> => {
     const result = await authApi.platformLogin(payload)
+    clearRequestCache()
     setToken(result.token)
     setUser(result.user)
     localStorage.setItem(STORAGE_TOKEN_KEY, result.token)
@@ -133,6 +136,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     setToken(null)
     setUser(null)
+    clearRequestCache()
     localStorage.removeItem(STORAGE_TOKEN_KEY)
     localStorage.removeItem(STORAGE_USER_KEY)
     localStorage.removeItem(STORAGE_VALIDATED_AT_KEY)

@@ -38,11 +38,48 @@ const client = axios.create({
   headers: { Accept: 'application/json' },
 })
 
+/*
+ * Bare axios instance used ONLY for the stale-while-revalidate background
+ * refresh. It has NO interceptors, so it will not re-enter the caching logic.
+ * Using it (instead of a bare `axios.get(config.url, ...)`) guarantees the
+ * relative url from the original config resolves against the API baseURL and
+ * not against the SPA origin (which would hit the Vercel rewrite and cache
+ * index.html as API data).
+ */
+const networkClient = axios.create({
+  baseURL: buildBaseUrl(API_URL),
+  withCredentials: true,
+  headers: { Accept: 'application/json' },
+})
+
 const OFFLINE_WRITABLE_PATTERNS = [
   /\/api\/v1\/attendance$/,
   /\/api\/v1\/attendance\/bulk$/,
   /\/api\/v1\/attendance\/scan$/,
 ]
+
+/*
+ * Small deterministic hash (FNV-1a, 32-bit). Used to scope in-memory cache
+ * entries to the current session so a logged-out/logged-in or a different
+ * account can never reuse data previously cached for another user.
+ */
+function hashScope(input: string): string {
+  let h = 2166136261
+  for (let i = 0; i < input.length; i++) {
+    h ^= input.charCodeAt(i)
+    h = Math.imul(h, 16777619)
+  }
+  return (h >>> 0).toString(36)
+}
+
+function getCacheScope(): string {
+  const token = localStorage.getItem('auth_token')
+  return token ? hashScope(token) : 'anon'
+}
+
+function buildCacheKey(url: string, params: unknown): string {
+  return `${getCacheScope()}:${url}:${JSON.stringify(params || {})}`
+}
 
 client.interceptors.request.use(async (config) => {
   // Record request start time for perf monitoring
@@ -80,7 +117,7 @@ client.interceptors.request.use(async (config) => {
   }
 
   if (config.method === 'get' && config.url) {
-    const cacheKey = `${config.url}:${JSON.stringify(config.params || {})}`
+    const cacheKey = buildCacheKey(config.url, config.params || {})
     const cached = getCached(cacheKey)
 
     if (cached !== null && !isStale(cacheKey)) {
@@ -95,8 +132,8 @@ client.interceptors.request.use(async (config) => {
     if (cached !== null && isStale(cacheKey)) {
       // Stale-while-revalidate: return stale data now, fire background refresh
       if (!getInflight(cacheKey)) {
-        const bgHeaders = { ...(config.headers ?? {}), Authorization: config.headers?.Authorization }
-        const bgPromise = axios.get(config.url, { params: config.params, headers: bgHeaders, withCredentials: true })
+        const bgHeaders = { ...(config.headers ?? {}) }
+        const bgPromise = networkClient.get(config.url, { params: config.params, headers: bgHeaders })
           .then((res) => {
             setCache(cacheKey, res.data)
             return res
@@ -129,7 +166,7 @@ client.interceptors.response.use(
     }
 
     if (response.config.method === 'get' && response.config.url) {
-      const cacheKey = `${response.config.url}:${JSON.stringify(response.config.params || {})}`
+      const cacheKey = buildCacheKey(response.config.url, response.config.params || {})
       setCache(cacheKey, response.data)
     } else if (response.config.url) {
       const url = response.config.url
@@ -153,6 +190,7 @@ client.interceptors.response.use(
       const publicPaths = ['/login', '/register', '/invite/', '/forgot-password']
       const onPublicPage = publicPaths.some(p => window.location.pathname.startsWith(p))
       if (!onPublicPage) {
+        clearRequestCache()
         localStorage.removeItem('auth_token')
         localStorage.removeItem('auth_user')
         localStorage.removeItem('auth_validated_at')
@@ -173,5 +211,13 @@ client.interceptors.response.use(
     return Promise.reject(error)
   },
 )
+
+/**
+ * Wipe all in-memory request cache entries. Called on logout and on 401 so
+ * the next account never reads another user's cached API responses.
+ */
+export function clearRequestCache(): void {
+  invalidateCache()
+}
 
 export default client

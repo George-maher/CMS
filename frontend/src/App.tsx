@@ -7,7 +7,9 @@ import AppLayout from '@/components/layout/AppLayout'
 import OfflineBanner from '@/components/common/OfflineBanner'
 import { useOffline } from '@/contexts/OfflineContext'
 import { useSync } from '@/contexts/SyncContext'
+import { useAuth } from '@/hooks/useAuth'
 import { prefetchRoutesWhenIdle } from '@/lib/routePrefetch'
+import { preheatData } from '@/lib/dataPrefetch'
 import { recordRouteTransition } from '@/lib/perf'
 
 const FullPageSpinner = (
@@ -84,7 +86,11 @@ function PublicPage({ children }: { children: ReactNode }) {
 }
 
 function RoutePrefetcher() {
+  const { user } = useAuth()
+
   useEffect(() => {
+    if (!user) return
+
     prefetchRoutesWhenIdle([
       // High-frequency admin routes
       { importFn: () => import('@/pages/admin/Dashboard'), key: 'admin-dashboard' },
@@ -102,7 +108,13 @@ function RoutePrefetcher() {
       { importFn: () => import('@/pages/member/Attendance'), key: 'member-attendance' },
       { importFn: () => import('@/pages/member/Events'), key: 'member-events' },
     ], 150)
-  }, [])
+
+    // Preheat the in-memory request cache for the user's role so the very
+    // first visit to a page is served from cache (cache HIT) instead of
+    // waiting for route-chunk download + all API round-trips.
+    const timer = window.setTimeout(() => preheatData(user.role), 1200)
+    return () => window.clearTimeout(timer)
+  }, [user])
 
   return null
 }

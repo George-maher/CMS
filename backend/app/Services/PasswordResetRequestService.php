@@ -321,7 +321,7 @@ class PasswordResetRequestService implements PasswordResetRequestServiceInterfac
     /** @return array<string, mixed> */
     public function listRequests(int $churchId, int $perPage = 15, array $filters = []): array
     {
-        $query = PasswordResetRequest::with(['user.classe', 'reviewer'])
+        $query = PasswordResetRequest::with(['user.classe.stage', 'reviewer'])
             ->whereHas('user', function ($q) use ($churchId) {
                 $q->where('church_id', $churchId);
             });

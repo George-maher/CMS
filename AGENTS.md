@@ -894,3 +894,51 @@ Implement a complete Events Management module (Conferences + Trips) on top of th
 ## Next Steps
 1. Deploy: run `php artisan migrate --force` and `php artisan db:seed --class=PermissionSeeder --force` (new permission keys).
 2. Optional: servant-scoped participant visibility (currently servants manage all registrations within their church).
+
+---
+
+## 📌 ANCHORED SUMMARY (2026-09-12)
+
+## Goal
+Fix first-visit vs second-visit page-load slowness and remove unsafe client-side caching of authenticated API data — WITHOUT removing lazy loading or faking latency. Evidence-first investigation of the React + Laravel + Vercel stack.
+
+## Root Causes (evidence-based)
+1. **SWR background-refresh bug** (`client.ts:99`): revalidation used bare `axios.get(config.url)` with a RELATIVE url → resolved against the SPA origin → on Vercel hit the SPA rewrite and could cache `index.html` as API data.
+2. **In-memory request cache not user-scoped**: keys were `url + params` only; cache survived logout and was shared across the session, so another account (or same account on a different token) could read the previous user's cached API responses.
+3. **PWA service worker cached ALL authenticated `/api/v1/*` responses** (NetworkFirst, up to 30 min; `api-slow-cache`/`api-fast-cache`/`api-default-cache`). Workbox cache key is URL+params only → cross-user data could be served to a different account in the same browser on timeout/offline, and served stale up to 30 min.
+4. **No data preheat**: every page was `React.lazy()` and fetched on mount → first visit = chunk download + all API round-trips + blank full-page spinner. Second visit in the same session = chunk cached by browser + request-cache HIT → the observed "first slow, second fast" pattern.
+5. **Backend N+1**: `PasswordResetRequestService::listRequests` eager-loaded `user.classe` but Resource reads `user.classe.stage` → 1 extra `stages` query per row.
+
+## Changes
+- **`frontend/src/api/client.ts`**: added a bare `networkClient` instance (no interceptors) used ONLY for SWR background refresh so relative URLs resolve against the API baseURL (fixes the index.html caching bug). Cache keys now prefixed by a deterministic FNV-1a hash of the auth token (scope) in request AND response interceptors. Added exported `clearRequestCache()`, called on 401.
+- **`frontend/src/contexts/AuthContext.tsx`**: `clearRequestCache()` on login, platformLogin, and logout.
+- **`frontend/src/lib/dataPrefetch.ts` (NEW)**: role-based (admin/assistant_admin/servant/member) in-memory-cache preheat using the EXACT params each page uses on first mount (`per_page:15`, status filters, etc.). Staggered `setTimeout` runs, failures swallowed, skips when offline. Runs once per session.
+- **`frontend/src/App.tsx`**: `RoutePrefetcher` now gets `useAuth()` and calls `preheatData(user.role)` via `setTimeout` after idle route-chunk prefetch. (Kept lazy loading + Suspense.)
+- **`frontend/vite.config.ts`**: removed the three API runtime-caching entries (`api-slow-cache`, `api-fast-cache`, `api-default-cache`); kept static asset precache + google-fonts CacheFirst + navigateFallback. Verified generated `dist/sw.js` contains no `api/v1` caching.
+- **`frontend/src/pages/servant/ScanQR.tsx`**: added missing `t` dep (pre-existing exhaustive-deps warning).
+- **`backend/app/Services/PasswordResetRequestService.php`**: eager load `user.classe.stage` (fixes N+1); `ProfileUpdateRequestService` already correct.
+
+## Verification (2026-09-12)
+- Frontend: `npx tsc -b` clean, ESLint 0 warnings/0 errors, `npm run build` succeeds (vite 8.1.0; largest route chunk `qr` 392.74 kB / 117.36 gzip — QR scan/management only).
+- PWA: `dist/sw.js` has no `api/` runtime caching (grep confirmed).
+- Backend: PHPStan level-max 0 errors on changed service, Pint passed, `PasswordResetRequestTest` 19/19 passed (73 assertions).
+
+## Key Decisions
+- No TanStack Query/Redux added; fix uses the existing in-memory cache layer (token-scoped) + preheat instead of introducing a new data layer.
+- Removed (not scoped) SW API caching because generateSW cannot key requests by Authorization header; the token-scoped in-memory cache now handles user data correctly.
+- Planned files (execution order): debug → dataPrefetch → App wiring → vite PWA → AuthContext → backend N+1.
+
+## Next Steps
+1. Measure real first-vs-second visit with browser automation/DevTools on a live deployment (chunk download, API calls, SWR refresh) and confirm preheat turns first visit into cache HITs.
+2. Verify data freshness: preheat only warms the in-memory cache; backend + TTLs (60s default, 5-min stages/classes) unchanged.
+3. Optional: prewarm `getFilteredAttendances` class-scoped variants and `getMyClassServants`/notifications once measured.
+
+## Relevant Files
+- `frontend/src/api/client.ts` — SWR fix + token-scoped cache keys + `clearRequestCache()`
+- `frontend/src/lib/dataPrefetch.ts` — role-based preheat (NEW)
+- `frontend/src/lib/requestCache.ts` — unchanged (key building moved to client)
+- `frontend/src/App.tsx` — RoutePrefetcher uses auth role + preheat timer
+- `frontend/src/contexts/AuthContext.tsx` — cache clear on login/logout/401
+- `frontend/vite.config.ts` — SW API runtime caching removed
+- `frontend/src/pages/servant/ScanQR.tsx` — lint fix
+- `backend/app/Services/PasswordResetRequestService.php` — N+1 eager-load fix

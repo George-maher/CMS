@@ -61,7 +61,7 @@ export default function ServantScanQR() {
     return () => {
       if (html5QrCodeRef.current) { try { html5QrCodeRef.current.stop() } catch (e) { logCatch('ScanQR.stopScanner(cleanup)', e) }; html5QrCodeRef.current = null }
     }
-  }, [])
+  }, [t])
 
   useEffect(() => {
     if (membersSectionOpen && !membersLoaded) {
