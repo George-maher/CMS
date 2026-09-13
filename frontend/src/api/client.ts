@@ -1,7 +1,7 @@
 import axios from 'axios'
 import { logAxiosError } from '@/lib/debug'
 import { addToSyncQueue } from '@/lib/db'
-import { getCached, setCache, isStale, getInflight, setInflight, invalidateCache } from '@/lib/requestCache'
+import { getCached, setCache, isStale, getInflight, setInflight, invalidateCache, getGeneration } from '@/lib/requestCache'
 import { recordApiTiming } from '@/lib/perf'
 
 /*
@@ -57,6 +57,97 @@ const OFFLINE_WRITABLE_PATTERNS = [
   /\/api\/v1\/attendance\/bulk$/,
   /\/api\/v1\/attendance\/scan$/,
 ]
+
+/*
+ * ---------------------------------------------------------------------------
+ * Mutation → cache-key invalidation
+ * ---------------------------------------------------------------------------
+ * Every GET response is cached (URL + params, scoped by auth token). After a
+ * successful mutation, the affected GET cache keys MUST be purged so the next
+ * read hits the network and reflects the authoritative server state — this is
+ * what makes browser-refresh unnecessary for CRUD/approval workflows.
+ *
+ * Each entry maps a mutation-URL fragment to the cache-key patterns it
+ * invalidates. A mutation can invalidate MULTIPLE conceptual queries because
+ * one mutation can staleness many surfaces:
+ *
+ *   approve/reject an application       → applications list, dashboard counts
+ *   create/update a stage               → stages list, structure, classes
+ *   assign a member to a class          → classes, structure, stages, users
+ *   approve a profile-update request    → request list AND the user record
+ *   record attendance                   → attendees, points, leaderboard, dashboard
+ *
+ * Patterns are matched with `url.includes(fragment)` and purge with
+ * `key.includes(pattern)` — both are prefix-ish substring matches over
+ * `/v1/...` API paths, so a pattern like `/users` also covers `/users/members`,
+ * `/users/servants`, `/users/{id}`, etc. Order is irrelevant (all matching
+ * rules apply).
+ */
+const MUTATION_SKIP_URL_FRAGMENTS = [
+  /*
+   * Analytics heartbeat, not a data mutation — must NOT purge the /events
+   * cache (it's called on every event detail view).
+   */
+  '/track-view',
+  // Auth lifecycle is handled by AuthContext (cache cleared on login/logout).
+  '/auth/',
+]
+
+const MUTATION_CACHE_INVALIDATIONS: ReadonlyArray<readonly [string, string[]]> = [
+  // User management (create/update/delete/promote/demote/regenerate token)
+  ['/users', ['/users', '/dashboard', '/leaderboard', '/notifications']],
+  // Own profile update
+  ['/profile', ['/users', '/notifications']],
+  // Profile update requests (submit/approve/reject) — also stale the user data they change
+  ['/profile-update-requests', ['/profile-update-requests', '/users', '/dashboard', '/notifications']],
+  // Password reset requests (submit/approve/reject/reset-password)
+  ['/password-reset-requests', ['/password-reset-requests', '/notifications']],
+  // Membership requests — approval creates a real member
+  ['/membership-requests', ['/membership-requests', '/users', '/dashboard', '/notifications']],
+  // Platform church applications — status/counts change after approve/reject
+  ['/platform/applications', ['/platform/applications', '/platform/dashboard', '/church', '/notifications']],
+  // Platform church deletion/restore — dashboard counters
+  ['/platform/churches', ['/platform/churches', '/platform/dashboard', '/church', '/notifications']],
+  // Stages — list + any structure/class view that embeds stage data
+  ['/stages', ['/stages', '/structure', '/classes']],
+  // Classes — assignments also stale stage counts + user memberships
+  ['/classes', ['/classes', '/structure', '/stages', '/users']],
+  // Attendance contexts CRUD/toggle
+  ['/attendance-contexts', ['/attendance-contexts', '/notifications']],
+  // Daily verses CRUD/activate
+  ['/verses', ['/verses', '/notifications']],
+  // Feedback submit/resolve/reply/mark-seen
+  ['/feedback', ['/feedback', '/notifications']],
+  // Events (CRUD, lifecycle, registrations, buses, payments, sessions, speakers, accommodation)
+  ['/events', ['/events', '/notifications']],
+  // QR invites create/revoke
+  ['/qr/invites', ['/qr/invites']],
+  // QR invite accept — changes the accepting user's class/church
+  ['/invite/', ['/invite/', '/users', '/structure', '/notifications']],
+  // Daily spiritual records
+  ['/spiritual-records', ['/spiritual-records', '/notifications']],
+  // Bonus points award
+  ['/points', ['/points', '/leaderboard', '/dashboard', '/notifications']],
+  // Notification read-state mutations
+  ['/notifications', ['/notifications']],
+  // Attendance recording — also adds points
+  ['/attendances', ['/attendances', '/points', '/leaderboard', '/dashboard', '/notifications']],
+  // Storage uploads that change displayed resources
+  ['/storage/upload-profile-image', ['/users', '/notifications']],
+  ['/storage/upload-event-image', ['/events']],
+]
+
+/**
+ * Purge every cache key that a mutation may have made stale.
+ */
+function invalidateForMutation(url: string): void {
+  if (MUTATION_SKIP_URL_FRAGMENTS.some((frag) => url.includes(frag))) return
+  for (const [fragment, patterns] of MUTATION_CACHE_INVALIDATIONS) {
+    if (url.includes(fragment)) {
+      for (const pattern of patterns) invalidateCache(pattern)
+    }
+  }
+}
 
 /*
  * Small deterministic hash (FNV-1a, 32-bit). Used to scope in-memory cache
@@ -133,9 +224,16 @@ client.interceptors.request.use(async (config) => {
       // Stale-while-revalidate: return stale data now, fire background refresh
       if (!getInflight(cacheKey)) {
         const bgHeaders = { ...(config.headers ?? {}) }
+        // Guard: if a mutation invalidates this cache key while the refresh is
+        // in flight, the refresh's result must NOT re-populate the cache (it
+        // could be older than the invalidation). The generation captured at
+        // request start is compared on completion.
+        const refreshGeneration = getGeneration()
         const bgPromise = networkClient.get(config.url, { params: config.params, headers: bgHeaders })
           .then((res) => {
-            setCache(cacheKey, res.data)
+            if (getGeneration() === refreshGeneration) {
+              setCache(cacheKey, res.data)
+            }
             return res
           })
           .catch(() => {})
@@ -169,17 +267,7 @@ client.interceptors.response.use(
       const cacheKey = buildCacheKey(response.config.url, response.config.params || {})
       setCache(cacheKey, response.data)
     } else if (response.config.url) {
-      const url = response.config.url
-      if (url.includes('/users')) invalidateCache('/users')
-      if (url.includes('/attendances')) invalidateCache('/attendances')
-      if (url.includes('/events')) invalidateCache('/events')
-      if (url.includes('/notifications')) invalidateCache('/notifications')
-      if (url.includes('/password-reset-requests')) invalidateCache('/password-reset-requests')
-      if (url.includes('/profile-update-requests')) invalidateCache('/profile-update-requests')
-      if (url.includes('/feedback')) invalidateCache('/feedback')
-      if (url.includes('/points')) invalidateCache('/points')
-      if (url.includes('/leaderboard')) invalidateCache('/leaderboard')
-      if (url.includes('/dashboard')) invalidateCache('/dashboard')
+      invalidateForMutation(response.config.url)
     }
     return response
   },

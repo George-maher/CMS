@@ -41,12 +41,9 @@ export default function StageDetail() {
 
   useEffect(() => {
     if (!id) return
-    fetch()
-  }, [id, fetch])
-  useEffect(() => {
-    const timer = setTimeout(() => fetch(search), 300)
+    const timer = setTimeout(() => fetch(search, !hasLoadedRef.current), 300)
     return () => clearTimeout(timer)
-  }, [search, fetch])
+  }, [id, search, fetch])
 
   const openCreate = () => { setEditing(null); setForm({ name: '', description: '' }); setShowModal(true) }
   const openEdit = (e: React.MouseEvent, item: Classe) => {

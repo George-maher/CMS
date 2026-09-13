@@ -942,3 +942,45 @@ Fix first-visit vs second-visit page-load slowness and remove unsafe client-side
 - `frontend/vite.config.ts` — SW API runtime caching removed
 - `frontend/src/pages/servant/ScanQR.tsx` — lint fix
 - `backend/app/Services/PasswordResetRequestService.php` — N+1 eager-load fix
+
+---
+
+## 📌 ANCHORED SUMMARY (2026-09-13)
+
+## Goal
+Fix the project-wide frontend/server-state desync (approving a campaign/application or creating/approving a stage showed stale UI until browser refresh) using the existing custom axios cache layer — no new state-management library, no `window.location.reload()` hacks.
+
+## Root Cause (evidence-based)
+1. **Response interceptor only invalidated a hardcoded subset of cache keys.** The GET in-memory cache (`lib/requestCache.ts`, TTL 60s, stale-while-revalidate 300s, per-endpoint overrides) was purged after mutations ONLY for `/users`, `/feedback`, `/events`, `/verses`, `/attendance-contexts`, `/notifications`, `/spiritual-records`, `/qr/invites`, `/password-reset-requests`, `/profile-update-requests`. Mutations touching `/platform/applications`, `/platform/dashboard`, `/stages`, `/structure`, `/classes`, `/membership-requests`, `/invite/`, `/points`, `/attendances`, `/profile`, `/storage/...` were never invalidated → the post-mutation page-level refetch/remount served a still-fresh cache → stale UI until browser refresh or TTL expiry.
+2. **SWR background-refresh race**: a background refresh that started pre-mutation could re-populate a just-invalidated cache key with pre-mutation data (no generation guard) — silently undoing an invalidation.
+3. **Duplicate mount GETs**: `StructureManagement` and `StageDetail` each had two `useEffect`s both firing `fetch()` on mount → duplicate API requests on every page load.
+
+## Changes
+- **`frontend/src/lib/requestCache.ts`**: added monotonic `getGeneration()`; `invalidateCache()` now bumps `generation` on EVERY call (even when nothing is deleted).
+- **`frontend/src/api/client.ts`**:
+  - SWR background refresh captures `refreshGeneration = getGeneration()` before firing and calls `setCache(...)` only when `getGeneration() === refreshGeneration` (stale refresh can no longer resurrect purged entries).
+  - Replaced the hardcoded if-chain with a declarative `MUTATION_CACHE_INVALIDATIONS` table (`[mutation URL fragment, cache-key patterns]`) + `invalidateForMutation()` helper; `MUTATION_SKIP_URL_FRAGMENTS` covers `/track-view` (analytics heartbeat, must not purge `/events`) and `/auth/` (handled by AuthContext).
+  - Full coverage: `/users`, `/profile`, `/profile-update-requests`, `/password-reset-requests`, `/membership-requests`, `/platform/applications`, `/platform/churches`, `/stages`, `/classes`, `/attendance-contexts`, `/verses`, `/feedback`, `/events`, `/qr/invites`, `/invite/`, `/spiritual-records`, `/points`, `/notifications`, `/attendances`, `/storage/upload-profile-image`, `/storage/upload-event-image`. A single mutation may purge multiple surfaces (approve application → applications list + dashboard counts + church data; class mutation → classes + structure + stages + users).
+- **`frontend/src/pages/admin/StructureManagement.tsx`** and **`frontend/src/pages/admin/StageDetail.tsx`**: merged the two mount effects into one debounced effect (single GET per mount, initial spinner preserved via existing `hasLoadedRef`).
+- NO backend changes; NO API changes; NO pages other than the two dedupes.
+
+## Verification (2026-09-13)
+- Frontend: `npx tsc -b` clean, `npm run lint` clean (0 warnings/errors), `npm run build` succeeds (vite 8.1.0).
+- PWA: `dist/sw.js` has no `api/v1` runtime caching (grep confirmed again).
+- Manual behavior (code-traced, not runtime): mutation response interceptor runs BEFORE the `await` resolves in handlers, so every page's existing post-mutation `fetch()`/inline-update now reflects authoritative server state; network shows one GET per mutation, no refresh required, no duplicate mount GETs on StructureManagement/StageDetail.
+
+## Key Decisions
+- Fix centrally in the mutation response interceptor rather than per page: every page already refetches or inline-updates after mutations; staleness came from the cache layer alone.
+- Declarative mutation→cache-pattern map keyed by URL fragments (substring matches cover `/users/members`, `/users/{id}`, etc. and are order-independent), matching the pre-existing offline-SWR URL-matching style.
+- Generation counter prevents stale SWR refreshes from undoing invalidations — required for invalidation correctness, not just coverage.
+- Auth lifecycle is still handled by `AuthContext` (cache cleared on login/logout), so `/auth/` mutations are excluded rather than double-handled.
+
+## Next Steps
+1. Live manual acceptance: PlatformDashboard approve → PlatformApplicationDetail navigate-back shows new status without refresh; StructureManagement create stage appears immediately; StageDetail class create/update/delete reflected; reject flows; confirm single network GET after each mutation, no cross-tenant scope leakage.
+2. Consider adding Vitest to `frontend/package.json` if a cache-interceptor unit test is desired (no test framework currently configured).
+
+## Relevant Files
+- `frontend/src/api/client.ts` — `MUTATION_CACHE_INVALIDATIONS`, `MUTATION_SKIP_URL_FRAGMENTS`, `invalidateForMutation()`, SWR generation guard
+- `frontend/src/lib/requestCache.ts` — `generation`/`getGeneration()`, `invalidateCache()` bumps on every call
+- `frontend/src/pages/admin/StructureManagement.tsx` — single debounced mount effect
+- `frontend/src/pages/admin/StageDetail.tsx` — single debounced mount effect

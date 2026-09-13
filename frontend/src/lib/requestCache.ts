@@ -30,6 +30,19 @@ const ENDPOINT_CONFIGS: Record<string, CacheConfig> = {
 const cache = new Map<string, CacheEntry>()
 const inflight = new Map<string, Promise<unknown>>()
 
+/*
+ * Monotonic invalidation generation. Bumped every time invalidateCache() runs
+ * (even when it deletes nothing). Background stale-while-revalidate refreshes
+ * capture the generation when they START and skip repopulating the cache if it
+ * has been invalidated since — otherwise a mutation that invalidates a cache
+ * key could be undone by a stale refresh that resolves moments later.
+ */
+let generation = 0
+
+export function getGeneration(): number {
+  return generation
+}
+
 function getConfig(key: string): CacheConfig {
   for (const [pattern, config] of Object.entries(ENDPOINT_CONFIGS)) {
     if (key.includes(pattern)) return config
@@ -73,6 +86,7 @@ export function setInflight(key: string, promise: Promise<unknown>): void {
 }
 
 export function invalidateCache(pattern?: string): void {
+  generation += 1
   if (!pattern) {
     cache.clear()
     return
