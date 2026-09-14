@@ -6,6 +6,7 @@ use App\Contracts\QRInviteRepositoryInterface;
 use App\Contracts\QRInviteServiceInterface;
 use App\Enums\QRInviteType;
 use App\Enums\UserRole;
+use App\Enums\UserScope;
 use App\Models\Classe;
 use App\Models\QRInvite;
 use App\Models\User;
@@ -46,6 +47,12 @@ class QRInviteService implements QRInviteServiceInterface
             ? $clientRequestInput
             : null;
 
+        /** @var int|null $classId */
+        $classId = isset($data['class_id']) && is_numeric($data['class_id']) ? (int) $data['class_id'] : null;
+        /** @var int|null $stageId */
+        $stageId = isset($data['stage_id']) && is_numeric($data['stage_id']) ? (int) $data['stage_id'] : null;
+        $resolvedStageId = $this->resolveInviteStage($classId, $stageId);
+
         $existingByKey = function () use ($creatorId, $clientRequestId): ?QRInvite {
             if ($clientRequestId === null) {
                 return null;
@@ -67,7 +74,7 @@ class QRInviteService implements QRInviteServiceInterface
         }
 
         try {
-            return DB::transaction(function () use ($type, $creatorId, $contextId, $expiresInHours, $maxUses, $clientRequestId, $existingByKey) {
+            return DB::transaction(function () use ($type, $creatorId, $contextId, $expiresInHours, $maxUses, $clientRequestId, $classId, $resolvedStageId, $existingByKey) {
                 $existing = $existingByKey();
                 if ($existing) {
                     return [
@@ -84,6 +91,8 @@ class QRInviteService implements QRInviteServiceInterface
                     'token' => $token,
                     'client_request_id' => $clientRequestId,
                     'created_by' => $creatorId,
+                    'class_id' => $classId,
+                    'stage_id' => $resolvedStageId,
                     'attendance_context_id' => $contextId,
                     'expires_at' => now()->addHours($expiresInHours),
                     'is_single_use' => $maxUses === 1,
@@ -95,6 +104,7 @@ class QRInviteService implements QRInviteServiceInterface
                     'invite_id' => $invite->id,
                     'type' => $type->value,
                     'created_by' => $creatorId,
+                    'stage_id' => $resolvedStageId,
                     'expires_at' => $invite->expires_at,
                 ]);
 
@@ -119,6 +129,35 @@ class QRInviteService implements QRInviteServiceInterface
 
             throw $e;
         }
+    }
+
+    /**
+     * Resolve the stage an invitation is scoped to, preferring the stage of the
+     * targeted class and falling back to an explicitly provided stage. A class
+     * that falls outside the resolved stage (or another church) is rejected so
+     * invitations can never leak across stage boundaries.
+     */
+    private function resolveInviteStage(?int $classId, ?int $stageId): ?int
+    {
+        if ($classId === null) {
+            return $stageId;
+        }
+
+        $classe = Classe::query()->where('id', $classId)->first();
+        if ($classe === null) {
+            throw ValidationException::withMessages([
+                'class_id' => [__('invite.class_not_found')],
+            ]);
+        }
+
+        $classStageId = $classe->stage_id !== null ? (int) $classe->stage_id : null;
+        if ($stageId !== null && $classStageId !== null && $classStageId !== $stageId) {
+            throw ValidationException::withMessages([
+                'stage_id' => [__('invite.class_stage_mismatch')],
+            ]);
+        }
+
+        return $classStageId ?? $stageId;
     }
 
     /** @return array<string, mixed> */
@@ -199,9 +238,13 @@ class QRInviteService implements QRInviteServiceInterface
             ]);
         }
 
-        $invite->load(['creator.classe.stage', 'classe.stage']);
-        $classes = Classe::byChurch()
-            ->get(['id', 'name']);
+        $invite->load(['creator.classe.stage', 'classe.stage', 'stage']);
+        $classesQuery = Classe::byChurch()->select(['id', 'name', 'stage_id']);
+        if ($invite->stage_id !== null) {
+            // Only classes inside the invitation's stage are eligible.
+            $classesQuery->where('stage_id', $invite->stage_id);
+        }
+        $classes = $classesQuery->orderBy('name')->get();
 
         $targetRole = $invite->type->targetRole();
 
@@ -217,7 +260,8 @@ class QRInviteService implements QRInviteServiceInterface
             'creator_class_name' => $invite->creator?->classe?->name,
             'class_id' => $invite->class_id,
             'class_name' => $invite->classe?->name,
-            'stage_name' => $invite->classe?->stage?->name,
+            'stage_id' => $invite->stage_id,
+            'stage_name' => $invite->stage?->name,
             'classes' => $classes->toArray(),
             'expires_at' => $invite->expires_at,
             'is_expired' => $invite->isExpired(),
@@ -273,15 +317,33 @@ class QRInviteService implements QRInviteServiceInterface
                 'invite_id' => $freshInvite->id,
             ];
 
-            // Class is chosen by the user during accept, not carried by the invite
+            $resolvedStageId = $freshInvite->stage_id !== null ? (int) $freshInvite->stage_id : null;
+
+            // Class is chosen by the user during accept, not carried by the invite.
+            // It must belong to the invitation's stage (and church) — otherwise an
+            // invite could place a user into a stage the inviter does not manage.
             if ($classId) {
-                $classe = Classe::where('id', $classId)
+                $classe = Classe::query()
+                    ->where('id', $classId)
                     ->where('church_id', $freshInvite->church_id)
                     ->first();
-                if ($classe) {
-                    $updateData['class_id'] = $classId;
+                if (! $classe) {
+                    throw ValidationException::withMessages([
+                        'class_id' => [__('invite.class_not_found')],
+                    ]);
                 }
+                $classStageId = $classe->stage_id !== null ? (int) $classe->stage_id : null;
+                if ($freshInvite->stage_id !== null && $classStageId !== null && $classStageId !== (int) $freshInvite->stage_id) {
+                    throw ValidationException::withMessages([
+                        'class_id' => [__('invite.class_stage_mismatch')],
+                    ]);
+                }
+                $updateData['class_id'] = $classId;
+                $resolvedStageId ??= $classStageId;
             }
+
+            $updateData['stage_id'] = $resolvedStageId;
+            $updateData['scope'] = $role === UserRole::Member ? UserScope::Self->value : UserScope::ClassScope->value;
 
             if ($role === UserRole::Member) {
                 $updateData['servant_id'] = $freshInvite->created_by;

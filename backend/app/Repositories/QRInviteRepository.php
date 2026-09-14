@@ -13,7 +13,7 @@ class QRInviteRepository implements QRInviteRepositoryInterface
 {
     public function findById(int $id): ?QRInvite
     {
-        return QRInvite::with(['classe.stage'])->find($id);
+        return QRInvite::with(['classe.stage', 'stage'])->find($id);
     }
 
     public function findByToken(string $token): ?QRInvite
@@ -83,6 +83,10 @@ class QRInviteRepository implements QRInviteRepositoryInterface
     public function paginate(int $perPage = 15, array $filters = []): LengthAwarePaginator
     {
         $query = QRInvite::query();
+
+        if (! empty($filters['stage_id'])) {
+            $query->where('stage_id', $filters['stage_id']);
+        }
 
         if (! empty($filters['type'])) {
             $query->where('type', $filters['type']);
@@ -173,7 +177,7 @@ class QRInviteRepository implements QRInviteRepositoryInterface
             $this->applySearch($query, $search);
         }
 
-        return $query->with(['creator', 'usedBy.classe.stage', 'classe.stage', 'attendanceContext'])->latest()->paginate($perPage);
+        return $query->with(['creator', 'usedBy.classe.stage', 'classe.stage', 'stage', 'attendanceContext'])->latest()->paginate($perPage);
     }
 
     public function revoke(int $id): bool

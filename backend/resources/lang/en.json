@@ -46,6 +46,8 @@
     "invite.expired": "This QR code has expired.",
     "invite.revoked": "This QR code has been revoked.",
     "invite.class_not_found": "The selected class is invalid for this invitation.",
+    "invite.class_stage_mismatch": "The selected class does not belong to this invitation's stage.",
+    "invite.stage_required": "Your account is not linked to a stage yet. Please contact your church admin.",
     "invite.role_mismatch": "This invite is not valid for the requested role.",
     "church_application.already_processed": "This application has already been :status.",
     "church_application.submitted": "Application submitted successfully. You can now login to track your application status.",

@@ -93,6 +93,7 @@ export interface QRInvite {
     used_at?: string
   }[] | null
   classe: { id: number; name: string; stage_id?: number; stage_name?: string } | null
+  stage?: { id: number; name: string } | null
   attendance_context: { id: number; name: string; name_ar?: string | null; slug: string } | null
   expires_at: string
   used_at: string | null

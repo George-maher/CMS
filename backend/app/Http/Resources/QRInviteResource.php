@@ -5,6 +5,7 @@ namespace App\Http\Resources;
 use App\Models\AttendanceContext;
 use App\Models\Classe;
 use App\Models\QRInvite;
+use App\Models\Stage;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -76,6 +77,15 @@ class QRInviteResource extends JsonResource
                 ];
             }),
             'used_by_users' => $enrichedUsedByUsers,
+            'stage' => $this->when($this->stage !== null, function () {
+                /** @var Stage $stage */
+                $stage = $this->stage;
+
+                return [
+                    'id' => $stage->id,
+                    'name' => $stage->name,
+                ];
+            }),
             'expires_at' => $this->expires_at,
             'created_at' => $this->created_at,
             'used_at' => $this->used_at,

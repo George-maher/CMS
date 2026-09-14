@@ -40,6 +40,11 @@ class UserController extends Controller
 
             if ($authUser->isStageAdmin()) {
                 $filters['class_ids'] = $this->scopeResolver->allowedClassIds($authUser);
+                if ($authUser->stage_id !== null) {
+                    // Stage admins also see stage-scoped users not tied to a class
+                    // (e.g. pivot-assigned servants whose users.class_id is null).
+                    $filters['scope_stage_id'] = (int) $authUser->stage_id;
+                }
             }
         }
 
@@ -198,7 +203,7 @@ class UserController extends Controller
             $servants = User::byChurch()
                 ->where('role', UserRole::Servant)
                 ->where(function (Builder $q) use ($authUser) {
-                    $q->where('class_year_id', $authUser->stage_id)
+                    $q->where('stage_id', $authUser->stage_id)
                         ->orWhereIn('id', function (\Illuminate\Database\Query\Builder $q2) use ($authUser) {
                             $q2->select('user_id')
                                 ->from('class_servant')
@@ -236,6 +241,21 @@ class UserController extends Controller
 
     public function servantsMembers(Request $request, int $servantId): JsonResponse
     {
+        /** @var User|null $authUser */
+        $authUser = $request->user();
+        if ($authUser === null) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+        if (! $authUser->isPlatformAdmin()) {
+            $servant = User::byChurch()->find($servantId);
+            if ($servant === null) {
+                return response()->json(['message' => 'Servant not found.'], 404);
+            }
+            if (! $this->scopeResolver->canAccessUser($authUser, $servant)) {
+                return response()->json(['message' => 'Forbidden.'], 403);
+            }
+        }
+
         $result = $this->userService->getMembers($servantId);
 
         return response()->json($result);

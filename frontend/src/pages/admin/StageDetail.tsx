@@ -2,12 +2,14 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import toast from 'react-hot-toast'
-import { ArrowLeft, Plus, Pencil, Trash2, Search, Users, UserCheck, BookOpen } from 'lucide-react'
+import { ArrowLeft, Plus, Pencil, Trash2, Search, Users, UserCheck, BookOpen, ShieldCheck } from 'lucide-react'
 import LoadingSpinner from '@/components/common/LoadingSpinner'
 import Modal from '@/components/common/Modal'
-import type { Stage, Classe } from '@/types'
+import type { Stage, Classe, User } from '@/types'
 import { getStage, getStageClasses } from '@/api/stages'
 import { createClasse, updateClasse, deleteClasse } from '@/api/classes'
+import { listUsers, promoteToStageAdmin, demoteFromAdmin } from '@/api/users'
+import { logCatch } from '@/lib/debug'
 
 export default function StageDetail() {
   const { t } = useTranslation()
@@ -22,6 +24,13 @@ export default function StageDetail() {
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState<Classe | null>(null)
   const [form, setForm] = useState({ name: '', description: '' })
+
+  const [currentAdmin, setCurrentAdmin] = useState<User | null>(null)
+  const [showAdminModal, setShowAdminModal] = useState(false)
+  const [candidates, setCandidates] = useState<User[]>([])
+  const [adminSearch, setAdminSearch] = useState('')
+  const [selectedAdminId, setSelectedAdminId] = useState<number | ''>('')
+  const [adminSaving, setAdminSaving] = useState(false)
 
   const fetch = useCallback(async (q?: string, showSpinner = false) => {
     if (!id) return
@@ -44,6 +53,60 @@ export default function StageDetail() {
     const timer = setTimeout(() => fetch(search, !hasLoadedRef.current), 300)
     return () => clearTimeout(timer)
   }, [id, search, fetch])
+
+  const loadCurrentAdmin = useCallback(async () => {
+    if (!id) return
+    try {
+      const res = await listUsers({ role: 'stage_admin', stage_id: Number(id), per_page: 5 })
+      setCurrentAdmin(res.data[0] ?? null)
+    } catch (err) {
+      logCatch('StageDetail.loadStageAdmin', err)
+      setCurrentAdmin(null)
+    }
+  }, [id])
+
+  useEffect(() => {
+    loadCurrentAdmin()
+  }, [loadCurrentAdmin])
+
+  const openAssignModal = async () => {
+    setShowAdminModal(true)
+    setSelectedAdminId('')
+    setAdminSearch('')
+    try {
+      const res = await listUsers({ per_page: 100 })
+      setCandidates(res.data.filter(u => u.role === 'member' || u.role === 'servant'))
+    } catch (err) {
+      logCatch('StageDetail.loadAdminCandidates', err)
+      setCandidates([])
+    }
+  }
+
+  const filteredCandidates = candidates.filter(u =>
+    u.name.toLowerCase().includes(adminSearch.trim().toLowerCase()) ||
+    u.email.toLowerCase().includes(adminSearch.trim().toLowerCase()),
+  )
+
+  const handleAssignAdmin = async () => {
+    if (!selectedAdminId || !id) {
+      return toast.error(t('structure.selectStageAdmin'))
+    }
+    setAdminSaving(true)
+    try {
+      if (currentAdmin && currentAdmin.id !== selectedAdminId) {
+        await demoteFromAdmin(currentAdmin.id, 'member')
+      }
+      await promoteToStageAdmin(selectedAdminId, Number(id))
+      toast.success(t('structure.stageAdminAssigned'))
+      setShowAdminModal(false)
+      await loadCurrentAdmin()
+    } catch (err) {
+      logCatch('StageDetail.assignStageAdmin', err)
+      toast.error(t('structure.stageAdminAssignmentFailed'))
+    } finally {
+      setAdminSaving(false)
+    }
+  }
 
   const openCreate = () => { setEditing(null); setForm({ name: '', description: '' }); setShowModal(true) }
   const openEdit = (e: React.MouseEvent, item: Classe) => {
@@ -117,6 +180,30 @@ export default function StageDetail() {
         </div>
         <button onClick={openCreate} className="btn-primary btn-md shrink-0">
           <Plus className="h-4 w-4" /> {t('structure.createClass')}
+        </button>
+      </div>
+
+      {/* Stage Admin */}
+      <div className="card p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gold-100 dark:bg-gold-900/30">
+            <ShieldCheck className="h-5 w-5 text-gold-500 dark:text-gold-400" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-xs uppercase tracking-wide text-muted">{t('structure.stageAdmin')}</p>
+            {currentAdmin ? (
+              <p className="font-semibold truncate">
+                {currentAdmin.name}
+                <span className="text-xs font-normal text-muted"> ({currentAdmin.email})</span>
+              </p>
+            ) : (
+              <p className="text-sm text-secondary">{t('structure.noStageAdmin')}</p>
+            )}
+          </div>
+        </div>
+        <button onClick={openAssignModal} className="btn-sm btn-ghost gap-1.5 sm:ml-auto shrink-0">
+          <UserCheck className="h-3.5 w-3.5" />
+          {t(currentAdmin ? 'structure.changeStageAdmin' : 'structure.assignStageAdmin')}
         </button>
       </div>
 
@@ -223,6 +310,58 @@ export default function StageDetail() {
             className="input-field"
             rows={2}
           />
+        </div>
+      </Modal>
+
+      {/* Assign Stage Admin */}
+      <Modal
+        isOpen={showAdminModal}
+        onClose={() => setShowAdminModal(false)}
+        title={t('structure.assignStageAdmin')}
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-secondary">{t('structure.stageAdminDescription')}</p>
+          <input
+            placeholder={t('structure.searchAdminCandidates')}
+            value={adminSearch}
+            onChange={(e) => setAdminSearch(e.target.value)}
+            className="input-field"
+          />
+          <div className="max-h-64 overflow-y-auto space-y-1">
+            {filteredCandidates.map(u => {
+              const selected = selectedAdminId === u.id
+              return (
+                <button
+                  key={u.id}
+                  type="button"
+                  onClick={() => setSelectedAdminId(u.id)}
+                  className={`w-full flex items-center justify-between gap-2 rounded-lg border px-3 py-2 text-sm transition-colors ${
+                    selected
+                      ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30'
+                      : 'border-border hover:bg-surface-secondary'
+                  }`}
+                >
+                  <span className="min-w-0">
+                    <span className="block truncate font-medium">{u.name}</span>
+                    <span className="block truncate text-xs text-muted">{u.email}</span>
+                  </span>
+                  <span className="shrink-0 rounded-full bg-surface-secondary px-2 py-0.5 text-xs">
+                    {u.role_label}
+                  </span>
+                </button>
+              )
+            })}
+            {filteredCandidates.length === 0 && (
+              <p className="py-4 text-center text-sm text-muted">{t('structure.noMatchingUsers')}</p>
+            )}
+          </div>
+          <button
+            onClick={handleAssignAdmin}
+            disabled={adminSaving || !selectedAdminId}
+            className="btn-primary btn-md w-full"
+          >
+            {adminSaving ? t('common.saving') : t('structure.assignStageAdmin')}
+          </button>
         </div>
       </Modal>
     </div>

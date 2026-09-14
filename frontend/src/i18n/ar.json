@@ -507,11 +507,21 @@
         "assign": "تعيين",
         "noServantsAssigned": "لم يتم تعيين خدام.",
         "noMembersAssigned": "لم يتم تعيين أعضاء.",
-        "assignServant": "تعيين خادم",
+"assignServant": "تعيين خادم",
         "assignMember": "تعيين عضو",
         "allServantsAssigned": "تم تعيين جميع الخدام.",
         "allMembersAssigned": "تم تعيين جميع الأعضاء.",
-        "servant": "خادم"
+        "servant": "خادم",
+        "stageAdmin": "مشرف المرحلة",
+        "noStageAdmin": "لم يتم تعيين مشرف للمرحلة.",
+        "assignStageAdmin": "تعيين مشرف المرحلة",
+        "changeStageAdmin": "تغيير مشرف المرحلة",
+        "stageAdminDescription": "يدير مشرف المرحلة الفصول والخدام والأعضاء والدعوات لهذه المرحلة فقط.",
+        "searchAdminCandidates": "ابحث بالاسم أو البريد الإلكتروني...",
+        "noMatchingUsers": "لا يوجد مستخدمون مطابقون.",
+        "selectStageAdmin": "اختر مستخدمًا لتعيينه.",
+        "stageAdminAssigned": "تم تعيين مشرف المرحلة بنجاح.",
+        "stageAdminAssignmentFailed": "تعذر تعيين مشرف المرحلة."
     },
     "structure": {
         "title": "إدارة الهيكل",

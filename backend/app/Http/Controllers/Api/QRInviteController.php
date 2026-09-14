@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Contracts\QRInviteServiceInterface;
+use App\Contracts\ScopeResolverInterface;
 use App\Enums\QRInviteType;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
@@ -21,6 +22,7 @@ class QRInviteController extends Controller
 {
     public function __construct(
         private readonly QRInviteServiceInterface $qrInviteService,
+        private readonly ScopeResolverInterface $scopeResolver,
     ) {}
 
     public function store(CreateQRInviteRequest $request): JsonResponse
@@ -31,20 +33,39 @@ class QRInviteController extends Controller
         $typeValue = $request->validated()['type'];
         $type = QRInviteType::from($typeValue);
 
-        if ($user->role === UserRole::Servant && ! in_array($type, [QRInviteType::ServantToMemberInvite, QRInviteType::AttendanceQR], true)) {
+        if (! in_array($type->value, $this->allowedInviteTypesFor($user), true)) {
             throw ValidationException::withMessages([
-                'type' => ['Servants can only create member or attendance invitations.'],
-            ]);
-        }
-
-        if ($user->role === UserRole::Admin && ! in_array($type, [QRInviteType::AdminToServantInvite, QRInviteType::ServantToMemberInvite, QRInviteType::AttendanceQR], true)) {
-            throw ValidationException::withMessages([
-                'type' => ['Admins can only create servant, member, or attendance invitations.'],
+                'type' => [$this->inviteTypeRestrictionMessage($user)],
             ]);
         }
 
         /** @var array<string, mixed> $data */
         $data = $request->validated();
+
+        if (! $user->isAdmin() && ! $user->isPlatformAdmin()) {
+            // The stage is derived server-side from the authenticated user's
+            // scope. Any client-supplied stage_id is ignored for stage-scoped
+            // roles, and the class (if any) must belong to that scope as well.
+            /** @var int|null $stageId */
+            $stageId = $this->scopeResolver->userStageId($user);
+            if ($stageId === null) {
+                throw ValidationException::withMessages([
+                    'stage_id' => [__('invite.stage_required')],
+                ]);
+            }
+            $data['stage_id'] = $stageId;
+
+            /** @var int|null $classId */
+            $classId = isset($data['class_id']) && is_numeric($data['class_id']) ? (int) $data['class_id'] : null;
+            if ($classId !== null) {
+                $allowedClasses = $this->scopeResolver->allowedClassIds($user);
+                if ($allowedClasses === null || ! in_array($classId, $allowedClasses, true)) {
+                    throw ValidationException::withMessages([
+                        'class_id' => [__('invite.class_stage_mismatch')],
+                    ]);
+                }
+            }
+        }
 
         /** @var int $creatorId */
         $creatorId = $user->id;
@@ -68,13 +89,20 @@ class QRInviteController extends Controller
         /** @var array{valid: bool, invite: QRInvite, type: QRInviteType} $result */
         $result = $this->qrInviteService->validateToken($token);
         $invite = $result['invite'];
-        $classes = Classe::where('church_id', $invite->church_id)
-            ->get(['id', 'name']);
+        $invite->load(['stage']);
+        $classesQuery = Classe::where('church_id', $invite->church_id);
+        if ($invite->stage_id !== null) {
+            // Only classes inside the invitation's stage are selectable.
+            $classesQuery->where('stage_id', $invite->stage_id);
+        }
+        $classes = $classesQuery->orderBy('name')->get(['id', 'name']);
 
         $data = [
             'valid' => $result['valid'],
             'type' => $result['type']->value,
             'invite' => new QRInviteResource($invite),
+            'stage_id' => $invite->stage_id,
+            'stage_name' => $invite->stage?->name,
             'classes' => $classes->toArray(),
             'attendance_context_id' => $invite->attendance_context_id,
             'attendance_context' => $invite->attendanceContext ? [
@@ -172,6 +200,11 @@ class QRInviteController extends Controller
         if ($user->role === UserRole::Servant && $invite->created_by !== $uid) {
             return response()->json(['message' => 'Forbidden.'], 403);
         }
+        if ($user->isStageAdmin()
+            && $invite->created_by !== $uid
+            && ($invite->stage_id === null || $invite->stage_id !== $user->stage_id)) {
+            return response()->json(['message' => 'Forbidden.'], 403);
+        }
 
         $this->qrInviteService->revokeInvite($id);
 
@@ -196,6 +229,14 @@ class QRInviteController extends Controller
             // Ignore class_id filter — servants only see their own invites
             unset($filters['class_id']);
         }
+        if ($currentUser->isStageAdmin()) {
+            // Stage admins only see invitations scoped to their stage; any
+            // client-supplied filters that could leak another stage are dropped.
+            unset($filters['created_by'], $filters['class_id'], $filters['class_year_id']);
+            if ($currentUser->stage_id !== null) {
+                $filters['stage_id'] = $currentUser->stage_id;
+            }
+        }
 
         /** @var array{data: Collection<int, QRInvite>, meta: array<string, mixed>} $result */
         $result = $this->qrInviteService->listInvites(
@@ -209,5 +250,47 @@ class QRInviteController extends Controller
             'data' => QRInviteResource::collection($result['data']),
             'meta' => $result['meta'],
         ]);
+    }
+
+    /**
+     * Invite types a given role may create.
+     *
+     * @return array<int, string>
+     */
+    private function allowedInviteTypesFor(User $user): array
+    {
+        if ($user->isStageAdmin()) {
+            return [
+                QRInviteType::AdminToServantInvite->value,
+                QRInviteType::ServantToMemberInvite->value,
+                QRInviteType::AttendanceQR->value,
+            ];
+        }
+
+        if ($user->isServant()) {
+            return [
+                QRInviteType::ServantToMemberInvite->value,
+                QRInviteType::AttendanceQR->value,
+            ];
+        }
+
+        return [
+            QRInviteType::AdminToServantInvite->value,
+            QRInviteType::ServantToMemberInvite->value,
+            QRInviteType::AttendanceQR->value,
+        ];
+    }
+
+    private function inviteTypeRestrictionMessage(User $user): string
+    {
+        if ($user->isStageAdmin()) {
+            return 'Stage admins can only create member, servant, or attendance invitations within their stage.';
+        }
+
+        if ($user->isServant()) {
+            return 'Servants can only create member or attendance invitations.';
+        }
+
+        return 'You are not allowed to create this invitation type.';
     }
 }

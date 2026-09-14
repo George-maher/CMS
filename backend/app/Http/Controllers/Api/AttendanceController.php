@@ -12,7 +12,6 @@ use App\Http\Resources\AttendanceResource;
 use App\Http\Resources\UserResource;
 use App\Models\AttendanceContext;
 use App\Models\QRInvite;
-use App\Models\Scopes\ChurchScope;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -274,8 +273,12 @@ class AttendanceController extends Controller
         }
 
         if ($attendanceContextId) {
+            /** @var AttendanceContext|null $ctx */
+            $ctx = AttendanceContext::byChurch()->find($attendanceContextId);
+            if (! $ctx) {
+                $attendanceContextId = null;
+            }
             $responseData['attendance_context_id'] = $attendanceContextId;
-            $ctx = AttendanceContext::withoutGlobalScope(ChurchScope::class)->find($attendanceContextId);
             $responseData['attendance_context'] = $ctx ? [
                 'id' => $ctx->id,
                 'name' => $ctx->name,

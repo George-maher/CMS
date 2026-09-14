@@ -136,19 +136,26 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'approval', 'throttle:api'])->g
 
     /*
     | Storage — direct file uploads to Supabase
+    |   upload-profile-image → any authenticated user (own avatar)
+    |   upload-event-image   → staff who can manage events
+    |   upload/{bucket}, upload-document, replace/{bucket}, delete/{bucket
+    |     → admin-managed generic endpoints (NOT used by the official SPA).
+    |       They operate on the shared Supabase project (service-role key), so
+    |       they are restricted to manage_users (admin / assistant / stage admin)
+    |       to prevent any authenticated user from deleting arbitrary objects.
     */
     Route::post('/storage/upload/{bucket}', [StorageController::class, 'upload'])
-        ->middleware('throttle:storage-upload');
+        ->middleware(['permission:manage_users', 'throttle:storage-upload']);
     Route::post('/storage/upload-profile-image', [StorageController::class, 'uploadProfileImage'])
         ->middleware('throttle:storage-upload');
     Route::post('/storage/upload-event-image', [StorageController::class, 'uploadEventImage'])
-        ->middleware('throttle:storage-upload');
+        ->middleware(['permission:manage_events', 'throttle:storage-upload']);
     Route::post('/storage/upload-document', [StorageController::class, 'uploadDocument'])
-        ->middleware('throttle:storage-upload');
+        ->middleware(['permission:manage_users', 'throttle:storage-upload']);
     Route::post('/storage/replace/{bucket}', [StorageController::class, 'replaceFile'])
-        ->middleware('throttle:storage-upload');
+        ->middleware(['permission:manage_users', 'throttle:storage-upload']);
     Route::delete('/storage/delete/{bucket}', [StorageController::class, 'delete'])
-        ->middleware('throttle:storage-upload');
+        ->middleware(['permission:manage_users', 'throttle:storage-upload']);
 
     /*
     | Application Status — any authenticated user

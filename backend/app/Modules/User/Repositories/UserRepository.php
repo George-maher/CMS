@@ -87,13 +87,22 @@ class UserRepository implements UserRepositoryInterface
                 }
             }
 
-            $query->where(function ($q) use ($classIds) {
-                if ($classIds === []) {
-                    // Stage admin with no accessible classes: match nothing.
+            /** @var int|null $scopeStageId */
+            $scopeStageId = isset($filters['scope_stage_id']) && is_numeric($filters['scope_stage_id']) ? (int) $filters['scope_stage_id'] : null;
+
+            $query->where(function ($q) use ($classIds, $scopeStageId) {
+                if ($classIds === [] && $scopeStageId === null) {
+                    // Stage admin with no accessible classes/stage: match nothing.
                     $q->whereRaw('1 = 0');
                 } else {
-                    $q->whereIn('class_id', $classIds)
-                        ->orWhereIn('class_year_id', $classIds);
+                    if ($classIds !== []) {
+                        $q->whereIn('class_id', $classIds)
+                            ->orWhereIn('class_year_id', $classIds);
+                    }
+                    if ($scopeStageId !== null) {
+                        // Include users scoped directly to the stage (e.g. pivot-assigned servants).
+                        $q->orWhere('stage_id', $scopeStageId);
+                    }
                 }
             });
         }

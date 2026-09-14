@@ -4,8 +4,11 @@ namespace Tests\Feature;
 
 use App\Enums\QRInviteType;
 use App\Enums\UserRole;
+use App\Enums\UserScope;
 use App\Models\Church;
+use App\Models\Classe;
 use App\Models\Permission;
+use App\Models\Stage;
 use App\Models\User;
 use Database\Seeders\PermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -23,13 +26,29 @@ class QRInviteTest extends TestCase
         Permission::clearCache();
     }
 
+    /**
+     * Create a servant linked to a stage + class, matching the stage-scoped
+     * data model servants are expected to have in production.
+     */
+    private function stagedServantFor(Church $church): User
+    {
+        $stage = Stage::factory()->forChurch($church)->create();
+        $classe = Classe::factory()->forChurch($church)->state(['stage_id' => $stage->id])->create();
+
+        return User::factory()->create([
+            'role' => UserRole::Servant,
+            'church_id' => $church->id,
+            'stage_id' => $stage->id,
+            'class_id' => $classe->id,
+            'scope' => UserScope::ClassScope->value,
+            'application_status' => 'approved',
+        ]);
+    }
+
     public function test_servant_can_create_member_invite(): void
     {
         $church = Church::factory()->create();
-        $servant = User::factory()->create([
-            'role' => UserRole::Servant,
-            'church_id' => $church->id,
-        ]);
+        $servant = $this->stagedServantFor($church);
         $token = $servant->createToken('test', [$servant->role->value])->plainTextToken;
 
         $response = $this->withHeader('Authorization', "Bearer $token")
@@ -96,10 +115,7 @@ class QRInviteTest extends TestCase
     public function test_token_not_exposed_in_list(): void
     {
         $church = Church::factory()->create();
-        $servant = User::factory()->create([
-            'role' => UserRole::Servant,
-            'church_id' => $church->id,
-        ]);
+        $servant = $this->stagedServantFor($church);
         $token = $servant->createToken('test', [$servant->role->value])->plainTextToken;
 
         $this->withHeader('Authorization', "Bearer $token")
@@ -117,11 +133,7 @@ class QRInviteTest extends TestCase
     public function test_create_invite_is_idempotent_with_same_request_id(): void
     {
         $church = Church::factory()->create();
-        $servant = User::factory()->create([
-            'role' => UserRole::Servant,
-            'church_id' => $church->id,
-            'application_status' => 'approved',
-        ]);
+        $servant = $this->stagedServantFor($church);
         $token = $servant->createToken('test', [$servant->role->value])->plainTextToken;
 
         $requestId = str_repeat('a', 30).'-'.Str::random(20);
@@ -164,11 +176,7 @@ class QRInviteTest extends TestCase
     public function test_concurrent_duplicate_request_id_never_creates_two_records(): void
     {
         $church = Church::factory()->create();
-        $servant = User::factory()->create([
-            'role' => UserRole::Servant,
-            'church_id' => $church->id,
-            'application_status' => 'approved',
-        ]);
+        $servant = $this->stagedServantFor($church);
         $token = $servant->createToken('test', [$servant->role->value])->plainTextToken;
 
         $requestId = 'concurrent-'.Str::random(20);

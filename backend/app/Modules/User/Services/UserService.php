@@ -84,6 +84,12 @@ class UserService implements UserServiceInterface
             if ($classe === null || ! $this->scopeResolver->canAccessClass($authUser, $classe)) {
                 throw ValidationException::withMessages(['class_id' => ['The selected class is outside your stage.']]);
             }
+
+            // The stage is always the class's stage — never trust a client-supplied
+            // stage_id from a stage admin (it cannot widen beyond the scoped class).
+            if ($classe->stage_id !== null) {
+                $data['stage_id'] = (int) $classe->stage_id;
+            }
         }
 
         /** @var array<string, mixed> $data */
@@ -93,6 +99,12 @@ class UserService implements UserServiceInterface
         $role = $data['role'] ?? UserRole::Member->value;
         /** @var int|null $stageId */
         $stageId = isset($data['stage_id']) && is_numeric($data['stage_id']) ? (int) $data['stage_id'] : null;
+        /** @var int|null $classId */
+        $classId = isset($data['class_id']) && is_numeric($data['class_id']) ? (int) $data['class_id'] : null;
+
+        if ($stageId === null && $classId !== null) {
+            $stageId = $this->stageForClass($classId);
+        }
 
         if ($role === UserRole::StageAdmin->value && $stageId === null) {
             throw ValidationException::withMessages(['stage_id' => ['A stage is required for stage admins.']]);
@@ -152,11 +164,17 @@ class UserService implements UserServiceInterface
         /** @var string|null $targetRole */
         $targetRole = isset($data['role']) && is_string($data['role']) ? $data['role'] : $currentRole;
 
-        if (array_key_exists('stage_id', $data) || $targetRole !== $currentRole) {
+        if (array_key_exists('stage_id', $data) || $targetRole !== $currentRole || array_key_exists('class_id', $data)) {
             /** @var int|null $stageId */
             $stageId = array_key_exists('stage_id', $data)
                 ? (isset($data['stage_id']) && is_numeric($data['stage_id']) ? (int) $data['stage_id'] : null)
                 : ($user->stage_id !== null ? (int) $user->stage_id : null);
+
+            if ($stageId === null && array_key_exists('class_id', $data)) {
+                /** @var int|null $targetClassId */
+                $targetClassId = isset($data['class_id']) && is_numeric($data['class_id']) ? (int) $data['class_id'] : null;
+                $stageId = $this->stageForClass($targetClassId);
+            }
 
             if ($targetRole === UserRole::StageAdmin->value && $stageId === null) {
                 throw ValidationException::withMessages(['stage_id' => ['A stage is required for stage admins.']]);
@@ -241,10 +259,19 @@ class UserService implements UserServiceInterface
 
         $user->role = UserRole::from($newRole);
 
-        /** @var int|null $stageId */
-        $stageId = $newRole === UserRole::Member->value ? null : $user->stage_id;
-        $user->stage_id = $stageId;
-        $user->scope = $this->deriveScopeValue($newRole, $stageId);
+        // Honor the explicitly assigned stage for stage admins (the controller
+        // validated it against the actor's scope); privileged church roles and
+        // members have no stage; servants inherit their class's stage.
+        $effectiveStageId = match ($newRole) {
+            UserRole::StageAdmin->value => $stageId,
+            UserRole::Admin->value,
+            UserRole::AssistantAdmin->value,
+            UserRole::Member->value => null,
+            default => $this->stageForClass($user->class_id) ?? ($user->stage_id !== null ? (int) $user->stage_id : null),
+        };
+
+        $user->stage_id = $effectiveStageId;
+        $user->scope = $this->deriveScopeValue($newRole, $effectiveStageId);
         $user->save();
 
         return [
@@ -275,11 +302,17 @@ class UserService implements UserServiceInterface
             throw ValidationException::withMessages(['user' => ['User not found or cannot be demoted.']]);
         }
 
-        /** @var int|null $stageId */
-        $stageId = $newRole === UserRole::Member->value ? null : $user->stage_id;
         $user->refresh();
-        $user->stage_id = $stageId;
-        $user->scope = $this->deriveScopeValue($newRole, $stageId);
+
+        // Respect the same stage semantics: members lose stage/scope,
+        // servants inherit their class's stage (falling back to their current one).
+        $effectiveStageId = match ($newRole) {
+            UserRole::Member->value => null,
+            default => $this->stageForClass($user->class_id) ?? ($user->stage_id !== null ? (int) $user->stage_id : null),
+        };
+
+        $user->stage_id = $effectiveStageId;
+        $user->scope = $this->deriveScopeValue($newRole, $effectiveStageId);
         $user->save();
 
         $this->cacheService->invalidateUserAuth($userId);
@@ -394,6 +427,17 @@ class UserService implements UserServiceInterface
         $fallback = $data['church_id'] ?? null;
 
         return is_int($fallback) ? $fallback : null;
+    }
+
+    private function stageForClass(?int $classId): ?int
+    {
+        if ($classId === null) {
+            return null;
+        }
+
+        $stageValue = Classe::query()->where('id', $classId)->value('stage_id');
+
+        return is_numeric($stageValue) ? (int) $stageValue : null;
     }
 
     /**

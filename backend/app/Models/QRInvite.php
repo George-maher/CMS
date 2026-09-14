@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\DB;
  * @property string|null $client_request_id
  * @property int|null $created_by
  * @property int|null $class_id
+ * @property int|null $stage_id
  * @property int|null $class_year_id
  * @property int|null $attendance_context_id
  * @property int|null $used_by
@@ -35,6 +36,7 @@ use Illuminate\Support\Facades\DB;
  * @property-read User|null $usedBy
  * @property-read Classe|null $classe
  * @property-read Classe|null $classeYear
+ * @property-read Stage|null $stage
  * @property-read AttendanceContext|null $attendanceContext
  *
  * @method static \Illuminate\Database\Eloquent\Builder|\App\Models\QRInvite valid()
@@ -51,6 +53,7 @@ class QRInvite extends Model
         'client_request_id',
         'created_by',
         'class_id',
+        'stage_id',
         'class_year_id',
         'attendance_context_id',
         'used_by',
@@ -100,6 +103,14 @@ class QRInvite extends Model
     public function classe(): BelongsTo
     {
         return $this->belongsTo(Classe::class, 'class_id');
+    }
+
+    /**
+     * @return BelongsTo<Stage, $this>
+     */
+    public function stage(): BelongsTo
+    {
+        return $this->belongsTo(Stage::class, 'stage_id');
     }
 
     /**

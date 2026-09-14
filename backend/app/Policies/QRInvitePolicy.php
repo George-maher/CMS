@@ -10,12 +10,16 @@ class QRInvitePolicy
 {
     public function viewAny(User $user): bool
     {
-        return $user->isAdmin() || $user->isServant();
+        return $user->isAdmin() || $user->isServant() || $user->isStageAdmin();
     }
 
     public function view(User $user, QRInvite $invite): bool
     {
         if ($user->isAdmin()) {
+            return true;
+        }
+
+        if ($user->isStageAdmin() && $invite->stage_id !== null && $invite->stage_id === $user->stage_id) {
             return true;
         }
 
@@ -25,6 +29,9 @@ class QRInvitePolicy
     public function create(User $user, ?string $type = null): bool
     {
         if ($user->isAdmin()) {
+            return true;
+        }
+        if ($user->isStageAdmin()) {
             return true;
         }
         if ($user->isServant() && $type === QRInviteType::ServantToMemberInvite->value) {
@@ -37,6 +44,10 @@ class QRInvitePolicy
     public function revoke(User $user, QRInvite $invite): bool
     {
         if ($user->isAdmin()) {
+            return true;
+        }
+
+        if ($user->isStageAdmin() && $invite->stage_id !== null && $invite->stage_id === $user->stage_id) {
             return true;
         }
 

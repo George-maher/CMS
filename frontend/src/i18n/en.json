@@ -537,10 +537,20 @@
         "classDetail": "Class Detail",
         "membersList": "Members List",
         "servantsList": "Servants List",
-        "noServantsAssigned": "No servants assigned.",
+"noServantsAssigned": "No servants assigned.",
         "noMembersAssigned": "No members assigned.",
         "allServantsAssigned": "All servants are assigned.",
-        "allMembersAssigned": "All members are assigned."
+        "allMembersAssigned": "All members are assigned.",
+        "stageAdmin": "Stage Admin",
+        "noStageAdmin": "No stage admin assigned.",
+        "assignStageAdmin": "Assign Stage Admin",
+        "changeStageAdmin": "Change Stage Admin",
+        "stageAdminDescription": "The stage admin manages classes, servants, members and invites for this stage only.",
+        "searchAdminCandidates": "Search by name or email...",
+        "noMatchingUsers": "No matching users.",
+        "selectStageAdmin": "Select a user to assign.",
+        "stageAdminAssigned": "Stage admin assigned successfully.",
+        "stageAdminAssignmentFailed": "Could not assign stage admin."
     },
     "feedback": {
         "feedback": "Feedback",

@@ -7,6 +7,7 @@ use App\Contracts\PasswordResetRequestServiceInterface;
 use App\Contracts\QRInviteServiceInterface;
 use App\Contracts\UserRepositoryInterface;
 use App\Enums\UserRole;
+use App\Enums\UserScope;
 use App\Models\Church;
 use App\Models\Classe;
 use App\Models\QRInvite;
@@ -204,10 +205,13 @@ class AuthService implements AuthServiceInterface
                 $data['servant_id'] = $invite->created_by;
             }
 
+            $resolvedStageId = $invite->stage_id !== null ? (int) $invite->stage_id : null;
+
             if (! empty($data['class_id'])) {
                 /** @var int $classId */
                 $classId = $data['class_id'];
-                $classe = Classe::where('id', $classId)
+                $classe = Classe::query()
+                    ->where('id', $classId)
                     ->where('church_id', $invite->church_id)
                     ->first();
                 if (! $classe) {
@@ -215,7 +219,17 @@ class AuthService implements AuthServiceInterface
                         'class_id' => [__('invite.class_not_found')],
                     ]);
                 }
+                $classStageId = $classe->stage_id !== null ? (int) $classe->stage_id : null;
+                if ($invite->stage_id !== null && $classStageId !== null && $classStageId !== (int) $invite->stage_id) {
+                    throw ValidationException::withMessages([
+                        'class_id' => [__('invite.class_stage_mismatch')],
+                    ]);
+                }
+                $resolvedStageId ??= $classStageId;
             }
+
+            $data['stage_id'] = $resolvedStageId;
+            $data['scope'] = $role === UserRole::Member ? UserScope::Self->value : UserScope::ClassScope->value;
 
             $user = $this->userRepository->create($data);
 

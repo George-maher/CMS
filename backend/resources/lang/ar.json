@@ -46,6 +46,8 @@
     "invite.expired": "انتهت صلاحية رمز QR هذا.",
     "invite.revoked": "تم إلغاء رمز QR هذا.",
     "invite.class_not_found": "الفصل المحدد غير صالح لهذه الدعوة.",
+    "invite.class_stage_mismatch": "الفصل المحدد لا ينتمي إلى مرحلة هذه الدعوة.",
+    "invite.stage_required": "حسابك غير مرتبط بمرحلة بعد. يرجى التواصل مع مسؤول الكنيسة.",
     "invite.role_mismatch": "هذه الدعوة غير صالحة للدور المطلوب.",
     "church_application.already_processed": "تمت معالجة هذا الطلب بالفعل: :status.",
     "church_application.submitted": "تم تقديم الطلب بنجاح. يمكنك الآن تسجيل الدخول لمتابعة حالة طلبك.",

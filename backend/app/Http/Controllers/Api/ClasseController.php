@@ -8,7 +8,6 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreClasseRequest;
 use App\Http\Requests\UpdateClasseRequest;
 use App\Http\Resources\ClasseResource;
-use App\Http\Resources\UserResource;
 use App\Models\Classe;
 use App\Models\Stage;
 use App\Models\User;
@@ -154,6 +153,17 @@ class ClasseController extends Controller
 
         /** @var int $servantId */
         $servantId = $request->input('user_id');
+        $servant = User::byChurch()->find($servantId);
+        if (! $servant) {
+            return response()->json(['message' => 'Servant not found.'], 404);
+        }
+
+        /** @var User|null $actor */
+        $actor = $request->user();
+        if ($actor === null || ! $this->scopeResolver->canAccessUser($actor, $servant)) {
+            return response()->json(['message' => 'Forbidden.'], 403);
+        }
+
         $result = $this->classeService->assignServant(
             classeId: $id,
             servantId: $servantId,
@@ -272,11 +282,14 @@ class ClasseController extends Controller
             return response()->json(['message' => 'Forbidden.'], 403);
         }
 
-        $user->update(['class_id' => $id]);
+        $result = $this->classeService->assignMember(
+            classeId: $id,
+            memberId: $memberId,
+        );
 
         return response()->json([
             'message' => 'Member assigned to class successfully.',
-            'data' => new UserResource($user->fresh()),
+            'data' => $result['data'],
         ]);
     }
 }

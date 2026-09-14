@@ -59,6 +59,14 @@ export async function promoteToAdmin(userId: number): Promise<User> {
   return data.data
 }
 
+export async function promoteToStageAdmin(userId: number, stageId: number): Promise<User> {
+  const { data } = await client.post<{ data: User }>(`/users/${userId}/promote`, {
+    role: 'stage_admin',
+    stage_id: stageId,
+  })
+  return data.data
+}
+
 export async function demoteFromAdmin(userId: number, role: 'servant' | 'member'): Promise<User> {
   const { data } = await client.post<{ data: User }>(`/users/${userId}/demote`, { role })
   return data.data

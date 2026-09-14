@@ -18,6 +18,8 @@ export interface ValidateQRResult {
   type: string
   invite: QRInvite
   classes: ClasseInfo[]
+  stage_id?: number | null
+  stage_name?: string | null
   creator_class_id?: number
   creator_class_name?: string
   attendance_context_id?: number | null

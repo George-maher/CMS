@@ -26,6 +26,9 @@ interface ClasseServiceInterface
     public function assignServant(int $classeId, int $servantId): array;
 
     /** @return array<string, mixed> */
+    public function assignMember(int $classeId, int $memberId): array;
+
+    /** @return array<string, mixed> */
     public function removeServant(int $classeId, int $servantId): array;
 
     /** @param array<int, int> $orderedIds */
