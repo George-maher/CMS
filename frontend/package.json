@@ -9,6 +9,7 @@
     "prebuild": "npm run generate-assets",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
+    "check:i18n": "node scripts/check-i18n.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

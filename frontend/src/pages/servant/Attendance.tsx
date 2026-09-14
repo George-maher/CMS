@@ -1,3 +1,4 @@
+import { fmtDate, fmtTime } from '@/lib/dates'
 import { useEffect, useState, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/hooks/useAuth'
@@ -136,8 +137,8 @@ export default function AttendancePage() {
                       <td className="whitespace-nowrap px-4 py-3 text-sm font-medium">{a.user?.name || t('common.unknown')}</td>
                       <td className="whitespace-nowrap px-4 py-3 text-sm text-secondary">{a.classe?.name || '-'}</td>
                       <td className="whitespace-nowrap px-4 py-3 text-sm text-secondary">{a.attendance_context ? ctxName(a.attendance_context, language) : '-'}</td>
-                      <td className="whitespace-nowrap px-4 py-3 text-sm text-secondary">{new Date(a.attended_at).toLocaleDateString()}</td>
-                      <td className="whitespace-nowrap px-4 py-3 text-sm text-secondary">{new Date(a.attended_at).toLocaleTimeString()}</td>
+                      <td className="whitespace-nowrap px-4 py-3 text-sm text-secondary">{fmtDate(new Date(a.attended_at))}</td>
+                      <td className="whitespace-nowrap px-4 py-3 text-sm text-secondary">{fmtTime(new Date(a.attended_at))}</td>
                       <td className="whitespace-nowrap px-4 py-3 text-sm text-secondary">
                         {a.method === 'qr' ? t('attendance.methodQR') : a.method === 'token' ? t('attendance.methodToken') : a.method === 'id' ? t('attendance.methodID') : '-'}
                       </td>
@@ -170,8 +171,8 @@ export default function AttendancePage() {
                 </div>
                 <div className="grid grid-cols-2 gap-1 text-xs text-secondary">
                   <span>{t('users.class')}: {a.classe?.name || '-'}</span>
-                  <span>{t('attendance.date')}: {new Date(a.attended_at).toLocaleDateString()}</span>
-                  <span>{t('attendance.time')}: {new Date(a.attended_at).toLocaleTimeString()}</span>
+                  <span>{t('attendance.date')}: {fmtDate(new Date(a.attended_at))}</span>
+                  <span>{t('attendance.time')}: {fmtTime(new Date(a.attended_at))}</span>
                   <span>{t('attendance.method')}: {a.method === 'qr' ? t('attendance.methodQR') : a.method === 'token' ? t('attendance.methodToken') : a.method === 'id' ? t('attendance.methodID') : '-'}</span>
                 </div>
                 <div className="text-xs text-muted">
@@ -193,7 +194,7 @@ export default function AttendancePage() {
                   disabled={meta.current_page <= 1}
                   className="btn-ghost btn-sm border disabled:opacity-50"
                 >
-                  <ChevronLeft className="h-4 w-4" />
+                  <ChevronLeft className="h-4 w-4 rtl-flip" />
                   <span className="hidden sm:inline">{t('common.prev')}</span>
                 </button>
                 <button
@@ -202,7 +203,7 @@ export default function AttendancePage() {
                   className="btn-ghost btn-sm border disabled:opacity-50"
                 >
                   <span className="hidden sm:inline">{t('common.next')}</span>
-                  <ChevronRight className="h-4 w-4" />
+                  <ChevronRight className="h-4 w-4 rtl-flip" />
                 </button>
               </div>
             </div>

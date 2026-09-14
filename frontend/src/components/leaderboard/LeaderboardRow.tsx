@@ -1,4 +1,5 @@
 import MotionDiv from '@/components/common/MotionDiv'
+import { useTranslation } from 'react-i18next'
 import type { LeaderboardEntry } from '@/types'
 
 const medals = ['🥇', '🥈', '🥉']
@@ -17,6 +18,7 @@ interface Props {
 }
 
 export default function LeaderboardRow({ entry, delay }: Props) {
+  const { t } = useTranslation()
   const isTop3 = entry.rank <= 3
   const d = delay ?? entry.rank * 50
 
@@ -41,12 +43,12 @@ export default function LeaderboardRow({ entry, delay }: Props) {
           <p className="truncate font-semibold text-sm">{entry.name}</p>
           <p className="text-xs text-muted">
             {entry.class_name}
-            {entry.attendance_count !== undefined && entry.attendance_count !== null && ` · ${entry.attendance_count} attendances`}
+            {entry.attendance_count !== undefined && entry.attendance_count !== null && ` · ${t('leaderboard.attendances', { count: entry.attendance_count })}`}
           </p>
         </div>
-        <div className="text-right shrink-0">
+        <div className="text-end shrink-0">
           <p className="font-bold text-lg gold-text">{entry.total_points}</p>
-          <p className="text-[10px] text-muted">pts</p>
+          <p className="text-[10px] text-muted">{t('leaderboard.points')}</p>
         </div>
       </div>
     </MotionDiv>

@@ -1,4 +1,5 @@
 import { Crown } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import MotionDiv from '@/components/common/MotionDiv'
 import type { LeaderboardEntry } from '@/types'
 
@@ -16,6 +17,7 @@ interface Props {
 }
 
 export default function PodiumCard({ entry, index }: Props) {
+  const { t } = useTranslation()
   return (
     <div className="flex flex-col items-center gap-3">
       <MotionDiv animation="fade-in-up" delay={index * 100}>
@@ -37,7 +39,7 @@ export default function PodiumCard({ entry, index }: Props) {
           <p className="font-bold text-sm truncate">{entry.name}</p>
           <p className="text-xs text-muted">{entry.class_name}</p>
           <p className="mt-2 text-2xl font-bold gold-text">{entry.total_points}</p>
-          <p className="text-[10px] text-muted">points</p>
+          <p className="text-[10px] text-muted">{t('leaderboard.points')}</p>
         </div>
       </MotionDiv>
       <div className={`w-full rounded-t-xl ${podiumClasses[index]} ${heights[index]} flex items-center justify-center`}>

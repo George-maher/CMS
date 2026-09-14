@@ -1,3 +1,4 @@
+import { fmtDate } from '@/lib/dates'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
@@ -60,7 +61,7 @@ export default function ServantQRInvites() {
                 <div className="flex items-center gap-1.5">
                   <button
                     onClick={() => navigate(userDetailPath(u))}
-                    className="text-xs font-medium hover:text-primary-600 hover:underline transition-colors text-left"
+                    className="text-xs font-medium hover:text-primary-600 hover:underline transition-colors text-start"
                   >
                     {u.name}
                   </button>
@@ -80,23 +81,23 @@ export default function ServantQRInvites() {
                 </div>
                 {(u.class_name || u.stage_name) && (
                   <div className="text-[10px] text-secondary">
-                    {u.class_name && <>Class: {u.class_name}</>}
+                    {u.class_name && <>{t('qr.classLabel')}: {u.class_name}</>}
                     {u.class_name && u.stage_name && <span className="mx-1">·</span>}
-                    {u.stage_name && <>Stage: {u.stage_name}</>}
+                    {u.stage_name && <>{t('qr.stageLabel')}: {u.stage_name}</>}
                   </div>
                 )}
               </div>
             ))}
             {allUsers.length > 5 && (
-              <span className="text-[10px] text-muted text-center">+{allUsers.length - 5} more</span>
+              <span className="text-[10px] text-muted text-center">{t('qr.moreCount', { count: allUsers.length - 5 })}</span>
             )}
           </div>
         )
       },
     },
     { key: 'usage_label', header: t('qr.usage'), render: (q) => q.usage_label ?? (q.max_uses ? `0 / ${q.max_uses}` : (q.use_count > 0 ? String(q.use_count) : '-')) },
-    { key: 'created_at', header: t('qr.createdAt'), render: (q) => new Date(q.created_at).toLocaleDateString() },
-    { key: 'expires_at', header: t('qr.expiresAt'), render: (q) => new Date(q.expires_at).toLocaleDateString() },
+    { key: 'created_at', header: t('qr.createdAt'), render: (q) => fmtDate(new Date(q.created_at)) },
+    { key: 'expires_at', header: t('qr.expiresAt'), render: (q) => fmtDate(new Date(q.expires_at)) },
   ]
   const [invites, setInvites] = useState<QRInvite[]>([])
   const [meta, setMeta] = useState({ current_page: 1, last_page: 1, per_page: 15, total: 0 })
@@ -327,7 +328,7 @@ export default function ServantQRInvites() {
 
       <Modal isOpen={!!selectedUrl} onClose={handleCloseResult} title={t('qr.createdModalTitle')} size="lg">
         <div className="flex flex-col items-center space-y-4">
-          {qrDataUrl && <img src={qrDataUrl} alt="QR Code" className="h-64 w-64 max-w-full" />}
+          {qrDataUrl && <img src={qrDataUrl} alt={t('common.qrCode')} className="h-64 w-64 max-w-full" />}
           <p className="text-sm text-secondary">{t('qr.sharePrompt')}</p>
           <div className="w-full rounded-lg bg-surface-secondary p-4 break-all">
             <code className="text-sm whitespace-pre-wrap break-all">{selectedUrl}</code>

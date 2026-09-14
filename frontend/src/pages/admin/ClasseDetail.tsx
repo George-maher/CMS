@@ -127,7 +127,7 @@ export default function ClasseDetail() {
   return (
     <div className="space-y-6">
       <button onClick={() => navigate(`/admin/stages/${detail.class.stage_id}`)} className="btn-icon btn-ghost">
-        <ArrowLeft className="h-4 w-4" /> {t('common.back')}
+        <ArrowLeft className="h-4 w-4 rtl-flip" /> {t('common.back')}
       </button>
 
       <div className="card p-6 space-y-4">
@@ -208,7 +208,7 @@ export default function ClasseDetail() {
               key={s.id}
               onClick={() => handleAssignServant(s.id)}
               disabled={assigning}
-              className="w-full rounded-lg border border-border p-3 text-left hover:bg-surface-secondary transition-colors disabled:opacity-50"
+              className="w-full rounded-lg border border-border p-3 text-start hover:bg-surface-secondary transition-colors disabled:opacity-50"
             >
               <p className="font-medium text-sm">{s.name}</p>
               <p className="text-xs text-secondary">{s.email}</p>
@@ -225,7 +225,7 @@ export default function ClasseDetail() {
               key={m.id}
               onClick={() => handleAssignMember(m.id)}
               disabled={assigning}
-              className="w-full rounded-lg border border-border p-3 text-left hover:bg-surface-secondary transition-colors disabled:opacity-50"
+              className="w-full rounded-lg border border-border p-3 text-start hover:bg-surface-secondary transition-colors disabled:opacity-50"
             >
               <p className="font-medium text-sm">{m.name}</p>
               <p className="text-xs text-secondary">{m.email}</p>

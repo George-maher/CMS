@@ -362,7 +362,7 @@ export default function Header({ onMenuClick }: Props) {
             )}
           <button onClick={() => setLanguage(language === 'en' ? 'ar' : 'en')} className="btn-ghost btn-sm border hidden sm:flex">
             <Languages className="h-3.5 w-3.5 text-gold-400" />
-            {language === 'en' ? 'AR' : 'EN'}
+            {t('language.' + (language === 'en' ? 'ar' : 'en'))}
           </button>
           <button onClick={toggleTheme} className="btn-icon btn-ghost rounded-lg" title={t('theme.toggleTheme')}>
             {theme === 'dark' ? <Sun className="h-5 w-5 text-gold-400" /> : <Moon className="h-5 w-5 text-navy-500" />}

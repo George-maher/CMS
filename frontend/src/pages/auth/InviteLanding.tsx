@@ -1,3 +1,4 @@
+import { fmtDate } from '@/lib/dates'
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { getInviteDetails, acceptInvite } from '@/api/qr'
@@ -120,7 +121,7 @@ export default function InviteLanding() {
           {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
         </button>
         <button onClick={toggleLang} className="btn-ghost btn-sm border min-w-[40px]">
-          {language === 'en' ? 'AR' : 'EN'}
+          {t('language.' + (language === 'en' ? 'ar' : 'en'))}
         </button>
       </div>
     </div>
@@ -199,7 +200,7 @@ export default function InviteLanding() {
                   {t('auth.inviteLinkExpiry')}
                 </p>
                 <p className="mt-1 text-primary-500 dark:text-primary-400 text-xs">
-                  {t('qr.expiresAt')}: {new Date(details.expires_at).toLocaleDateString()}
+                  {t('qr.expiresAt')}: {fmtDate(new Date(details.expires_at))}
                 </p>
               </div>
             )}

@@ -1,3 +1,4 @@
+import { fmtDate } from '@/lib/dates'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { CalendarDays } from 'lucide-react'
@@ -62,7 +63,7 @@ export default function ServantDashboard() {
               <div key={event.id} className="flex items-center justify-between border-b border-border pb-2 last:border-0">
                 <span className="font-medium text-sm">{event.name}</span>
                 <span className="text-xs text-secondary">
-                  {event.event_date ? new Date(event.event_date).toLocaleDateString() : t('common.dateTbd')}
+                  {event.event_date ? fmtDate(new Date(event.event_date)) : t('common.dateTbd')}
                 </span>
               </div>
             ))}

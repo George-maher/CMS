@@ -119,7 +119,7 @@ export default function InviteRegister() {
           {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
         </button>
         <button onClick={toggleLang} className="btn-ghost btn-sm border min-w-[40px]">
-          {language === 'en' ? 'AR' : 'EN'}
+          {t('language.' + (language === 'en' ? 'ar' : 'en'))}
         </button>
       </div>
     </div>

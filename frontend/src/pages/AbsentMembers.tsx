@@ -1,3 +1,4 @@
+import { fmtDate } from '@/lib/dates'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Phone, Copy, MessageCircle, MessageSquare, Users, UserCheck, UserX, AlertTriangle } from 'lucide-react'
@@ -148,7 +149,7 @@ export default function AbsentMembers() {
               <div className="hidden sm:block overflow-x-auto">
                 <table className="w-full min-w-[900px] text-sm">
                   <thead>
-                    <tr className="border-b border-border text-left text-xs font-medium text-secondary uppercase tracking-wider">
+                    <tr className="border-b border-border text-start text-xs font-medium text-secondary uppercase tracking-wider">
                       <th className="px-4 py-3">{t('auth.name')}</th>
                       <th className="px-4 py-3">{t('auth.phone')}</th>
                       <th className="px-4 py-3">{t('users.class')}</th>
@@ -174,7 +175,7 @@ export default function AbsentMembers() {
                         <td className="px-4 py-3">{member.classe?.name ?? '—'}</td>
                         <td className="px-4 py-3 text-secondary">
                           {member.last_attendance_date
-                            ? new Date(member.last_attendance_date).toLocaleDateString()
+                            ? fmtDate(new Date(member.last_attendance_date))
                             : <span className="text-danger-500">{t('absentMembers.never')}</span>}
                         </td>
                         <td className="px-4 py-3">
@@ -220,12 +221,12 @@ export default function AbsentMembers() {
                                 </button>
                                 <button onClick={() => handleWhatsApp(member.phone!)}
                                   className="btn-icon btn-ghost rounded-lg p-1.5 hover:bg-emerald-100 hover:text-emerald-600"
-                                  title="WhatsApp">
+                                  title={t('common.whatsapp')}>
                                   <MessageCircle className="h-4 w-4" />
                                 </button>
                                 <button onClick={() => handleSms(member.phone!)}
                                   className="btn-icon btn-ghost rounded-lg p-1.5 hover:bg-blue-100 hover:text-blue-600"
-                                  title="SMS">
+                                  title={t('common.sms')}>
                                   <MessageSquare className="h-4 w-4" />
                                 </button>
                               </>
@@ -256,7 +257,7 @@ export default function AbsentMembers() {
                     <div className="grid grid-cols-2 gap-1 text-xs text-secondary">
                       <span>{t('auth.phone')}: {member.phone ?? '—'}</span>
                       <span>{t('users.class')}: {member.classe?.name ?? '—'}</span>
-                      <span>{t('absentMembers.lastAttendance')}: {member.last_attendance_date ? new Date(member.last_attendance_date).toLocaleDateString() : t('absentMembers.never')}</span>
+                      <span>{t('absentMembers.lastAttendance')}: {member.last_attendance_date ? fmtDate(new Date(member.last_attendance_date)) : t('absentMembers.never')}</span>
                       <span>{t('absentMembers.attendanceRate')}: {member.attendance_percentage}%</span>
                       <span>{t('absentMembers.monthAbsences')}: {member.month_absences}</span>
                     </div>
@@ -271,11 +272,11 @@ export default function AbsentMembers() {
                           <Copy className="h-4 w-4" />
                         </button>
                         <button onClick={() => handleWhatsApp(member.phone!)}
-                          className="btn-icon btn-ghost rounded-lg p-1.5 hover:bg-emerald-100 hover:text-emerald-600" title="WhatsApp">
+                          className="btn-icon btn-ghost rounded-lg p-1.5 hover:bg-emerald-100 hover:text-emerald-600" title={t('common.whatsapp')}>
                           <MessageCircle className="h-4 w-4" />
                         </button>
                         <button onClick={() => handleSms(member.phone!)}
-                          className="btn-icon btn-ghost rounded-lg p-1.5 hover:bg-blue-100 hover:text-blue-600" title="SMS">
+                          className="btn-icon btn-ghost rounded-lg p-1.5 hover:bg-blue-100 hover:text-blue-600" title={t('common.sms')}>
                           <MessageSquare className="h-4 w-4" />
                         </button>
                       </div>

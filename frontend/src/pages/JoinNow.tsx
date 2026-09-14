@@ -296,7 +296,7 @@ export default function JoinNow() {
       <header className="sticky top-0 z-40 border-b bg-surface">
         <div className="mx-auto flex h-16 max-w-4xl items-center justify-between px-4">
           <button onClick={() => navigate('/')} className="btn-ghost btn-sm">
-            <ArrowLeft className="h-4 w-4" /> {t('join.backToHome')}
+            <ArrowLeft className="h-4 w-4 rtl-flip" /> {t('join.backToHome')}
           </button>
         </div>
       </header>
@@ -460,11 +460,11 @@ export default function JoinNow() {
                   <label className="label">{t('join.frontId')} {!existingApp && <span className="text-danger">*</span>}</label>
                   <div className="relative flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-border bg-surface-secondary p-4 hover:border-primary-500 transition-colors">
                     {frontPreview ? (
-                      <img src={frontPreview} alt="Front ID" className="max-h-32 rounded object-contain" />
+                      <img src={frontPreview} alt={t('join.frontId')} className="max-h-32 rounded object-contain" />
                     ) : frontIdFile ? (
                       <FileText className="h-8 w-8 text-muted" />
                     ) : existingApp?.front_id_url ? (
-                      <img src={existingApp.front_id_url} alt="Front ID" className="max-h-32 rounded object-contain" />
+                      <img src={existingApp.front_id_url} alt={t('join.frontId')} className="max-h-32 rounded object-contain" />
                     ) : (
                       <Upload className="h-8 w-8 text-muted" />
                     )}
@@ -482,11 +482,11 @@ export default function JoinNow() {
                   <label className="label">{t('join.backId')} {!existingApp && <span className="text-danger">*</span>}</label>
                   <div className="relative flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-border bg-surface-secondary p-4 hover:border-primary-500 transition-colors">
                     {backPreview ? (
-                      <img src={backPreview} alt="Back ID" className="max-h-32 rounded object-contain" />
+                      <img src={backPreview} alt={t('join.backId')} className="max-h-32 rounded object-contain" />
                     ) : backIdFile ? (
                       <FileText className="h-8 w-8 text-muted" />
                     ) : existingApp?.back_id_url ? (
-                      <img src={existingApp.back_id_url} alt="Back ID" className="max-h-32 rounded object-contain" />
+                      <img src={existingApp.back_id_url} alt={t('join.backId')} className="max-h-32 rounded object-contain" />
                     ) : (
                       <Upload className="h-8 w-8 text-muted" />
                     )}
@@ -506,7 +506,7 @@ export default function JoinNow() {
                 <label className="label">{t('join.churchPermissionDoc')} {!existingApp && <span className="text-danger">*</span>}</label>
                 <div className="relative flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-border bg-surface-secondary p-4 hover:border-primary-500 transition-colors">
                   {permissionPreview ? (
-                    <img src={permissionPreview} alt="Permission Document" className="max-h-32 rounded object-contain" />
+                    <img src={permissionPreview} alt={t('join.churchPermissionDoc')} className="max-h-32 rounded object-contain" />
                   ) : permissionDocFile ? (
                     <div className="flex items-center gap-2 text-sm text-secondary">
                       <FileText className="h-5 w-5" />

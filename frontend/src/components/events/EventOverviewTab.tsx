@@ -1,3 +1,4 @@
+import { fmtDateTime } from '@/lib/dates'
 import { useTranslation } from 'react-i18next'
 import Badge from '@/components/common/Badge'
 import type { EventDashboardStats } from '@/types'
@@ -82,7 +83,7 @@ export default function EventOverviewTab({ stats, loading }: Props) {
         <dl className="grid grid-cols-1 gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
           <div className="flex justify-between gap-2 sm:block">
             <dt className="text-secondary">{t('events.eventDate')}</dt>
-            <dd>{stats.event.event_date ? new Date(stats.event.event_date).toLocaleString() : '-'}</dd>
+            <dd>{stats.event.event_date ? fmtDateTime(new Date(stats.event.event_date)) : '-'}</dd>
           </div>
           <div className="flex justify-between gap-2 sm:block">
             <dt className="text-secondary">{t('events.location')}</dt>

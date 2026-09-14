@@ -1,3 +1,4 @@
+import { fmtDate } from '@/lib/dates'
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import toast from 'react-hot-toast'
@@ -164,7 +165,7 @@ export default function EventParticipantsTab({ eventId, isTrip }: Props) {
     { key: 'accommodation', header: t('eventMgmt.accommodation'), render: (r) => r.accommodation ? (
       <Badge variant="success">Room {r.accommodation.cell.room.room_number} / Cell {r.accommodation.cell.cell_number}</Badge>
     ) : <span className="text-xs text-secondary">-</span> },
-    { key: 'registered_at', header: t('eventMgmt.registeredAt'), render: (r) => new Date(r.registered_at).toLocaleDateString() },
+    { key: 'registered_at', header: t('eventMgmt.registeredAt'), render: (r) => fmtDate(new Date(r.registered_at)) },
   ]
 
   return (

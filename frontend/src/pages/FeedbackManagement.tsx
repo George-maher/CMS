@@ -1,3 +1,4 @@
+import { fmtDate, fmtDateTime } from '@/lib/dates'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import toast from 'react-hot-toast'
@@ -70,7 +71,7 @@ export default function FeedbackManagement() {
   }
 
   const columns: Column<Feedback>[] = [
-    { key: 'created_at', header: t('feedback.date'), render: (f) => new Date(f.created_at).toLocaleDateString() },
+    { key: 'created_at', header: t('feedback.date'), render: (f) => fmtDate(new Date(f.created_at)) },
     { key: 'category', header: t('feedback.category'), render: (f) => f.category ? <Badge variant="info">{f.category_label}</Badge> : <span className="text-muted">-</span> },
     { key: 'user', header: t('feedback.fromMember'), render: (f) => {
       if (f.is_anonymous && !f.user) {
@@ -120,7 +121,7 @@ export default function FeedbackManagement() {
               <Badge variant={selectedFeedback.is_resolved ? 'success' : 'warning'}>
                 {selectedFeedback.is_resolved ? t('feedback.resolved') : t('feedback.pending')}
               </Badge>
-              <span className="ml-auto">{new Date(selectedFeedback.created_at).toLocaleString()}</span>
+              <span className="ml-auto">{fmtDateTime(new Date(selectedFeedback.created_at))}</span>
             </div>
 
             {/* Admin-only: full sender identity */}
@@ -153,7 +154,7 @@ export default function FeedbackManagement() {
                   <div key={reply.id} className="rounded-lg bg-surface-secondary p-3">
                     <div className="flex items-center gap-2 text-xs text-secondary mb-1">
                       <span className="font-medium">{reply.user.name}</span>
-                      <span>{new Date(reply.created_at).toLocaleString()}</span>
+                      <span>{fmtDateTime(new Date(reply.created_at))}</span>
                     </div>
                     <p className="text-sm whitespace-pre-wrap">{reply.message}</p>
                   </div>

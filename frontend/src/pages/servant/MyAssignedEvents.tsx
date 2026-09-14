@@ -1,3 +1,4 @@
+import { fmtDate } from '@/lib/dates'
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
@@ -70,7 +71,7 @@ export default function MyAssignedEvents() {
                   <div className="min-w-0 flex-1">
                     <h3 className="font-medium truncate">{event.name}</h3>
                     <p className="text-xs text-secondary">
-                      {event.event_date ? new Date(event.event_date).toLocaleDateString() : ''}
+                      {event.event_date ? fmtDate(new Date(event.event_date)) : ''}
                       {event.location ? ` · ${event.location}` : ''}
                     </p>
                   </div>

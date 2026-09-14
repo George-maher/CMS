@@ -106,6 +106,9 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Check i18n keys
+        run: npm run check:i18n
+
       - name: Type Check
         run: npx tsc --noEmit
 

@@ -1,6 +1,6 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import './i18n'
+import i18n from './i18n'
 import './index.css'
 import App from './App'
 import { OfflineProvider } from '@/contexts/OfflineContext'
@@ -52,7 +52,7 @@ if (isFirstVisit()) {
 
 const updateSW = registerSW({
   onNeedRefresh() {
-    if (confirm('A new version is available. Update now?')) {
+    if (confirm(i18n.t('pwa.updateAvailable'))) {
       updateSW(true)
     }
   },

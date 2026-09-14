@@ -142,7 +142,7 @@ export default function MemberEventDetail() {
       <div className="card py-20 text-center">
         <p className="text-muted">{t('common.noData')}</p>
         <button onClick={() => navigate('/member/events')} className="btn-primary btn-sm mt-4">
-          <ArrowLeft className="h-4 w-4" /> {t('common.back')}
+          <ArrowLeft className="h-4 w-4 rtl-flip" /> {t('common.back')}
         </button>
       </div>
     )
@@ -177,7 +177,7 @@ export default function MemberEventDetail() {
         onClick={() => navigate('/member/events')}
         className="btn-ghost btn-sm flex items-center gap-1.5"
       >
-        <ArrowLeft className="h-4 w-4" />
+        <ArrowLeft className="h-4 w-4 rtl-flip" />
         {t('common.back')}
       </button>
 

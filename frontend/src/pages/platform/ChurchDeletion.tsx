@@ -1,3 +1,4 @@
+import { fmtDate } from '@/lib/dates'
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import toast from 'react-hot-toast'
@@ -202,7 +203,7 @@ export default function ChurchDeletion() {
                     <Badge variant="danger">{t('churchDeletion.deleted')}</Badge>
                     {church.deleted_at && (
                       <span className="text-xs text-muted">
-                        {new Date(church.deleted_at).toLocaleDateString()}
+                        {fmtDate(new Date(church.deleted_at))}
                       </span>
                     )}
                   </div>

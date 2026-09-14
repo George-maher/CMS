@@ -984,3 +984,43 @@ Fix the project-wide frontend/server-state desync (approving a campaign/applicat
 - `frontend/src/lib/requestCache.ts` — `generation`/`getGeneration()`, `invalidateCache()` bumps on every call
 - `frontend/src/pages/admin/StructureManagement.tsx` — single debounced mount effect
 - `frontend/src/pages/admin/StageDetail.tsx` — single debounced mount effect
+
+---
+
+## 📌 ANCHORED SUMMARY (2026-09-14)
+
+## Goal
+Complete frontend i18n audit: en/ar key parity, localize every user-visible string, locale-aware dates, RTL layout correctness, and CI-enforced parity validation.
+
+## Progress
+### Done (2026-09-14 — French-style finalization of the i18n audit)
+1. **Exact key parity** — EN 1351 = AR 1351, zero EN-only/AR-only keys, all 1045 static `t("...")` keys used in code resolve in both locales; 17 dynamic `t(\`${}\`)` templates audited and all resolve. Full `${interpolation}` keys added with both locales (e.g. `qr.moreCount`, `leaderboard.attendances`).
+2. **New `frontend/scripts/check-i18n.mjs`** — computes flat key sets from en.json/ar.json, asserts exact parity, asserts every static key used in `src/**` exists in BOTH locales, reports dynamic templates, exits 1 on any failure. Wired as `npm run check:i18n` and added as a step in `frontend-lint` job of `.github/workflows/ci.yml` (after `eslint`).
+3. **Locale-aware date/time formatting** — new `frontend/src/lib/dates.ts` exporting `fmtDate`/`fmtTime`/`fmtDateTime` driving `toLocaleDateString('ar-EG' | 'en-US')` off `i18n.language`, with safe `'-'` fallback for null/NaN. Codemod applied across **33 files / 40 call sites** replacing `new Date(x).toLocale*(String)()` — no date/time now renders in the wrong locale. (Note: codemod initially emitted `import { Date }` shadowing the global — corrected to `fmtDate`/`fmtTime`/`fmtDateTime`; verified via `tsc -b`.)
+4. **RTL text-alignment** — replaced hardcoded `text-left`/`text-right` with logical `text-start`/`text-end` in AbsentMembers table header, ClasseDetail assign buttons, QRManagement/QRInvites creator links, SpiritualLog, ScanQR, LeaderboardRow points column (Tailwind v4 logical props).
+5. **Directional arrows RTL** — applied existing `.rtl-flip` utility (`[dir="rtl"] .rtl-flip { transform: scaleX(-1) }`, index.css:627) to back-arrows and prev/next chevrons in ForgotPassword, member/EventDetail, StageDetail, ClasseDetail, JoinNow, PlatformApplicationDetail, ApplicationStatus, ProfileUpdateRequests (old→new arrow), SpiritualLog month-nav + row chevrons, servant/Attendance pagination. DataTable + UserDetail/MemberDetail already used `dir === 'rtl'` swap (left as legit layout logic).
+6. **Literal strings localized** — LeaderboardRow (pts → `leaderboard.points`, attendances count → interpolated key), PodiumCard (points), QRManagement + QRInvites user popovers (`Class:`/`Stage:` → `qr.classLabel`/`qr.stageLabel`, `+N more` → `qr.moreCount`), and the 6 language-toggle buttons (Header, PublicHeader, Sidebar, ApplicationStatus, InviteLanding, InviteRegister) now render `{t('language.' + (language === 'en' ? 'ar' : 'en'))}` instead of `'AR'`/`'EN'`.
+7. **Confirmed correct / left as-is (documented decisions)**:
+   - `ChurchDeletion.tsx` `'DELETE CHURCH'` typed-token — backend `app/Http/Requests/DeleteChurchRequest.php:22` validates `'in:DELETE CHURCH'`. It is an API-contract/security token, NOT display text → kept literal (backend lang files also reference it as literal).
+   - `ScanQR.tsx:413` `language === 'ar' ? contexts.find(...)?.name_ar ...` — legitimate bilingual-data selection (backend `name_ar` field), same pattern as `lib/contextLabels.ts`.
+   - Header/column defs, `label:`/`placeholder:` literals — none found unlocalized; all `header:` use `t()`.
+   - EventReservationRequestsTab filter values (`booked`/`not_reserved`/`thinking`) and VerifyEmail (`success`/`error`) are internal state, mapped via `t()` — false positives.
+
+## Key Decisions
+- Keep i18next/react-i18next; EN stays `fallbackLng` safety net but parity makes fallback never trigger.
+- Backend enums/statuses/roles stay machine values; label mapping via i18n (existing `roleTranslationKey()` in `lib/roles.ts`).
+- Logical CSS props (`text-start/end`) over RTL conditionals for alignment; `rtl-flip` class (already a repo utility) for directional icons; `dir === 'rtl'` swaps kept only where files already handled it.
+- Locale is `ar-EG` for Arabic (Coptic-Church Egypt context uses Western numerals) and `en-US` for English; numbers via `.toLocaleString()` remain acceptable since ar-EG keeps Latin digits.
+- Type-confirmation safety token stays untranslated because it is validated by the backend (API contract), consistent with the audit rule "never translate API contracts".
+
+## Verification (2026-09-14)
+- `npm run check:i18n` — PASS (1351 = 1351 keys, 1045/1045 used static keys resolve, 17 dynamic templates listed).
+- `npm run lint` — 0 errors/0 warnings.
+- `npx tsc -b` — clean.
+- `npm run build` — succeeds (vite 8.1.0, 384 modules; dates helper chunk `dates-*.js` 0.43 kB).
+- Backend untouched this session (no backend file modified → no backend regression run; 244/704 suite remains as previously verified).
+
+## Next Steps
+1. CI will now fail on any en/ar key-parity drift or missing used key — monitor first frontend PR.
+2. Optional: add Arabic-label visual QA script (ar.json spot checks) and enforce dynamic-template resolution (currently reported [INFO]).
+3. Optional: extend `lib/dates.ts` with `fmtNumber`/`fmtRelative` if Arabic-Indic digit locales are ever targeted.

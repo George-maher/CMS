@@ -1,3 +1,4 @@
+import { fmtDateTime } from '@/lib/dates'
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import toast from 'react-hot-toast'
@@ -247,12 +248,12 @@ export default function EventReservationRequestsTab({ eventId }: Props) {
                       )}
                       {(r.approved_by_name || r.approved_at) && (
                         <div className="sm:col-span-2 text-xs text-secondary">
-                          {t('eventMgmt.approved')} {r.approved_by_name ? `· ${r.approved_by_name}` : ''} {r.approved_at ? `· ${new Date(r.approved_at).toLocaleString()}` : ''}
+                          {t('eventMgmt.approved')} {r.approved_by_name ? `· ${r.approved_by_name}` : ''} {r.approved_at ? `· ${fmtDateTime(new Date(r.approved_at))}` : ''}
                         </div>
                       )}
                       {(r.rejected_by_name || r.rejected_at) && (
                         <div className="sm:col-span-2 text-xs text-secondary">
-                          {t('eventMgmt.rejected')} {r.rejected_by_name ? `· ${r.rejected_by_name}` : ''} {r.rejected_at ? `· ${new Date(r.rejected_at).toLocaleString()}` : ''}
+                          {t('eventMgmt.rejected')} {r.rejected_by_name ? `· ${r.rejected_by_name}` : ''} {r.rejected_at ? `· ${fmtDateTime(new Date(r.rejected_at))}` : ''}
                         </div>
                       )}
                     </div>
@@ -271,7 +272,7 @@ export default function EventReservationRequestsTab({ eventId }: Props) {
 
                     {r.registered_at && (
                       <p className="text-xs text-secondary">
-                        {t('eventMgmt.registeredAt')}: {new Date(r.registered_at).toLocaleString()}
+                        {t('eventMgmt.registeredAt')}: {fmtDateTime(new Date(r.registered_at))}
                       </p>
                     )}
                   </div>

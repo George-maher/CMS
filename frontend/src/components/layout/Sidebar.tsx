@@ -172,7 +172,7 @@ export default function Sidebar({ isOpen, onClose }: Props) {
             </button>
             <button onClick={toggleLang} className="flex-1 btn-ghost btn-sm border rounded-lg">
               <Languages className="h-3.5 w-3.5" />
-              {language === 'en' ? 'AR' : 'EN'}
+              {t('language.' + (language === 'en' ? 'ar' : 'en'))}
             </button>
           </div>
         </div>

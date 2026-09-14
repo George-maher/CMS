@@ -142,7 +142,7 @@ export default function ApplicationStatus() {
               onClick={() => setLanguage(language === 'en' ? 'ar' : 'en')}
               className="btn-ghost btn-sm min-w-[40px] border border-border"
             >
-              {language === 'en' ? 'AR' : 'EN'}
+              {t('language.' + (language === 'en' ? 'ar' : 'en'))}
             </button>
             <button onClick={handleLogout} className="btn-ghost btn-sm gap-1.5 border border-border">
               <LogOut className="h-3.5 w-3.5" />
@@ -346,7 +346,7 @@ export default function ApplicationStatus() {
               {/* Reviewer info (if rejected) */}
               {isRejected && application?.reviewed_by && (
                 <div className="flex items-start gap-4 px-6 py-4">
-                  <ChevronRight className="mt-0.5 h-5 w-5 shrink-0 text-muted" />
+                  <ChevronRight className="mt-0.5 h-5 w-5 shrink-0 text-muted rtl-flip" />
                   <div className="min-w-0 flex-1">
                     <p className="text-xs font-medium uppercase tracking-wider text-muted">
                       {t('platform.reviewedBy')}

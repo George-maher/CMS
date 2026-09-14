@@ -1,3 +1,4 @@
+import { fmtDate } from '@/lib/dates'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { MapPin, Calendar, Users, Eye, EyeOff, BarChart3, Search } from 'lucide-react'
@@ -214,7 +215,7 @@ export default function EventDetailModal({ event, isOpen, onClose }: Props) {
                           <div className="flex items-center justify-between">
                             <span className="font-medium">{u.name}</span>
                             {u.viewed_at && (
-                              <span className="text-[10px] text-muted">{new Date(u.viewed_at).toLocaleDateString()}</span>
+                              <span className="text-[10px] text-muted">{fmtDate(new Date(u.viewed_at))}</span>
                             )}
                           </div>
                           <div className="flex items-center gap-2 text-[11px] text-muted mt-0.5">

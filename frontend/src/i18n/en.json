@@ -8,8 +8,6 @@
         "dashboard": "Dashboard",
         "users": "Users",
         "structure": "Structure Management",
-        "classYears": "Class Years",
-        "classYearDetail": "Class Year Detail",
         "events": "Events",
         "myAssignedEvents": "My Assigned Events",
         "feedback": "Feedback",
@@ -35,7 +33,9 @@
         "leaderboard": "Leaderboard",
         "churchManagement": "Church Management",
         "deletedChurches": "Deleted Churches",
-        "spiritualLog": "Spiritual Log"
+        "spiritualLog": "Spiritual Log",
+        "mainNavigation": "Main navigation",
+        "mobileNavigation": "Mobile navigation"
     },
     "common": {
         "overview": "Overview",
@@ -106,7 +106,14 @@
         "approved": "Approved",
         "rejected": "Rejected",
         "approve": "Approve",
-        "reject": "Reject"
+        "reject": "Reject",
+        "deleted": "Deleted",
+        "preview": "Preview",
+        "qrCode": "QR Code",
+        "sms": "SMS",
+        "copyToClipboard": "Copy to clipboard",
+        "copyFailed": "Failed to copy",
+        "copyLabel": "Copy {{label}}"
     },
     "auth": {
         "signIn": "Sign In",
@@ -208,7 +215,7 @@
         "avgMembersPerServant": "Members Per Servant (Avg)",
         "activeMemberRate": "Active Members Rate",
         "pointsLeaderboard": "Points Leaderboard",
-"servantDashboard": "Servant Dashboard",
+        "servantDashboard": "Servant Dashboard",
         "stageAdminDashboard": "Stage Admin Dashboard",
         "stageClasses": "Classes in Stage",
         "memberDashboard": "Member Dashboard",
@@ -254,9 +261,10 @@
         "ageFormat": "{{age}} yrs",
         "rolePlatformAdmin": "Platform Admin",
         "roleAssistantAdmin": "Assistant Admin",
-"roleChurchAdmin": "Church Admin",
+        "roleChurchAdmin": "Church Admin",
         "roleStageAdmin": "Stage Admin",
         "memberIdLabel": "Member ID",
+        "memberIdPlaceholder": "MBR-000001",
         "phone": "Phone",
         "stage": "Stage",
         "memberId": "Member ID",
@@ -266,8 +274,7 @@
         "phonePlaceholder": "Example: 01012345678",
         "addressPlaceholder": "Example: Al Manyal, Cairo",
         "birthdayPlaceholder": "Example: 2000-01-15",
-        "created": "User created successfully.",
-        "memberIdPlaceholder": "MBR-000001"
+        "created": "User created successfully."
     },
     "events": {
         "events": "Events",
@@ -293,6 +300,24 @@
         "selectMultipleClasses": "Select multiple classes (optional)",
         "targetSection": "Target Audience",
         "allClassesDesc": "Event will be visible to all members in all classes",
+        "analytics": "Event Analytics",
+        "searchMembers": "Search members...",
+        "classFilter": "Filter by class",
+        "totalMembers": "Total Members",
+        "viewedCount": "Viewed",
+        "notViewedCount": "Not Viewed",
+        "readRate": "Read Rate",
+        "readersList": "Readers List",
+        "noViewsYet": "No one has viewed this event yet.",
+        "nonReadersList": "Non-Readers List",
+        "allViewed": "All targeted members have viewed this event.",
+        "dragDrop": "Drop the image here or click to upload",
+        "imageFormats": "JPG, PNG, GIF or WebP",
+        "createdBy": "Created By",
+        "deleteConfirm": "Delete this event?",
+        "seeMore": "View More",
+        "attendance": "Attendance",
+        "noEvents": "No events found.",
         "inactive": "Inactive"
     },
     "attendance": {
@@ -348,7 +373,10 @@
         "methodID": "Member ID",
         "class": "Class",
         "contextSetTo": "Context set to",
-        "scanMemberNow": "Now scan a member QR to record attendance."
+        "scanMemberNow": "Now scan a member QR to record attendance.",
+        "status": "Status",
+        "myClasses": "My Classes",
+        "contextFromQR": "Context from QR"
     },
     "context": {
         "context": "Attendance Context",
@@ -361,6 +389,8 @@
         "name": "Name",
         "nameRequired": "Context name is required.",
         "namePlaceholder": "e.g. Sunday School",
+        "nameAr": "Name (Arabic)",
+        "nameArPlaceholder": "e.g. Sunday School",
         "description": "Description",
         "descriptionPlaceholder": "Brief description of when this context is used",
         "archive": "Archive",
@@ -389,7 +419,8 @@
         "bonusAwarded": "{{points}} bonus points awarded to {{name}}!",
         "bonusConfirm": "Award {{points}} bonus points to {{name}}?",
         "bonusMinError": "Points must be at least 1.",
-        "bonusTarget": "Award bonus points to {{name}}:"
+        "bonusTarget": "Award bonus points to {{name}}:",
+        "memberOnly": "Only members can receive points."
     },
     "qr": {
         "attendanceQR": "Attendance QR Code",
@@ -465,28 +496,10 @@
         "expiresTo": "Expires To",
         "createdDate": "Created Date",
         "expirationDate": "Expiration Date",
-        "regDate": "Registration Date"
-    },
-    "classYears": {
-        "classYears": "Class Years",
-        "createClassYear": "Create Class Year",
-        "editClassYear": "Edit Class Year",
-        "className": "Class Name",
-        "year": "Year",
-        "memberCount": "Members",
-        "servantCount": "Servants",
-        "noClasses": "No classes available",
-        "choose": "Choose a class...",
-        "servantAssigned": "Servant assigned",
-        "memberAssigned": "Member assigned",
-        "assign": "Assign",
-        "noServantsAssigned": "No servants assigned.",
-        "noMembersAssigned": "No members assigned.",
-        "assignServant": "Assign Servant",
-        "assignMember": "Assign Member",
-        "allServantsAssigned": "All servants are assigned.",
-        "allMembersAssigned": "All members are assigned.",
-        "servant": "Servant"
+        "regDate": "Registration Date",
+        "classLabel": "Class",
+        "stageLabel": "Stage",
+        "moreCount": "{{count}} more"
     },
     "structure": {
         "title": "Structure Management",
@@ -537,7 +550,7 @@
         "classDetail": "Class Detail",
         "membersList": "Members List",
         "servantsList": "Servants List",
-"noServantsAssigned": "No servants assigned.",
+        "noServantsAssigned": "No servants assigned.",
         "noMembersAssigned": "No members assigned.",
         "allServantsAssigned": "All servants are assigned.",
         "allMembersAssigned": "All members are assigned.",
@@ -967,7 +980,8 @@
         "classTop3": "Class Top 3",
         "points": "pts",
         "noMembers": "No members yet",
-        "noData": "No leaderboard data available"
+        "noData": "No leaderboard data available",
+        "attendances": "attendances"
     },
     "deletedChurches": {
         "title": "Deleted Churches History",
@@ -1320,6 +1334,10 @@
         "removeAccommodationTitle": "Remove Assignment",
         "removeAccommodationConfirm": "Remove the accommodation assignment for :name and free this cell?",
         "occupiedBy": "Occupied by",
+        "participantAdded": "Participant added",
+        "confirmed": "Confirmed",
+        "method": "Method",
+        "refund": "Refund",
         "noAvailableCells": "No available cells are currently available. Please contact the event's responsible servant."
     },
     "profile": {
@@ -1401,5 +1419,17 @@
         "viewSpiritualLog": "View Spiritual Log",
         "noAttendanceData": "No attendance records found.",
         "noSpiritualData": "No spiritual records found."
+    },
+    "pwa": {
+        "updateAvailable": "A new version is available. Update now?"
+    },
+    "offline": {
+        "offline": "You are offline. Changes will be saved and synced when you reconnect.",
+        "pendingSync": "{{count}} change(s) waiting to sync"
+    },
+    "sync": {
+        "pending": "{{count}} pending",
+        "syncing": "Syncing...",
+        "syncNow": "Sync now"
     }
 }

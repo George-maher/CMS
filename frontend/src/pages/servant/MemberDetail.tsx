@@ -1,3 +1,4 @@
+import { fmtDate } from '@/lib/dates'
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
@@ -229,7 +230,7 @@ export default function ServantMemberDetail() {
             </div>
           </div>
           <div className="flex justify-center p-5">
-            <img src={qrDataUrl} alt="QR Code" className="h-48 w-48 max-w-full" />
+            <img src={qrDataUrl} alt={t('common.qrCode')} className="h-48 w-48 max-w-full" />
           </div>
         </div>
       )}
@@ -256,7 +257,7 @@ export default function ServantMemberDetail() {
           <InfoRow icon={<Calendar className="h-4 w-4" />} label={t('auth.birthday')} value={member.birthday ?? '-'} />
           <InfoRow icon={<UserIcon className="h-4 w-4" />} label={t('users.age')} value={member.age !== null ? t('users.ageFormat', { age: member.age }) : '-'} />
           {member.created_at && (
-            <InfoRow icon={<Clock className="h-4 w-4" />} label={t('common.createdAt')} value={member.created_at ? new Date(member.created_at).toLocaleDateString() : '-'} />
+            <InfoRow icon={<Clock className="h-4 w-4" />} label={t('common.createdAt')} value={member.created_at ? fmtDate(new Date(member.created_at)) : '-'} />
           )}
         </SectionCard>
 

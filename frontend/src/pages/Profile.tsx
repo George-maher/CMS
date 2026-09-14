@@ -1,3 +1,4 @@
+import { fmtDate, fmtDateTime } from '@/lib/dates'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/hooks/useAuth'
@@ -273,7 +274,7 @@ export default function Profile() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       {statusBadge(req.status)}
-                      <span className="text-sm text-muted">{new Date(req.created_at).toLocaleDateString()}</span>
+                      <span className="text-sm text-muted">{fmtDate(new Date(req.created_at))}</span>
                     </div>
                     {req.rejection_reason && (
                       <p className="text-sm text-danger-600 mt-1 break-words">{req.rejection_reason}</p>
@@ -292,7 +293,7 @@ export default function Profile() {
           <div className="space-y-4">
             <div className="flex items-center gap-2">
               {statusBadge(detail.status)}
-              <span className="text-sm text-muted">{new Date(detail.created_at).toLocaleString()}</span>
+              <span className="text-sm text-muted">{fmtDateTime(new Date(detail.created_at))}</span>
             </div>
 
             <div className="space-y-3">

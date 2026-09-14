@@ -66,7 +66,7 @@ export default function ForgotPassword() {
               </div>
               <p className="text-sm text-secondary">{t('auth.forgotPasswordDescription')}</p>
               <Link to="/login" className="btn-secondary btn-md inline-flex items-center gap-2">
-                <ArrowLeft className="h-4 w-4" />
+                <ArrowLeft className="h-4 w-4 rtl-flip" />
                 {t('auth.backToLogin')}
               </Link>
             </div>

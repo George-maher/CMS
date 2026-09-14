@@ -1,3 +1,4 @@
+import { fmtDate } from '@/lib/dates'
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import toast from 'react-hot-toast'
@@ -164,7 +165,7 @@ export default function EventPaymentsTab({ eventId, currentUser }: Props) {
                     ) : null}
                   </td>
                   <td className="px-3 py-2.5">{t(`eventMgmt.method_${p.method}`)}</td>
-                  <td className="px-3 py-2.5">{new Date(p.paid_at).toLocaleDateString()}</td>
+                  <td className="px-3 py-2.5">{fmtDate(new Date(p.paid_at))}</td>
                   <td className="px-3 py-2.5 text-end">
                     {!p.refunded ? (
                       <button

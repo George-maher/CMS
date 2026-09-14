@@ -70,7 +70,7 @@ export default function MemberMyQR() {
             {qrDataUrl ? (
               <>
                 <canvas ref={canvasRef} className="hidden" />
-                <img src={qrDataUrl} alt="QR Code" className="h-64 w-64 max-w-full" />
+                <img src={qrDataUrl} alt={t('common.qrCode')} className="h-64 w-64 max-w-full" />
                 <p className="mt-4 text-xs text-muted">{t('qr.scanWithServant')}</p>
               </>
             ) : (

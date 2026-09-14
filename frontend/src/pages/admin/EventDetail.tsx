@@ -1,3 +1,4 @@
+import { fmtDateTime } from '@/lib/dates'
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate, useParams } from 'react-router-dom'
@@ -127,7 +128,7 @@ export default function EventDetail() {
               <Badge variant="info">{t(`events.type_${event.type}`)}</Badge>
             </div>
             <p className="mt-1 text-sm text-secondary">
-              {event.event_date ? new Date(event.event_date).toLocaleString() : ''}
+              {event.event_date ? fmtDateTime(new Date(event.event_date)) : ''}
               {event.location ? ` · ${event.location}` : ''}
             </p>
           </div>

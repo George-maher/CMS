@@ -1,3 +1,4 @@
+import { fmtDate } from '@/lib/dates'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Plus, Pencil, Trash2, CheckCircle, Archive, FolderOpen } from 'lucide-react'
@@ -149,7 +150,7 @@ export default function AttendanceContextManagement() {
 
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-wider text-secondary">{t('common.createdAt')}</p>
-                  <p className="mt-0.5 text-sm text-secondary">{new Date(ctx.created_at).toLocaleDateString()}</p>
+                  <p className="mt-0.5 text-sm text-secondary">{fmtDate(new Date(ctx.created_at))}</p>
                 </div>
 
                 <div className="flex items-center gap-1 pt-2 border-t border-border mt-auto">
@@ -205,9 +206,9 @@ export default function AttendanceContextManagement() {
               className="input-field" placeholder={t('context.namePlaceholder')} required />
           </div>
           <div>
-            <label className="label">{t('context.name')} (عربي)</label>
+            <label className="label">{t('context.nameAr')}</label>
             <input type="text" value={form.name_ar || ''} onChange={(e) => setForm({ ...form, name_ar: e.target.value })}
-              className="input-field" placeholder="مثال: مدارس الأحد" />
+              className="input-field" placeholder={t('context.nameArPlaceholder')} />
           </div>
           <div>
             <label className="label">{t('context.description')}</label>

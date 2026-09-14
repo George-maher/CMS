@@ -156,7 +156,7 @@ export default function SpiritualLog() {
             className="btn-ghost btn-sm rounded-lg p-2"
             aria-label={t('common.prev')}
           >
-            <ChevronLeft className="h-5 w-5" />
+            <ChevronLeft className="h-5 w-5 rtl-flip" />
           </button>
           <h2 className="text-lg font-semibold">{monthName}</h2>
           <button
@@ -164,7 +164,7 @@ export default function SpiritualLog() {
             className="btn-ghost btn-sm rounded-lg p-2"
             aria-label={t('common.next')}
           >
-            <ChevronRight className="h-5 w-5" />
+            <ChevronRight className="h-5 w-5 rtl-flip" />
           </button>
         </div>
 
@@ -352,7 +352,7 @@ export default function SpiritualLog() {
               <button
                 key={record.id}
                 onClick={() => handleDateSelect(record.activity_date)}
-                className="w-full flex items-center justify-between rounded-lg border border-border p-3 hover:bg-primary/5 transition-colors text-left"
+                className="w-full flex items-center justify-between rounded-lg border border-border p-3 hover:bg-primary/5 transition-colors text-start"
               >
                 <div>
                   <p className="text-sm font-medium">
@@ -367,7 +367,7 @@ export default function SpiritualLog() {
                     {record.received_communion && <span className="text-gold-400">{t('spiritualLog.communion')}</span>}
                   </div>
                 </div>
-                <ChevronRight className="h-4 w-4 text-muted" />
+                <ChevronRight className="h-4 w-4 text-muted rtl-flip" />
               </button>
             ))}
           </div>

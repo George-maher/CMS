@@ -56,7 +56,7 @@ export default function ImageUpload({ value, onChange }: Props) {
       <label className="label">{t('events.image')}</label>
       {previewUrl ? (
         <div className="relative rounded-lg overflow-hidden border">
-          <img src={previewUrl} alt="Preview" className="w-full h-32 object-cover" />
+          <img src={previewUrl} alt={t('common.preview')} className="w-full h-32 object-cover" />
           <button
             type="button"
             onClick={() => { if (objectUrlRef.current) { URL.revokeObjectURL(objectUrlRef.current); objectUrlRef.current = null; setObjectUrl(null) }; onChange(null) }}

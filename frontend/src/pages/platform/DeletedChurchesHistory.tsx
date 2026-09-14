@@ -1,3 +1,4 @@
+import { fmtDate, fmtDateTime } from '@/lib/dates'
 import { useEffect, useState, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Building2, Clock, User, Mail, Search, X, Shield, Phone, MapPin, FileText } from 'lucide-react'
@@ -114,13 +115,13 @@ export default function DeletedChurchesHistory() {
     {
       key: 'created_at',
       header: t('deletedChurches.createdDate'),
-      render: (c) => new Date(c.created_at).toLocaleDateString(),
+      render: (c) => fmtDate(new Date(c.created_at)),
     },
     {
       key: 'deleted_at',
       header: t('deletedChurches.deletedDate'),
       render: (c) => (
-        <span className="text-danger">{new Date(c.deleted_at).toLocaleDateString()}</span>
+        <span className="text-danger">{fmtDate(new Date(c.deleted_at))}</span>
       ),
     },
     {
@@ -245,7 +246,7 @@ export default function DeletedChurchesHistory() {
               <div>
                 <p className="font-semibold text-danger">{t('deletedChurches.deletedStatus')}</p>
                 <p className="text-sm text-danger-dark">
-                  {t('deletedChurches.deletedOn')} {new Date(detail.deleted_at).toLocaleString()}
+                  {t('deletedChurches.deletedOn')} {fmtDateTime(new Date(detail.deleted_at))}
                   {detail.deleted_by && ` ${t('deletedChurches.by')} ${detail.deleted_by.name}`}
                 </p>
               </div>
@@ -338,7 +339,7 @@ export default function DeletedChurchesHistory() {
               <div className="grid gap-3 sm:grid-cols-2">
                 <div>
                   <p className="text-xs text-muted">{t('deletedChurches.deletedAt')}</p>
-                  <p className="text-danger font-medium">{new Date(detail.deleted_at).toLocaleString()}</p>
+                  <p className="text-danger font-medium">{fmtDateTime(new Date(detail.deleted_at))}</p>
                 </div>
                 <div>
                   <p className="text-xs text-muted">{t('deletedChurches.deletedBy')}</p>
@@ -350,7 +351,7 @@ export default function DeletedChurchesHistory() {
                 </div>
                 <div>
                   <p className="text-xs text-muted">{t('deletedChurches.recoverableUntil')}</p>
-                  <p>{detail.recoverable_until ? new Date(detail.recoverable_until).toLocaleDateString() : '-'}</p>
+                  <p>{detail.recoverable_until ? fmtDate(new Date(detail.recoverable_until)) : '-'}</p>
                 </div>
               </div>
             </div>
@@ -364,11 +365,11 @@ export default function DeletedChurchesHistory() {
               <div className="grid gap-3 sm:grid-cols-2">
                 <div>
                   <p className="text-xs text-muted">{t('deletedChurches.createdAt')}</p>
-                  <p>{new Date(detail.created_at).toLocaleString()}</p>
+                  <p>{fmtDateTime(new Date(detail.created_at))}</p>
                 </div>
                 <div>
                   <p className="text-xs text-muted">{t('deletedChurches.updatedAt')}</p>
-                  <p>{detail.updated_at ? new Date(detail.updated_at).toLocaleString() : '-'}</p>
+                  <p>{detail.updated_at ? fmtDateTime(new Date(detail.updated_at)) : '-'}</p>
                 </div>
                 <div>
                   <p className="text-xs text-muted">{t('deletedChurches.memberCount')}</p>

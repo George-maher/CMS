@@ -1,3 +1,4 @@
+import { fmtDate } from '@/lib/dates'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import toast from 'react-hot-toast'
@@ -322,7 +323,7 @@ export default function ServantScanQR() {
               <select value={selectedEventId} onChange={(e) => setSelectedEventId(e.target.value ? Number(e.target.value) : '')}
                 className="input-field">
                 <option value="">{t('attendance.noEvent')}</option>
-                {events.map((event) => (<option key={event.id} value={event.id}>{event.name}{event.event_date ? ` — ${new Date(event.event_date).toLocaleDateString()}` : ''}</option>))}
+                {events.map((event) => (<option key={event.id} value={event.id}>{event.name}{event.event_date ? ` — ${fmtDate(new Date(event.event_date))}` : ''}</option>))}
               </select>
             </div>
           )}
@@ -446,7 +447,7 @@ export default function ServantScanQR() {
         <button
           type="button"
           onClick={() => setMembersSectionOpen(!membersSectionOpen)}
-          className="w-full text-left cursor-pointer"
+          className="w-full text-start cursor-pointer"
         >
           <div className="flex items-center justify-between">
             <div>

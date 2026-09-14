@@ -162,7 +162,7 @@ export default function StageDetail() {
       {/* Back button + Header */}
       <div className="flex items-start gap-4">
         <button onClick={() => navigate('/admin/structure')} className="btn-icon btn-ghost mt-1">
-          <ArrowLeft className="h-4 w-4" /> {t('structure.backToStages')}
+          <ArrowLeft className="h-4 w-4 rtl-flip" /> {t('structure.backToStages')}
         </button>
       </div>
 

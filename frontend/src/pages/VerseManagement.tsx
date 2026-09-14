@@ -1,3 +1,4 @@
+import { fmtDate } from '@/lib/dates'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import toast from 'react-hot-toast'
@@ -18,7 +19,7 @@ export default function VerseManagement() {
     { key: 'reference', header: t('verse.reference'), render: (v) => <span className="font-semibold">{v.reference}</span> },
     { key: 'is_active', header: t('common.status'), render: (v) => <Badge variant={v.is_active ? 'success' : 'default'}>{v.is_active ? t('common.active') : t('common.inactive')}</Badge> },
     { key: 'creator_name', header: t('events.createdBy') },
-    { key: 'created_at', header: t('context.created'), render: (v) => new Date(v.created_at).toLocaleDateString() },
+    { key: 'created_at', header: t('context.created'), render: (v) => fmtDate(new Date(v.created_at)) },
   ]
   const [verses, setVerses] = useState<DailyVerse[]>([])
   const [meta, setMeta] = useState({ current_page: 1, last_page: 1, per_page: 15, total: 0 })

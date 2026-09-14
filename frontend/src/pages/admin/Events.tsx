@@ -1,3 +1,4 @@
+import { fmtDate } from '@/lib/dates'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
@@ -40,7 +41,7 @@ export default function AdminEvents() {
     { key: 'type', header: t('events.eventType'), render: (e) => <Badge variant="info">{t(`events.type_${e.type}`)}</Badge> },
     { key: 'status', header: t('common.status'), render: (e) => <EventActiveStatus event={e} /> },
     { key: 'capacity', header: t('eventMgmt.capacity'), render: (e) => e.max_capacity ? `${e.registered_count ?? 0} / ${e.max_capacity}` : '-' },
-    { key: 'event_date', header: t('events.eventDate'), render: (e) => e.event_date ? new Date(e.event_date).toLocaleDateString() : '-' },
+    { key: 'event_date', header: t('events.eventDate'), render: (e) => e.event_date ? fmtDate(new Date(e.event_date)) : '-' },
     { key: 'location', header: t('events.location') },
     { key: 'class_id', header: t('events.target'), render: (e) => e.classe?.name ?? t('events.allClasses') },
     { key: 'creator', header: t('events.createdBy'), render: (e) => e.creator?.name ?? '-' },

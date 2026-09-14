@@ -1,3 +1,4 @@
+import { fmtDate } from '@/lib/dates'
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
@@ -79,7 +80,7 @@ export default function PlatformDashboard() {
     { key: 'priest_name', header: t('platform.priestName') },
     { key: 'phone', header: t('platform.phone'), render: (a) => <span>{a.phone || a.priest_phone}</span> },
     { key: 'status', header: t('platform.status'), render: (a) => <Badge variant={statusBadge[a.status]}>{translateStatus(a.status, t)}</Badge> },
-    { key: 'created_at', header: t('platform.date'), render: (a) => new Date(a.created_at).toLocaleDateString() },
+    { key: 'created_at', header: t('platform.date'), render: (a) => fmtDate(new Date(a.created_at)) },
   ]
 
   if (loading && !stats) return <LoadingSpinner className="py-20" />

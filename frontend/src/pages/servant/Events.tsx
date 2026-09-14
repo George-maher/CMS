@@ -1,3 +1,4 @@
+import { fmtDate } from '@/lib/dates'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
@@ -30,7 +31,7 @@ export default function ServantEvents() {
     ) : <div className="h-10 w-16 rounded bg-surface-tertiary" /> },
     { key: 'name', header: t('events.eventName'), render: (e) => <span className="font-medium">{e.name}</span> },
     { key: 'type', header: t('events.eventType'), render: (e) => <Badge variant="info">{e.type_label}</Badge> },
-    { key: 'event_date', header: t('events.eventDate'), render: (e) => e.event_date ? new Date(e.event_date).toLocaleDateString() : '-' },
+    { key: 'event_date', header: t('events.eventDate'), render: (e) => e.event_date ? fmtDate(new Date(e.event_date)) : '-' },
     { key: 'location', header: t('events.location') },
     { key: 'classe', header: t('events.target'), render: (e) => e.classe?.name ?? t('events.allClasses') },
   ]

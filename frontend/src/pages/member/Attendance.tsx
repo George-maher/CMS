@@ -1,3 +1,4 @@
+import { fmtDate } from '@/lib/dates'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import DataTable from '@/components/common/DataTable'
@@ -25,7 +26,7 @@ export default function MemberAttendance() {
   const { language } = useTheme()
 
   const columns: Column<Attendance>[] = [
-    { key: 'attended_at', header: t('attendance.date'), render: (a) => a.attended_at ? new Date(a.attended_at).toLocaleDateString() : '-' },
+    { key: 'attended_at', header: t('attendance.date'), render: (a) => a.attended_at ? fmtDate(new Date(a.attended_at)) : '-' },
     { key: 'context', header: t('context.context'), render: (a) => a.attendance_context ? ctxName(a.attendance_context, language) : '-' },
     { key: 'event', header: t('attendance.event'), render: (a) => a.event?.name ?? '-' },
     { key: 'status', header: t('attendance.status'), render: (a) => statusLabel(a.status, t) },

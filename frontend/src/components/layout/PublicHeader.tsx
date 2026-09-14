@@ -30,7 +30,7 @@ export default function PublicHeader({ onInstallClick }: PublicHeaderProps) {
           <span className="text-lg font-bold gold-text">{t('app.name')}</span>
         </button>
 
-        <nav className="hidden items-center gap-1 md:flex" aria-label="Main navigation">
+        <nav className="hidden items-center gap-1 md:flex" aria-label={t('nav.mainNavigation')}>
           {!isHome && (
             <button onClick={() => navigate('/')} className="btn-ghost btn-sm" title={t('nav.home')}>
               <Home className="h-4 w-4" />
@@ -39,7 +39,7 @@ export default function PublicHeader({ onInstallClick }: PublicHeaderProps) {
 
           <button onClick={toggleLang} className="btn-ghost btn-sm border" aria-label={t('language.toggle')}>
             <Languages className="h-3.5 w-3.5" />
-            {language === 'en' ? 'AR' : 'EN'}
+            {t('language.' + (language === 'en' ? 'ar' : 'en'))}
           </button>
 
           <button onClick={toggleTheme} className="btn-icon btn-ghost rounded-lg" aria-label={t('theme.toggleTheme')}>
@@ -71,7 +71,7 @@ export default function PublicHeader({ onInstallClick }: PublicHeaderProps) {
 
       {mobileOpen && (
         <div className="border-t border-glass-border bg-surface/95 backdrop-blur-xl md:hidden animate-fade-in">
-          <nav className="space-y-1 px-4 py-3" aria-label="Mobile navigation">
+          <nav className="space-y-1 px-4 py-3" aria-label={t('nav.mobileNavigation')}>
             <button onClick={() => { navigate('/'); setMobileOpen(false) }} className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-secondary hover:bg-gold-50/30 hover:text-gold-600 transition-colors">
               <Home className="h-4 w-4" /> {t('nav.home')}
             </button>
@@ -91,7 +91,7 @@ export default function PublicHeader({ onInstallClick }: PublicHeaderProps) {
             )}
             <hr className="border-border my-2" />
             <button onClick={() => { toggleLang(); setMobileOpen(false) }} className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-secondary hover:bg-gold-50/30 transition-colors">
-              <Languages className="h-4 w-4" /> {language === 'en' ? 'العربية' : 'English'}
+              <Languages className="h-4 w-4" /> {t(language === 'en' ? 'language.ar' : 'language.en')}
             </button>
             <button onClick={() => { toggleTheme(); setMobileOpen(false) }} className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-secondary hover:bg-gold-50/30 transition-colors">
               {theme === 'dark' ? <Sun className="h-4 w-4 text-gold-400" /> : <Moon className="h-4 w-4" />}

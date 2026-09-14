@@ -1,3 +1,4 @@
+import { fmtDate, fmtDateTime } from '@/lib/dates'
 import { useEffect, useState, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
@@ -128,7 +129,7 @@ export default function PlatformApplicationDetail() {
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <button onClick={() => navigate('/platform')} className="btn-icon btn-ghost">
-        <ArrowLeft className="h-4 w-4" /> {t('platform.backToList')}
+        <ArrowLeft className="h-4 w-4 rtl-flip" /> {t('platform.backToList')}
       </button>
 
       <div className="card">
@@ -161,7 +162,7 @@ export default function PlatformApplicationDetail() {
             )}
             <div>
               <p className="text-xs font-medium uppercase tracking-wider text-muted">{t('platform.date')}</p>
-              <p className="mt-1">{app.created_at ? new Date(app.created_at).toLocaleDateString() : '-'}</p>
+              <p className="mt-1">{app.created_at ? fmtDate(new Date(app.created_at)) : '-'}</p>
             </div>
           </div>
 
@@ -214,7 +215,7 @@ export default function PlatformApplicationDetail() {
             </div>
             {app.reviewed_by && (
               <p className="mt-3 text-xs text-muted">
-                  {t('platform.reviewedBy')}: {app.reviewed_by?.name} &middot; {app.reviewed_at ? new Date(app.reviewed_at).toLocaleString() : ''}
+                  {t('platform.reviewedBy')}: {app.reviewed_by?.name} &middot; {app.reviewed_at ? fmtDateTime(new Date(app.reviewed_at)) : ''}
               </p>
             )}
           </div>

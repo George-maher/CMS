@@ -1,5 +1,6 @@
 import { useEffect, useRef, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
+import { useTranslation } from 'react-i18next'
 import { X } from 'lucide-react'
 
 interface Props {
@@ -16,6 +17,7 @@ export default function Modal({
   isOpen, onClose, title, children, footer,
   size = 'md', closeOnOverlayClick = true,
 }: Props) {
+  const { t } = useTranslation()
   const dialogRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -38,7 +40,7 @@ export default function Modal({
           <div className="flex-1 min-w-0">
             <h2 id="modal-title" className="text-lg font-semibold break-words gold-text">{title}</h2>
           </div>
-          <button onClick={onClose} className="btn-icon btn-ghost rounded-lg shrink-0" aria-label="Close">
+          <button onClick={onClose} className="btn-icon btn-ghost rounded-lg shrink-0" aria-label={t('common.close')}>
             <X className="h-5 w-5" />
           </button>
         </div>

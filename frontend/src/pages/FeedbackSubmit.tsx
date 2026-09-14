@@ -1,3 +1,4 @@
+import { fmtDate, fmtDateTime } from '@/lib/dates'
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useSearchParams } from 'react-router-dom'
@@ -190,7 +191,7 @@ export default function FeedbackSubmit() {
                         {t('feedback.newReply')}
                       </span>
                     )}
-                    <span className="text-xs text-muted ml-auto">{new Date(fb.created_at).toLocaleDateString()}</span>
+                    <span className="text-xs text-muted ml-auto">{fmtDate(new Date(fb.created_at))}</span>
                   </div>
                   <p className="text-sm whitespace-pre-wrap">{fb.message}</p>
                   {(fb.replies && fb.replies.length > 0) && (
@@ -284,7 +285,7 @@ export default function FeedbackSubmit() {
               <Badge variant={selectedFeedback.is_resolved ? 'success' : 'warning'}>
                 {selectedFeedback.is_resolved ? t('feedback.resolved') : t('feedback.pending')}
               </Badge>
-              <span className="ml-auto">{new Date(selectedFeedback.created_at).toLocaleString()}</span>
+              <span className="ml-auto">{fmtDateTime(new Date(selectedFeedback.created_at))}</span>
             </div>
             <p className="whitespace-pre-wrap text-sm">{selectedFeedback.message}</p>
 
@@ -296,7 +297,7 @@ export default function FeedbackSubmit() {
                     <div className="flex items-center gap-2 text-xs text-secondary mb-1">
                       <Reply className="h-3 w-3" />
                       <span className="font-medium">{reply.user.name}</span>
-                      <span>{new Date(reply.created_at).toLocaleString()}</span>
+                      <span>{fmtDateTime(new Date(reply.created_at))}</span>
                     </div>
                     <p className="text-sm whitespace-pre-wrap">{reply.message}</p>
                   </div>

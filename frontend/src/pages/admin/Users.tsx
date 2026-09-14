@@ -477,7 +477,7 @@ export default function AdminUsers() {
               </label>
               <input
                 id="create-user-member-id"
-                placeholder="MBR-000001"
+                placeholder={t('users.memberIdPlaceholder')}
                 value={form.member_id ?? ''}
                 onChange={(e) => { setForm({ ...form, member_id: e.target.value || null }); setErrors((prev) => ({ ...prev, member_id: undefined })) }}
                 className={`input-field w-full font-mono text-sm ${errors.member_id ? 'error' : ''}`}

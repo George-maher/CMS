@@ -1,3 +1,4 @@
+import { fmtDate, fmtDateTime } from '@/lib/dates'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { CheckCircle, XCircle, Clock, FileText, AlertCircle, UserCheck, Eye, User, Phone, Mail, MapPin, ArrowRight } from 'lucide-react'
@@ -234,7 +235,7 @@ export default function ProfileUpdateRequests() {
                         <span className="text-border">·</span>
                         <span className="inline-flex items-center gap-1">
                           <Clock className="h-3 w-3" />
-                          {new Date(req.created_at).toLocaleDateString()}
+                          {fmtDate(new Date(req.created_at))}
                         </span>
                       </div>
                     </div>
@@ -262,7 +263,7 @@ export default function ProfileUpdateRequests() {
                             <Icon className="h-3.5 w-3.5 text-muted shrink-0" />
                             <span className="font-medium text-secondary shrink-0">{fieldLabel(field)}:</span>
                             <span className="text-muted line-through text-xs sm:text-sm truncate">{change.old || '-'}</span>
-                            <ArrowRight className="h-3 w-3 text-muted shrink-0" />
+                            <ArrowRight className="h-3 w-3 text-muted shrink-0 rtl-flip" />
                             <span className="font-medium text-success-700 dark:text-success-400 text-xs sm:text-sm truncate">{change.new || '-'}</span>
                           </div>
                         )
@@ -357,7 +358,7 @@ export default function ProfileUpdateRequests() {
             <div className="flex items-center gap-3 flex-wrap">
               {statusBadge(detail.status)}
               <span className="text-sm text-muted">
-                {new Date(detail.created_at).toLocaleString()}
+                {fmtDateTime(new Date(detail.created_at))}
               </span>
             </div>
 

@@ -1,3 +1,4 @@
+import { fmtDateTime } from '@/lib/dates'
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import toast from 'react-hot-toast'
@@ -103,7 +104,7 @@ export default function EventScheduleTab({ eventId }: Props) {
                 <div className="min-w-0">
                   <p className="text-sm font-medium">{idx + 1}. {s.title}</p>
                   {s.speaker_name ? <p className="text-xs text-secondary">{t('eventMgmt.speaker')}: {s.speaker_name}</p> : null}
-                  {s.starts_at ? <p className="text-xs text-secondary">{new Date(s.starts_at).toLocaleString()}</p> : null}
+                  {s.starts_at ? <p className="text-xs text-secondary">{fmtDateTime(new Date(s.starts_at))}</p> : null}
                 </div>
                 <button
                   onClick={async () => {

@@ -1,3 +1,4 @@
+import { fmtDate } from '@/lib/dates'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Trophy, Star, Sparkles } from 'lucide-react'
@@ -16,7 +17,7 @@ export default function MemberPoints() {
   const columns: Column<Point>[] = [
     { key: 'type_label', header: t('points.type') },
     { key: 'points', header: t('points.points') },
-    { key: 'created_at', header: t('points.date'), render: (p) => new Date(p.created_at).toLocaleDateString() },
+    { key: 'created_at', header: t('points.date'), render: (p) => fmtDate(new Date(p.created_at)) },
     { key: 'description', header: t('points.description') },
   ]
   const [points, setPoints] = useState<Point[]>([])
