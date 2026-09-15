@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { BookOpen, CalendarDays, MessageCircle, Phone, Shield, ShieldCheck, User, Church, Sparkles } from 'lucide-react'
+import { fmtDate } from '@/lib/dates'
 import StatCard from '@/components/common/StatCard'
 import LoadingSpinner from '@/components/common/LoadingSpinner'
 import MotionDiv from '@/components/common/MotionDiv'
@@ -191,7 +192,7 @@ export default function MemberDashboard() {
               {recentAttendances.map((att) => (
                 <div key={att.id} className="flex items-center justify-between border-b border-border pb-2 last:border-0">
                   <div>
-                    <p className="text-sm font-medium">{att.attended_at ? new Date(att.attended_at).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) : '-'}</p>
+                    <p className="text-sm font-medium">{att.attended_at ? fmtDate(att.attended_at, { weekday: 'short', month: 'short', day: 'numeric' }) : '-'}</p>
                     <p className="text-xs text-muted">{t('attendance.recordedBy')} {att.recorder?.name ?? '-'}</p>
                   </div>
                   <span className="text-sm font-semibold gold-text">+{att.points_earned} {t('common.points')}</span>
@@ -223,7 +224,7 @@ export default function MemberDashboard() {
                     {event.location && <p className="text-xs text-muted">{event.location}</p>}
                   </div>
                   <span className="text-xs text-secondary">
-                    {event.event_date ? new Date(event.event_date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) : t('common.dateTbd') || 'TBD'}
+                    {event.event_date ? fmtDate(event.event_date, { weekday: 'short', month: 'short', day: 'numeric' }) : t('common.dateTbd')}
                   </span>
                 </div>
               ))}

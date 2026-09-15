@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Calendar, Church, BookOpen, Sparkles, ChevronLeft, ChevronRight, Save, Trash2 } from 'lucide-react'
 import LoadingSpinner from '@/components/common/LoadingSpinner'
-import { useTheme } from '@/hooks/useTheme'
+import { fmtDate, fmtDateTime } from '@/lib/dates'
 import { getSpiritualRecords, saveSpiritualRecord, deleteSpiritualRecord } from '@/api/dailySpiritualRecords'
 import type { DailySpiritualRecord } from '@/types'
 
@@ -25,7 +25,6 @@ function getMonthDays(year: number, month: number): Date[] {
 
 export default function SpiritualLog() {
   const { t } = useTranslation()
-  const { language } = useTheme()
 
   const today = new Date()
   const [currentMonth, setCurrentMonth] = useState(today.getMonth())
@@ -120,17 +119,12 @@ export default function SpiritualLog() {
     }
   }
 
-  const monthName = new Date(currentYear, currentMonth).toLocaleString(
-    language === 'ar' ? 'ar-EG' : 'en-US',
-    { month: 'long', year: 'numeric' },
-  )
+  const monthName = fmtDateTime(new Date(currentYear, currentMonth, 1), { month: 'long', year: 'numeric' })
 
   const days = getMonthDays(currentYear, currentMonth)
   const firstDayOfWeek = days[0]?.getDay() ?? 0
 
-  const dayNames = language === 'ar'
-    ? ['أحد', 'إثنين', 'ثلاثاء', 'أربعاء', 'خميس', 'جمعة', 'سبت']
-    : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+  const dayNames = Array.from({ length: 7 }, (_, i) => fmtDate(new Date(2024, 0, 7 + i), { weekday: 'short' }))
 
   const getRecordForDate = (dateStr: string) => records.find(r => r.activity_date === dateStr)
 
@@ -250,10 +244,7 @@ export default function SpiritualLog() {
         <div className="card p-4 space-y-4">
           <h3 className="text-base font-semibold flex items-center gap-2">
             <Calendar className="h-4 w-4" />
-            {new Date(selectedDate + 'T00:00:00').toLocaleDateString(
-              language === 'ar' ? 'ar-EG' : 'en-US',
-              { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' },
-            )}
+            {fmtDate(selectedDate + 'T00:00:00', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
           </h3>
 
           {/* Activity toggles */}
@@ -356,10 +347,7 @@ export default function SpiritualLog() {
               >
                 <div>
                   <p className="text-sm font-medium">
-                    {new Date(record.activity_date + 'T00:00:00').toLocaleDateString(
-                      language === 'ar' ? 'ar-EG' : 'en-US',
-                      { weekday: 'long', month: 'long', day: 'numeric' },
-                    )}
+                    {fmtDate(record.activity_date + 'T00:00:00', { weekday: 'long', month: 'long', day: 'numeric' })}
                   </p>
                   <div className="flex gap-2 mt-1 text-xs text-muted">
                     {record.attended_mass && <span className="text-success">{t('spiritualLog.mass')}</span>}

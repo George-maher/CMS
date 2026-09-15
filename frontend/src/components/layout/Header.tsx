@@ -8,6 +8,7 @@ import { usePWAInstall } from '@/hooks/usePwaInstall'
 import InstallAppModal from '@/components/common/InstallAppModal'
 import { getUnreadCount, listNotifications, markAsRead, markAllAsRead } from '@/api/notifications'
 import type { NotificationItem } from '@/types'
+import { fmtDateTime } from '@/lib/dates'
 import { logCatch } from '@/lib/debug'
 
 interface Props {
@@ -338,7 +339,7 @@ export default function Header({ onMenuClick }: Props) {
                               <p className="text-xs text-secondary mt-0.5 line-clamp-2">{notifBody(notif)}</p>
                             )}
                             <p className="text-[10px] text-muted mt-1">
-                              {new Date(notif.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                              {fmtDateTime(notif.created_at, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                             </p>
                           </div>
                           {notif.event && <Eye className="h-4 w-4 shrink-0 text-muted mt-1" />}

@@ -20,7 +20,7 @@ export default function InviteLanding() {
   const navigate = useNavigate()
   const { isAuthenticated, register: authRegister, logout } = useAuth()
   const { t } = useTranslation()
-  const { theme, toggleTheme, language, setLanguage, dir } = useTheme()
+  const { theme, toggleTheme, language, setLanguage } = useTheme()
 
   const [state, setState] = useState<PageState>(() => token ? 'loading' : 'invalid')
   const [details, setDetails] = useState<Awaited<ReturnType<typeof getInviteDetails>> | null>(null)
@@ -184,7 +184,7 @@ export default function InviteLanding() {
             </div>
             <h1 className="mt-3 text-xl font-bold">{t('app.name')}</h1>
             {details && (
-              <div className="mt-4 rounded-lg bg-primary-50 dark:bg-primary-900/20 p-4 text-left text-sm" style={{ textAlign: dir === 'rtl' ? 'right' : 'left' }}>
+              <div className="mt-4 rounded-lg bg-primary-50 dark:bg-primary-900/20 p-4 text-start text-sm">
                 <p className="font-medium text-primary-800 dark:text-primary-300">
                   {t('auth.registerViaInvite')} <span className="font-bold">{t(roleTranslationKey(details.role as UserRole))}</span>
                 </p>

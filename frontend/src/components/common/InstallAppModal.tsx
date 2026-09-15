@@ -86,13 +86,12 @@ function InstallInstructions({ platform }: { platform: 'ios' | 'android' | 'desk
 }
 
 export default function InstallAppModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
   const { isInstalled, install } = usePWAInstall()
   const { isIOS, isAndroid } = useDeviceDetection()
   const [phase, setPhase] = useState<InstallPhase>('prompt')
   const [prevOpen, setPrevOpen] = useState(isOpen)
   const platform = isIOS ? 'ios' : isAndroid ? 'android' : 'desktop'
-  const isRtl = i18n.dir() === 'rtl'
 
   if (prevOpen !== isOpen) {
     setPrevOpen(isOpen)
@@ -119,7 +118,7 @@ export default function InstallAppModal({ isOpen, onClose }: { isOpen: boolean; 
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={t('installApp.installTitle')} size="sm">
-      <div className={`space-y-5 ${isRtl ? 'text-right' : 'text-left'}`}>
+      <div className="space-y-5 text-start">
         <div className="flex flex-col items-center gap-3">
           <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary-50 dark:bg-primary-900/20">
             <Download className="h-8 w-8 text-primary-400" />

@@ -68,10 +68,13 @@ fi
 # ──────────────────────────────────────────────────────
 php /var/www/artisan migrate --force 2>/dev/null && echo "Migrations complete." || echo "Migrations skipped."
 
-# Seed default roles/permissions when they are missing — idempotent, so it is
-# safe to run on every boot. Prevents admins being locked out of admin routes.
-if php /var/www/artisan tinker --execute="echo \App\Models\Permission::rolePermissionsSeeded() ? 'seeded' : 'empty';" 2>/dev/null | grep -q "empty"; then
-    echo "Seeding default roles and permissions..."
+# Seed/repair default roles and permissions when the ADMIN role has no
+# effective permissions — idempotent, so it is safe to run on every boot.
+# Gated on the admin mapping (not merely "role_permission empty") so a
+# partial/corrupt seed or a stale empty cache is also repaired on boot.
+# Prevents admins being locked out of admin routes.
+if php /var/www/artisan tinker --execute="\App\Models\Permission::clearCache(); echo \App\Models\Permission::getPermissionsForRole('admin') === [] ? 'missing' : 'seeded';" 2>/dev/null | grep -q "missing"; then
+    echo "Admin role permissions missing — seeding default roles and permissions..."
     php /var/www/artisan db:seed --class=PermissionSeeder --force 2>/dev/null && echo "Permission seeder complete." || echo "Permission seeder skipped."
 fi
 

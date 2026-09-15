@@ -12,6 +12,7 @@ import { getEvent, trackEventView } from '@/api/events'
 import { myRegistrations, submitMemberReservationRequest } from '@/api/eventRegistrations'
 import { myAccommodationView, selectMyCell, type MemberAccommodationView } from '@/api/eventRegistrations'
 import { useAuth } from '@/hooks/useAuth'
+import { fmtDateTime, fmtTime } from '@/lib/dates'
 import { logCatch } from '@/lib/debug'
 
 export default function MemberEventDetail() {
@@ -193,7 +194,7 @@ export default function MemberEventDetail() {
 
           <p className="flex items-center gap-2 text-sm text-secondary">
             <Calendar className="h-4 w-4 shrink-0" />
-            {event.event_date ? new Date(event.event_date).toLocaleDateString(undefined, {
+            {event.event_date ? fmtDateTime(event.event_date, {
               weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit',
             }) : t('common.dateTbd')}
           </p>
@@ -247,7 +248,7 @@ export default function MemberEventDetail() {
                     <p className="text-sm"><span className="font-medium">{t('eventMgmt.medicationName')}: </span>{registration.medication_name}</p>
                   )}
                   {registration.medication_time && (
-                    <p className="text-sm"><span className="font-medium">{t('eventMgmt.medicationTime')}: </span>{new Date(registration.medication_time).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}</p>
+                    <p className="text-sm"><span className="font-medium">{t('eventMgmt.medicationTime')}: </span>{fmtTime(registration.medication_time, { hour: '2-digit', minute: '2-digit' })}</p>
                   )}
                 </div>
               )}

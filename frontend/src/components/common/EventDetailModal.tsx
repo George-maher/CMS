@@ -1,4 +1,4 @@
-import { fmtDate } from '@/lib/dates'
+import { fmtDate, fmtDateTime } from '@/lib/dates'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { MapPin, Calendar, Users, Eye, EyeOff, BarChart3, Search } from 'lucide-react'
@@ -125,7 +125,7 @@ export default function EventDetailModal({ event, isOpen, onClose }: Props) {
           {event.event_date && (
             <p className="flex items-center gap-2 text-sm text-secondary">
               <Calendar className="h-4 w-4 shrink-0" />
-              {new Date(event.event_date).toLocaleDateString(undefined, {
+              {fmtDateTime(event.event_date, {
                 weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
                 hour: '2-digit', minute: '2-digit',
               })}

@@ -8,7 +8,8 @@ import Badge from '@/components/common/Badge'
 import DataTable from '@/components/common/DataTable'
 import Modal from '@/components/common/Modal'
 import type { Column } from '@/components/common/DataTable'
-import type { QRInvite, QRInviteType } from '@/types'
+import type { QRInvite, QRInviteType, UserRole } from '@/types'
+import { roleTranslationKey } from '@/lib/roles'
 import { listQRInvites, createQRInvite, revokeQRInvite } from '@/api/qr'
 import { getMyClasses } from '@/api/structure'
 import { newRequestId } from '@/lib/requestId'
@@ -26,10 +27,7 @@ const typeBadge: Record<string, 'info' | 'success' | 'warning'> = {
   admin_to_servant_invite: 'warning', servant_to_member_invite: 'info',
 }
 
-const roleLabel = (role?: string): string => {
-  const map: Record<string, string> = { member: 'Member', servant: 'Servant', admin: 'Admin', assistant_admin: 'Asst. Admin', stage_admin: 'Stage Admin', platform_admin: 'Platform Admin' }
-  return role ? map[role] ?? role : ''
-}
+const roleKey = (role?: string): string => role ? roleTranslationKey(role as UserRole) : ''
 
 export default function ServantQRInvites() {
   const { t } = useTranslation()
@@ -67,7 +65,7 @@ export default function ServantQRInvites() {
                   </button>
                   {u.role && (
                     <Badge variant={u.role === 'member' ? 'info' : u.role === 'servant' ? 'warning' : 'default'} className="text-[10px]">
-                      {roleLabel(u.role)}
+                      {t(roleKey(u.role))}
                     </Badge>
                   )}
                   <button

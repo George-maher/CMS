@@ -1,4 +1,4 @@
-import { fmtDateTime } from '@/lib/dates'
+import { fmtDateTime, fmtTime } from '@/lib/dates'
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import toast from 'react-hot-toast'
@@ -237,7 +237,7 @@ export default function EventReservationRequestsTab({ eventId }: Props) {
                       {r.medication_time && (
                         <div>
                           <span className="font-medium text-secondary">{t('eventMgmt.medicationTime')}: </span>
-                          {new Date(r.medication_time).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
+                          {fmtTime(r.medication_time, { hour: '2-digit', minute: '2-digit' })}
                         </div>
                       )}
                       {r.rejection_reason && (

@@ -12,6 +12,7 @@ import {
   resetPasswordByAdmin,
 } from '@/api/passwordResetRequests'
 import { logCatch } from '@/lib/debug'
+import { fmtDateTime } from '@/lib/dates'
 import toast from 'react-hot-toast'
 
 export default function AdminPasswordResetRequests() {
@@ -146,7 +147,7 @@ export default function AdminPasswordResetRequests() {
   }
 
   const formatDate = (d: string) => {
-    return new Date(d).toLocaleDateString(undefined, {
+    return fmtDateTime(d, {
       month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit',
     })
   }

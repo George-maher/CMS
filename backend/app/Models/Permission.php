@@ -30,10 +30,14 @@ class Permission extends Model
         'key' => 'string',
     ];
 
-    /** @return array<int, string> */
+    /**
+     * @return array<int, string>
+     */
     public static function getPermissionsForRole(string $roleName): array
     {
-        return Cache::remember("permissions_role_{$roleName}", 86400 * 30, function () use ($roleName) {
+        // Short TTL (1h) so a stale/empty mapping self-heals without an
+        // operator having to clear the cache or re-run the PermissionSeeder.
+        return Cache::remember("permissions_role_{$roleName}", 3600, function () use ($roleName) {
             $result = DB::table('role_permission as rp')
                 ->join('permissions as p', 'rp.permission_key', '=', 'p.key')
                 ->where('rp.role_name', $roleName)
@@ -54,22 +58,31 @@ class Permission extends Model
         return DB::table('role_permission')->exists();
     }
 
-    public static function roleHasPermission(string $roleName, string $permissionKey): bool
-    {
-        return in_array($permissionKey, self::getPermissionsForRole($roleName), true);
-    }
-
     public static function userHasPermission(User $user, string $permissionKey): bool
     {
         $roleName = $user->role->value;
+        /** @var array<int, string>|null $defaults */
+        $defaults = self::defaultRolePermissions()[$roleName] ?? null;
 
         if (! self::rolePermissionsSeeded()) {
-            self::clearCache();
-
-            return in_array($permissionKey, self::defaultRolePermissions()[$roleName] ?? [], true);
+            return $defaults !== null && in_array($permissionKey, $defaults, true);
         }
 
-        return self::roleHasPermission($roleName, $permissionKey);
+        /** @var array<int, string> $mapped */
+        $mapped = self::getPermissionsForRole($roleName);
+
+        // Defensive fallback: a partially seeded database, a corrupt
+        // role_permission→permissions join, or a stale empty cache would
+        // otherwise lock every user of this role out of all permission-gated
+        // routes. When the DB mapping resolves empty but the role has built-in
+        // defaults, prefer the defaults — the next seed/boot repairs the DB.
+        if ($mapped === [] && $defaults !== null) {
+            self::clearCache();
+
+            return in_array($permissionKey, $defaults, true);
+        }
+
+        return in_array($permissionKey, $mapped, true);
     }
 
     public static function clearCache(): void

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { CalendarDays, Eye, ImageOff } from 'lucide-react'
 import LoadingSpinner from '@/components/common/LoadingSpinner'
+import { fmtDate } from '@/lib/dates'
 import type { Event } from '@/types'
 import { listEvents } from '@/api/events'
 
@@ -30,7 +31,7 @@ function EventCard({ event, onSeeMore }: { event: Event; onSeeMore: (e: Event) =
         {event.event_date && (
           <p className="mt-2 flex items-center gap-1.5 text-sm text-secondary">
             <CalendarDays className="h-4 w-4 shrink-0" />
-            {event.event_date ? new Date(event.event_date).toLocaleDateString(undefined, {
+            {event.event_date ? fmtDate(event.event_date, {
               weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
             }) : t('common.dateTbd')}
           </p>

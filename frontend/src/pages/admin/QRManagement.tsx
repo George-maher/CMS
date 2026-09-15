@@ -8,7 +8,8 @@ import Badge from '@/components/common/Badge'
 import DataTable from '@/components/common/DataTable'
 import Modal from '@/components/common/Modal'
 import type { Column } from '@/components/common/DataTable'
-import type { QRInvite, QRInviteType } from '@/types'
+import type { QRInvite, QRInviteType, UserRole } from '@/types'
+import { roleTranslationKey } from '@/lib/roles'
 import { listQRInvites, revokeQRInvite, createQRInvite } from '@/api/qr'
 import { listStructureClasses } from '@/api/structure'
 import { newRequestId } from '@/lib/requestId'
@@ -28,10 +29,7 @@ interface StructureOption {
   classes: { id: number; name: string }[]
 }
 
-const roleLabel = (role?: string): string => {
-  const map: Record<string, string> = { member: 'Member', servant: 'Servant', admin: 'Admin', assistant_admin: 'Asst. Admin', stage_admin: 'Stage Admin', platform_admin: 'Platform Admin' }
-  return role ? map[role] ?? role : ''
-}
+const roleKey = (role?: string): string => role ? roleTranslationKey(role as UserRole) : ''
 
 export default function AdminQRManagement() {
   const { t } = useTranslation()
@@ -69,7 +67,7 @@ export default function AdminQRManagement() {
                   </button>
                   {u.role && (
                     <Badge variant={u.role === 'member' ? 'info' : u.role === 'servant' ? 'warning' : 'default'} className="text-[10px]">
-                      {roleLabel(u.role)}
+                      {t(roleKey(u.role))}
                     </Badge>
                   )}
                   <button
@@ -98,7 +96,7 @@ export default function AdminQRManagement() {
       },
     },
     { key: 'creator', header: t('qr.createdBy'), render: (q) => q.creator ? (
-      <button onClick={() => navigate(`/admin/users/${q.creator?.id}`)} className="text-xs hover:text-primary-600 hover:underline transition-colors text-left">{q.creator?.name}</button>
+      <button onClick={() => navigate(`/admin/users/${q.creator?.id}`)} className="text-xs hover:text-primary-600 hover:underline transition-colors text-start">{q.creator?.name}</button>
     ) : '-' },
     {
       key: 'usage',
