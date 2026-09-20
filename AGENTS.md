@@ -864,6 +864,52 @@ Completely remove Resend from the project and rebuild the Forgot Password featur
 
 ---
 
+## 📌 ANCHORED SUMMARY (2026-09-20)
+
+## Goal
+Fix Platform Admin "DELETE a Church → Internal Server Error (500)" (production soft-delete fails; hard-delete fails with `SQLSTATE[23000] FOREIGN KEY constraint failed` on `event_registrations.user_id`); complete the delete-flow frontend + error-code i18n; run Phase 2 architecture/security audit, fix P0/P1.
+
+## Progress
+### Done (2026-09-20 — Church Deletion Frontend + Backend polish)
+1. **Backend full suite green** — `php artisan test`: **258 passed / 836 assertions** (incl. ChurchDeletionTest 14/14/132, EventManagementTest, StorageEndpointAuthorizationTest). Baseline was 244/704 before ChurchDeletionTest was count-corrected.
+2. **Frontend type extended** — `frontend/src/types/index.ts` `ChurchDeletionSummary` now includes `total_event_sessions`, `total_event_speakers`, `total_event_buses`, `total_event_rooms`, `total_event_room_cells`, `total_event_registrations`, `total_event_payments`, `total_event_accommodations`, `total_event_bus_sheets`, `total_profile_update_requests`, `total_daily_spiritual_records`, `total_class_years`, `schema_warnings: boolean`.
+3. **ChurchDeletion.tsx rewritten** — modal modes `'soft-delete' | 'restore' | 'hard-delete'`; deleted rows now show Restore (disabled when `is_recoverable === false`) + Permanent Purge buttons; toast messages per action; backend `code` → i18n mapping (`DELETION_ERROR_KEYS`); inline summary error with Retry (keeps modal open, no cache-killing toasts); schema-warning banner; recovery-window info/expired banners in modal; full summary grid (34 count rows) + total-records footer; password + `DELETE CHURCH` reauth preserved. Also fixed: dead `modalMode === 'delete'` branch, missing `client` import, `xs:grid-cols-2` → `sm:grid-cols-2` (no `xs` breakpoint exists in Tailwind v4 theme → dead CSS).
+4. **i18n EN/AR parity +18 keys each** — added `totalEvent*` (Sessions/Speakers/Buses/Rooms/RoomCells/Registrations/Payments/Accommodations/BusSheets), `totalProfileUpdateRequests`, `totalDailySpiritualRecords`, `totalClassYears`, `schemaWarningsTitle/Description`, `summaryFailed`, `errAlreadyDeleted`, `errNotDeleted`, `errRecoveryWindowExpired`, `errDeleteFailed` to both `en.json` + `ar.json`. Fixed missing trailing comma after `errDeleteFailed` (was breaking JSON.parse). `npm run check:i18n` PASS (1370 = 1370 keys).
+5. **Backend PHPStan fixes** — `ChurchDeletionService`: extracted `countForSummary(\Closure $fn): int` (with `@param \Closure(): int` docblock) so the summary `$count` closure no longer casts `mixed`; `invalidateChurchCaches` user IDs typed `/** @var Collection<int, int> */` — resolves 3 `cast.int` errors. `vendor/bin/phpstan analyse --level max`: 0 errors. Pint: 0 issues (fixed `fully_qualified_strict_types` etc.). ChurchDeletionTest still 14/14.
+6. **Frontend verification** — `npx tsc -b` clean, `npm run lint` 0 errors, `npm run build` succeeds (vite 8.1.0, ChurchDeletion chunk 14.83 kB), `npm run check:i18n` PASS.
+7. **Confirmed `/platform/churches` route shape** — the platform churches listing (closure in `routes/api.php:824`) returns `id,name,slug,member_count,is_active,is_deleted,deleted_at,is_recoverable,days_until_purge,recoverable_until,created_at` — exactly the fields `fetchChurches` maps into `ChurchItem`/`DeletedChurchInfo`. Deleted-list UI is data-correct.
+
+### Done (2026-09-20 — Phase 2 Architecture & Security Audit)
+1. **P1 fixed — PasswordResetRequest cross-church existence leak** — `approve()`/`reject()`/`resetPassword()` in `PasswordResetRequestController` used unscoped `PasswordResetRequest::find($id)` → cross-church admin got **403** (record existence + status disclosure). Fixed all three to use the church-scoped service `findById($id, $churchId)` (whereHas `user.church_id`) → **404**. Removed now-unused `use App\Models\PasswordResetRequest` import. Test `test_church_a_admin_cannot_review_church_b_request` updated 403→404 for approve + reset-password.
+2. **IDOR/BOLA sweep (verified clean)** — Audited every `find()`/`findOrFail()` surface: AttendanceContext (BelongsToChurch global scope → 404), Event `findEvent` (scoped), EventRegistration `resolveRegistration` (event-scoped), ProfileUpdateRequest (BelongsToChurch + policy church check), MembershipRequest (service checks `church_id` at line 93), Notification (service `forUser` scope), ChurchDeletion (platform-admin role gate + reauth), PlatformController (platform-admin by design). No BOLA/IDOR confirmed.
+3. **Authorization coverage verified** — Policies on Stage/Classe/Event/AttendanceContext/ProfileUpdateRequest/PasswordResetRequest; permission middleware (`manage_membership_requests`, `manage_event_registrations`, etc.) + `approved` middleware + `role:PlatformAdmin` group; all sensitive endpoints throttled (api/login/guest/sensitive/attendance-record/event-crud/invite-accept/invite-public).
+4. **DB/ACID verified** — No FK-disabling, no `DB::unprepared`, no raw TRUNCATE. Multi-step writes in `DB::transaction` + `lockForUpdate` where race-prone (attendance duplication, invite accept/uses, payments, approve double-lock).
+5. **QR invite flow verified** — token-only payloads (no PII/sensitive), expiry, single-use counter + revoke/disable, `lockForUpdate`, class must belong to invite church+stage.
+6. **Full suite green after audit fix** — `php artisan test`: **258 passed / 836 assertions**. PHPStan level-max 0 errors, Pint clean, PasswordResetRequestTest 19/19 (73 assertions).
+
+## Key Decisions
+- Frontend `ChurchDeletion.tsx` reads the single `/platform/churches` listing (returns both active + trashed with `is_deleted` flag) and splits client-side; the dedicated `/deleted-history` endpoint remains available for a future paginated history view.
+- Error handling: known backend codes (`ALREADY_DELETED` 409, `NOT_DELETED` 409, `RECOVERY_WINDOW_EXPIRED` 422, `CHURCH_DELETE_FAILED` 500) map to frontend i18n keys; unknown codes/validation fall back to backend `message` (already localized EN/AR by Accept-Language), then `common.failedToSave`.
+- Restore button is client-side-disabled when `is_recoverable === false` (recovery window expired), and the backend independently enforces `RECOVERY_WINDOW_EXPIRED` (never trust frontend state).
+- Summary modal: load failure keeps the modal open with inline error + Retry button rather than closing/toasting — mirrors the backend's fault-tolerant `getDeletionSummary` (which counts each table in a guarded closure and sets `schema_warnings` on any throw).
+- `sm:` breakpoint used instead of nonexistent `xs:` (Tailwind v4 theme in `index.css` `@theme` block defines no `--breakpoint-xs`; `xs:` would emit dead CSS).
+
+## Next Steps
+1. Wait for background full-suite re-run (post-`countForSummary` refactor) — verify still 258 passed; if not, fix regressions.
+2. Execute Phase 2 audit: SOLID/Laravel architecture, DB/ACID, multi-tenancy + stage isolation, auth/security (IDOR/BOLA), API contract consistency, cache invalidation coverage, frontend UX/i18n, performance, tests, production deployment. Classify P0→P3; fix P0/P1, document P2/P3 in `AUDIT_CHANGES.md`.
+3. Commit work (repo dirty since session start; no commit/push performed).
+
+## Relevant Files
+- `backend/app/Services/ChurchDeletionService.php` — `countForSummary()` extraction + typed user-id collection (PHPStan cast.int fixes)
+- `backend/tests/Feature/ChurchDeletionTest.php` — 14/14 (132 assertions); full suite 258/836
+- `frontend/src/types/index.ts` — `ChurchDeletionSummary` extended with event-management/profile/spiritual/class-years counts + `schema_warnings`
+- `frontend/src/pages/platform/ChurchDeletion.tsx` — rewritten: soft/restore/hard-delete modal modes, deleted-row actions, code→i18n error mapping, inline retry, schema warnings
+- `frontend/src/i18n/en.json` + `ar.json` — +18 `churchDeletion.*` keys each; parity 1370 = 1370
+- `frontend/src/api/churches.ts` — already had `getDeletionSummary` / `softDeleteChurch` / `restoreChurch` / `hardDeleteChurch` (no changes needed)
+- `backend/routes/api.php:824` — platform churches listing shape verified matches frontend mapping
+
+---
+
 ## 📌 ANCHORED SUMMARY (2026-08-23)
 
 ## Goal

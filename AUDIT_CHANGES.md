@@ -249,3 +249,20 @@ Identify why the Resend emails (submitted/approved/rejected password-reset notif
 ## Resend Removal (2026-08-22) 
  
 Resend has been completely removed from the project. Password recovery is now a pure in-app workflow: request -> Church Admin in-app notification -> approve/reject -> Admin sets new password directly (hashed) -> status completed. No email, no tokens, no mail dependency. See AGENTS.md anchored summary 2026-08-22 for full details and verification results.
+
+## Phase 2 Architecture & Security Audit (2026-09-20)
+
+Scope: SOLID/Laravel architecture, DB/ACID, multi-tenancy + stage isolation, auth/security (IDOR/BOLA), API contracts, cache invalidation, frontend UX/i18n, performance, tests, production deployment. Classification P0→P3.
+
+### P1 Fixed
+1. **PasswordResetRequest admin actions leaked cross-church existence (403 vs 404)** — approve/reject/resetPassword in PasswordResetRequestController used unscoped PasswordResetRequest::find() → a cross-church admin received 403 (record existence + status disclosure) instead of 404. Fixed all three to use the church-scoped service indById(, ) (whereHas user.church_id) → cross-church now 404. Test 	est_church_a_admin_cannot_review_church_b_request updated 403→404 for approve/reset-password (show already asserted 404).
+
+### Verified no issue (P2/P3 notes documented)
+2. **IDOR/BOLA sweep** — All ind()/indOrFail() surfaces audited: AttendanceContext (BelongsToChurch global scope → 404), Event via indEvent (scoped), EventRegistration via esolveRegistration (event-scoped), ProfileUpdateRequest (BelongsToChurch + policy church check), MembershipRequest (service checks church_id), Notification (service orUser scope), ChurchDeletion (platform-admin role gate + reauth), PlatformController (platform-admin by design). P2 note: consider consistent 404-on-cross-tenant across all policies (currently some surfaces return 403 via policy).
+3. **Authorization coverage** — Policies on Stage/Classe/Event/AttendanceContext/ProfileUpdateRequest/PasswordResetRequest; permission middleware on membership/registrations/schedule/payments/structure; role:PlatformAdmin group; pproved middleware; all sensitive routes throttled (api/login/guest/sensitive/attendance-record/event-crud/invite-accept etc.).
+4. **DB/ACID** — No FK-disabling, no DB::unprepared, no raw TRUNCATE. All multi-step writes in DB::transaction with lockForUpdate where race-prone (attendance duplicate, invite accept/uses, payments, approve double-lock).
+5. **QR invite flow** — token-only payloads (no PII), expiry, single-use counter + revoked/disabled, lockForUpdate, class must belong to invite church+stage. P3: none.
+6. **API contracts** — REST JSON, paginated collections with meta, FormRequest validation, localized error messages, stable error codes for ChurchDeletion.
+7. **Frontend** — ChurchDeletion rewritten (3 modal modes, code→i18n error mapping, inline retry, schema-warning banner, responsive deleted-row actions, sm: breakpoint not xs:). i18n parity en=ar=1370.
+8. **Performance** — CacheService integrated + invalidated in Event/Point/Verse/Attendance/Leaderboard/PasswordReset services; SWR background refresh generation-guarded; N+1 eager-load fixed in PasswordResetRequestService list.
+9. **Tests** — 258 feature tests / 836 assertions green; PHPStan level-max 0 errors; Pint clean; ESLint 0; tsc clean; build succeeds.

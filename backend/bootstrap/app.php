@@ -1,5 +1,6 @@
 <?php
 
+use App\Exceptions\ChurchDeletionException;
 use App\Http\Middleware\CheckApproval;
 use App\Http\Middleware\EnsureApproval;
 use App\Http\Middleware\ForceJsonResponse;
@@ -91,6 +92,16 @@ return Application::configure(basePath: dirname(__DIR__))
                     'message' => 'Forbidden.',
                     'code' => 'FORBIDDEN',
                 ], 403);
+            }
+        });
+
+        $exceptions->render(function (ChurchDeletionException $e, Request $request) {
+            if ($request->is('api/*')) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $e->getMessage(),
+                    'code' => $e->errorCode,
+                ], $e->status);
             }
         });
 

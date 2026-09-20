@@ -9,7 +9,6 @@ use App\Http\Requests\RejectPasswordResetRequest;
 use App\Http\Requests\ResetPasswordByAdminRequest;
 use App\Http\Requests\SubmitPasswordResetRequest;
 use App\Http\Resources\PasswordResetRequestResource;
-use App\Models\PasswordResetRequest;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -75,7 +74,9 @@ class PasswordResetRequestController extends Controller
     {
         /** @var User $user */
         $user = $request->user();
-        $resetRequest = PasswordResetRequest::find($id);
+        /** @var int $userChurchId */
+        $userChurchId = $user->church_id;
+        $resetRequest = $this->passwordResetRequestService->findById($id, $userChurchId);
 
         if (! $resetRequest) {
             return response()->json(['message' => 'Not found.'], 404);
@@ -96,7 +97,9 @@ class PasswordResetRequestController extends Controller
     {
         /** @var User $user */
         $user = $request->user();
-        $resetRequest = PasswordResetRequest::find($id);
+        /** @var int $userChurchId */
+        $userChurchId = $user->church_id;
+        $resetRequest = $this->passwordResetRequestService->findById($id, $userChurchId);
 
         if (! $resetRequest) {
             return response()->json(['message' => 'Not found.'], 404);
@@ -127,7 +130,9 @@ class PasswordResetRequestController extends Controller
     {
         /** @var User $user */
         $user = $request->user();
-        $resetRequest = PasswordResetRequest::find($id);
+        /** @var int $userChurchId */
+        $userChurchId = $user->church_id;
+        $resetRequest = $this->passwordResetRequestService->findById($id, $userChurchId);
 
         if (! $resetRequest) {
             return response()->json(['message' => 'Not found.'], 404);

@@ -342,20 +342,20 @@ class PasswordResetRequestTest extends TestCase
 
         $this->withHeader('Authorization', 'Bearer '.$adminBToken)
             ->postJson("/api/v1/password-reset-requests/{$request->id}/approve")
-            ->assertStatus(403);
+            ->assertStatus(404);
 
         // Cross-church lookups are not revealed: findById() is church-scoped → 404.
         $this->withHeader('Authorization', 'Bearer '.$adminBToken)
             ->getJson("/api/v1/password-reset-requests/{$request->id}")
             ->assertStatus(404);
 
-        // Cross-church password reset is also forbidden.
+        // Cross-church password reset is also hidden (church-scoped → 404).
         $this->actingAsUser($adminB)
             ->postJson("/api/v1/password-reset-requests/{$request->id}/reset-password", [
                 'password' => 'EvilPass123!',
                 'password_confirmation' => 'EvilPass123!',
             ])
-            ->assertStatus(403);
+            ->assertStatus(404);
 
         $this->assertEquals(PasswordResetRequestStatus::Pending, $request->fresh()->status);
         $this->assertFalse(Hash::check('EvilPass123!', $memberA->fresh()->password));

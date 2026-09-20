@@ -650,21 +650,34 @@ export interface ChurchDeletionSummary {
   total_servants: number
   total_admins: number
   total_events: number
+  total_event_sessions: number
+  total_event_speakers: number
+  total_event_buses: number
+  total_event_rooms: number
+  total_event_room_cells: number
+  total_event_registrations: number
+  total_event_payments: number
+  total_event_accommodations: number
+  total_event_bus_sheets: number
+  total_event_views: number
+  total_event_targets: number
   total_attendances: number
   total_attendance_contexts: number
   total_qr_invites: number
   total_points: number
   total_feedback: number
   total_feedback_replies: number
-  total_event_views: number
-  total_event_targets: number
   total_notifications: number
   total_daily_verses: number
   total_membership_requests: number
   total_stages: number
   total_classes: number
   total_password_reset_requests: number
+  total_profile_update_requests: number
+  total_daily_spiritual_records: number
+  total_class_years: number
   total_audit_logs: number
+  schema_warnings: boolean
   total_records: number
   deleted_at?: string
   deleted_by?: string

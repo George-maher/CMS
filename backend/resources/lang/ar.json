@@ -27,6 +27,7 @@
     "church_deletion.hard_deleted": "تم حذف الكنيسة بشكل نهائي. لا يمكن التراجع عن هذا الإجراء.",
     "church_deletion.restored": "تم استعادة الكنيسة بنجاح. تم إعادة تنشيط جميع المستخدمين.",
     "church_deletion.recovery_window_expired": "انتهت فترة استعادة هذه الكنيسة. يمكن حذفها نهائياً فقط.",
+    "church_deletion.delete_failed": "تعذر حذف الكنيسة. لم يتم إجراء أي تغييرات. يرجى المحاولة مرة أخرى أو الاتصال بالدعم.",
     "church_deletion.reauth_password_incorrect": "كلمة المرور غير صحيحة. يرجى المحاولة مرة أخرى.",
     "auth.failed": "البريد الإلكتروني أو كلمة المرور غير صحيحة.",
     "auth.login_success": "تم تسجيل الدخول بنجاح.",

@@ -5,17 +5,16 @@ import toast from 'react-hot-toast'
 import {
   Trash2, AlertTriangle, Building2, Users, Calendar, ClipboardList,
   MessageSquare, Target, Eye, EyeOff, Bell, BookOpen, UserPlus, Shield,
-  Trophy, Layers, QrCode, FileText, Clock,
-  Key, User,
+  Trophy, Layers, QrCode, FileText, Clock, Key, User, RotateCcw, RefreshCcw,
 } from 'lucide-react'
 import LoadingSpinner from '@/components/common/LoadingSpinner'
 import Modal from '@/components/common/Modal'
 import Badge from '@/components/common/Badge'
 import type { ChurchDeletionSummary } from '@/types'
-import client from '@/api/client'
 import {
-  getDeletionSummary, softDeleteChurch,
+  getDeletionSummary, softDeleteChurch, restoreChurch, hardDeleteChurch,
 } from '@/api/churches'
+import client from '@/api/client'
 
 interface ChurchItem {
   id: number
@@ -40,7 +39,15 @@ interface DeletedChurchInfo {
   recoverable_until?: string | null
 }
 
-type ModalMode = 'soft-delete' | null
+type ModalMode = 'soft-delete' | 'restore' | 'hard-delete' | null
+
+/** Maps the backend's stable error codes to frontend i18n keys. */
+const DELETION_ERROR_KEYS: Record<string, string> = {
+  ALREADY_DELETED: 'churchDeletion.errAlreadyDeleted',
+  NOT_DELETED: 'churchDeletion.errNotDeleted',
+  RECOVERY_WINDOW_EXPIRED: 'churchDeletion.errRecoveryWindowExpired',
+  CHURCH_DELETE_FAILED: 'churchDeletion.errDeleteFailed',
+}
 
 export default function ChurchDeletion() {
   const { t } = useTranslation()
@@ -51,6 +58,7 @@ export default function ChurchDeletion() {
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const [summary, setSummary] = useState<ChurchDeletionSummary | null>(null)
   const [summaryLoading, setSummaryLoading] = useState(false)
+  const [summaryError, setSummaryError] = useState<string | null>(null)
   const [confirmation, setConfirmation] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -78,22 +86,28 @@ export default function ChurchDeletion() {
 
   useEffect(() => { fetchChurches() }, [fetchChurches])
 
-  const openModal = async (churchId: number, mode: ModalMode) => {
-    setSelectedId(churchId)
-    setModalMode(mode)
-    setConfirmation('')
-    setPassword('')
+  const loadSummary = useCallback(async (churchId: number) => {
     setSummaryLoading(true)
-    setModalOpen(true)
+    setSummaryError(null)
     try {
       const data = await getDeletionSummary(churchId)
       setSummary(data)
     } catch {
-      toast.error(t('common.failedToLoad'))
-      setModalOpen(false)
+      setSummary(null)
+      setSummaryError(t('churchDeletion.summaryFailed'))
     } finally {
       setSummaryLoading(false)
     }
+  }, [t])
+
+  const openModal = (churchId: number, mode: Exclude<ModalMode, null>) => {
+    setSelectedId(churchId)
+    setModalMode(mode)
+    setConfirmation('')
+    setPassword('')
+    setSummary(null)
+    setModalOpen(true)
+    void loadSummary(churchId)
   }
 
   const closeModal = () => {
@@ -103,6 +117,21 @@ export default function ChurchDeletion() {
     setSelectedId(null)
     setModalMode(null)
     setSummary(null)
+    setSummaryError(null)
+  }
+
+  /** Extract the backend error code from an axios error response. */
+  const getErrorCode = (err: unknown): string | undefined => {
+    const data = (err as { response?: { data?: { code?: string } } })?.response?.data
+    return data?.code
+  }
+
+  /** Localize a backend error: known codes → i18n keys, else backend message. */
+  const errorMessage = (err: unknown): string => {
+    const code = getErrorCode(err)
+    if (code && DELETION_ERROR_KEYS[code]) return t(DELETION_ERROR_KEYS[code])
+    const data = (err as { response?: { data?: { message?: string } } })?.response?.data
+    return data?.message || t('common.failedToSave')
   }
 
   const handleAction = async () => {
@@ -112,13 +141,17 @@ export default function ChurchDeletion() {
       if (modalMode === 'soft-delete') {
         await softDeleteChurch(selectedId, confirmation, password)
         toast.success(t('churchDeletion.softDeleted'))
+      } else if (modalMode === 'restore') {
+        await restoreChurch(selectedId, confirmation, password)
+        toast.success(t('churchDeletion.restored'))
+      } else if (modalMode === 'hard-delete') {
+        await hardDeleteChurch(selectedId, confirmation, password)
+        toast.success(t('churchDeletion.hardDeleted'))
       }
       closeModal()
       await fetchChurches()
     } catch (err: unknown) {
-      const axiosErr = err as { response?: { data?: { message?: string } } } | undefined
-      const msg = axiosErr?.response?.data?.message || t('common.failedToSave')
-      toast.error(msg)
+      toast.error(errorMessage(err))
     } finally {
       setActionLoading(false)
     }
@@ -126,13 +159,23 @@ export default function ChurchDeletion() {
 
   const getModalTitle = () => {
     if (modalMode === 'soft-delete') return t('churchDeletion.softDeleteTitle')
+    if (modalMode === 'restore') return t('churchDeletion.restoreTitle')
+    if (modalMode === 'hard-delete') return t('churchDeletion.hardDeleteTitle')
     return ''
   }
 
   const getModalButtonLabel = () => {
     if (modalMode === 'soft-delete') return t('churchDeletion.confirmSoftDelete')
+    if (modalMode === 'restore') return t('churchDeletion.confirmRestore')
+    if (modalMode === 'hard-delete') return t('churchDeletion.confirmHardDelete')
     return ''
   }
+
+  /** Restore is only possible inside the recovery window. */
+  const isRestoreBlocked = modalMode === 'restore'
+    && !!summary
+    && summary.already_deleted
+    && summary.is_recoverable === false
 
   const summaryItem = (icon: React.ReactNode, label: string, count: number | undefined) => (
     <div key={label} className="flex items-center justify-between rounded-lg bg-surface-secondary px-4 py-2.5">
@@ -196,17 +239,43 @@ export default function ChurchDeletion() {
           </div>
           <div className="divide-y divide-border">
             {deletedChurches.map((church) => (
-              <div key={church.id} className="flex items-center justify-between px-5 py-4">
+              <div key={church.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-4">
                 <div className="min-w-0 flex-1">
                   <p className="font-medium text-muted line-through">{church.name}</p>
-                  <div className="flex items-center gap-2 mt-1">
+                  <div className="flex flex-wrap items-center gap-2 mt-1">
                     <Badge variant="danger">{t('churchDeletion.deleted')}</Badge>
                     {church.deleted_at && (
                       <span className="text-xs text-muted">
                         {fmtDate(new Date(church.deleted_at))}
                       </span>
                     )}
+                    {church.is_recoverable && church.days_until_purge !== undefined && church.days_until_purge !== null && (
+                      <Badge variant="warning">
+                        {t('churchDeletion.daysRemaining', { count: church.days_until_purge })}
+                      </Badge>
+                    )}
+                    {church.is_recoverable === false && (
+                      <Badge variant="danger">{t('churchDeletion.recoveryExpired')}</Badge>
+                    )}
                   </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={() => openModal(church.id, 'restore')}
+                    disabled={!church.is_recoverable}
+                    className="btn-secondary btn-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    title={!church.is_recoverable ? t('churchDeletion.recoveryExpired') : undefined}
+                  >
+                    <RotateCcw className="h-4 w-4" />
+                    {t('churchDeletion.restore')}
+                  </button>
+                  <button
+                    onClick={() => openModal(church.id, 'hard-delete')}
+                    className="btn-danger btn-sm"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    {t('churchDeletion.permanentPurge')}
+                  </button>
                 </div>
               </div>
             ))}
@@ -233,8 +302,8 @@ export default function ChurchDeletion() {
             </button>
             <button
               onClick={handleAction}
-              disabled={actionLoading || confirmation !== 'DELETE CHURCH' || !password.trim()}
-              className="flex-1 btn-md btn-danger"
+              disabled={actionLoading || confirmation !== 'DELETE CHURCH' || !password.trim() || isRestoreBlocked}
+              className="flex-1 btn-md btn-danger aria-disabled:opacity-50"
             >
               {actionLoading ? t('common.saving') : getModalButtonLabel()}
             </button>
@@ -243,15 +312,74 @@ export default function ChurchDeletion() {
       >
         {summaryLoading ? (
           <LoadingSpinner className="py-10" />
-        ) : summary ? (
+        ) : summaryError ? (
           <div className="space-y-4">
             <div className="flex items-center gap-3 rounded-lg border border-danger/20 bg-danger-light/50 p-4">
               <AlertTriangle className="h-6 w-6 text-danger shrink-0" />
-              <div>
-                <p className="font-semibold text-danger">{t('churchDeletion.warningTitle')}</p>
-                <p className="text-sm text-danger-dark">{t('churchDeletion.warningDescription')}</p>
-              </div>
+              <p className="text-sm text-danger-dark">{summaryError}</p>
             </div>
+            <button
+              onClick={() => selectedId && loadSummary(selectedId)}
+              className="btn-secondary btn-md w-full"
+            >
+              <RefreshCcw className="h-4 w-4" />
+              {t('common.retry')}
+            </button>
+          </div>
+        ) : summary ? (
+          <div className="space-y-4">
+            {modalMode === 'restore' && summary.already_deleted && summary.is_recoverable && (
+              <div className="flex items-center gap-3 rounded-lg border border-primary/30 bg-success-light/30 p-4">
+                <RotateCcw className="h-6 w-6 text-success shrink-0" />
+                <div>
+                  <p className="font-semibold text-success">{t('churchDeletion.restoreInfo')}</p>
+                  {summary.recoverable_until && (
+                    <p className="text-sm text-secondary">
+                      {t('churchDeletion.recoveryExpires')}: {fmtDate(new Date(summary.recoverable_until))}
+                    </p>
+                  )}
+                  {summary.days_until_purge !== undefined && summary.days_until_purge !== null && (
+                    <p className="text-sm text-secondary">
+                      {t('churchDeletion.daysRemaining', { count: summary.days_until_purge })}
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {modalMode === 'restore' && summary.already_deleted && !summary.is_recoverable && (
+              <div className="flex items-center gap-3 rounded-lg border border-danger/20 bg-danger-light/50 p-4">
+                <AlertTriangle className="h-6 w-6 text-danger shrink-0" />
+                <div>
+                  <p className="font-semibold text-danger">{t('churchDeletion.recoveryExpired')}</p>
+                  <p className="text-sm text-danger-dark">{t('churchDeletion.recoveryExpiredDescription')}</p>
+                </div>
+              </div>
+            )}
+
+            {modalMode !== 'restore' && (
+              <div className="flex items-center gap-3 rounded-lg border border-danger/20 bg-danger-light/50 p-4">
+                <AlertTriangle className="h-6 w-6 text-danger shrink-0" />
+                <div>
+                  <p className="font-semibold text-danger">
+                    {modalMode === 'hard-delete' ? t('churchDeletion.hardWarningTitle') : t('churchDeletion.warningTitle')}
+                  </p>
+                  <p className="text-sm text-danger-dark">
+                    {modalMode === 'hard-delete' ? t('churchDeletion.hardWarningDescription') : t('churchDeletion.warningDescription')}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {summary.schema_warnings && (
+              <div className="flex items-start gap-3 rounded-lg border border-warning/40 bg-warning-light/30 p-4">
+                <AlertTriangle className="h-6 w-6 text-warning shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-semibold text-warning-dark">{t('churchDeletion.schemaWarningsTitle')}</p>
+                  <p className="text-sm text-secondary">{t('churchDeletion.schemaWarningsDescription')}</p>
+                </div>
+              </div>
+            )}
 
             <div className="rounded-lg border border-border p-4">
               <h3 className="flex items-center gap-2 font-semibold text-lg mb-3">
@@ -260,12 +388,21 @@ export default function ChurchDeletion() {
                 <span className="text-xs text-muted font-normal">ID: {summary.church_id}</span>
               </h3>
 
-              <div className="grid gap-2 grid-cols-1 xs:grid-cols-2">
+              <div className="grid gap-2 grid-cols-1 sm:grid-cols-2">
                 {summaryItem(<Users className="h-4 w-4" />, t('churchDeletion.totalUsers'), summary.total_users)}
                 {summaryItem(<User className="h-4 w-4" />, t('churchDeletion.totalMembers'), summary.total_members)}
                 {summaryItem(<Shield className="h-4 w-4" />, t('churchDeletion.totalServants'), summary.total_servants)}
                 {summaryItem(<Shield className="h-4 w-4" />, t('churchDeletion.totalAdmins'), summary.total_admins)}
                 {summaryItem(<Calendar className="h-4 w-4" />, t('churchDeletion.totalEvents'), summary.total_events)}
+                {summaryItem(<ClipboardList className="h-4 w-4" />, t('churchDeletion.totalEventRegistrations'), summary.total_event_registrations)}
+                {summaryItem(<FileText className="h-4 w-4" />, t('churchDeletion.totalEventSessions'), summary.total_event_sessions)}
+                {summaryItem(<MessageSquare className="h-4 w-4" />, t('churchDeletion.totalEventSpeakers'), summary.total_event_speakers)}
+                {summaryItem(<Calendar className="h-4 w-4" />, t('churchDeletion.totalEventBuses'), summary.total_event_buses)}
+                {summaryItem(<Building2 className="h-4 w-4" />, t('churchDeletion.totalEventRooms'), summary.total_event_rooms)}
+                {summaryItem(<Layers className="h-4 w-4" />, t('churchDeletion.totalEventRoomCells'), summary.total_event_room_cells)}
+                {summaryItem(<Trophy className="h-4 w-4" />, t('churchDeletion.totalEventPayments'), summary.total_event_payments)}
+                {summaryItem(<Building2 className="h-4 w-4" />, t('churchDeletion.totalEventAccommodations'), summary.total_event_accommodations)}
+                {summaryItem(<FileText className="h-4 w-4" />, t('churchDeletion.totalEventBusSheets'), summary.total_event_bus_sheets)}
                 {summaryItem(<ClipboardList className="h-4 w-4" />, t('churchDeletion.totalAttendances'), summary.total_attendances)}
                 {summaryItem(<Layers className="h-4 w-4" />, t('churchDeletion.totalAttendanceContexts'), summary.total_attendance_contexts)}
                 {summaryItem(<QrCode className="h-4 w-4" />, t('churchDeletion.totalQrInvites'), summary.total_qr_invites)}
@@ -279,6 +416,9 @@ export default function ChurchDeletion() {
                 {summaryItem(<UserPlus className="h-4 w-4" />, t('churchDeletion.totalMembershipRequests'), summary.total_membership_requests)}
                 {summaryItem(<Layers className="h-4 w-4" />, t('churchDeletion.totalStages'), summary.total_stages)}
                 {summaryItem(<Layers className="h-4 w-4" />, t('churchDeletion.totalClasses'), summary.total_classes)}
+                {summaryItem(<User className="h-4 w-4" />, t('churchDeletion.totalProfileUpdateRequests'), summary.total_profile_update_requests)}
+                {summaryItem(<BookOpen className="h-4 w-4" />, t('churchDeletion.totalDailySpiritualRecords'), summary.total_daily_spiritual_records)}
+                {summaryItem(<Layers className="h-4 w-4" />, t('churchDeletion.totalClassYears'), summary.total_class_years)}
                 {summaryItem(<FileText className="h-4 w-4" />, t('churchDeletion.totalPasswordResetRequests'), summary.total_password_reset_requests)}
                 {summaryItem(<FileText className="h-4 w-4" />, t('churchDeletion.totalAuditLogs'), summary.total_audit_logs)}
               </div>

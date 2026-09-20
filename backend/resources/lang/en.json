@@ -27,6 +27,7 @@
     "church_deletion.hard_deleted": "Church has been permanently deleted. This action cannot be undone.",
     "church_deletion.restored": "Church has been restored successfully. All users have been reactivated.",
     "church_deletion.recovery_window_expired": "The recovery window for this church has expired. It can only be permanently deleted.",
+    "church_deletion.delete_failed": "The church could not be deleted. No changes were made. Please try again or contact support.",
     "church_deletion.reauth_password_incorrect": "Your password is incorrect. Please try again.",
     "auth.failed": "Incorrect email or password.",
     "auth.login_success": "Login successful.",
