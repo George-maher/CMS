@@ -158,9 +158,11 @@ class ChurchDeletionService
             throw new ChurchDeletionException('ALREADY_DELETED', __('church_deletion.already_deleted'), 409);
         }
 
-        $summary = $this->getDeletionSummary($church);
+        $summary = [];
 
         try {
+            $summary = $this->getDeletionSummary($church);
+
             $result = DB::transaction(function () use ($church, $admin, $summary) {
                 $userIds = User::where('church_id', $church->id)->pluck('id');
 
@@ -336,9 +338,11 @@ class ChurchDeletionService
 
     public function hardDelete(Church $church, User $admin): void
     {
-        $summary = $this->getDeletionSummary($church);
+        $summary = [];
 
         try {
+            $summary = $this->getDeletionSummary($church);
+
             DB::transaction(function () use ($church, $admin, $summary) {
                 $userIds = User::where('church_id', $church->id)->pluck('id');
                 $classIds = Classe::where('church_id', $church->id)->pluck('id');

@@ -89,9 +89,11 @@ export default function ProfileUpdateRequests() {
       setApproveOpen(false)
       setApproveId(null)
       fetchData(page, statusFilter, false)
-    } catch (e) {
+    } catch (e: unknown) {
       logCatch('ProfileUpdateRequests.approve', e)
-      toast.error(t('profileUpdateRequests.approveFailed'))
+      const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message
+        || t('profileUpdateRequests.approveFailed')
+      toast.error(msg)
     } finally {
       setApproving(false)
     }
@@ -107,9 +109,11 @@ export default function ProfileUpdateRequests() {
       setRejectId(null)
       setRejectReason('')
       fetchData(page, statusFilter, false)
-    } catch (e) {
+    } catch (e: unknown) {
       logCatch('ProfileUpdateRequests.reject', e)
-      toast.error(t('profileUpdateRequests.rejectFailed'))
+      const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message
+        || t('profileUpdateRequests.rejectFailed')
+      toast.error(msg)
     } finally {
       setRejecting(false)
     }

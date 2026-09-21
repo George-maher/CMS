@@ -42,8 +42,14 @@ export default function PlatformApplicationDetail() {
       await approveApplication(Number(id))
       toast.success(t('platform.approveSuccess'))
       navigate('/platform')
-    } catch (e) { logCatch('PlatformDetail.approve', e); toast.error(t('common.saving')) }
-    finally { setActionLoading(false) }
+    } catch (e: unknown) {
+      logCatch('PlatformDetail.approve', e)
+      const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message
+        || t('common.failedToSave')
+      toast.error(msg)
+    } finally {
+      setActionLoading(false)
+    }
   }
 
   const handleReject = async () => {
@@ -54,8 +60,14 @@ export default function PlatformApplicationDetail() {
       toast.success(t('platform.rejectSuccess'))
       setShowRejectModal(false)
       navigate('/platform')
-    } catch (e) { logCatch('PlatformDetail.reject', e); toast.error(t('common.saving')) }
-    finally { setActionLoading(false) }
+    } catch (e: unknown) {
+      logCatch('PlatformDetail.reject', e)
+      const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message
+        || t('common.failedToSave')
+      toast.error(msg)
+    } finally {
+      setActionLoading(false)
+    }
   }
 
   const isImage = (url: string) => /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(url) || url.startsWith('data:image')

@@ -82,8 +82,10 @@ export default function AdminPasswordResetRequests() {
       setApproveOpen(false)
       setApproveId(null)
       fetchData(page, statusFilter, false)
-    } catch {
-      toast.error(t('common.failedToSave'))
+    } catch (e: unknown) {
+      const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message
+        || t('common.failedToSave')
+      toast.error(msg)
     } finally {
       setApproving(false)
     }
@@ -99,8 +101,10 @@ export default function AdminPasswordResetRequests() {
       setRejectId(null)
       setRejectReason('')
       fetchData(page, statusFilter, false)
-    } catch {
-      toast.error(t('common.failedToSave'))
+    } catch (e: unknown) {
+      const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message
+        || t('common.failedToSave')
+      toast.error(msg)
     } finally {
       setRejecting(false)
     }
