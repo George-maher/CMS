@@ -110,12 +110,45 @@ class AuditService implements AuditServiceInterface
             if (in_array($key, self::PII_FIELDS, true) && $value !== null) {
                 $masked[$key] = $this->maskValue($key, $value);
             } else {
-                $masked[$key] = $value;
+                $masked[$key] = $this->sanitizeUtf8($value);
             }
         }
 
         /** @var array<string, mixed> $masked */
         return $masked;
+    }
+
+    /**
+     * Recursively sanitize values to ensure valid UTF-8 encoding.
+     */
+    private function sanitizeUtf8(mixed $value): mixed
+    {
+        if ($value === null) {
+            return null;
+        }
+        if (! is_string($value)) {
+            if (is_array($value)) {
+                return array_map([$this, 'sanitizeUtf8'], $value);
+            }
+
+            return $value;
+        }
+
+        return $this->sanitizeString($value);
+    }
+
+    private function sanitizeString(string $str): string
+    {
+        // Remove invalid UTF-8 sequences
+        $sanitized = mb_convert_encoding($str, 'UTF-8', 'UTF-8');
+        // Double-check with preg to catch any edge cases
+        if (! preg_match('//u', $sanitized)) {
+            /** @var string $sanitized */
+            $sanitized = preg_replace('/[\x00-\x1F\x7F-\x9F]/', '', $sanitized) ?? '';
+            $sanitized = mb_convert_encoding($sanitized, 'UTF-8', 'UTF-8');
+        }
+
+        return $sanitized;
     }
 
     private function maskValue(string $field, mixed $value): string
