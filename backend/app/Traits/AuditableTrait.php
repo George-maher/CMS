@@ -11,7 +11,7 @@ trait AuditableTrait
     {
         static::created(function (Model $model) {
             /** @var array<string, mixed> $newValues */
-            $newValues = $model->toArray();
+            $newValues = $model->getAttributes();
             static::logAction('created', $model, null, $newValues);
         });
 
@@ -30,7 +30,7 @@ trait AuditableTrait
 
         static::deleted(function (Model $model) {
             /** @var array<string, mixed> $oldValues */
-            $oldValues = $model->toArray();
+            $oldValues = $model->getAttributes();
             static::logAction('deleted', $model, $oldValues, null);
         });
     }

@@ -139,16 +139,63 @@ class AuditService implements AuditServiceInterface
 
     private function sanitizeString(string $str): string
     {
-        // Remove invalid UTF-8 sequences
-        $sanitized = mb_convert_encoding($str, 'UTF-8', 'UTF-8');
-        // Double-check with preg to catch any edge cases
-        if (! preg_match('//u', $sanitized)) {
-            /** @var string $sanitized */
-            $sanitized = preg_replace('/[\x00-\x1F\x7F-\x9F]/', '', $sanitized) ?? '';
-            $sanitized = mb_convert_encoding($sanitized, 'UTF-8', 'UTF-8');
+        // If already valid UTF-8, return as-is
+        if (mb_check_encoding($str, 'UTF-8')) {
+            return $str;
         }
 
-        return $sanitized;
+        // Use iconv to strip invalid sequences (//IGNORE flag works with iconv)
+        $sanitized = @iconv('UTF-8', 'UTF-8//IGNORE', $str);
+        if ($sanitized !== false && mb_check_encoding($sanitized, 'UTF-8')) {
+            return $sanitized;
+        }
+
+        // Fallback: remove control characters and try iconv again
+        $sanitized = preg_replace('/[\x00-\x1F\x7F-\x9F]/', '', $str) ?? '';
+        $sanitized = @iconv('UTF-8', 'UTF-8//IGNORE', $sanitized);
+        if ($sanitized !== false && mb_check_encoding($sanitized, 'UTF-8')) {
+            return $sanitized;
+        }
+
+        // Last resort: manually filter valid UTF-8 bytes
+        $result = '';
+        $len = strlen($str);
+        for ($i = 0; $i < $len; $i++) {
+            $byte = ord($str[$i]);
+
+            if ($byte < 0x80) {
+                // ASCII (0xxxxxxx)
+                $result .= $str[$i];
+            } elseif ($byte < 0xC0) {
+                // Continuation byte (10xxxxxx) - skip orphaned
+                continue;
+            } elseif ($byte < 0xE0) {
+                // 2-byte sequence (110xxxxx 10xxxxxx)
+                if ($i + 1 < $len && (ord($str[$i + 1]) & 0xC0) === 0x80) {
+                    $result .= $str[$i].$str[$i + 1];
+                    $i++;
+                }
+            } elseif ($byte < 0xF0) {
+                // 3-byte sequence (1110xxxx 10xxxxxx 10xxxxxx)
+                if ($i + 2 < $len
+                    && (ord($str[$i + 1]) & 0xC0) === 0x80
+                    && (ord($str[$i + 2]) & 0xC0) === 0x80) {
+                    $result .= $str[$i].$str[$i + 1].$str[$i + 2];
+                    $i += 2;
+                }
+            } elseif ($byte < 0xF8) {
+                // 4-byte sequence (11110xxx 10xxxxxx 10xxxxxx 10xxxxxx)
+                if ($i + 3 < $len
+                    && (ord($str[$i + 1]) & 0xC0) === 0x80
+                    && (ord($str[$i + 2]) & 0xC0) === 0x80
+                    && (ord($str[$i + 3]) & 0xC0) === 0x80) {
+                    $result .= $str[$i].$str[$i + 1].$str[$i + 2].$str[$i + 3];
+                    $i += 3;
+                }
+            }
+        }
+
+        return $result;
     }
 
     private function maskValue(string $field, mixed $value): string

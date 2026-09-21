@@ -31,7 +31,7 @@
 ## Main Stack
 
 * Laravel 12 = Main Backend
-* PostgreSQL = Database
+* PostgreSQL = Database (SQLite in tests)
 * React + TypeScript = Frontend
 * Docker = Infrastructure
 * Nginx = Reverse Proxy
@@ -46,60 +46,48 @@ Backend MUST use:
 
 * Controllers
 * Services
-* Repositories
+* Repositories (where applicable)
 * API Resources
 * Form Requests
 * Middleware
 * Policies
-* DTOs if needed
-
----
+* Enums (PHP 8.1+)
 
 ## Required Folder Structure
 
-Backend structure MUST follow:
-
+```
 app/
 ├── Http/
-│   ├── Controllers/
+│   ├── Controllers/Api/
 │   ├── Requests/
 │   ├── Middleware/
 │   └── Resources/
-│
 ├── Services/
 ├── Repositories/
 ├── Models/
 ├── Policies/
-├── DTOs/
 ├── Enums/
 ├── Traits/
-└── Helpers/
+├── Casts/
+└── Contracts/
+```
 
 ---
 
 # 🔐 AUTHENTICATION RULES
 
-Use:
-
-* Laravel Sanctum OR JWT
+Use: Laravel Sanctum (Personal Access Tokens)
 
 Required:
 
-* Login
-* Register
-* Logout
-* Password hashing
+* Login / Register / Logout
+* Password hashing (bcrypt)
 * Role middleware
 * Token validation
 * Protected routes
+* Platform admin has separate login endpoint
 
-Roles:
-
-* admin
-* servant
-* member
-
-NEVER skip authorization.
+Roles: admin, assistant_admin, servant, member, stage_admin, platform_admin
 
 ---
 
@@ -107,14 +95,11 @@ NEVER skip authorization.
 
 Users must support:
 
-* name
-* email
-* password
-* birthday
-* school_year
-* role
-* photo
-* servant_id
+* name, email, password
+* role (enum)
+* church_id (foreign key)
+* class_id (foreign key)
+* is_active, application_status
 * attendance_qr_token
 
 Relations MUST be properly implemented.
@@ -127,51 +112,33 @@ Relations MUST be properly implemented.
 
 QR codes MUST NEVER contain:
 
-* passwords
-* raw IDs
-* sensitive data
+* passwords, raw IDs, sensitive data
 
 QRs must contain ONLY:
 
-* secure token
+* secure token (60-char random string)
 * secure URL
 
-Example:
-https://app.local/register/member?token=XYZ
-
----
-
-## QR TYPES
-
-Must support:
+## QR Types
 
 * admin_to_servant_invite
 * servant_to_member_invite
 * attendance_qr
+* event_checkin_qr
 
----
-
-## INVITE RULES
+## Invite Rules
 
 Each invite MUST:
 
-* have expiration time
-* default expire after 4 hours
-* support revoke
-* support disable
-* support single-use
-
-Backend MUST validate:
-
-* token exists
-* token not expired
-* token not used
+* have expiration time (default 4 hours)
+* support revoke/disable/single-use
+* Backend MUST validate: token exists, not expired, not used
 
 ---
 
 # 🧾 ATTENDANCE RULES
 
-Attendance flow MUST work as:
+Attendance flow:
 
 1. Servant scans member QR
 2. Backend validates QR token
@@ -179,13 +146,7 @@ Attendance flow MUST work as:
 4. Duplicate attendance same day is prevented
 5. Points are automatically added
 
-Attendance must store:
-
-* member_id
-* servant_id
-* class_id
-* date
-* status
+Attendance must store: member_id, servant_id, class_id, attendance_context_id, date, status
 
 ---
 
@@ -194,59 +155,77 @@ Attendance must store:
 After successful attendance:
 
 * Automatically add points
-
-Requirements:
-
 * Prevent duplicate points same day
-* Store reason
-* Store timestamp
-* Store total points
+* Store reason, timestamp, total points
 
 ---
 
-# 🏫 CLASS / YEAR RULES
+# 🏫 ORGANIZATIONAL HIERARCHY
 
-Must support:
-
-* First Year
-* Second Year
-* Third Year
-
-Admin can:
-
-* assign servant to year
-* change assignments
-
-Servants can only access:
-
-* their assigned members
+```
+Church
+├── Church Admin (church-wide)
+├── Stage (Secondary, Preparatory, Primary)
+│   ├── Stage Admin (stage-scoped)
+│   ├── Servants (stage/class-scoped)
+│   ├── Classes (belong to stage)
+│   └── Members (belong to class)
+```
 
 ---
 
-# 👑 ADMIN RULES
+# 🔒 SECURITY BOUNDARIES
 
-Admins can:
+## Multi-Tenancy (CRITICAL)
 
-* generate servant invites
-* manage users
-* assign years
-* create new admins
-* view analytics
-* manage attendance
+Church is the primary tenant boundary.
 
-Promoting another admin MUST NOT remove current admin role.
+* Every query MUST be scoped via `BelongsToChurch` trait + `ChurchScope` global scope
+* NEVER trust `church_id`, `stage_id`, `class_id`, `user_id` from client
+* Frontend permissions are UX only — NEVER security boundary
+
+## Stage Isolation
+
+Stage admins can ONLY access their own stage's resources.
 
 ---
 
-# 📊 ANALYTICS RULES
+# 📊 AUDIT LOGGING (CRITICAL)
 
-Analytics must support:
+The system uses `AuditableTrait` → `AuditService` → `AuditLog` model.
 
-* attendance averages
-* weekly comparisons
-* servant performance
-* member attendance rate
-* attendance trends
+## Key Points
+
+* `old_values`/`new_values` stored as JSON columns
+* Uses custom `AuditLogValues` cast for safe JSON encoding
+* Handles malformed UTF-8 gracefully (never crashes business transactions)
+* PII fields (password, email, phone, address) are masked
+* All string values are sanitized for valid UTF-8
+
+## When Modifying Audit Logging
+
+1. Inspect `AuditService::maskPii()` and `AuditLogValues` cast
+2. Test with Arabic and English data
+3. Test with malformed UTF-8 if applicable
+4. Never store: passwords, tokens, secrets, binary data
+
+---
+
+# 🌐 API RULES
+
+Use:
+
+* REST APIs
+* JSON responses
+* proper HTTP status codes
+* API versioning (/api/v1/)
+
+Must include:
+
+* validation (Form Requests)
+* error handling (try/catch with localized messages)
+* pagination
+* authentication middleware
 
 ---
 
@@ -254,60 +233,84 @@ Analytics must support:
 
 Frontend MUST use:
 
-* React
-* TypeScript
+* React + TypeScript
 * TailwindCSS
-* API layer
+* API layer (`src/api/*.ts`)
 * role-based routing
+* i18n for all user-visible text
 
-Dashboards:
-
-* Admin Dashboard
-* Servant Dashboard
-* Member Dashboard
-
-Must support:
-
-* QR scanning
-* analytics charts
-* attendance pages
-* invite pages
+Dashboards: Admin, Assistant Admin, Servant, Member, Platform Admin
 
 ---
 
-# 📷 QR SCANNING RULES
+# 🌐 LOCALIZATION / i18n
 
-Use:
+## EN + AR Support
 
-* html5-qrcode OR react-qr-reader
+* Backend: `resources/lang/en.json`, `ar.json`
+* Frontend: `src/i18n/en.json`, `ar.json`
+* Use translation keys, NEVER `language === 'ar' ? ... : ...`
+* RTL/LTR via `dir` attribute + Tailwind logical props
+* Date formatting: `frontend/src/lib/dates.ts`
 
-Flow:
-Scan → validate → action
+## RTL/LTR Rules
 
-Never trust frontend validation only.
+* Use `text-start`/`text-end` instead of `text-left`/`text-right`
+* Use `.rtl-flip` class for directional icons
+* Verify both Arabic and English UIs
 
 ---
 
 # 🗄️ DATABASE RULES
 
-Use PostgreSQL.
+Use PostgreSQL (SQLite in tests).
 
 Must include:
 
-* migrations
-* relationships
-* indexes
-* constraints
-* foreign keys
+* migrations, relationships, indexes, constraints, foreign keys
 
-Required tables:
+## Testing with SQLite
 
-* users
-* invites
-* attendance
-* points
-* classes
-* events
+Tests use SQLite in-memory. Some PostgreSQL-specific migrations use driver-aware SQL:
+
+```php
+$driver = DB::connection()->getDriverName();
+if ($driver === 'pgsql') {
+    // PostgreSQL-specific SQL
+} else {
+    // SQLite-compatible SQL
+}
+```
+
+---
+
+# 🧪 TESTING RULES
+
+## Required Commands
+
+```bash
+# Backend (from backend/)
+composer install
+php artisan test
+vendor/bin/phpstan analyse --level=max
+vendor/bin/pint --test
+
+# Frontend (from frontend/)
+npm install
+npm run dev
+npm run build
+npm run lint
+npx tsc --noEmit
+npm run check:i18n
+```
+
+## Test Requirements
+
+* All feature tests must pass
+* PHPStan level-max must have 0 errors
+* Pint must have 0 issues
+* Frontend ESLint must have 0 errors
+* i18n EN/AR key parity must match exactly
 
 ---
 
@@ -324,749 +327,61 @@ Must use:
 * docker-compose
 * shared network
 * volumes
+* healthchecks
 
 ---
 
-# 🌐 API RULES
+# 🔧 COMMON PITFALLS
 
-Use:
-
-* REST APIs
-* JSON responses
-* proper HTTP status codes
-
-Must include:
-
-* validation
-* error handling
-* pagination
-* authentication middleware
+1. **Test emails**: `test@test.com` blocked by NotPlaceholder rule — use `login@test.com`
+2. **Church::factory()**: Use `Church::factory()->create()` in tests, NOT `Church::create([...])`
+3. **PostgreSQL in tests**: Tests use SQLite — avoid PostgreSQL-specific SQL in migrations
+4. **UTF-8 in audit logs**: Use `AuditLogValues` cast — never store raw strings
+5. **PII fields**: Always mask in audit logs (password, email, phone, address)
+6. **Church scope**: Always use `BelongsToChurch` trait on tenant-sensitive models
+7. **Stage isolation**: Enforce in policies + service queries, not frontend only
+8. **Windows tests**: `protected bool $mockConsoleOutput = false;` in TestCase
+9. **CORS on Railway**: Set `CORS_ALLOWED_ORIGINS` env var to frontend URL
+10. **Resend removed**: Email sending is NOT implemented — use in-app notifications
 
 ---
 
-# 🔒 SECURITY RULES
+# 📁 KEY FILES
 
-Required:
-
-* secure tokens
-* expiration validation
-* role authorization
-* rate limiting
-* hashed passwords
-* protected API routes
-
-Never expose internal logic publicly.
-
----
-
-# 🚀 DEVELOPMENT FLOW RULES
-
-Execution order MUST be:
-
-STEP 1:
-Backend architecture
-
-STEP 2:
-Database design
-
-STEP 3:
-Authentication system
-
-STEP 4:
-User + Roles system
-
-STEP 5:
-QR Invite system
-
-STEP 6:
-Attendance system
-
-STEP 7:
-Points system
-
-STEP 8:
-Docker setup
-
-STEP 9:
-Frontend
-
-DO NOT SKIP STEPS.
+| Purpose | File Path |
+|---------|-----------|
+| API Routes | `backend/routes/api.php` |
+| Platform Controller | `backend/app/Http/Controllers/Api/PlatformController.php` |
+| Church Application Service | `backend/app/Services/ChurchApplicationService.php` |
+| Audit Service | `backend/app/Services/AuditService.php` |
+| Audit Log Values Cast | `backend/app/Casts/AuditLogValues.php` |
+| Auditable Trait | `backend/app/Traits/AuditableTrait.php` |
+| Church Model | `backend/app/Models/Church.php` |
+| Audit Log Model | `backend/app/Models/AuditLog.php` |
+| Frontend API Client | `frontend/src/api/client.ts` |
+| Frontend i18n | `frontend/src/i18n/en.json`, `ar.json` |
 
 ---
 
-# ❌ FORBIDDEN THINGS
+# 🚀 DEPLOYMENT
 
-NEVER:
+## Railway (Backend)
 
-* generate giant code dumps
-* skip explanations
-* use fake implementations
-* mix frontend with backend logic
-* bypass architecture
-* write insecure QR logic
-* store sensitive data in QR
-* use weak token generation
+* Set `CORS_ALLOWED_ORIGINS=https://your-frontend.vercel.app`
+* Set `FRONTEND_URL=https://your-frontend.vercel.app`
+* `php artisan config:cache` runs at container startup
 
----
+## Vercel (Frontend)
 
-# 🎯 FINAL OBJECTIVE
-
-Build a complete production-grade Church Management Platform with:
-
-* scalable backend
-* secure QR attendance system
-* role-based dashboards
-* dockerized infrastructure
-* clean architecture
-* maintainable codebase
+* `vercel.json` rewrites SPA routes to `index.html`
+* `VITE_API_URL=https://your-backend.railway.app`
 
 ---
 
-# 📌 ANCHORED SUMMARY
+# 📝 CHANGE LOG
 
-## Goal
-Fix all PHPStan level-max errors and all failing feature tests. (491 → 385 → 0 errors)
-
-## Constraints & Preferences
-- Must look excellent on all screen sizes (320px to 1920px+).
-- No horizontal scrolling, clipped content, or broken layouts on any screen size.
-- Use Tailwind responsive prefixes (`sm:`, `md:`, `lg:`) for layout changes.
-- All tables must have mobile card views; all headers must stack vertically on mobile.
-- Light and dark modes must both be readable.
-- Fix invalid CSS classes, missing CSS fallbacks, and `undefined` accessor patterns.
-
-## Progress
-
-### Done (2026-06-30 — Comprehensive End-to-End Audit)
-1. **User model PostgreSQL `nextval` removed** — `backend/app/Models/User.php`: replaced PostgreSQL-specific `nextval('users_member_id_seq')` with database-agnostic `$user->id`. Fixes SQLite test compatibility.
-2. **Docker Compose hardened** — `docker-compose.yml`: replaced hardcoded DB password with `${DB_PASSWORD:-postgres}` env var; added healthchecks to worker, scheduler, and frontend; fixed all `depends_on` to use `condition: service_healthy`.
-3. **Dockerfile production safety** — `backend/Dockerfile`: removed `php artisan key:generate` from production stage (was invalidating all tokens on every build).
-4. **Entrypoint script hardened** — `backend/docker-entrypoint.sh`: replaced `rm -rf public/storage` with safe symlink check; added DB readiness loop before migrations; added .env existence validation before grep.
-5. `.env.docker` **fixed** — Changed `DB_PASSWORD=${DB_PASSWORD:-postgres}` to literal `DB_PASSWORD=postgres` (prevents literal string usage outside Docker).
-6. **CI pipeline cleaned** — `.github/workflows/ci.yml`: removed wasted PostgreSQL service (phpunit.xml overrides to sqlite); removed `|| true` from lint commands (was masking failures).
-
-### Done (Previous)
-1. **Attendance duplicate prevention** — `lockForUpdate()` + `hasAttendanceToday()` in `AttendanceService.php`.
-2. **AttendanceFilter onApply fix** — Fixed `class_id=[object Object]` bug.
-3. **QR Invite usage limit** — Atomic `markAsUsed()` with `DB::raw('uses + 1')`.
-4. **Forgot Password flow** — ResetPasswordNotification, PasswordChangedNotification, Sanctum invalidation, message sync.
-5. **Admin-Approved Password Reset Requests**:
-   - **Migration** — `password_reset_requests` table (user_id, email, notes, status, token, rejection_reason, reviewed_by, reviewed_at, token_expires_at, used_at).
-   - **Model** — `PasswordResetRequest` with `isValidToken()`, `isPending()`, `generateToken()`, `markAsUsed()`.
-   - **Enum** — `PasswordResetRequestStatus` (Pending/Approved/Rejected).
-   - **Service** — `PasswordResetRequestService` with `submitRequest()`, `approve()`, `reject()`, `completeReset()`, `listRequests()` — all with `DB::transaction()` + `lockForUpdate()`, admin notification on submit, `PasswordChangedNotification` on complete, Sanctum invalidation.
-   - **Controller** — `PasswordResetRequestController` with submit (public), index/show (admin), approve/reject (admin), completeReset (public with token).
-   - **Form Requests** — `SubmitPasswordResetRequest`, `ApprovePasswordResetRequest`, `RejectPasswordResetRequest`.
-   - **Resource** — `PasswordResetRequestResource` (user details, role, phone, class, stage, avatar, etc.).
-   - **Notifications** — `PasswordResetRequestSubmittedNotification` (to admins), `PasswordResetRequestApprovedNotification` (to user with reset URL), `PasswordResetRequestRejectedNotification` (to user with reason) — all EN/AR.
-   - **Policy** — `PasswordResetRequestPolicy` (admin: viewAny/approve/reject, member/servant: create).
-   - **Routes** — Public: `POST /v1/password-reset-requests`, `POST /v1/password-reset-requests/reset`. Admin: `GET /v1/password-reset-requests`, `GET /{id}`, `POST /{id}/approve`, `POST /{id}/reject`.
-   - **Backend lang** — `password_reset_requests.*` keys in both `en.json` and `ar.json`.
-   - **Frontend API** — `passwordResetRequests.ts` with all 6 endpoints.
-   - **Frontend Type** — `PasswordResetRequest` interface.
-   - **ForgotPassword.tsx** — Now submits admin-approved requests with optional notes field (textarea, 1000 char max).
-   - **AdminPasswordResetRequests.tsx** — Full admin page: filterable list (pending/approved/rejected), detail modal (name, role, email, phone, avatar, class, stage, notes, request time, status), approve/reject modals, rejection reason textarea, pagination.
-   - **ResetPasswordFromRequest.tsx** — Set new password page after approval (token + email from URL, validation, auto-redirect to login after success).
-   - **i18n** — `passwordResetRequests.*` + `auth.newPassword`, `auth.confirmNewPassword`, `auth.optionalNote` in both EN/AR.
-   - **Sidebar** — Added `nav.passwordResetRequests` to admin nav.
-   - **Routes** — `/admin/password-reset-requests`, `/assistant-admin/password-reset-requests`, `/reset-password-request`.
-
-### Done (Python Analytics Removed — 2026-06-26)
-1. **Deleted AnalyticsProxyController.php** — proxied requests to Python service (never wired in routes).
-2. **Deleted SyncAnalyticsToPython.php** — job that synced attendance data to Python service.
-3. **Deleted DispatchAnalyticsSync.php** — listener that dispatched the sync job on attendance recorded.
-4. **Cleaned AppServiceProvider.php** — removed `DispatchAnalyticsSync` import and listener registration.
-5. **Deleted frontend analytics.ts API** — all endpoints proxied to Python.
-6. **Deleted admin/Analytics.tsx** — orphaned page (never in routes).
-7. **Cleaned i18n** — removed orphaned `analytics.*` keys from en.json and ar.json.
-8. **Cleaned .env.example** — removed `ANALYTICS_API_KEY`.
-9. **Updated AGENTS.md** — removed Python/FastAPI references from stack, rules, Docker, and development flow.
-
-### Done (Responsive UI/UX Audit — 2026-06-26)
-1. **ChurchDeletion.tsx** — Fixed `.toLocaleString()` crash: `summaryItem` `count` param `number` → `number | undefined` with `?? 0` fallback; same for `total_records`; summary grid `gap-2 sm:grid-cols-2` → `grid-cols-1 xs:grid-cols-2`.
-2. **Admin MembershipRequests removed** — Deleted file, lazy import, routes, sidebar nav.
-3. **Global CSS (`index.css`)** — Added `.stagger-children > *:nth-child(n+9)` fallback for opacity bug; added `.full` modal size class.
-4. **QRManagement.tsx** — Filter inputs `w-40` → `w-32 sm:w-40`, `w-36` → `w-32 sm:w-36`, `w-28` → `w-24 sm:w-28`.
-5. **ServantQRInvites.tsx** — Same filter bar fix; `ml-auto` → `sm:ml-auto`.
-6. **AdminUsers.tsx** — Search `w-full sm:w-56`; header `flex-col sm:flex-row`.
-7. **ServantMembers.tsx** — Search `w-full sm:w-56`.
-8. **ServantAttendance.tsx** — Added mobile card view (`sm:hidden` cards, `hidden sm:block` table).
-9. **PasswordResetRequests.tsx** — Filter buttons `flex-col sm:flex-row` + `flex-wrap gap-1.5`.
-10. **Landing.tsx** — Hero h1 `text-3xl sm:text-5xl`, CTA h2 `text-3xl sm:text-4xl`.
-11. **Header.tsx** — Notification panel `w-[calc(100vw-1rem)] sm:w-96`.
-12. **FeedbackSubmit.tsx** — Replaced invalid `btn btn-primary btn-block` → `btn-primary btn-md w-full`.
-13. **AbsentMembers.tsx** — Added mobile card view.
-14. **PlatformDashboard.tsx** — Header `flex-col gap-2 sm:flex-row`; filter `w-full sm:w-40`.
-15. **FeedbackManagement.tsx** — Header `flex-col gap-2 sm:flex-row`; filter `w-full sm:w-auto`.
-16. **AdminEvents.tsx** — Header `flex-col gap-2 sm:flex-row`.
-17. **ServantEvents.tsx** — Same flex-col header fix.
-18. **VerseManagement.tsx** — Same flex-col header fix.
-
-### Done (Production Readiness Deployment Audit — 2026-06-26)
-1. **Security sanitized** — All live credentials removed from `backend/.env`, `.env`, `.env.docker`, `emails` file (DB passwords, Supabase keys, Resend API key, APP_KEY)
-2. **`.gitignore` (root)** — NEW — Covers workspace files, node_modules, Docker volumes, `.env`, storage framework paths
-3. **`config/supabase-storage.php`** — NEW — All Supabase bucket definitions, max sizes from config
-4. **`config/cors.php`** — NEW — Explicit allowed origins from FRONTEND_URL, credentials for Sanctum SPA auth
-5. **`docker-compose.yml`** — REWRITTEN — Added postgres, queue worker, scheduler, frontend; fixed DB_* env vars; healthchecks; resource limits
-6. **`frontend/vercel.json`** — NEW — SPA rewrites for Vercel deployment
-7. **`frontend/src/api/client.ts`** — Uses `VITE_API_URL` env var instead of hardcoded `/api/v1`
-8. **`frontend/vite.config.ts`** — Added VITE_API_URL pass-through, `__APP_ENV__` define
-9. **`frontend/Dockerfile`** — Added VITE_API_URL build arg
-10. **`frontend/nginx.conf`** — Security headers, gzip, asset caching
-11. **`backend/SupabaseStorageService.php`** — Reads max sizes from config instead of hardcoded
-12. **`backend/SyncAnalyticsCache.php`** — Stubbed Cache::tags (unsupported by file driver)
-13. **`backend/routes/api.php`** — Fixed misplaced comment
-14. **`backend/routes/console.php`** — Removed stale analytics:cache schedule
-15. **`backend/.env.example`** — Enhanced with VITE_API_URL, pooler URL, DB_SSLMODE, LOG_LEVEL=warning
-16. **`frontend/README.md`**, **`backend/README.md`** — Updated with actual project info
-17. **`README.md` (root)** — NEW — Full deployment guide with architecture diagram
-18. **`AUDIT_CHANGES.md`** — Updated with all production readiness changes
-19. **`backend/.gitignore`** — Added phpunit.cache, lesshst, bootstrap/cache/*.php
-
-### Done (Production Architecture, Cache & Database Audit — 2026-06-26)
-1. **Database config** — `database.php`: PostgreSQL default connection, added missing `host`/`port`/`database`/`username`/`password`/`sslmode` fields.
-2. **Cache defaults** — `cache.php` default changed from `database` to `file`; `queue.php` default changed from `database` to `sync`; `.env.example` updated accordingly.
-3. **CacheService integrated** — Injected into `LeaderboardService`, `VerseService`, `EventService`, `AttendanceService`, `PointService`. The `remember*` methods are now actually called instead of being dead code.
-4. **Cache invalidation** — Added `invalidate*` calls on:
-   - `EventService::create/update/delete` → invalidates event cache
-   - `PointService::addPoints/addBonusPoints` → invalidates points + dashboard cache
-   - `VerseService::create/update/delete/activate` → invalidates verse cache
-   - `EventService::list` (with filters) → now cached for 1 hour
-   - `LeaderboardService::classLeaderboard/globalLeaderboard/stagesLeaderboards` → cached
-   - `AttendanceService::getTodayAttendance/getAttendanceStats/getContextSummary` → cached
-5. **.env.example** — Added DB_HOST/DB_PORT/DB_DATABASE/DB_USERNAME/DB_PASSWORD/DB_SSLMODE; changed LOG_LEVEL from `debug` to `warning`; updated Redis comment to not say "NOT used".
-6. **Model fix** — `Notification::point()` relationship now correctly references `points_id` FK.
-7. **PERM cache invalidation gap documented** — `Permission::clearCache()` is defined but never called at runtime (no runtime permission management UI yet).
-
-### Done (Codebase Audit — 2026-06-22)
-1. **Deleted 8 dead backend files** — stale controllers, services, requests, resources, notifications.
-2. **Cleared frontend assets** — removed committed `Vite` asset hashes from git tracking.
-3. **Fixed duplicate eager loads** — `AreaController` and `AttendanceFilter`.
-4. **Removed duplicate routes** — DTO-related routes stripped from `api.php`.
-5. **Fixed lint issues** — `UserController` (deleted, replaced by module), enum import in `ChurchApplicationController`.
-6. **Refactored `AttendanceService`** — extracted private `processAttendance()` for DRY.
-7. **Refactored `StructureController`** — delegated to `StructureService`.
-8. **Refactored `EventController`** — extracted `servantCannotAccessEvent()`; rewrote cleanly to fix `Unclosed '{'` syntax error.
-9. **Fixed `Permission` static cache** — added `$cache` array with `flush()`.
-10. **Fixed model naming** — `members()`/`memberUsers()` → `allUsers()` in `Classe` model.
-11. **Fixed `NotPlaceholder` rule** — removed `'admin'` from blacklist (was blocking valid emails).
-12. **Fixed phone input** — slice to 11 digits in frontend.
-13. **Added better 422 error messages** — email uniqueness hint.
-
-### Done (Backend Test Failures Fix — 2026-06-26)
-
-**Factory & Migration Fixes:**
-1. **Created 4 missing factories** — `StageFactory`, `ClasseFactory`, `AttendanceContextFactory`, `QRInviteFactory`.
-2. **Updated `UserFactory`** — defaults `application_status: 'approved'` and `is_active: true`.
-3. **Added `HasFactory` to `Church` model** (`app/Models/Church.php:13`) — fixes `BadMethodCallException: Call to undefined method Church::factory()`
-4. **Fixed 3 PostgreSQL-specific migrations** for SQLite test compatibility using `$driver = DB::connection()->getDriverName()`:
-   - `2025_06_10_000001`: replaced `(attended_at::date)` with `$dateExpr` (`date(attended_at)` on SQLite)
-   - `2025_07_02_000001`: replaced `pg_class` index check → `sqlite_master`, `DROP CONSTRAINT` → `DROP INDEX`, `(attended_at::date)` → `$dateExpr`
-   - `2025_07_09_000002`: replaced `(attended_at::date)` with `$dateExpr` in both `up()` and `down()`
-5. **Added `APP_KEY` to `phpunit.xml`** — fixes `MissingAppKeyException` on `ExampleTest`.
-
-**Test File Fixes:**
-6. **`AuthTest.php`** — Changed login email from `test@test.com` → `login@test.com` (local part `test` blocked by `NotPlaceholder` rule).
-7. **`AttendanceTest.php`** — Added `PermissionSeeder` in `setUp()`, changed `class_year_id` → `class_id` in request body, added `attendance_context_id`.
-8. **`AttendanceContextTest.php`** — Added `PermissionSeeder` in `setUp()`, changed servant `class_year_id` → `class_id`.
-9. **`QRInviteTest.php`** — Added `PermissionSeeder` in `setUp()`, replaced `Church::create()` with `Church::factory()->create()`.
-10. **`AuthTest.php`, `QRInviteTest.php`** — Replaced all `Church::create([...])` with `Church::factory()->create()`.
-
-**Business Logic Fix:**
-11. **`AuthService.php:login()`** — Added `application_status` checks: rejected users are blocked with 422, pending users are blocked with 422. Fixes `test_rejected_user_cannot_login`.
-
-### Done (Second Round — 2026-06-26)
-1. **`AttendanceContext` model** — Added `HasFactory` trait (`app/Models/AttendanceContext.php:13`).
-2. **`AttendanceContextPolicy.php`** — Removed `servant` from `delete()` and `toggleActive()` (only admin/assistantAdmin allowed). Fixes 2 test failures.
-3. **`AttendanceContextController`** — Removed `withoutGlobalScope()` from `show()`, `update()`, `destroy()`, `toggleActive()`. The global `ChurchScope` now handles filtering naturally, so cross-church access returns 404.
-4. **`AttendanceContextTest.php`** — All context names changed to unique values that don't clash with the 6 auto-created defaults (sunday-school, holiday, tasbeha, mass, trip, spiritual-day). `test_active_contexts_appear_in_dropdown` assertion changed to check count=8 and `assertContains`/`assertNotContains` instead of rigid `data.0`/`data.1`.
-5. **`QRInviteResource.php`** — Replaced `token` field with `url` field (uses `frontend_url` config). Token is no longer exposed in list responses.
-6. **`QRInviteTest.php`** — Fixed `test_servant_can_create_member_invite` and `test_admin_can_create_servant_invite` to assert `data.invite` has `id`, `type`, `url` AND `data.url` exists.
-
-### Done (2026-06-30 — Comprehensive End-to-End Audit Round 2)
-All issues from the audit have been addressed. See `AUDIT_CHANGES.md` for full details.
-
-### Done (2026-07-09 — PHPStan level-max fixes)
-1. **Enums** (4 files: EventType, FeedbackCategory, PointType, QRInviteType) — Added `@return array<int, string>` to `values()` methods.
-2. **InviteDTO** — `fromArray()`: Added `@param array<string, mixed>` + explicit casts `(int)`, `(string)`, `(bool)` on each array access. `toArray()`: Added `@return array<string, mixed>`.
-3. **GeneralHelper.php** — `slugify()`: Cast `preg_replace` return to `(string)` before `trim()`.
-4. **Stage.php** — Fixed `HasFactory` generics with `@template TFactory` + `@use` directly on `use` statement.
-5. **StoreAttendanceContextRequest.php** — Fixed `Undefined variable $churchId` runtime bug: added `$user = $this->user()`, `$churchId = $user->church_id`, `$contextId = $this->route('id')`.
-6. **AttendanceController.php** (~35 errors) — Added `@var array<string, mixed>` on all `$validated` vars; replaced `(int) $request->input()` with `$request->integer()`; extracted `$recordedBy`, `$id` with `@var int`; added `(array)` cast for `getServantClassIds()` before `in_array()`; typed all `$classYearIds`, `$dateFrom`, `$dateTo` with `@var`.
-7. **QRInviteController.php** (~20 errors) — Added `@var` shape annotations on all `$result` arrays from service calls; cast `$request->input('class_id')` with `(int)`; replaced `$request->input('per_page')` with `$request->integer()`.
-8. **AuthController.php** — Added `@var \App\Models\User $user` extraction for `logout()` and `me()`; added `urlencode($user->email_verification_token ?? '')` null guard; typed `$request->only()` as `@var array<string, mixed>`.
-9. **ChurchApplicationController.php** — Typed `$safeData` and `$result['application']`/`$result['user']` with `@var`.
-10. **EventController.php** — Fixed `$perPage` to `$request->integer()`; fixed `$servantClassIds` nullable type; fixed servantCannotAccessEvent `$event->class_year_id !== null` guard; typed `pluck()->toArray()` returns.
-11. **FeedbackController.php** — Replaced `(int)` casts with `$request->integer()`; added `(array)` cast for `getServantClassIds()`; cast `$request->input('message')` to `(string)`; typed `$result['data']` collection.
-12. **PointController.php, ClasseController.php, PasswordResetRequestController.php, MembershipRequestController.php, NotificationController.php, StageController.php** — Replaced `(int) $request->input()` with `$request->integer()`; added `@var` annotations for unmixed access.
-13. **EventAnalyticsController.php, StructureController.php** — Typed `$filters` arrays; added `@var` for deferred service call.
-14. **Middleware (3 files)** — PermissionMiddleware: wrapped `$next($request)` with `@var Response` in empty-permissions branch. SetLocale: replaced `(string) config()` with `strval()`. TrackActivity: cast `config()` to `(int)`.
-15. **ChurchApplicationRequest.php** — Typed closure parameter as `\Illuminate\Database\Eloquent\Builder`; replaced `'max:' . config()` with `'max:' . strval(config())`.
-16. **EventResource.php** — Changed `$t->classe` filter to check `!== null`; removed redundant `?->` with direct `->` + `??`.
-17. **NotificationResource.php** — Same `?->` → `->` + `??` fix.
-18. **QRInviteResource.php** — Added `@var array<int, \App\Models\User>` for `$users->all()`.
-19. **StageRepositoryInterface.php** — Added `use App\Models\Stage;` import so unqualified `Stage` resolves correctly (was resolving to non-existent `App\Contracts\Stage`).
-20. **VerseRepositoryInterface.php** — Added `use App\Models\DailyVerse;` import.
-21. **VerseServiceInterface.php** — Renamed `setActive()` to `activate()` to match `DailyVerseController` and `VerseService` implementation.
-22. **AuditService.php** — Used `property_exists()` + null-safe access for `$model->id` in `logModelAction()`; added `@var array<string, mixed>` annotation on `$masked`.
-23. **AttendanceService.php** — Typed `$m` in `reject()` closure; rewrote `getContextSummary` map callback to return typed array; replaced `optional()` with direct nullsafe access.
-24. **AuthService.php** — Extracted `@var int $userId` before `markAsUsed()`.
-25. **QRInviteService.php** — Extracted `$typeValue = $data['type']` with `@var string` before `QRInviteType::from()`.
-26. **Stage.php** — Removed `@template TFactory` docblock (was making `Stage` generic, cascading ~40 errors across all references); kept inline `@use` on the `use` statement.
-27. **AttendanceController.php:byClass()** — Fixed missing `$result = $this->attendanceService->getAttendanceByClass(...)` call (runtime bug — `$result` was undefined).
-28. **EventController.php:show()** — Fixed `$event` → `$eventModel` typo (runtime bug).
-29. **AttendanceDTO.php** — Added `@param array<string, mixed>` + explicit `(int)`/`(string)` casts on all array accesses.
-30. **QRInviteService.php:acceptInvite()** — Added null guard for `$user->fresh()` before chaining `->load()`.
-31. **EventService.php:targetUsers()** — Added `@var array<int, int>` + `->values()` for `$targetClassIds`.
-32. **FeedbackService.php:notifyStaff()** — Added `@var array<int, int>` for `$adminIds`.
-33. **AttendanceService.php:getContextSummary()** — Removed redundant `@var` inside map callback.
-34. **AttendanceService.php:getContextAnalytics()** — Added `@var array<int, \App\Models\Attendance>` for `$records`.
-35. **All 20+ contract interfaces** — Added `@return array<string, mixed>`, `@return array<int, array<string, mixed>>`, or `@return array<int, ModelClass>` annotations to every method returning bare `array`.
-36. **All 10+ repository interfaces** — Added `@return \Illuminate\Contracts\Pagination\LengthAwarePaginator<Model>` and `@return \Illuminate\Database\Eloquent\Collection<int, Model>` generics; added `@param array<string, mixed>` where missing.
-
-### Done (2026-07-09 — PHPStan level-max 0 + Pint clean + 16 React hook warnings fixed)
-1. **PHPStan level-max: 0 errors** — `treatPhpDocTypesAsCertain: false` restored; suppressed `missingType.iterableValue` and `missingType.generics` via `ignoreErrors` with `~` regex delimiters. Fixed 17 non-missingType errors: ResetApplicationData (7 strval/Hash/encapsed string), TrackActivity (cast.int/argument.type), AuditService (intval mixed + return.type), ChurchApplicationService (2 argument.type), EventService (2 argument.type), StageService (argument.type), VerseService (argument.type).
-2. **Laravel Pint: 0 issues** — Ran `vendor/bin/pint` fixing 219 style issues across 355 files (concat_space, fully_qualified_strict_types, no_unused_imports, class_attributes_separation, etc.).
-3. **React ESLint: 0 warnings** — Fixed 16 `react-hooks/exhaustive-deps` warnings across 11 frontend files: added missing `t`, `isServant`, `isAuthenticated`, `navigate`, `roleRedirect`, `user`, `authUser`, `searchParams`, `fetchAbsentMembers`, `handleLookupAndConfirm` deps; removed unnecessary `contexts` dep from ScanQR useCallback; moved `roleRedirect` object inside the useEffect callback.
-4. **CI pipeline is fully green** — PHPStan, Pint, and ESLint all pass with 0 errors.
-
-### Done (2026-07-12 — Production Platform Login CORS Diagnosis + PHPStan + Test Fix)
-1. **PHPStan fix: AuthServiceInterface.php** — Updated all method return types from generic `@return array<string, mixed>` to specific array shapes (`array{user: User, token: string, token_type: string}` for `platformLogin()`, etc.). Resolved 4 type errors that had been pinned by `treatPhpDocTypesAsCertain: false`.
-2. **Test fix: 65 failing feature tests** — Root cause: `ConfiguresPrompts` on Windows + unit tests caused `confirm()` → `Confirm::render()` → `$this->output->confirm()` → `SymfonyStyle::confirm()` → `$this->askQuestion()` on the mock `OutputStyle`, triggering `BadMethodCallException` because `askQuestion` had no expectation set. Fix: added `protected bool $mockConsoleOutput = false;` to `tests/TestCase.php:20` to bypass the problematic mock entirely.
-3. **Production diagnosis: Platform admin login Network Error** — `POST` requests to `https://cms-production-7eb4.up.railway.app/api/v1/auth/platform-secure-admin-login` never reach Laravel; only `OPTIONS` preflight is logged. Root cause: `CORS_ALLOWED_ORIGINS` env var not set on Railway → falls back to `FRONTEND_URL` → `http://localhost:3000`. Vercel origin `https://cms-flame-eta.vercel.app` not allowed → `HandleCors::handlePreflightRequest()` returns 200 without `Access-Control-Allow-Origin` → browser blocks actual POST. HandleCors IS in the global middleware stack (`Middleware.php:458`). Fix: set `CORS_ALLOWED_ORIGINS=https://cms-flame-eta.vercel.app` and `FRONTEND_URL=https://cms-flame-eta.vercel.app` in Railway env vars, then restart container.
-4. **Axios client hardened** — `frontend/src/api/client.ts`: added `withCredentials: true` to axios base config for cross-origin cookie/session support. Updated comment explaining why it's required.
-
-## Key Decisions
-- Supabase config moved from `services.php` to dedicated `supabase-storage.php` because `SupabaseStorageService` reads from `config('supabase-storage.*')`
-- Docker compose rewritten with explicit DB_* env vars instead of DATABASE_URL because Laravel DB config uses DB_HOST/DB_PORT/DB_DATABASE etc.
-- All live credentials replaced with safe placeholders; .env files excluded via root .gitignore
-- Frontend API baseURL now reads `VITE_API_URL` env var for production, falls back to `/api` for Docker dev proxy
-- `VITE_API_URL` is baked into frontend Docker image at build time via ARG (not runtime)
-- CORS uses `FRONTEND_URL` env var for allowed origins (supports multiple domains)
-- `SyncAnalyticsCache` stubbed to safe version because `Cache::tags()` fails with file/database cache driver (requires Redis/Memcached)
-- PostgreSQL added to docker-compose.yml for local parity with Supabase production (local postgres on port 5433)
-
-## Key Decisions (password_reset_requests)
-- Separate `password_reset_requests` table keeps admin-approved flow independent from the existing `password_reset_tokens` (Laravel broker).
-- Service uses `DB::transaction()` + `lockForUpdate()` for approve/reject/completeReset — prevents race conditions.
-- Token stored as-is (64-char random string, one-use, `unique` index) — never exposed to admins, only sent via email link.
-- Admin gets notified on each new request via email.
-- `ForgotPassword.tsx` modified to submit requests; kept existing Laravel broker flow for future admin self-reset.
-- Reset URL uses `frontend_url` config pointing to SPA, never backend.
-
-## Key Decisions (Test Fixes)
-- Use `Church::factory()->create()` instead of `Church::create([...])` in all tests to ensure all required columns are populated.
-- For `users.class_year_id` FK mismatch (refs `class_years.id` but tests store `classes.id`), use `class_id` in tests to avoid FK violation.
-- Make PostgreSQL-specific migrations database-driver-aware with `$driver = DB::connection()->getDriverName()` branch.
-- Use `date(attended_at)` on SQLite vs `(attended_at::date)` on PostgreSQL for expression-based unique indexes.
-- Repeated `test` in email local part blocked by `NotPlaceholder` rule — use `login@test.com` instead.
-- Test fix: disable console mocking (`mockConsoleOutput = false`) rather than patching vendor code, because `badMethodCallException` in `PendingCommand::mockConsoleOutput()` is a vendor issue not accessible in userland.
-- CORS diagnosis: nginx logs OPTIONS (200 from Laravel) but browser blocks POST because `Access-Control-Allow-Origin` is missing. Fix is env vars, not code changes.
-
-## Next Steps
-1. **Fix production CORS**: Set `CORS_ALLOWED_ORIGINS` and `FRONTEND_URL` env vars in Railway dashboard to `https://cms-flame-eta.vercel.app`, restart container, verify with curl.
-2. **Verify VITE_API_URL**: Confirm it's set in Vercel dashboard to `https://cms-production-7eb4.up.railway.app` (without `/api/v1` suffix — `buildBaseUrl` appends it).
-3. **Run tests**: Execute `php artisan test` to verify all tests pass (especially the 65 that were previously broken by `mockConsoleOutput`). Run `php artisan phpstan analyse --level max` to confirm 0 errors remain.
-4. **Frontend CORS hardening**: Add `withCredentials: true` and explicit `Content-Type: application/json` to the Axios client config in `client.ts`.
-5. **Backend debug logging**: Add route-level logging for OPTIONS requests to make future CORS debugging easier.
-
-## Critical Context
-- Backend uses SQLite in-memory for testing (`phpunit.xml`: `DB_CONNECTION=sqlite`, `DB_DATABASE=:memory:`), with `foreign_key_constraints: true`.
-- `BelongsToChurch::creating` callback silently allows `church_id` to remain null when no auth user exists; `ChurchScope` returns null (no filtering) when running in console (tests).
-- `class_year_id` FK on `users` still points to `class_years.id` (not `classes.id`) — pre-existing schema gap not fixed by later migrations.
-- 3 migrations now dynamically adapt their SQL to the current driver (`sqlite` vs. `pgsql`).
-- `NotPlaceholder` rule blocks common test emails like `test@test.com` from login.
-- Church model's `created` callback auto-creates 6 default `AttendanceContext` records with hardcoded slugs.
-- CacheService remember* methods were dead code — now integrated into 5 services.
-- Cache default store: `file` (not `database`; use `redis` in production).
-- Queue default: `sync` (use `database` or `redis` for async jobs).
-- Database default: `pgsql` with proper connection fields.
-- `Permission::clearCache()` is defined but never auto-invoked (no runtime permission management yet).
-- 3 empty stub migrations exist as no-ops: `update_qr_invite_types`, `add_church_id_to_event_views` (June), `cleanup_duplicate_points` (July v2).
-- `Notification::point()` now references `points_id` FK explicitly.
-- All cache invalidation is per-church via versioned namespaces (generation-based).
-- **CORS on Railway**: `HandleCors` middleware IS in the default global stack (`Middleware.php:458`). The preflight OPTIONS IS handled by Laravel, BUT if `CORS_ALLOWED_ORIGINS` (or fallback `FRONTEND_URL`) doesn't include the Vercel origin, `handlePreflightRequest()` returns 200 WITHOUT `Access-Control-Allow-Origin` → browser blocks POST.
-- **Nginx on Railway**: Production uses single-container Nginx + PHP-FPM (`Dockerfile` production stage). `backend/production/nginx.conf` passes all non-static requests to `/index.php`. No CORS headers in nginx — CORS is fully delegated to Laravel.
-- **Entrypoint + config:cache**: `docker-entrypoint.sh:93` runs `php artisan config:cache` at container startup, which serializes env-dependent config values. Railway env vars ARE available at that point, so `CORS_ALLOWED_ORIGINS` from Railway dashboard IS picked up — BUT ONLY if it's actually set.
-- **Test mockConsoleOutput**: `ConfiguresPrompts` trait on Windows triggers `askQuestion()` on mocked `OutputStyle` (no expectation set) → `BadMethodCallException`. Fix: `protected bool $mockConsoleOutput = false;` bypasses the mock.
-
-## Relevant Files
-- `backend/app/Models/Church.php` — Added `HasFactory` trait
-- `backend/database/migrations/2025_06_10_000001_fix_attendance_unique_and_event_date.php` — SQLite-compatible `$dateExpr`
-- `backend/database/migrations/2025_07_02_000001_prevent_duplicate_attendance_points.php` — SQLite-compatible index check/constraint drop/`$dateExpr`
-- `backend/database/migrations/2025_07_09_000002_add_context_aware_attendance_unique_indexes.php` — `$dateExpr` per driver
-- `backend/tests/Feature/AuthTest.php` — Fixed email `test@test.com` → `login@test.com`; all tests use `Church::factory()`
-- `backend/tests/Feature/AttendanceTest.php` — Added `PermissionSeeder`, `class_id` fix, `attendance_context_id`
-- `backend/tests/Feature/AttendanceContextTest.php` — Added `PermissionSeeder`, `class_id` fix
-- `backend/tests/Feature/QRInviteTest.php` — Added `PermissionSeeder`, `Church::factory()`
-- `backend/app/Services/AuthService.php` — Added `application_status` login check (rejected/pending blocked)
-- `backend/phpunit.xml` — Added `APP_KEY`
-- `backend/database/factories/ClasseFactory.php`, `StageFactory.php`, `AttendanceContextFactory.php`, `QRInviteFactory.php` — 4 new factories
-- `backend/app/Models/AttendanceContext.php` — Added HasFactory
-- `backend/app/Policies/AttendanceContextPolicy.php` — Removed servant from delete/toggleActive
-- `backend/app/Http/Controllers/Api/AttendanceContextController.php` — Removed withoutGlobalScope from show/update/destroy/toggleActive
-- `backend/app/Http/Resources/QRInviteResource.php` — Replaced token with url field
-- `backend/database/migrations/2026_06_22_000002_create_password_reset_requests_table.php` — new table
-- `backend/app/Models/PasswordResetRequest.php` — model with token/status logic
-- `backend/app/Enums/PasswordResetRequestStatus.php` — pending/approved/rejected
-- `backend/app/Services/PasswordResetRequestService.php` — core business logic
-- `backend/app/Contracts/PasswordResetRequestServiceInterface.php` — service contract
-- `backend/app/Http/Controllers/Api/PasswordResetRequestController.php` — API endpoints
-- `backend/app/Http/Requests/SubmitPasswordResetRequest.php` — submit validation
-- `backend/app/Http/Requests/ApprovePasswordResetRequest.php` — approve auth gate
-- `backend/app/Http/Requests/RejectPasswordResetRequest.php` — reject with reason
-- `backend/app/Http/Resources/PasswordResetRequestResource.php` — API response format
-- `backend/app/Notifications/PasswordResetRequestSubmittedNotification.php` — admin email
-- `backend/app/Notifications/PasswordResetRequestApprovedNotification.php` — user approval email
-- `backend/app/Notifications/PasswordResetRequestRejectedNotification.php` — user rejection email
-- `backend/app/Policies/PasswordResetRequestPolicy.php` — role-based authorization
-- `backend/app/Providers/AppServiceProvider.php` — binding + policy registration
-- `backend/routes/api.php` — route definitions
-- `backend/resources/lang/en.json` — `password_reset_requests.*` translations
-- `backend/resources/lang/ar.json` — Arabic translations
-- `frontend/src/api/passwordResetRequests.ts` — API client
-- `frontend/src/types/index.ts` — `PasswordResetRequest` interface
-- `frontend/src/pages/auth/ForgotPassword.tsx` — submit request with optional notes
-- `frontend/src/pages/auth/ResetPasswordFromRequest.tsx` — set new password after approval
-- `frontend/src/pages/admin/PasswordResetRequests.tsx` — admin review page
-- `frontend/src/i18n/en.json` — `passwordResetRequests.*`, `auth.*` keys
-- `frontend/src/i18n/ar.json` — Arabic translations
-- `frontend/src/App.tsx` — route registration
-- `frontend/src/components/layout/Sidebar.tsx` — nav link
-- `frontend/src/pages/platform/ChurchDeletion.tsx` — Fixed toLocaleString crash + summary grid responsive
-- `frontend/src/index.css` — Added stagger-children nth-child(n+9) fallback, `.full` modal size
-- `frontend/src/pages/admin/QRManagement.tsx` — Responsive filter widths
-- `frontend/src/pages/servant/QRInvites.tsx` — Responsive filter widths
-- `frontend/src/pages/admin/Users.tsx` — Responsive search + header layout
-- `frontend/src/pages/servant/Members.tsx` — Responsive search width
-- `frontend/src/pages/servant/Attendance.tsx` — Mobile card view
-- `frontend/src/pages/admin/PasswordResetRequests.tsx` — Responsive filter buttons
-- `frontend/src/pages/Landing.tsx` — Smaller hero text on mobile
-- `frontend/src/components/layout/Header.tsx` — Notification panel full-width on mobile
-- `frontend/src/pages/FeedbackSubmit.tsx` — Removed invalid CSS classes
-- `frontend/src/pages/AbsentMembers.tsx` — Mobile card view
-- `frontend/src/pages/PlatformDashboard.tsx` — Responsive header + filter
-- `frontend/src/pages/FeedbackManagement.tsx` — Responsive header + filter
-- `frontend/src/pages/admin/Events.tsx` — Responsive header
-- `frontend/src/pages/servant/Events.tsx` — Responsive header
-- `frontend/src/pages/VerseManagement.tsx` — Responsive header
-- `backend/config/database.php` — Production PostgreSQL defaults with missing fields
-- `backend/config/cache.php` — Default changed from `database` to `file`
-- `backend/config/queue.php` — Default changed from `database` to `sync`
-- `backend/.env.example` — Added DB connection fields, updated LOG_LEVEL, Redis comment
-- `backend/app/Services/CacheService.php` — Versioned per-church cache with `remember*` and `invalidate*` methods
-- `backend/app/Services/LeaderboardService.php` — CacheService injected, leaderboard results cached
-- `backend/app/Services/VerseService.php` — CacheService injected, active verse cached + invalidated on changes
-- `backend/app/Services/EventService.php` — CacheService injected, event list cached + invalidated on CRUD
-- `backend/app/Services/AttendanceService.php` — CacheService injected, today/stats/context-summary cached
-- `backend/app/Services/PointService.php` — CacheService injected, points/dashboard invalidated on awards
-- `backend/app/Models/Notification.php` — Fixed `point()` relationship FK to `points_id`
-- `backend/app/Listeners/InvalidateAttendanceCache.php` — Invalidates attendance + dashboard cache
-- `backend/app/Contracts/AuthServiceInterface.php` — Fixed `platformLogin()` return type from generic array to specific shape (`array{user: User, token: string, token_type: string}`)
-- `backend/tests/TestCase.php` — Added `protected bool $mockConsoleOutput = false;` to fix 65 failing tests on Windows
-- `backend/config/cors.php` — `allowed_origins` reads from `CORS_ALLOWED_ORIGINS` env var, falls back to `FRONTEND_URL`, then `http://localhost:3000`
-- `backend/bootstrap/app.php` — Middleware config shows `HandleCors` NOT explicitly registered but in default global stack (`Middleware.php:458`)
-- `backend/production/nginx.conf` — Production nginx passes all requests to `/index.php`, no CORS headers (delegated to Laravel)
-- `backend/docker-entrypoint.sh:93` — Runs `php artisan config:cache` at container startup, serializing env values
-- `frontend/src/api/client.ts` — `buildBaseUrl()` appends `/api/v1` to `VITE_API_URL`. Added `withCredentials: true` for cross-origin cookie/session support
+See `AUDIT_CHANGES.md` for detailed change history.
 
 ---
 
-## 📌 ANCHORED SUMMARY (2026-07-18)
-
-## Goal
-Fix the Stages and Classes feature: HTTP 500 on Classes API, Stages/Classes not loading frontend, "Select Stage First" stuck state, and ensure Stage→Class cascading selection works end-to-end for user creation.
-
-## Constraints & Preferences
-- No temporary or frontend-only fixes; full root-cause analysis and proper architectural solution required.
-- SOLID principles, clean architecture, proper design patterns.
-- Loading, empty, error states; dark/light mode support.
-- No hardcoded Stage or Class IDs.
-- Class API must not return HTTP 500.
-- Create User flow: Select Stage → Fetch Classes → Select Class → Create User.
-
-## Progress
-### Done (2026-07-18)
-- **Traced full backend flow**: Routes (`routes/api.php`), Controllers (`StageController`, `ClasseController`), Services (`StageService`, `ClasseService`), Repositories (`StageRepository`, `ClasseRepository`), Models (`Stage`, `Classe`, `User`), Contracts, API Resources (`StageResource`, `ClasseResource`, `ClasseDetailResource`), Form Requests (`StoreStageRequest`, `StoreClasseRequest`, `CreateUserRequest`), Policies, Middleware, Traits (`BelongsToChurch`, `ChurchScope`), Migrations, Factories.
-- **Traced full frontend flow**: API clients (`stages.ts`, `classes.ts`, `structure.ts`, `users.ts`, `client.ts`), Types (`Stage`, `Classe`, `User`, `CreateUserPayload`), Pages (`admin/Users.tsx`, `admin/StructureManagement.tsx`, `admin/StageDetail.tsx`, `admin/ClasseDetail.tsx`), i18n (`en.json`).
-- **Verified database schema**: `stages` table (church_id FK, name, display_order), `classes` table (church_id FK, stage_id FK, name, description, display_order), `class_servant` pivot table, `class_id` FK on `users` table.
-- **Verified backend relationships**: `Stage.hasMany(Classe)`, `Classe.belongsTo(Stage)`, `Classe.hasMany(User, 'class_id')`, `Classe.belongsToMany(User, 'class_servant')` — all correct.
-- **Identified root cause of "Select Stage First" state**: `Users.tsx` used `listFlatClasses()` (flat class list) instead of stage-filtered class loading, and the stage/class dropdowns were not wired to translations.
-- **Identified root cause of duplicated code in `handleCreate`**: orphaned duplicated `try/catch` blocks (lines 246-274 originally) causing invalid JavaScript (orphaned `catch`).
-- **Rewrote `admin/Users.tsx`**: replaced `listFlatClasses()` import with `listStages()` + `getStageClasses()` from `@/api/stages`; added `stages`, `stagesLoading`, `stagesError`, `selectedStageId` state; added `fetchStages()` + `handleStageChange()` callbacks; added Stage `<select>` dropdown followed by Class `<select>` that depends on selected stage; added loading/error/empty states for both dropdowns; added "Select Stage First" prompt when no stage selected; added stage/class state reset in `openCreateModal` (resets `selectedStageId` to null, clears `classes`); removed all duplicated orphaned code from `handleCreate`; added `stage_id` to `FormErrors` interface.
-- **Improved Active/Inactive toggle in Create User modal**: replaced flat `bg-gray-300 peer-checked:bg-primary` toggle with green/gray semantic toggle (`bg-success`/`border-success` when active, `bg-gray-300 dark:bg-gray-600`/`border-gray-400` when inactive); increased toggle size from `w-9 h-5` to `w-11 h-6` for better accessibility; added dynamic "Active"/"Inactive" label with green/muted text color; added `transition-all duration-300 ease-in-out` for smooth animations; added `group-hover:opacity-80` hover state; added `peer-focus-visible:ring-2 peer-focus-visible:ring-success/30` for keyboard accessibility; added `peer-disabled:opacity-50` for disabled state; maintained RTL support via `rtl:peer-checked:after:-translate-x-[18px]`.
-
-## Key Decisions
-- Use `listStages()` + `getStageClasses(stageId)` instead of `listFlatClasses()` to implement stage-based class filtering, matching the existing translations (`structure.selectStageFirst`, `structure.noClasses`, `structure.selectStage`, `structure.noStages`) and the required UX flow.
-- Keep the Create User modal in `admin/Users.tsx` but replace the flat class `<select>` with a stage `<select>` followed by a class `<select>` that depends on the selected stage — this is the correct architectural pattern, keeping the component self-contained.
-- Backend does not require changes — Controllers, Services, Repositories, and Models are structurally correct. The HTTP 500 issue is in the frontend using a flat class list from `listFlatClasses()` which doesn't exist; `listStages()` + `getStageClasses()` are the correct endpoints.
-
-## Next Steps
-1. Verify frontend compilation with `npx tsc --noEmit` (shell currently unavailable).
-2. Verify backend APIs with `curl` — call `GET /stages` and `GET /classes` with authentication to confirm no HTTP 500.
-3. End-to-end verification: login as admin, navigate to Users page, create a user with a selected Stage and Class, confirm user is created with correct `class_id`.
-
-## Relevant Files
-- `frontend/src/pages/admin/Users.tsx` — Rewritten: stage-based class loading, cascading stage→class dropdown, fixed duplicated `handleCreate` code, proper loading/error/empty states
-- `frontend/src/api/stages.ts` — Provides `listStages()`, `getStageClasses(stageId)` (used, no changes needed)
-- `frontend/src/api/classes.ts` — Flat class listing (no longer used in Users.tsx)
-- `frontend/src/api/structure.ts` — Provided `listFlatClasses()` (no longer used in Users.tsx)
-- `frontend/src/types/index.ts` — `Stage`, `Classe`, `CreateUserPayload` types (correct, no changes needed)
-- `frontend/src/i18n/en.json` — Translation keys `structure.selectStageFirst`, `structure.noClasses`, `structure.selectStage`, `structure.noStages` (already exist, no changes needed)
-- `backend/app/Http/Controllers/Api/StageController.php` — Stage endpoints (correct, no changes needed)
-- `backend/app/Http/Controllers/Api/ClasseController.php` — Class endpoints (correct, no changes needed)
-
----
-
-## 📌 ANCHORED SUMMARY (2026-08-22)
-
-## Goal
-Completely remove Resend from the project and rebuild the Forgot Password feature with ZERO email dependency: Member/Servant submits request → Church Admin in-app notification → admin approves → admin sets a NEW password directly (hashed) → status `completed` → user logs in.
-
-## Progress
-### Done (2026-08-22 — Resend Removal + No-Email Password Reset Rebuild)
-1. **Resend package removed** — `composer remove resend/resend-laravel`; `bootstrap/cache/packages.php|services.php` regenerated.
-2. **AppServiceProvider cleaned** — removed `ResendServiceProvider` import + explicit `$this->app->register(ResendServiceProvider::class)` and the `mail.default = resend` auto-upgrade block (the block that silently failed when `RESEND_API_KEY` was empty — confirmed root cause of "emails never sent").
-3. **Config cleanup** — deleted `backend/config/resend.php`; removed `services.resend`, `mail.mailers.resend`, and the `RESEND_API_KEY` smtp-password fallback in `config/mail.php`.
-4. **Env cleanup** — removed `RESEND_API_KEY=` from `backend/.env`, root `.env`; `.env.example` mail section rewritten to plain SMTP/log defaults.
-5. **Competing broker flow removed** — `AuthService::resetPassword()` (Laravel Password broker) + `AuthController::resetPassword()` + route `/auth/reset-password` + `User::sendPasswordResetNotification()` + notifications `ResetPasswordNotification`, `PasswordChangedNotification`, and all three `PasswordResetRequest*Notification` email classes DELETED. `/auth/forgot-password` kept (delegates to the approval workflow); `resendVerification` kept (email *verification*, unrelated to Resend).
-6. **New admin reset endpoint** — `POST /v1/password-reset-requests/{id}/reset-password` (`ResetPasswordByAdminRequest`: password min:8 confirmed; policy `resetPassword`: adminOrAssistantAdmin + same church + status approved; service hashes via `Hash::make()`, deletes all user Sanctum tokens, sets status to new `Completed` enum case). Public token endpoint `/password-reset-requests/reset` REMOVED.
-7. **Token columns dropped** — migration `2026_08_22_000001_remove_email_reset_tokens_from_password_reset_requests.php` drops `token`/`token_expires_at`/`used_at` (drops indexes first for SQLite; existence-checked). Model cleaned (`generateToken`/`isValidToken`/`markAsUsed` removed, `isCompleted` added). Resource no longer exposes token fields.
-8. **Notifications are in-app only now** — synchronous `NotificationService::create()` inserts (type `password_reset`) for admins on submit, requester on approve/reject/complete. No queued mail anywhere in this feature.
-9. **Frontend rebuilt** — deleted `ResetPassword.tsx` + `ResetPasswordFromRequest.tsx` pages and their routes/public-paths; removed `forgotPassword`/`resetPassword` from `api/auth.ts` + payload types; `api/passwordResetRequests.ts` gained `resetPasswordByAdmin(id, {password, password_confirmation})`; `AdminPasswordResetRequests.tsx` gained a Set-New-Password modal (KeyRound icon on approved rows, show/hide toggle, mismatch validation, completed badge + filter); i18n EN/AR updated (no more "you will receive an email" wording).
-
-## Key Decisions
-- No user-facing self-reset without email (per requirement 11): inventing one would be insecure, so the Church Admin performs the reset directly after identity verification.
-- Duplicate-pending submit still returns the generic "submitted" message (anti-enumeration) while only creating one row/notification.
-- Completed requests cannot be reset again (policy requires Approved); a fresh request may be submitted afterward.
-- Old password is never retrievable/recoverable — only replaced; hashes never exposed in resources/logs/notifications.
-
-## Relevant Files
-- `backend/composer.json`, `backend/config/mail.php`, `backend/config/services.php`, deleted `backend/config/resend.php`
-- `backend/app/Providers/AppServiceProvider.php` — Resend registration + auto-upgrade block removed
-- `backend/routes/api.php` — `/auth/reset-password` + public `/password-reset-requests/reset` removed; `/{id}/reset-password` added under manage_users group
-- `backend/app/Services/PasswordResetRequestService.php` — rewritten: in-app-only notifications, `approve()` without tokens, new `resetPassword()`; `completeReset()` removed
-- `backend/app/Contracts/PasswordResetRequestServiceInterface.php`, `app/Policies/PasswordResetRequestPolicy.php`, `app/Http/Requests/ResetPasswordByAdminRequest.php`
-- `backend/app/Http/Controllers/Api/PasswordResetRequestController.php` — `completeReset` → `resetPassword`
-- `backend/app/Enums/PasswordResetRequestStatus.php` (+Completed), `app/Models/PasswordResetRequest.php` (token logic removed)
-- `backend/database/migrations/2026_08_22_000001_remove_email_reset_tokens_from_password_reset_requests.php`
-- Deleted: 5 notification classes (Submitted/Approved/Rejected/PasswordChanged/ResetPassword)
-- `backend/resources/lang/en.json|ar.json` — `password_reset_requests.*` keys updated (not_approved, completed*)
-- `frontend/src/App.tsx`, `src/api/client.ts`, `src/api/auth.ts`, `src/api/passwordResetRequests.ts`, `src/types/index.ts`, `src/i18n/en.json|ar.json`
-- Deleted: `src/pages/auth/ResetPassword.tsx`, `src/pages/auth/ResetPasswordFromRequest.tsx`
-- `frontend/src/pages/admin/PasswordResetRequests.tsx` — Set-New-Password modal + completed status support
-
-## Verification (2026-08-22)
-- Backend: 98 tests passed (287 assertions), PHPStan level-max 0 errors, Pint clean.
-- Frontend: ESLint 0 errors, tsc --noEmit clean.
-- `route:list` confirms exactly: submit / list / show / approve / reject / reset-password (+ forgot-password alias).
-- Project-wide grep: zero remaining Resend references in code/config/env.
-
----
-
-## 📌 ANCHORED SUMMARY (2026-09-20)
-
-## Goal
-Fix Platform Admin "DELETE a Church → Internal Server Error (500)" (production soft-delete fails; hard-delete fails with `SQLSTATE[23000] FOREIGN KEY constraint failed` on `event_registrations.user_id`); complete the delete-flow frontend + error-code i18n; run Phase 2 architecture/security audit, fix P0/P1.
-
-## Progress
-### Done (2026-09-20 — Church Deletion Frontend + Backend polish)
-1. **Backend full suite green** — `php artisan test`: **258 passed / 836 assertions** (incl. ChurchDeletionTest 14/14/132, EventManagementTest, StorageEndpointAuthorizationTest). Baseline was 244/704 before ChurchDeletionTest was count-corrected.
-2. **Frontend type extended** — `frontend/src/types/index.ts` `ChurchDeletionSummary` now includes `total_event_sessions`, `total_event_speakers`, `total_event_buses`, `total_event_rooms`, `total_event_room_cells`, `total_event_registrations`, `total_event_payments`, `total_event_accommodations`, `total_event_bus_sheets`, `total_profile_update_requests`, `total_daily_spiritual_records`, `total_class_years`, `schema_warnings: boolean`.
-3. **ChurchDeletion.tsx rewritten** — modal modes `'soft-delete' | 'restore' | 'hard-delete'`; deleted rows now show Restore (disabled when `is_recoverable === false`) + Permanent Purge buttons; toast messages per action; backend `code` → i18n mapping (`DELETION_ERROR_KEYS`); inline summary error with Retry (keeps modal open, no cache-killing toasts); schema-warning banner; recovery-window info/expired banners in modal; full summary grid (34 count rows) + total-records footer; password + `DELETE CHURCH` reauth preserved. Also fixed: dead `modalMode === 'delete'` branch, missing `client` import, `xs:grid-cols-2` → `sm:grid-cols-2` (no `xs` breakpoint exists in Tailwind v4 theme → dead CSS).
-4. **i18n EN/AR parity +18 keys each** — added `totalEvent*` (Sessions/Speakers/Buses/Rooms/RoomCells/Registrations/Payments/Accommodations/BusSheets), `totalProfileUpdateRequests`, `totalDailySpiritualRecords`, `totalClassYears`, `schemaWarningsTitle/Description`, `summaryFailed`, `errAlreadyDeleted`, `errNotDeleted`, `errRecoveryWindowExpired`, `errDeleteFailed` to both `en.json` + `ar.json`. Fixed missing trailing comma after `errDeleteFailed` (was breaking JSON.parse). `npm run check:i18n` PASS (1370 = 1370 keys).
-5. **Backend PHPStan fixes** — `ChurchDeletionService`: extracted `countForSummary(\Closure $fn): int` (with `@param \Closure(): int` docblock) so the summary `$count` closure no longer casts `mixed`; `invalidateChurchCaches` user IDs typed `/** @var Collection<int, int> */` — resolves 3 `cast.int` errors. `vendor/bin/phpstan analyse --level max`: 0 errors. Pint: 0 issues (fixed `fully_qualified_strict_types` etc.). ChurchDeletionTest still 14/14.
-6. **Frontend verification** — `npx tsc -b` clean, `npm run lint` 0 errors, `npm run build` succeeds (vite 8.1.0, ChurchDeletion chunk 14.83 kB), `npm run check:i18n` PASS.
-7. **Confirmed `/platform/churches` route shape** — the platform churches listing (closure in `routes/api.php:824`) returns `id,name,slug,member_count,is_active,is_deleted,deleted_at,is_recoverable,days_until_purge,recoverable_until,created_at` — exactly the fields `fetchChurches` maps into `ChurchItem`/`DeletedChurchInfo`. Deleted-list UI is data-correct.
-
-### Done (2026-09-20 — Phase 2 Architecture & Security Audit)
-1. **P1 fixed — PasswordResetRequest cross-church existence leak** — `approve()`/`reject()`/`resetPassword()` in `PasswordResetRequestController` used unscoped `PasswordResetRequest::find($id)` → cross-church admin got **403** (record existence + status disclosure). Fixed all three to use the church-scoped service `findById($id, $churchId)` (whereHas `user.church_id`) → **404**. Removed now-unused `use App\Models\PasswordResetRequest` import. Test `test_church_a_admin_cannot_review_church_b_request` updated 403→404 for approve + reset-password.
-2. **IDOR/BOLA sweep (verified clean)** — Audited every `find()`/`findOrFail()` surface: AttendanceContext (BelongsToChurch global scope → 404), Event `findEvent` (scoped), EventRegistration `resolveRegistration` (event-scoped), ProfileUpdateRequest (BelongsToChurch + policy church check), MembershipRequest (service checks `church_id` at line 93), Notification (service `forUser` scope), ChurchDeletion (platform-admin role gate + reauth), PlatformController (platform-admin by design). No BOLA/IDOR confirmed.
-3. **Authorization coverage verified** — Policies on Stage/Classe/Event/AttendanceContext/ProfileUpdateRequest/PasswordResetRequest; permission middleware (`manage_membership_requests`, `manage_event_registrations`, etc.) + `approved` middleware + `role:PlatformAdmin` group; all sensitive endpoints throttled (api/login/guest/sensitive/attendance-record/event-crud/invite-accept/invite-public).
-4. **DB/ACID verified** — No FK-disabling, no `DB::unprepared`, no raw TRUNCATE. Multi-step writes in `DB::transaction` + `lockForUpdate` where race-prone (attendance duplication, invite accept/uses, payments, approve double-lock).
-5. **QR invite flow verified** — token-only payloads (no PII/sensitive), expiry, single-use counter + revoke/disable, `lockForUpdate`, class must belong to invite church+stage.
-6. **Full suite green after audit fix** — `php artisan test`: **258 passed / 836 assertions**. PHPStan level-max 0 errors, Pint clean, PasswordResetRequestTest 19/19 (73 assertions).
-
-## Key Decisions
-- Frontend `ChurchDeletion.tsx` reads the single `/platform/churches` listing (returns both active + trashed with `is_deleted` flag) and splits client-side; the dedicated `/deleted-history` endpoint remains available for a future paginated history view.
-- Error handling: known backend codes (`ALREADY_DELETED` 409, `NOT_DELETED` 409, `RECOVERY_WINDOW_EXPIRED` 422, `CHURCH_DELETE_FAILED` 500) map to frontend i18n keys; unknown codes/validation fall back to backend `message` (already localized EN/AR by Accept-Language), then `common.failedToSave`.
-- Restore button is client-side-disabled when `is_recoverable === false` (recovery window expired), and the backend independently enforces `RECOVERY_WINDOW_EXPIRED` (never trust frontend state).
-- Summary modal: load failure keeps the modal open with inline error + Retry button rather than closing/toasting — mirrors the backend's fault-tolerant `getDeletionSummary` (which counts each table in a guarded closure and sets `schema_warnings` on any throw).
-- `sm:` breakpoint used instead of nonexistent `xs:` (Tailwind v4 theme in `index.css` `@theme` block defines no `--breakpoint-xs`; `xs:` would emit dead CSS).
-
-## Next Steps
-1. Wait for background full-suite re-run (post-`countForSummary` refactor) — verify still 258 passed; if not, fix regressions.
-2. Execute Phase 2 audit: SOLID/Laravel architecture, DB/ACID, multi-tenancy + stage isolation, auth/security (IDOR/BOLA), API contract consistency, cache invalidation coverage, frontend UX/i18n, performance, tests, production deployment. Classify P0→P3; fix P0/P1, document P2/P3 in `AUDIT_CHANGES.md`.
-3. Commit work (repo dirty since session start; no commit/push performed).
-
-## Relevant Files
-- `backend/app/Services/ChurchDeletionService.php` — `countForSummary()` extraction + typed user-id collection (PHPStan cast.int fixes)
-- `backend/tests/Feature/ChurchDeletionTest.php` — 14/14 (132 assertions); full suite 258/836
-- `frontend/src/types/index.ts` — `ChurchDeletionSummary` extended with event-management/profile/spiritual/class-years counts + `schema_warnings`
-- `frontend/src/pages/platform/ChurchDeletion.tsx` — rewritten: soft/restore/hard-delete modal modes, deleted-row actions, code→i18n error mapping, inline retry, schema warnings
-- `frontend/src/i18n/en.json` + `ar.json` — +18 `churchDeletion.*` keys each; parity 1370 = 1370
-- `frontend/src/api/churches.ts` — already had `getDeletionSummary` / `softDeleteChurch` / `restoreChurch` / `hardDeleteChurch` (no changes needed)
-- `backend/routes/api.php:824` — platform churches listing shape verified matches frontend mapping
-
----
-
-## 📌 ANCHORED SUMMARY (2026-08-23)
-
-## Goal
-Implement a complete Events Management module (Conferences + Trips) on top of the existing events system: lifecycle management, capacity tracking, participant registration, payments, QR check-in, bus management, conference schedule (sessions/speakers), dashboard, reports/CSV export, calendar view, and full EN/AR i18n.
-
-## Progress
-### Done (2026-08-23 — Events & Trips Module)
-1. **DB** — `2026_08_23_000001_add_event_management_fields_to_events_table` adds status/end_date/start_time/end_time/max_capacity + conference fields (theme, target_age_group, target_group) + trip fields (destination, departure_location, departure_at, return_at, transportation_type, coordinator_name/phone, price_per_participant) to `events` (backfill: active→open, inactive→closed). `2026_08_23_000002_create_event_management_tables` creates `event_sessions`, `event_speakers`, `event_buses`, `event_registrations` (status/payment_status/amount_paid/attendance_status/checked_in_at/unique qr_token, unique(event_id,user_id)), `event_payments`.
-2. **Enums** — EventStatus, RegistrationStatus, EventPaymentStatus, EventAttendanceStatus, EventPaymentMethod; `Conference` case added to EventType.
-3. **Models** — EventSession, EventSpeaker, EventBus, EventRegistration (qr token gen, addPaidAmount, refreshPaymentStatus), EventPayment; Event model extended (sessions/speakers/buses/registrations relations, isRegistrationOpen(), hasAvailableCapacity(), registeredCount(), availableSpaces(), occupancyPercentage()); EventFactory + EventRegistrationFactory added.
-4. **Permissions** — new keys `manage_event_registrations` (admin/assistant/servant), `manage_event_payments` (admin/assistant), `view_event_reports` (admin/assistant/servant) in Permission::defaultPermissions()/defaultRolePermissions(). Lifecycle + schedule gated by existing `manage_events`. Re-run PermissionSeeder after deploy.
-5. **Services** — EventRegistrationService (register with lockForUpdate + capacity→waitlist, confirm/cancel/waitlist/remove with waitlist auto-promotion, check-in by id or qr_token, undoCheckIn, setAttendanceStatus, myRegistrations); EventPaymentService (recordPayment validates remaining balance in transaction, markRefunded, financialSummary); EventLifecycleService (publish/close/reopen/cancel+notify participants/complete/duplicate-as-draft); EventScheduleService (sessions/speakers/buses CRUD, assignBus per-bus lockForUpdate + capacity guard); EventReportService (dashboard stats, 3 streamed CSV reports). All bound in AppServiceProvider.
-6. **API** — controllers: EventRegistrationController, EventBusController, EventScheduleController, EventPaymentController, EventDashboardController; lifecycle actions added to EventController; routes under v1 with permission middleware + throttles. Member endpoints: POST /v1/events/{id}/register-self, GET /v1/events/my-registrations.
-7. **Frontend** — api/eventRegistrations.ts; new types in types/index.ts; shared pages/admin/EventDetail.tsx (tabs: Overview stats / Participants / Payments / Buses(trip) / Schedule(conference) / Check-In with html5-qrcode scan + token paste) routed at /admin/events/:id, /assistant-admin/events/:id, /servant/events/:id; admin/Events.tsx gains status+capacity columns, Manage link, List⇄Calendar toggle (components/common/EventsCalendar.tsx month grid); member/EventDetail.tsx gains self-registration + registration card with personal QR token; components/events/* tabs + eventStatus helpers; i18n eventMgmt.* namespace EN+AR.
-8. **Tests** — tests/Feature/EventManagementTest.php: 13 tests covering create/update/publish/close/reopen, register, duplicate prevention, capacity→waitlist, cancel promotes waitlist, payments partial/full/overpay-rejected, QR check-in + undo + duplicate rejected, member 403s, bus capacity enforcement + assignment, cancelled/completed events reject registrations.
-
-## Verification (2026-08-23)
-- Backend: 111 tests passed (334 assertions), PHPStan level-max 0 errors, Pint clean.
-- Frontend: tsc --noEmit clean, ESLint 0 errors, vite production build succeeds.
-
-## Key Decisions (Events & Trips)
-- Extended the EXISTING events table additively rather than a parallel module; attendance is embedded in event_registrations (no separate event_attendance table).
-- Capacity counts pending+confirmed only; full → automatic waitlist; freeing a seat auto-promotes the earliest waitlisted registration and notifies them.
-- Registration QR tokens are 60-char random strings, unique-indexed, exposed ONLY to the owning member via resource authorization check.
-- Payment overpayment rejected at service level inside lockForUpdate transaction; refunds decrement amount_paid and recompute payment_status.
-- CSV export implemented as streamed fputcsv responses (project has no Excel/PDF package).
-
-## Next Steps
-1. Deploy: run `php artisan migrate --force` and `php artisan db:seed --class=PermissionSeeder --force` (new permission keys).
-2. Optional: servant-scoped participant visibility (currently servants manage all registrations within their church).
-
----
-
-## 📌 ANCHORED SUMMARY (2026-09-12)
-
-## Goal
-Fix first-visit vs second-visit page-load slowness and remove unsafe client-side caching of authenticated API data — WITHOUT removing lazy loading or faking latency. Evidence-first investigation of the React + Laravel + Vercel stack.
-
-## Root Causes (evidence-based)
-1. **SWR background-refresh bug** (`client.ts:99`): revalidation used bare `axios.get(config.url)` with a RELATIVE url → resolved against the SPA origin → on Vercel hit the SPA rewrite and could cache `index.html` as API data.
-2. **In-memory request cache not user-scoped**: keys were `url + params` only; cache survived logout and was shared across the session, so another account (or same account on a different token) could read the previous user's cached API responses.
-3. **PWA service worker cached ALL authenticated `/api/v1/*` responses** (NetworkFirst, up to 30 min; `api-slow-cache`/`api-fast-cache`/`api-default-cache`). Workbox cache key is URL+params only → cross-user data could be served to a different account in the same browser on timeout/offline, and served stale up to 30 min.
-4. **No data preheat**: every page was `React.lazy()` and fetched on mount → first visit = chunk download + all API round-trips + blank full-page spinner. Second visit in the same session = chunk cached by browser + request-cache HIT → the observed "first slow, second fast" pattern.
-5. **Backend N+1**: `PasswordResetRequestService::listRequests` eager-loaded `user.classe` but Resource reads `user.classe.stage` → 1 extra `stages` query per row.
-
-## Changes
-- **`frontend/src/api/client.ts`**: added a bare `networkClient` instance (no interceptors) used ONLY for SWR background refresh so relative URLs resolve against the API baseURL (fixes the index.html caching bug). Cache keys now prefixed by a deterministic FNV-1a hash of the auth token (scope) in request AND response interceptors. Added exported `clearRequestCache()`, called on 401.
-- **`frontend/src/contexts/AuthContext.tsx`**: `clearRequestCache()` on login, platformLogin, and logout.
-- **`frontend/src/lib/dataPrefetch.ts` (NEW)**: role-based (admin/assistant_admin/servant/member) in-memory-cache preheat using the EXACT params each page uses on first mount (`per_page:15`, status filters, etc.). Staggered `setTimeout` runs, failures swallowed, skips when offline. Runs once per session.
-- **`frontend/src/App.tsx`**: `RoutePrefetcher` now gets `useAuth()` and calls `preheatData(user.role)` via `setTimeout` after idle route-chunk prefetch. (Kept lazy loading + Suspense.)
-- **`frontend/vite.config.ts`**: removed the three API runtime-caching entries (`api-slow-cache`, `api-fast-cache`, `api-default-cache`); kept static asset precache + google-fonts CacheFirst + navigateFallback. Verified generated `dist/sw.js` contains no `api/v1` caching.
-- **`frontend/src/pages/servant/ScanQR.tsx`**: added missing `t` dep (pre-existing exhaustive-deps warning).
-- **`backend/app/Services/PasswordResetRequestService.php`**: eager load `user.classe.stage` (fixes N+1); `ProfileUpdateRequestService` already correct.
-
-## Verification (2026-09-12)
-- Frontend: `npx tsc -b` clean, ESLint 0 warnings/0 errors, `npm run build` succeeds (vite 8.1.0; largest route chunk `qr` 392.74 kB / 117.36 gzip — QR scan/management only).
-- PWA: `dist/sw.js` has no `api/` runtime caching (grep confirmed).
-- Backend: PHPStan level-max 0 errors on changed service, Pint passed, `PasswordResetRequestTest` 19/19 passed (73 assertions).
-
-## Key Decisions
-- No TanStack Query/Redux added; fix uses the existing in-memory cache layer (token-scoped) + preheat instead of introducing a new data layer.
-- Removed (not scoped) SW API caching because generateSW cannot key requests by Authorization header; the token-scoped in-memory cache now handles user data correctly.
-- Planned files (execution order): debug → dataPrefetch → App wiring → vite PWA → AuthContext → backend N+1.
-
-## Next Steps
-1. Measure real first-vs-second visit with browser automation/DevTools on a live deployment (chunk download, API calls, SWR refresh) and confirm preheat turns first visit into cache HITs.
-2. Verify data freshness: preheat only warms the in-memory cache; backend + TTLs (60s default, 5-min stages/classes) unchanged.
-3. Optional: prewarm `getFilteredAttendances` class-scoped variants and `getMyClassServants`/notifications once measured.
-
-## Relevant Files
-- `frontend/src/api/client.ts` — SWR fix + token-scoped cache keys + `clearRequestCache()`
-- `frontend/src/lib/dataPrefetch.ts` — role-based preheat (NEW)
-- `frontend/src/lib/requestCache.ts` — unchanged (key building moved to client)
-- `frontend/src/App.tsx` — RoutePrefetcher uses auth role + preheat timer
-- `frontend/src/contexts/AuthContext.tsx` — cache clear on login/logout/401
-- `frontend/vite.config.ts` — SW API runtime caching removed
-- `frontend/src/pages/servant/ScanQR.tsx` — lint fix
-- `backend/app/Services/PasswordResetRequestService.php` — N+1 eager-load fix
-
----
-
-## 📌 ANCHORED SUMMARY (2026-09-13)
-
-## Goal
-Fix the project-wide frontend/server-state desync (approving a campaign/application or creating/approving a stage showed stale UI until browser refresh) using the existing custom axios cache layer — no new state-management library, no `window.location.reload()` hacks.
-
-## Root Cause (evidence-based)
-1. **Response interceptor only invalidated a hardcoded subset of cache keys.** The GET in-memory cache (`lib/requestCache.ts`, TTL 60s, stale-while-revalidate 300s, per-endpoint overrides) was purged after mutations ONLY for `/users`, `/feedback`, `/events`, `/verses`, `/attendance-contexts`, `/notifications`, `/spiritual-records`, `/qr/invites`, `/password-reset-requests`, `/profile-update-requests`. Mutations touching `/platform/applications`, `/platform/dashboard`, `/stages`, `/structure`, `/classes`, `/membership-requests`, `/invite/`, `/points`, `/attendances`, `/profile`, `/storage/...` were never invalidated → the post-mutation page-level refetch/remount served a still-fresh cache → stale UI until browser refresh or TTL expiry.
-2. **SWR background-refresh race**: a background refresh that started pre-mutation could re-populate a just-invalidated cache key with pre-mutation data (no generation guard) — silently undoing an invalidation.
-3. **Duplicate mount GETs**: `StructureManagement` and `StageDetail` each had two `useEffect`s both firing `fetch()` on mount → duplicate API requests on every page load.
-
-## Changes
-- **`frontend/src/lib/requestCache.ts`**: added monotonic `getGeneration()`; `invalidateCache()` now bumps `generation` on EVERY call (even when nothing is deleted).
-- **`frontend/src/api/client.ts`**:
-  - SWR background refresh captures `refreshGeneration = getGeneration()` before firing and calls `setCache(...)` only when `getGeneration() === refreshGeneration` (stale refresh can no longer resurrect purged entries).
-  - Replaced the hardcoded if-chain with a declarative `MUTATION_CACHE_INVALIDATIONS` table (`[mutation URL fragment, cache-key patterns]`) + `invalidateForMutation()` helper; `MUTATION_SKIP_URL_FRAGMENTS` covers `/track-view` (analytics heartbeat, must not purge `/events`) and `/auth/` (handled by AuthContext).
-  - Full coverage: `/users`, `/profile`, `/profile-update-requests`, `/password-reset-requests`, `/membership-requests`, `/platform/applications`, `/platform/churches`, `/stages`, `/classes`, `/attendance-contexts`, `/verses`, `/feedback`, `/events`, `/qr/invites`, `/invite/`, `/spiritual-records`, `/points`, `/notifications`, `/attendances`, `/storage/upload-profile-image`, `/storage/upload-event-image`. A single mutation may purge multiple surfaces (approve application → applications list + dashboard counts + church data; class mutation → classes + structure + stages + users).
-- **`frontend/src/pages/admin/StructureManagement.tsx`** and **`frontend/src/pages/admin/StageDetail.tsx`**: merged the two mount effects into one debounced effect (single GET per mount, initial spinner preserved via existing `hasLoadedRef`).
-- NO backend changes; NO API changes; NO pages other than the two dedupes.
-
-## Verification (2026-09-13)
-- Frontend: `npx tsc -b` clean, `npm run lint` clean (0 warnings/errors), `npm run build` succeeds (vite 8.1.0).
-- PWA: `dist/sw.js` has no `api/v1` runtime caching (grep confirmed again).
-- Manual behavior (code-traced, not runtime): mutation response interceptor runs BEFORE the `await` resolves in handlers, so every page's existing post-mutation `fetch()`/inline-update now reflects authoritative server state; network shows one GET per mutation, no refresh required, no duplicate mount GETs on StructureManagement/StageDetail.
-
-## Key Decisions
-- Fix centrally in the mutation response interceptor rather than per page: every page already refetches or inline-updates after mutations; staleness came from the cache layer alone.
-- Declarative mutation→cache-pattern map keyed by URL fragments (substring matches cover `/users/members`, `/users/{id}`, etc. and are order-independent), matching the pre-existing offline-SWR URL-matching style.
-- Generation counter prevents stale SWR refreshes from undoing invalidations — required for invalidation correctness, not just coverage.
-- Auth lifecycle is still handled by `AuthContext` (cache cleared on login/logout), so `/auth/` mutations are excluded rather than double-handled.
-
-## Next Steps
-1. Live manual acceptance: PlatformDashboard approve → PlatformApplicationDetail navigate-back shows new status without refresh; StructureManagement create stage appears immediately; StageDetail class create/update/delete reflected; reject flows; confirm single network GET after each mutation, no cross-tenant scope leakage.
-2. Consider adding Vitest to `frontend/package.json` if a cache-interceptor unit test is desired (no test framework currently configured).
-
-## Relevant Files
-- `frontend/src/api/client.ts` — `MUTATION_CACHE_INVALIDATIONS`, `MUTATION_SKIP_URL_FRAGMENTS`, `invalidateForMutation()`, SWR generation guard
-- `frontend/src/lib/requestCache.ts` — `generation`/`getGeneration()`, `invalidateCache()` bumps on every call
-- `frontend/src/pages/admin/StructureManagement.tsx` — single debounced mount effect
-- `frontend/src/pages/admin/StageDetail.tsx` — single debounced mount effect
-
----
-
-## 📌 ANCHORED SUMMARY (2026-09-14)
-
-## Goal
-Complete frontend i18n audit: en/ar key parity, localize every user-visible string, locale-aware dates, RTL layout correctness, and CI-enforced parity validation.
-
-## Progress
-### Done (2026-09-14 — French-style finalization of the i18n audit)
-1. **Exact key parity** — EN 1351 = AR 1351, zero EN-only/AR-only keys, all 1045 static `t("...")` keys used in code resolve in both locales; 17 dynamic `t(\`${}\`)` templates audited and all resolve. Full `${interpolation}` keys added with both locales (e.g. `qr.moreCount`, `leaderboard.attendances`).
-2. **New `frontend/scripts/check-i18n.mjs`** — computes flat key sets from en.json/ar.json, asserts exact parity, asserts every static key used in `src/**` exists in BOTH locales, reports dynamic templates, exits 1 on any failure. Wired as `npm run check:i18n` and added as a step in `frontend-lint` job of `.github/workflows/ci.yml` (after `eslint`).
-3. **Locale-aware date/time formatting** — new `frontend/src/lib/dates.ts` exporting `fmtDate`/`fmtTime`/`fmtDateTime` driving `toLocaleDateString('ar-EG' | 'en-US')` off `i18n.language`, with safe `'-'` fallback for null/NaN. Codemod applied across **33 files / 40 call sites** replacing `new Date(x).toLocale*(String)()` — no date/time now renders in the wrong locale. (Note: codemod initially emitted `import { Date }` shadowing the global — corrected to `fmtDate`/`fmtTime`/`fmtDateTime`; verified via `tsc -b`.)
-4. **RTL text-alignment** — replaced hardcoded `text-left`/`text-right` with logical `text-start`/`text-end` in AbsentMembers table header, ClasseDetail assign buttons, QRManagement/QRInvites creator links, SpiritualLog, ScanQR, LeaderboardRow points column (Tailwind v4 logical props).
-5. **Directional arrows RTL** — applied existing `.rtl-flip` utility (`[dir="rtl"] .rtl-flip { transform: scaleX(-1) }`, index.css:627) to back-arrows and prev/next chevrons in ForgotPassword, member/EventDetail, StageDetail, ClasseDetail, JoinNow, PlatformApplicationDetail, ApplicationStatus, ProfileUpdateRequests (old→new arrow), SpiritualLog month-nav + row chevrons, servant/Attendance pagination. DataTable + UserDetail/MemberDetail already used `dir === 'rtl'` swap (left as legit layout logic).
-6. **Literal strings localized** — LeaderboardRow (pts → `leaderboard.points`, attendances count → interpolated key), PodiumCard (points), QRManagement + QRInvites user popovers (`Class:`/`Stage:` → `qr.classLabel`/`qr.stageLabel`, `+N more` → `qr.moreCount`), and the 6 language-toggle buttons (Header, PublicHeader, Sidebar, ApplicationStatus, InviteLanding, InviteRegister) now render `{t('language.' + (language === 'en' ? 'ar' : 'en'))}` instead of `'AR'`/`'EN'`.
-7. **Confirmed correct / left as-is (documented decisions)**:
-   - `ChurchDeletion.tsx` `'DELETE CHURCH'` typed-token — backend `app/Http/Requests/DeleteChurchRequest.php:22` validates `'in:DELETE CHURCH'`. It is an API-contract/security token, NOT display text → kept literal (backend lang files also reference it as literal).
-   - `ScanQR.tsx:413` `language === 'ar' ? contexts.find(...)?.name_ar ...` — legitimate bilingual-data selection (backend `name_ar` field), same pattern as `lib/contextLabels.ts`.
-   - Header/column defs, `label:`/`placeholder:` literals — none found unlocalized; all `header:` use `t()`.
-   - EventReservationRequestsTab filter values (`booked`/`not_reserved`/`thinking`) and VerifyEmail (`success`/`error`) are internal state, mapped via `t()` — false positives.
-
-## Key Decisions
-- Keep i18next/react-i18next; EN stays `fallbackLng` safety net but parity makes fallback never trigger.
-- Backend enums/statuses/roles stay machine values; label mapping via i18n (existing `roleTranslationKey()` in `lib/roles.ts`).
-- Logical CSS props (`text-start/end`) over RTL conditionals for alignment; `rtl-flip` class (already a repo utility) for directional icons; `dir === 'rtl'` swaps kept only where files already handled it.
-- Locale is `ar-EG` for Arabic (Coptic-Church Egypt context uses Western numerals) and `en-US` for English; numbers via `.toLocaleString()` remain acceptable since ar-EG keeps Latin digits.
-- Type-confirmation safety token stays untranslated because it is validated by the backend (API contract), consistent with the audit rule "never translate API contracts".
-
-## Verification (2026-09-14)
-- `npm run check:i18n` — PASS (1351 = 1351 keys, 1045/1045 used static keys resolve, 17 dynamic templates listed).
-- `npm run lint` — 0 errors/0 warnings.
-- `npx tsc -b` — clean.
-- `npm run build` — succeeds (vite 8.1.0, 384 modules; dates helper chunk `dates-*.js` 0.43 kB).
-- Backend untouched this session (no backend file modified → no backend regression run; 244/704 suite remains as previously verified).
-
-## Next Steps
-1. CI will now fail on any en/ar key-parity drift or missing used key — monitor first frontend PR.
-2. Optional: add Arabic-label visual QA script (ar.json spot checks) and enforce dynamic-template resolution (currently reported [INFO]).
-3. Optional: extend `lib/dates.ts` with `fmtNumber`/`fmtRelative` if Arabic-Indic digit locales are ever targeted.
+*This file is compact by design. Move verbose history to `AUDIT_CHANGES.md`.*

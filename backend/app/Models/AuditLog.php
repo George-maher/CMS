@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Casts\AuditLogValues;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
@@ -38,8 +39,8 @@ class AuditLog extends Model
     protected function casts(): array
     {
         return [
-            'old_values' => 'array',
-            'new_values' => 'array',
+            'old_values' => AuditLogValues::class,
+            'new_values' => AuditLogValues::class,
         ];
     }
 
