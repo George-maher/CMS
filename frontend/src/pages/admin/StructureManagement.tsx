@@ -9,6 +9,9 @@ import { listStructureClasses } from '@/api/structure'
 import { listStages, createStage, updateStage, deleteStage, bulkCreateStages } from '@/api/stages'
 import { logCatch } from '@/lib/debug'
 
+const BULK_MIN = 1
+const BULK_MAX = 50
+
 export default function StructureManagement() {
   const { t } = useTranslation()
   const navigate = useNavigate()
@@ -24,6 +27,9 @@ export default function StructureManagement() {
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState<Stage | null>(null)
   const [form, setForm] = useState({ name: '' })
+  const [mode, setMode] = useState<'single' | 'multiple'>('single')
+  const [bulkCount, setBulkCount] = useState(3)
+  const [saving, setSaving] = useState(false)
 
   const fetch = useCallback(async (q?: string, showSpinner = false) => {
     if (showSpinner) setLoading(true)
@@ -52,29 +58,69 @@ export default function StructureManagement() {
     return () => clearTimeout(timer)
   }, [search, fetch])
 
-  const openCreate = () => { setEditing(null); setForm({ name: '' }); setShowModal(true) }
+  const openCreate = () => {
+    setEditing(null)
+    setForm({ name: '' })
+    setMode('single')
+    setBulkCount(3)
+    setShowModal(true)
+  }
   const openEdit = (e: React.MouseEvent, item: Stage) => {
     e.stopPropagation()
     setEditing(item)
     setForm({ name: item.name })
+    setMode('single')
     setShowModal(true)
   }
 
   const handleSave = async () => {
-    if (!form.name.trim()) return toast.error(t('common.failedToSave'))
-    try {
-      if (editing) {
+    if (saving) return
+    if (editing) {
+      if (!form.name.trim()) return toast.error(t('common.failedToSave'))
+      setSaving(true)
+      try {
         await updateStage(editing.id, form)
         toast.success(t('structure.stageUpdated'))
-      } else {
+        setShowModal(false)
+        fetch()
+      } catch (e) {
+        logCatch('StructureManagement.save', e)
+        toast.error(t('common.failedToSave'))
+      } finally {
+        setSaving(false)
+      }
+      return
+    }
+    if (mode === 'single') {
+      if (!form.name.trim()) return toast.error(t('common.failedToSave'))
+      setSaving(true)
+      try {
         await createStage(form)
         toast.success(t('structure.stageCreated'))
+        setShowModal(false)
+        fetch()
+      } catch (e) {
+        logCatch('StructureManagement.save', e)
+        toast.error(t('common.failedToSave'))
+      } finally {
+        setSaving(false)
       }
+      return
+    }
+    if (!Number.isInteger(bulkCount) || bulkCount < BULK_MIN || bulkCount > BULK_MAX) {
+      return toast.error(t('structure.invalidCount'))
+    }
+    setSaving(true)
+    try {
+      await bulkCreateStages(bulkCount)
+      toast.success(t('structure.stagesCreated'))
       setShowModal(false)
       fetch()
     } catch (e) {
-      logCatch('StructureManagement.save', e)
+      logCatch('StructureManagement.bulkSave', e)
       toast.error(t('common.failedToSave'))
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -92,11 +138,14 @@ export default function StructureManagement() {
   }
 
   const handleBulkCreate = async () => {
-    if (stageCount < 1 || stageCount > 50) return
+    if (creating) return
+    if (!Number.isInteger(stageCount) || stageCount < BULK_MIN || stageCount > BULK_MAX) {
+      return toast.error(t('structure.invalidCount'))
+    }
     setCreating(true)
     try {
       await bulkCreateStages(stageCount)
-      toast.success(t('structure.stageCreated'))
+      toast.success(t('structure.stagesCreated'))
       setShowWizard(false)
       fetch()
     } catch {
@@ -107,37 +156,30 @@ export default function StructureManagement() {
   }
 
   const openStage = (id: number) => navigate(`/admin/stages/${id}`)
-
-  if (loading && stages.length === 0) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary-600 border-t-transparent" />
-      </div>
-    )
-  }
+  const previewCount = Math.min(Math.max(bulkCount || 0, 0), 10)
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* Header — ALWAYS visible: never conditional on stages.length, search, or loading */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">{t('structure.title')}</h1>
           <p className="text-sm text-secondary mt-1">{t('structure.subtitle')}</p>
         </div>
-        <div className="flex gap-2">
-          {stages.length === 0 && (
-            <button onClick={() => setShowWizard(true)} className="btn-primary btn-md">
+        <div className="flex flex-wrap gap-2">
+          {stages.length === 0 && !loading && (
+            <button onClick={() => setShowWizard(true)} className="btn-secondary btn-md">
               <Layers className="h-4 w-4" /> {t('structure.setupWizard')}
             </button>
           )}
-          <button onClick={openCreate} className="btn-primary btn-md">
-            <Plus className="h-4 w-4" /> {t('structure.createStage')}
+          <button onClick={openCreate} aria-label={t('structure.addStage')} className="btn-primary btn-md shrink-0">
+            <Plus className="h-4 w-4" /> {t('structure.addStage')}
           </button>
         </div>
       </div>
 
       {/* Setup Wizard */}
-      {stages.length === 0 && !showWizard && (
+      {stages.length === 0 && !loading && !showWizard && (
         <div className="card p-8 text-center">
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary-100 dark:bg-primary-900/30">
             <Layers className="h-8 w-8 text-primary-600 dark:text-primary-400" />
@@ -151,26 +193,29 @@ export default function StructureManagement() {
       )}
 
       {/* Wizard Modal */}
-      <Modal isOpen={showWizard} onClose={() => setShowWizard(false)} title={t('structure.setupWizard')}>
+      <Modal isOpen={showWizard} onClose={() => !creating && setShowWizard(false)} title={t('structure.setupWizard')}>
         <div className="space-y-4">
           <p className="text-sm text-secondary">{t('structure.setupWizardDesc')}</p>
+          <label htmlFor="wizard-stage-count" className="block text-sm font-medium">{t('structure.stageCount')}</label>
           <input
+            id="wizard-stage-count"
             type="number"
-            min={1}
-            max={50}
+            min={BULK_MIN}
+            max={BULK_MAX}
             value={stageCount}
             onChange={(e) => setStageCount(parseInt(e.target.value) || 1)}
             className="input-field"
             placeholder={t('structure.stageCountPlaceholder')}
+            disabled={creating}
           />
-          <button onClick={handleBulkCreate} disabled={creating} className="btn-primary btn-md w-full">
+          <button onClick={handleBulkCreate} disabled={creating} className="btn-primary btn-md w-full disabled:opacity-60">
             {creating ? t('common.saving') : t('structure.createStages')}
           </button>
         </div>
       </Modal>
 
-      {/* Search */}
-      {stages.length > 0 && (
+      {/* Search — visible whenever there is data or a query, independent of loading */}
+      {(stages.length > 0 || search) && (
         <div className="relative max-w-md">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
           <input
@@ -178,12 +223,16 @@ export default function StructureManagement() {
             onChange={(e) => setSearch(e.target.value)}
             className="input-field pl-10"
             placeholder={t('structure.searchStages')}
+            aria-label={t('structure.searchStages')}
           />
         </div>
       )}
 
-      {/* Stage Cards */}
-      {stages.length > 0 ? (
+      {loading && stages.length === 0 ? (
+        <div className="flex items-center justify-center py-20" role="status" aria-label={t('common.loading')}>
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary-600 border-t-transparent" />
+        </div>
+      ) : stages.length > 0 ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {stages.map((stage) => (
             <div key={stage.id} className="card hover:shadow-sm transition-shadow">
@@ -206,10 +255,10 @@ export default function StructureManagement() {
                   <button onClick={() => openStage(stage.id)} className="btn-sm btn-ghost gap-1.5 flex-1">
                     <BookOpen className="h-3.5 w-3.5" /> {t('structure.openStage')}
                   </button>
-                  <button onClick={(e) => openEdit(e, stage)} className="btn-sm btn-ghost gap-1.5" title={t('common.edit')}>
+                  <button onClick={(e) => openEdit(e, stage)} className="btn-sm btn-ghost gap-1.5" title={t('common.edit')} aria-label={t('common.edit')}>
                     <Pencil className="h-3.5 w-3.5" />
                   </button>
-                  <button onClick={(e) => handleDelete(e, stage.id)} className="btn-sm btn-ghost gap-1.5 text-danger hover:bg-red-50 dark:hover:bg-red-900/20" title={t('common.delete')}>
+                  <button onClick={(e) => handleDelete(e, stage.id)} className="btn-sm btn-ghost gap-1.5 text-danger hover:bg-red-50 dark:hover:bg-red-900/20" title={t('common.delete')} aria-label={t('common.delete')}>
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>
                 </div>
@@ -221,25 +270,84 @@ export default function StructureManagement() {
         <p className="py-12 text-center text-muted">{t('structure.noStages')}</p>
       )}
 
-      {/* Create / Edit Modal */}
+      {/* Create / Edit Modal — single + bulk choice */}
       <Modal
         isOpen={showModal}
-        onClose={() => setShowModal(false)}
+        onClose={() => !saving && setShowModal(false)}
         title={editing ? t('structure.editStage') : t('structure.createStage')}
         footer={
           <div className="flex gap-3 w-full">
-            <button onClick={() => setShowModal(false)} className="flex-1 btn-secondary btn-md">{t('common.cancel')}</button>
-            <button onClick={handleSave} className="flex-1 btn-primary btn-md">{editing ? t('common.update') : t('common.create')}</button>
+            <button onClick={() => setShowModal(false)} disabled={saving} className="flex-1 btn-secondary btn-md disabled:opacity-60">{t('common.cancel')}</button>
+            <button onClick={handleSave} disabled={saving} className="flex-1 btn-primary btn-md disabled:opacity-60">
+              {saving ? t('common.creating') : editing ? t('common.update') : mode === 'single' ? t('common.create') : t('structure.createStages')}
+            </button>
           </div>
         }
       >
         <div className="space-y-4">
-          <input
-            placeholder={t('structure.stageNamePlaceholder')}
-            value={form.name}
-            onChange={(e) => setForm({ name: e.target.value })}
-            className="input-field"
-          />
+          {!editing && (
+            <div className="flex gap-2" role="tablist" aria-label={t('structure.createStage')}>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={mode === 'single'}
+                onClick={() => setMode('single')}
+                className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${mode === 'single' ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30' : 'border-border hover:bg-surface-secondary'}`}
+              >
+                {t('structure.createSingle')}
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={mode === 'multiple'}
+                onClick={() => setMode('multiple')}
+                className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${mode === 'multiple' ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30' : 'border-border hover:bg-surface-secondary'}`}
+              >
+                {t('structure.createMultiple')}
+              </button>
+            </div>
+          )}
+          {editing || mode === 'single' ? (
+            <div>
+              <label htmlFor="stage-name" className="mb-1 block text-sm font-medium">{t('structure.stageName')}</label>
+              <input
+                id="stage-name"
+                placeholder={t('structure.stageNamePlaceholder')}
+                value={form.name}
+                onChange={(e) => setForm({ name: e.target.value })}
+                className="input-field"
+                disabled={saving}
+              />
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div>
+                <label htmlFor="bulk-stage-count" className="mb-1 block text-sm font-medium">{t('structure.stageCount')}</label>
+                <input
+                  id="bulk-stage-count"
+                  type="number"
+                  min={BULK_MIN}
+                  max={BULK_MAX}
+                  value={bulkCount}
+                  onChange={(e) => setBulkCount(parseInt(e.target.value) || 0)}
+                  className="input-field"
+                  placeholder={t('structure.stageCountPlaceholder')}
+                  disabled={saving}
+                />
+              </div>
+              {bulkCount >= BULK_MIN && (
+                <div className="rounded-lg border border-border bg-surface-secondary p-3">
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted">{t('structure.bulkPreview')}</p>
+                  <ul className="mt-2 max-h-40 space-y-1 overflow-y-auto text-sm">
+                    {Array.from({ length: previewCount }, (_, i) => (
+                      <li key={i} className="truncate">• {t('structure.stage')} {i + 1}</li>
+                    ))}
+                    {bulkCount > previewCount && <li className="text-muted">… ({bulkCount})</li>}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </Modal>
     </div>

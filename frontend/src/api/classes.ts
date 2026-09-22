@@ -17,6 +17,11 @@ export async function createClasse(payload: { stage_id: number; name: string; de
   return data.data
 }
 
+export async function bulkCreateClasses(stageId: number, count: number): Promise<Classe[]> {
+  const { data } = await client.post<{ data: Classe[] }>(`/stages/${stageId}/classes/bulk`, { count })
+  return data.data
+}
+
 export async function updateClasse(id: number, payload: Partial<Classe>): Promise<Classe> {
   const { data } = await client.put<{ data: Classe }>(`/classes/${id}`, payload)
   return data.data

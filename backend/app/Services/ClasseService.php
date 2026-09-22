@@ -11,7 +11,9 @@ use App\Http\Resources\ClasseDetailResource;
 use App\Http\Resources\ClasseResource;
 use App\Http\Resources\UserResource;
 use App\Models\Classe;
+use App\Models\Stage;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class ClasseService implements ClasseServiceInterface
@@ -62,6 +64,69 @@ class ClasseService implements ClasseServiceInterface
         return [
             'data' => new ClasseResource($classe),
         ];
+    }
+
+    /** @return array<string, mixed> */
+    public function createBulk(int $stageId, int $count): array
+    {
+        /** @var User $user */
+        $user = auth()->user();
+        /** @var int $churchId */
+        $churchId = $user->church_id;
+
+        // Stage is resolved server-side and must belong to the actor's
+        // church. Never trust a client-supplied church_id/stage_id pairing:
+        // cross-stage writes are rejected here even if routing/policy is
+        // bypassed (defense-in-depth alongside ClassePolicy::create).
+        $stage = Stage::byChurch()->find($stageId);
+        if (! $stage) {
+            throw ValidationException::withMessages([
+                'stage' => ['Stage not found.'],
+            ]);
+        }
+
+        if (! $this->scopeResolver->canAccessStage($user, $stage)) {
+            throw ValidationException::withMessages([
+                'stage' => ['Forbidden.'],
+            ]);
+        }
+
+        // Atomic: classes have a UNIQUE(church_id, stage_id, name)
+        // constraint, so any collision rolls back the whole batch instead
+        // of leaving partially created data.
+        return DB::transaction(function () use ($churchId, $stage, $count): array {
+            /** @var int $maxOrder */
+            $maxOrder = Classe::byChurch()
+                ->where('stage_id', $stage->id)
+                ->max('display_order') ?? 0;
+            /** @var array<string, bool> $taken */
+            $taken = Classe::byChurch()
+                ->where('stage_id', $stage->id)
+                ->pluck('name')
+                ->flip()
+                ->toArray();
+            $classes = [];
+            $suffix = 1;
+
+            for ($i = 0; $i < $count; $i++) {
+                do {
+                    $name = "Class {$suffix}";
+                    $suffix++;
+                } while (isset($taken[$name]));
+                $taken[$name] = true;
+
+                $classes[] = $this->classeRepository->create([
+                    'church_id' => $churchId,
+                    'stage_id' => $stage->id,
+                    'name' => $name,
+                    'display_order' => $maxOrder + $i + 1,
+                ]);
+            }
+
+            return [
+                'data' => ClasseResource::collection(collect($classes)),
+            ];
+        });
     }
 
     /** @param array<string, mixed> $data */

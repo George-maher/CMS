@@ -383,5 +383,49 @@ Must use:
 See `AUDIT_CHANGES.md` for detailed change history.
 
 ---
+## Documentation-First Rule
+
+When working on this project, NEVER guess about the behavior, API, syntax, configuration, limitations, or recommended usage of any technology when you are not confident.
+
+If you encounter an error, unexpected behavior, unfamiliar API, unclear implementation, configuration issue, compatibility issue, version-specific issue, or any technical problem you do not fully understand:
+
+1. Identify the technology responsible for the problem.
+2. Identify the exact version being used.
+3. Consult the official documentation for that technology.
+4. Prefer documentation matching the exact version used by the project.
+5. Read the relevant documentation and understand the documented behavior.
+6. Use that information to determine the root cause.
+7. Implement the solution based on the documented behavior.
+8. Test the solution.
+9. Verify that the original problem is actually fixed.
+10. If the solution does not work, return to the official documentation and investigate further instead of randomly changing code.
+
+This applies to every technology used in the project, including frameworks, libraries, packages, APIs, databases, SDKs, runtimes, tools, and platforms such as Laravel, PHP, React, TypeScript, JavaScript, Node.js, Python, FastAPI, PostgreSQL, MySQL, Redis, Docker, Tailwind, Vite, Supabase, Firebase, and any other technology used by the project.
+
+Always prefer sources in this order:
+
+1. Official documentation.
+2. Official documentation for the exact version.
+3. Official API/reference documentation.
+4. Official repository/source code.
+5. Official migration guides and release notes.
+6. Official issue tracker.
+7. Reliable community sources only when official sources are insufficient.
+
+Do NOT blindly use documentation for a different major version.
+
+Do NOT immediately install packages, change architecture, downgrade dependencies, upgrade dependencies, or create workarounds simply because something is not working.
+
+First understand the actual cause.
+
+Before making a technology-specific assumption, ask:
+
+"Do I know this because I verified it from the official documentation/source, or am I assuming it?"
+
+If you are assuming and the issue involves technology behavior, STOP and check the documentation first.
+
+After every documentation-based fix, test and verify the result.
+
+Never claim that a problem is solved without verification.
 
 *This file is compact by design. Move verbose history to `AUDIT_CHANGES.md`.*

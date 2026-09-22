@@ -14,6 +14,9 @@ interface ClasseServiceInterface
     /** @return array<string, mixed> */
     public function create(array $data): array;
 
+    /** @return array<string, mixed> */
+    public function createBulk(int $stageId, int $count): array;
+
     /** @param array<string, mixed> $data */
     public function update(int $id, array $data): bool;
 

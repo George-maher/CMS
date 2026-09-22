@@ -12,6 +12,7 @@ use App\Models\Stage;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class StageService implements StageServiceInterface
@@ -97,22 +98,36 @@ class StageService implements StageServiceInterface
     /** @return array<string, mixed> */
     public function createBulk(int $churchId, int $count): array
     {
-        /** @var int $maxOrder */
-        $maxOrder = Stage::byChurch($churchId)->max('display_order') ?? 0;
-        $stages = [];
+        // Atomic bulk operation: all stages are created or none (ROLLBACK
+        // on any failure). Stages have no DB-level unique name constraint,
+        // but generated names still avoid colliding with existing ones so
+        // repeated bulk runs produce distinct, predictable names.
+        return DB::transaction(function () use ($churchId, $count): array {
+            /** @var int $maxOrder */
+            $maxOrder = Stage::byChurch($churchId)->max('display_order') ?? 0;
+            /** @var array<string, bool> $taken */
+            $taken = Stage::byChurch($churchId)->pluck('name')->flip()->toArray();
+            $stages = [];
+            $suffix = 1;
 
-        for ($i = 1; $i <= $count; $i++) {
-            $stage = $this->stageRepository->create([
-                'church_id' => $churchId,
-                'name' => "Stage $i",
-                'display_order' => $maxOrder + $i,
-            ]);
-            $stages[] = $stage;
-        }
+            for ($i = 0; $i < $count; $i++) {
+                do {
+                    $name = "Stage {$suffix}";
+                    $suffix++;
+                } while (isset($taken[$name]));
+                $taken[$name] = true;
 
-        return [
-            'data' => StageResource::collection(collect($stages)),
-        ];
+                $stages[] = $this->stageRepository->create([
+                    'church_id' => $churchId,
+                    'name' => $name,
+                    'display_order' => $maxOrder + $i + 1,
+                ]);
+            }
+
+            return [
+                'data' => StageResource::collection(collect($stages)),
+            ];
+        });
     }
 
     /** @param array<string, mixed> $data */

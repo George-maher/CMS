@@ -697,6 +697,8 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'approval', 'throttle:api'])->g
         /*
         | Classes — full CRUD + assignments + order
         */
+        Route::post('/stages/{id}/classes/bulk', [ClasseController::class, 'bulkCreate'])
+            ->middleware('throttle:structure-crud');
         Route::post('/classes', [ClasseController::class, 'store'])
             ->middleware('throttle:structure-crud');
         Route::put('/classes/{id}', [ClasseController::class, 'update'])

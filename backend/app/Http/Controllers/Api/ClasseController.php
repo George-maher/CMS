@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Contracts\ClasseServiceInterface;
 use App\Contracts\ScopeResolverInterface;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\BulkCreateClassesRequest;
 use App\Http\Requests\StoreClasseRequest;
 use App\Http\Requests\UpdateClasseRequest;
 use App\Http\Resources\ClasseResource;
@@ -61,6 +62,25 @@ class ClasseController extends Controller
 
         return response()->json([
             'message' => 'Class created successfully.',
+            'data' => $result['data'],
+        ], 201);
+    }
+
+    public function bulkCreate(BulkCreateClassesRequest $request, int $id): JsonResponse
+    {
+        // Stage comes from the URL, never from the payload. Authorization
+        // is checked against the resolved Stage model so a Stage Admin
+        // cannot create classes in another stage by tampering with input.
+        $stage = Stage::query()->find($id);
+        if ($stage === null) {
+            return response()->json(['message' => 'Stage not found.'], 404);
+        }
+        $this->authorize('create', $stage);
+
+        $result = $this->classeService->createBulk($stage->id, $request->integer('count'));
+
+        return response()->json([
+            'message' => 'Classes created successfully.',
             'data' => $result['data'],
         ], 201);
     }
