@@ -383,6 +383,23 @@ class StageAdminScopeTest extends TestCase
         $response->assertStatus(403);
     }
 
+    public function test_stage_admin_cannot_reorder_class_from_other_stage(): void
+    {
+        $s = $this->makeScenario();
+        $originalOrder = $s['prepClasse']->display_order;
+
+        $response = $this->authAs($s['secAdminToken'])
+            ->postJson('/api/v1/classes/reorder', [
+                'ordered_ids' => [$s['secClasse']->id, $s['prepClasse']->id],
+            ]);
+
+        $response->assertStatus(422);
+        $this->assertDatabaseHas('classes', [
+            'id' => $s['prepClasse']->id,
+            'display_order' => $originalOrder,
+        ]);
+    }
+
     // ---------------------------------------------------------------
     // E. Assignments — stage boundary
     // ---------------------------------------------------------------

@@ -13,6 +13,8 @@ interface EventRegistrationRepositoryInterface
 
     public function findByToken(string $token): ?EventRegistration;
 
+    public function findByTokenForEvent(Event $event, string $token): ?EventRegistration;
+
     public function findById(int $id): ?EventRegistration;
 
     /** @param array<string, mixed> $data */

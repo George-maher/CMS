@@ -77,7 +77,7 @@ class SupabaseStorageService implements StorageServiceInterface
         return $key;
     }
 
-    public function deleteFile(string $url): bool
+    public function deleteFile(string $url, string $bucket): bool
     {
         if (empty($url)) {
             return false;
@@ -92,7 +92,16 @@ class SupabaseStorageService implements StorageServiceInterface
                 return false;
             }
 
-            $bucket = $this->extractBucketFromKey($key);
+            $urlBucket = $this->extractBucketFromKey($key);
+            if ($urlBucket !== $bucket) {
+                Log::warning('Rejected storage mutation for mismatched bucket', [
+                    'authorized_bucket' => $bucket,
+                    'url_bucket' => $urlBucket,
+                ]);
+
+                return false;
+            }
+
             $objectPath = $this->extractObjectPathFromKey($key);
 
             $response = Http::withHeaders($this->authHeaders())
@@ -127,14 +136,14 @@ class SupabaseStorageService implements StorageServiceInterface
             return false;
         } catch (ConnectionException $e) {
             Log::error('Network error deleting file from Supabase Storage', [
-                'url' => $url,
+                'bucket' => $bucket,
                 'error' => $e->getMessage(),
             ]);
 
             return false;
         } catch (\Exception $e) {
             Log::warning('Failed to delete file from storage', [
-                'url' => $url,
+                'bucket' => $bucket,
                 'error' => $e->getMessage(),
             ]);
 
@@ -144,7 +153,9 @@ class SupabaseStorageService implements StorageServiceInterface
 
     public function replaceFile(string $oldUrl, UploadedFile $newFile, string $bucket, ?string $path = null): string
     {
-        $this->deleteFile($oldUrl);
+        if (! $this->deleteFile($oldUrl, $bucket)) {
+            throw new \InvalidArgumentException('The existing storage object is invalid or outside the authorized bucket.');
+        }
 
         return $this->uploadImage($newFile, $bucket, $path);
     }

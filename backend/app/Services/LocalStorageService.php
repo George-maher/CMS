@@ -80,7 +80,7 @@ class LocalStorageService implements StorageServiceInterface
         return $key;
     }
 
-    public function deleteFile(string $url): bool
+    public function deleteFile(string $url, ?string $bucket = null): bool
     {
         if (empty($url)) {
             return false;

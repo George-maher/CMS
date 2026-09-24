@@ -157,7 +157,6 @@ class StorageController extends Controller
 
         Log::info('File replaced in storage', [
             'bucket' => $bucket,
-            'old_url' => $request->input('old_url'),
             'new_url' => $url,
         ]);
 
@@ -182,7 +181,7 @@ class StorageController extends Controller
 
         /** @var string $fileUrl */
         $fileUrl = $request->input('url');
-        $deleted = $this->storageService->deleteFile($fileUrl);
+        $deleted = $this->storageService->deleteFile($fileUrl, $bucket);
 
         if (! $deleted) {
             return response()->json([
@@ -192,7 +191,7 @@ class StorageController extends Controller
 
         Log::info('File deleted from storage', [
             'bucket' => $bucket,
-            'url' => $request->input('url'),
+            'bucket' => $bucket,
         ]);
 
         return response()->json([

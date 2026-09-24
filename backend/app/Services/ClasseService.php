@@ -255,8 +255,23 @@ class ClasseService implements ClasseServiceInterface
     }
 
     /** @param array<int, int> $orderedIds */
-    public function updateOrder(array $orderedIds): bool
+    public function updateOrder(array $orderedIds, User $actor): bool
     {
+        $classes = Classe::query()->whereIn('id', $orderedIds)->get();
+        if ($classes->count() !== count(array_unique($orderedIds))) {
+            throw ValidationException::withMessages([
+                'ordered_ids' => ['One or more classes were not found.'],
+            ]);
+        }
+
+        foreach ($classes as $classe) {
+            if (! $this->scopeResolver->canAccessClass($actor, $classe)) {
+                throw ValidationException::withMessages([
+                    'ordered_ids' => ['One or more classes are outside your authorized scope.'],
+                ]);
+            }
+        }
+
         return $this->classeRepository->updateOrder($orderedIds);
     }
 

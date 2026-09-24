@@ -3,6 +3,7 @@
 use App\Exceptions\ChurchDeletionException;
 use App\Http\Middleware\CheckApproval;
 use App\Http\Middleware\EnsureApproval;
+use App\Http\Middleware\EnsureEventScope;
 use App\Http\Middleware\ForceJsonResponse;
 use App\Http\Middleware\PermissionMiddleware;
 use App\Http\Middleware\RequireReauth;
@@ -34,7 +35,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'role' => RoleMiddleware::class,
             'permission' => PermissionMiddleware::class,
             'approved' => CheckApproval::class,
-            'approval' => EnsureApproval::class,
+                'approval' => EnsureApproval::class,
+                'event.scope' => EnsureEventScope::class,
             'track.activity' => TrackActivity::class,
             'reauth' => RequireReauth::class,
         ]);

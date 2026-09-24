@@ -2,6 +2,8 @@
 
 namespace App\Contracts;
 
+use App\Models\User;
+
 interface ClasseServiceInterface
 {
     /** @return array<string, mixed> */
@@ -35,7 +37,7 @@ interface ClasseServiceInterface
     public function removeServant(int $classeId, int $servantId): array;
 
     /** @param array<int, int> $orderedIds */
-    public function updateOrder(array $orderedIds): bool;
+    public function updateOrder(array $orderedIds, User $actor): bool;
 
     /** @return array<string, mixed> */
     public function getMembers(int $classeId, int $perPage = 15): array;

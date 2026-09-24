@@ -6,6 +6,7 @@ use App\Enums\UserRole;
 use App\Models\Church;
 use App\Models\Permission;
 use App\Models\User;
+use App\Services\SupabaseStorageService;
 use Database\Seeders\PermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -178,5 +179,21 @@ class StorageEndpointAuthorizationTest extends TestCase
         $this->postJson('/api/v1/storage/upload-document', [
             'file' => $this->makePng(),
         ])->assertUnauthorized();
+    }
+
+    public function test_supabase_storage_rejects_url_bucket_mismatch_before_mutation(): void
+    {
+        config([
+            'supabase-storage.project_url' => 'https://project.supabase.co',
+            'supabase-storage.service_role_key' => 'test-key',
+            'supabase-storage.base_url' => '',
+        ]);
+
+        $service = new SupabaseStorageService;
+
+        $this->assertFalse($service->deleteFile(
+            'https://project.supabase.co/storage/v1/object/public/events/event.png',
+            'profiles',
+        ));
     }
 }

@@ -1,14 +1,13 @@
 #!/bin/sh
-# ──────────────────────────────────────────────────────
-# docker-entrypoint.sh — Church Management System
-# Production-grade bootstrap for Laravel + Nginx + PHP-FPM
-# ──────────────────────────────────────────────────────
+# Production bootstrap for Laravel + Nginx + PHP-FPM
 
 set -e
 
-# ──────────────────────────────────────────────────────
-# Phase 1: Storage & Cache Directories
-# ──────────────────────────────────────────────────────
+PRODUCTION_MODE=0
+if echo "$@" | grep -q "supervisord"; then
+    PRODUCTION_MODE=1
+fi
+
 mkdir -p /var/www/storage/framework/cache/data \
     /var/www/storage/framework/sessions \
     /var/www/storage/framework/views \
@@ -18,11 +17,10 @@ mkdir -p /var/www/storage/framework/cache/data \
 chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache
 chmod -R 775 /var/www/storage /var/www/bootstrap/cache
 
-# ──────────────────────────────────────────────────────
-# Phase 2: Environment File
-# ──────────────────────────────────────────────────────
 if [ ! -f /var/www/.env ]; then
-    if [ -f /var/www/.env.docker ]; then
+    if [ "$PRODUCTION_MODE" -eq 1 ]; then
+        echo "Production requires runtime environment variables; refusing development .env fallback."
+    elif [ -f /var/www/.env.docker ]; then
         echo "No .env found — copying from .env.docker"
         cp /var/www/.env.docker /var/www/.env
     elif [ -f /var/www/.env.example ]; then
@@ -31,20 +29,32 @@ if [ ! -f /var/www/.env ]; then
     fi
 fi
 
-# ──────────────────────────────────────────────────────
-# Phase 3: Clear Stale Bootstrap Cache
-# ──────────────────────────────────────────────────────
+if [ "$PRODUCTION_MODE" -eq 1 ]; then
+    if [ "${APP_ENV:-}" != "production" ]; then
+        echo "APP_ENV must be production in production mode."
+        exit 1
+    fi
+    if [ "${APP_DEBUG:-false}" = "true" ] || [ "${APP_DEBUG:-false}" = "1" ]; then
+        echo "APP_DEBUG must be false in production mode."
+        exit 1
+    fi
+    if [ -z "${APP_KEY:-}" ]; then
+        echo "APP_KEY must be supplied in production mode."
+        exit 1
+    fi
+    if [ "${MAIL_MAILER:-}" != "smtp" ] || [ -z "${MAIL_HOST:-}" ] || [ -z "${MAIL_PORT:-}" ] || [ -z "${MAIL_USERNAME:-}" ] || [ -z "${MAIL_PASSWORD:-}" ] || [ -z "${MAIL_FROM_ADDRESS:-}" ]; then
+        echo "Production requires authenticated SMTP mail configuration."
+        exit 1
+    fi
+fi
+
 rm -f /var/www/bootstrap/cache/config.php \
     /var/www/bootstrap/cache/packages.php \
     /var/www/bootstrap/cache/services.php
 
-# ──────────────────────────────────────────────────────
-# Phase 4: Ensure APP_KEY is Set
-# ──────────────────────────────────────────────────────
-# Priority: Railway env var > .env file > generate new
 ENV_APP_KEY="${APP_KEY:-}"
 if [ -n "$ENV_APP_KEY" ]; then
-    echo "APP_KEY found in environment (Railway) — ensuring .env is in sync"
+    echo "APP_KEY found in environment — ensuring .env is in sync"
     if [ -f /var/www/.env ]; then
         if grep -q '^APP_KEY=' /var/www/.env; then
             sed -i "s|^APP_KEY=.*|APP_KEY=$ENV_APP_KEY|" /var/www/.env
@@ -55,40 +65,41 @@ if [ -n "$ENV_APP_KEY" ]; then
 elif [ -f /var/www/.env ]; then
     FILE_APP_KEY=$(grep '^APP_KEY=' /var/www/.env | cut -d= -f2-)
     if [ -z "$FILE_APP_KEY" ] || [ "$FILE_APP_KEY" = "APP_KEY=" ] || [ "$FILE_APP_KEY" = "base64:" ]; then
+        if [ "$PRODUCTION_MODE" -eq 1 ]; then
+            echo "APP_KEY is missing in production mode."
+            exit 1
+        fi
         echo "No APP_KEY in environment or .env — generating..."
         php /var/www/artisan key:generate --force
     fi
 else
+    if [ "$PRODUCTION_MODE" -eq 1 ]; then
+        echo "No .env file found and APP_KEY is not available in production mode."
+        exit 1
+    fi
     echo "No .env file found — generating APP_KEY..."
     php /var/www/artisan key:generate --force
 fi
 
-# ──────────────────────────────────────────────────────
-# Phase 5: Database Migration (if DB is reachable)
-# ──────────────────────────────────────────────────────
-php /var/www/artisan migrate --force 2>/dev/null && echo "Migrations complete." || echo "Migrations skipped."
+if php /var/www/artisan migrate --force 2>/dev/null; then
+    echo "Migrations complete."
+elif [ "$PRODUCTION_MODE" -eq 1 ]; then
+    echo "Production migrations failed."
+    exit 1
+else
+    echo "Migrations skipped."
+fi
 
-# Seed/repair default roles and permissions when the ADMIN role has no
-# effective permissions — idempotent, so it is safe to run on every boot.
-# Gated on the admin mapping (not merely "role_permission empty") so a
-# partial/corrupt seed or a stale empty cache is also repaired on boot.
-# Prevents admins being locked out of admin routes.
 if php /var/www/artisan tinker --execute="\App\Models\Permission::clearCache(); echo \App\Models\Permission::getPermissionsForRole('admin') === [] ? 'missing' : 'seeded';" 2>/dev/null | grep -q "missing"; then
     echo "Admin role permissions missing — seeding default roles and permissions..."
     php /var/www/artisan db:seed --class=PermissionSeeder --force 2>/dev/null && echo "Permission seeder complete." || echo "Permission seeder skipped."
 fi
 
-# ──────────────────────────────────────────────────────
-# Phase 6: Storage Symlink
-# ──────────────────────────────────────────────────────
 if [ ! -L /var/www/public/storage ] && [ ! -e /var/www/public/storage ]; then
     php /var/www/artisan storage:link 2>/dev/null || true
 fi
 
-# ──────────────────────────────────────────────────────
-# Phase 7: Production Runtime Configuration
-# ──────────────────────────────────────────────────────
-if echo "$@" | grep -q "supervisord"; then
+if [ "$PRODUCTION_MODE" -eq 1 ]; then
     echo "Production mode detected — configuring Nginx for PORT ${PORT:-8080}"
 
     PORT="${PORT:-8080}"
@@ -98,13 +109,10 @@ if echo "$@" | grep -q "supervisord"; then
 
     sed -i "s/listen 8080;/listen ${PORT};/g" /etc/nginx/conf.d/default.conf
 
-    # Cache Laravel config for optimal performance
-    # NOT silenced — failures must surface in container logs
-    php /var/www/artisan config:cache || echo "WARNING: config:cache failed"
-    php /var/www/artisan route:cache || echo "WARNING: route:cache failed"
-    php /var/www/artisan view:cache || echo "WARNING: view:cache failed"
+    php /var/www/artisan config:cache
+    php /var/www/artisan route:cache
+    php /var/www/artisan view:cache
 fi
 
 echo "Application is ready."
-
 exec "$@"

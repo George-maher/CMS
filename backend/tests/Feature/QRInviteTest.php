@@ -12,6 +12,8 @@ use App\Models\Stage;
 use App\Models\User;
 use Database\Seeders\PermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
+use App\Models\QRInvite;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -173,7 +175,7 @@ class QRInviteTest extends TestCase
         $this->assertDatabaseCount('qr_invites', 2);
     }
 
-    public function test_concurrent_duplicate_request_id_never_creates_two_records(): void
+    public function test_duplicate_request_id_reuses_existing_invite(): void
     {
         $church = Church::factory()->create();
         $servant = $this->stagedServantFor($church);
@@ -193,5 +195,39 @@ class QRInviteTest extends TestCase
 
         // The DB unique index (created_by, client_request_id) is the final gate.
         $this->assertDatabaseCount('qr_invites', 1);
+    }
+
+    public function test_rotating_an_invite_invalidates_the_old_token_and_issues_a_new_four_hour_token(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-09-23 12:00:00'));
+
+        $church = Church::factory()->create();
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'church_id' => $church->id,
+            'application_status' => 'approved',
+        ]);
+        $authToken = $admin->createToken('test', [$admin->role->value])->plainTextToken;
+
+        $created = $this->withToken($authToken)->postJson('/api/v1/qr/invites', [
+            'type' => QRInviteType::AdminToServantInvite->value,
+        ])->assertCreated();
+
+        $inviteId = $created->json('data.invite.id');
+        $oldToken = QRInvite::query()->findOrFail($inviteId)->token;
+
+        $rotated = $this->withToken($authToken)
+            ->postJson("/api/v1/qr/invites/{$inviteId}/rotate")
+            ->assertOk();
+
+        $newToken = QRInvite::query()->findOrFail($inviteId)->token;
+        $this->assertNotSame($oldToken, $newToken);
+        $this->assertSame('2026-09-23 16:00:00', QRInvite::query()->findOrFail($inviteId)->expires_at->format('Y-m-d H:i:s'));
+        $this->assertStringContainsString($newToken, $rotated->json('data.url'));
+
+        $this->getJson('/api/v1/invite/'.$oldToken)->assertStatus(422);
+        $this->getJson('/api/v1/invite/'.$newToken)->assertOk();
+
+        Carbon::setTestNow();
     }
 }

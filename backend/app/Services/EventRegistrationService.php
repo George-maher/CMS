@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Contracts\EventRegistrationRepositoryInterface;
 use App\Contracts\EventRegistrationServiceInterface;
 use App\Contracts\NotificationServiceInterface;
+use App\Contracts\ScopeResolverInterface;
 use App\Enums\EventAttendanceStatus;
 use App\Enums\EventPaymentStatus;
 use App\Enums\RegistrationStatus;
@@ -20,6 +21,7 @@ class EventRegistrationService implements EventRegistrationServiceInterface
     public function __construct(
         private readonly EventRegistrationRepositoryInterface $repository,
         private readonly NotificationServiceInterface $notificationService,
+        private readonly ScopeResolverInterface $scopeResolver,
     ) {}
 
     /** @param array<string, mixed> $filters */
@@ -51,6 +53,24 @@ class EventRegistrationService implements EventRegistrationServiceInterface
             }
 
             $this->assertEventAcceptsRegistrations($locked);
+
+            /** @var User|null $targetUser */
+            $targetUser = User::query()->whereKey($userId)->first();
+            if (! $targetUser || $targetUser->church_id !== $locked->church_id) {
+                throw ValidationException::withMessages([
+                    'user_id' => ['The selected participant is not in this church.'],
+                ]);
+            }
+
+            if ($registeredBy !== null && $registeredBy !== $userId) {
+                /** @var User|null $actor */
+                $actor = User::query()->whereKey($registeredBy)->first();
+                if (! $actor || ! $this->scopeResolver->canAccessUser($actor, $targetUser)) {
+                    throw ValidationException::withMessages([
+                        'user_id' => ['You are not authorized to register this participant.'],
+                    ]);
+                }
+            }
 
             $existing = EventRegistration::query()
                 ->where('event_id', $locked->id)
@@ -195,23 +215,33 @@ class EventRegistrationService implements EventRegistrationServiceInterface
         }
     }
 
-    public function checkInByToken(string $token, int $checkedInBy): EventRegistration
+    public function checkInByToken(Event $event, string $token, int $checkedInBy): EventRegistration
     {
-        $registration = $this->repository->findByToken($token);
+        return DB::transaction(function () use ($event, $token, $checkedInBy): EventRegistration {
+            /** @var Event|null $lockedEvent */
+            $lockedEvent = Event::query()->whereKey($event->id)->lockForUpdate()->first();
+            if (! $lockedEvent) {
+                throw ValidationException::withMessages([
+                    'event' => ['Event not found.'],
+                ]);
+            }
 
-        if (! $registration) {
-            throw ValidationException::withMessages([
-                'qr_token' => ['Invalid registration QR code.'],
-            ]);
-        }
+            $registration = $this->repository->findByTokenForEvent($lockedEvent, $token);
 
-        if ($registration->status !== RegistrationStatus::Confirmed && $registration->status !== RegistrationStatus::Pending) {
-            throw ValidationException::withMessages([
-                'qr_token' => ["This registration cannot be checked in (status: {$registration->status->label()})."],
-            ]);
-        }
+            if (! $registration) {
+                throw ValidationException::withMessages([
+                    'qr_token' => ['Invalid registration QR code for this event.'],
+                ]);
+            }
 
-        return $this->checkIn($registration, $checkedInBy);
+            if ($registration->status !== RegistrationStatus::Confirmed && $registration->status !== RegistrationStatus::Pending) {
+                throw ValidationException::withMessages([
+                    'qr_token' => ["This registration cannot be checked in (status: {$registration->status->label()})."],
+                ]);
+            }
+
+            return $this->checkIn($registration, $checkedInBy);
+        });
     }
 
     public function checkIn(EventRegistration $registration, int $checkedInBy): EventRegistration

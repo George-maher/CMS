@@ -22,10 +22,19 @@ class AttendanceContextService implements AttendanceContextServiceInterface
         $user = auth()->user();
         $churchId = $user?->church_id;
 
-        $filters = [];
-        if ($churchId) {
-            $filters['church_id'] = $churchId;
+        if (! $churchId && ! $user?->isPlatformAdmin()) {
+            return [
+                'data' => AttendanceContextResource::collection([]),
+                'meta' => [
+                    'current_page' => 1,
+                    'last_page' => 1,
+                    'per_page' => $perPage,
+                    'total' => 0,
+                ],
+            ];
         }
+
+        $filters = $churchId ? ['church_id' => $churchId] : [];
 
         $paginator = $this->contextRepository->paginate($perPage, $filters);
 
@@ -47,9 +56,7 @@ class AttendanceContextService implements AttendanceContextServiceInterface
         $user = auth()->user();
         $churchId = $user?->church_id;
 
-        $contexts = $churchId
-            ? $this->contextRepository->getActiveForChurch($churchId)
-            : $this->contextRepository->getActive();
+        $contexts = $churchId ? $this->contextRepository->getActiveForChurch($churchId) : collect();
 
         $count = $contexts->count();
 

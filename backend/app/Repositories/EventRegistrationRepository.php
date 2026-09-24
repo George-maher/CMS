@@ -70,6 +70,15 @@ class EventRegistrationRepository implements EventRegistrationRepositoryInterfac
             ->first();
     }
 
+    public function findByTokenForEvent(Event $event, string $token): ?EventRegistration
+    {
+        return EventRegistration::query()
+            ->with(['user.classe', 'bus'])
+            ->where('event_id', $event->id)
+            ->where('qr_token', $token)
+            ->first();
+    }
+
     public function findById(int $id): ?EventRegistration
     {
         return EventRegistration::query()

@@ -10,7 +10,7 @@ interface StorageServiceInterface
 
     public function uploadDocument(UploadedFile $file, string $bucket, ?string $path = null): string;
 
-    public function deleteFile(string $url): bool;
+    public function deleteFile(string $url, string $bucket): bool;
 
     public function replaceFile(string $oldUrl, UploadedFile $newFile, string $bucket, ?string $path = null): string;
 

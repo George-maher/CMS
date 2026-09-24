@@ -30,6 +30,7 @@
     "church_deletion.delete_failed": "The church could not be deleted. No changes were made. Please try again or contact support.",
     "church_deletion.reauth_password_incorrect": "Your password is incorrect. Please try again.",
     "auth.failed": "Incorrect email or password.",
+    "auth.email_not_verified": "Please verify your email address before logging in.",
     "auth.login_success": "Login successful.",
     "auth.inactive": "Your account is currently inactive.",
     "auth.pending": "Your application is currently under review.",

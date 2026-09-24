@@ -92,23 +92,39 @@ function RoutePrefetcher() {
   useEffect(() => {
     if (!user) return
 
-    prefetchRoutesWhenIdle([
-      // High-frequency admin routes
-      { importFn: () => import('@/pages/admin/Dashboard'), key: 'admin-dashboard' },
-      { importFn: () => import('@/pages/admin/Users'), key: 'admin-users' },
-      { importFn: () => import('@/pages/admin/PasswordResetRequests'), key: 'admin-password-reset' },
-      { importFn: () => import('@/pages/servant/ProfileUpdateRequests'), key: 'admin-profile-update' },
-      { importFn: () => import('@/pages/admin/Events'), key: 'admin-events' },
-      { importFn: () => import('@/pages/servant/Attendance'), key: 'admin-attendance' },
-      // High-frequency servant routes
-      { importFn: () => import('@/pages/servant/Dashboard'), key: 'servant-dashboard' },
-      { importFn: () => import('@/pages/servant/Members'), key: 'servant-members' },
-      { importFn: () => import('@/pages/servant/Events'), key: 'servant-events' },
-      // High-frequency member routes
-      { importFn: () => import('@/pages/member/Dashboard'), key: 'member-dashboard' },
-      { importFn: () => import('@/pages/member/Attendance'), key: 'member-attendance' },
-      { importFn: () => import('@/pages/member/Events'), key: 'member-events' },
-    ], 150)
+    const routesByRole = {
+      admin: [
+        { importFn: () => import('@/pages/admin/Dashboard'), key: 'admin-dashboard' },
+        { importFn: () => import('@/pages/admin/Users'), key: 'admin-users' },
+        { importFn: () => import('@/pages/admin/PasswordResetRequests'), key: 'admin-password-reset' },
+        { importFn: () => import('@/pages/servant/ProfileUpdateRequests'), key: 'admin-profile-update' },
+        { importFn: () => import('@/pages/admin/Events'), key: 'admin-events' },
+      ],
+      assistant_admin: [
+        { importFn: () => import('@/pages/admin/Dashboard'), key: 'admin-dashboard' },
+        { importFn: () => import('@/pages/admin/Users'), key: 'admin-users' },
+        { importFn: () => import('@/pages/admin/Events'), key: 'admin-events' },
+      ],
+      stage_admin: [
+        { importFn: () => import('@/pages/stage/Dashboard'), key: 'stage-dashboard' },
+        { importFn: () => import('@/pages/admin/Users'), key: 'stage-users' },
+        { importFn: () => import('@/pages/admin/Events'), key: 'stage-events' },
+      ],
+      servant: [
+        { importFn: () => import('@/pages/servant/Dashboard'), key: 'servant-dashboard' },
+        { importFn: () => import('@/pages/servant/Members'), key: 'servant-members' },
+        { importFn: () => import('@/pages/servant/Events'), key: 'servant-events' },
+        { importFn: () => import('@/pages/servant/Attendance'), key: 'servant-attendance' },
+      ],
+      member: [
+        { importFn: () => import('@/pages/member/Dashboard'), key: 'member-dashboard' },
+        { importFn: () => import('@/pages/member/Attendance'), key: 'member-attendance' },
+        { importFn: () => import('@/pages/member/Events'), key: 'member-events' },
+      ],
+    } as const
+
+    const routes = routesByRole[user.role as keyof typeof routesByRole] ?? []
+    prefetchRoutesWhenIdle([...routes], 150)
 
     // Preheat the in-memory request cache for the user's role so the very
     // first visit to a page is served from cache (cache HIT) instead of

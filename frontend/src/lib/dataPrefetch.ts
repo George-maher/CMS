@@ -17,7 +17,7 @@ import type { UserRole } from '@/types'
 
 let preheated = false
 
-const RUN_DELAYS = [0, 200, 400, 600, 800, 1000, 1200, 1400, 1600, 1800, 2000, 2200, 2400]
+const RUN_DELAYS = [0, 200, 400, 600, 800, 1000, 1200, 1400, 1600, 1800, 2000, 2200, 2400, 2600, 2800, 3000, 3200]
 
 /**
  * Preheat the in-memory request cache for the pages a user is most likely to
@@ -94,7 +94,7 @@ export function preheatData(role: UserRole | string): void {
   for (let i = 0; i < tasks.length; i++) {
     const task = tasks[i] as (() => Promise<unknown>) | undefined
     if (!task) continue
-    const delay = RUN_DELAYS[i] ?? 3000
+    const delay = RUN_DELAYS[i] ?? (i * 200)
     const run = () => task().catch((error) => logCatch('DataPreheat', error))
     if (delay === 0) {
       void run()

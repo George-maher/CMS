@@ -293,7 +293,8 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'approval', 'throttle:api'])->g
     /*
     | Attendance Contexts — read (active list, no auth restriction)
     */
-    Route::get('/attendance-contexts', [AttendanceContextController::class, 'active']);
+    Route::get('/attendance-contexts', [AttendanceContextController::class, 'active'])
+        ->middleware('auth:sanctum');
 
     /*
     | Daily Verse — read
@@ -374,6 +375,8 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'approval', 'throttle:api'])->g
             ->middleware('throttle:invite-generate');
         Route::get('/qr/invites', [QRInviteController::class, 'index']);
         Route::post('/qr/invites/{id}/revoke', [QRInviteController::class, 'revoke'])
+            ->middleware('throttle:invite-generate');
+        Route::post('/qr/invites/{id}/rotate', [QRInviteController::class, 'rotate'])
             ->middleware('throttle:invite-generate');
 
         /*
@@ -461,7 +464,7 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'approval', 'throttle:api'])->g
     |--------------------------------------------------------------------------
     */
 
-    Route::middleware(['permission:manage_event_registrations', 'approved'])->group(function () {
+    Route::middleware(['permission:manage_event_registrations', 'approved', 'event.scope'])->group(function () {
         Route::get('/events/{id}/registrations', [EventRegistrationController::class, 'index'])
             ->middleware('throttle:event-read');
 
@@ -555,7 +558,7 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'approval', 'throttle:api'])->g
     |--------------------------------------------------------------------------
     */
 
-    Route::middleware(['permission:manage_event_payments', 'approved'])->group(function () {
+    Route::middleware(['permission:manage_event_payments', 'approved', 'event.scope'])->group(function () {
         Route::get('/events/{id}/payments', [EventPaymentController::class, 'index'])
             ->middleware('throttle:event-read');
         Route::post('/events/{id}/registrations/{regId}/payments', [EventPaymentController::class, 'store'])
@@ -570,7 +573,7 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'approval', 'throttle:api'])->g
     |--------------------------------------------------------------------------
     */
 
-    Route::middleware(['permission:view_event_reports', 'approved'])->group(function () {
+    Route::middleware(['permission:view_event_reports', 'approved', 'event.scope'])->group(function () {
         Route::get('/events/{id}/dashboard', [EventDashboardController::class, 'dashboard'])
             ->middleware('throttle:event-read');
         Route::get('/events/{id}/reports/participants', [EventDashboardController::class, 'participantsReport'])
@@ -587,7 +590,7 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'approval', 'throttle:api'])->g
     |--------------------------------------------------------------------------
     */
 
-    Route::middleware(['permission:manage_events', 'approved'])->group(function () {
+    Route::middleware(['permission:manage_events', 'approved', 'event.scope'])->group(function () {
         Route::post('/events/{id}/publish', [EventController::class, 'publish'])
             ->middleware('throttle:event-crud');
         Route::post('/events/{id}/close-registration', [EventController::class, 'closeRegistration'])

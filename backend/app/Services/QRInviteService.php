@@ -18,7 +18,7 @@ use Illuminate\Validation\ValidationException;
 
 class QRInviteService implements QRInviteServiceInterface
 {
-    private const INVITE_EXPIRY_HOURS = 24;
+    private const INVITE_EXPIRY_HOURS = 4;
 
     private const TOKEN_LENGTH = 64;
 
@@ -239,7 +239,9 @@ class QRInviteService implements QRInviteServiceInterface
         }
 
         $invite->load(['creator.classe.stage', 'classe.stage', 'stage']);
-        $classesQuery = Classe::byChurch()->select(['id', 'name', 'stage_id']);
+        $classesQuery = Classe::query()
+            ->where('church_id', $invite->church_id)
+            ->select(['id', 'name', 'stage_id']);
         if ($invite->stage_id !== null) {
             // Only classes inside the invitation's stage are eligible.
             $classesQuery->where('stage_id', $invite->stage_id);
@@ -362,7 +364,6 @@ class QRInviteService implements QRInviteServiceInterface
 
             Log::info('Invite accepted — tokens revoked, re-login required', [
                 'invite_id' => $freshInvite->id,
-                'token' => $token,
                 'user_id' => $userId,
                 'role' => $role->value,
             ]);
@@ -390,6 +391,40 @@ class QRInviteService implements QRInviteServiceInterface
     public function revokeInvite(int $id): bool
     {
         return $this->qrInviteRepository->revoke($id);
+    }
+
+    public function rotateInvite(int $id): QRInvite
+    {
+        return DB::transaction(function () use ($id): QRInvite {
+            /** @var QRInvite|null $invite */
+            $invite = QRInvite::query()->whereKey($id)->lockForUpdate()->first();
+            if (! $invite) {
+                throw ValidationException::withMessages([
+                    'invite' => [__('invite.not_found')],
+                ]);
+            }
+
+            $invite->update([
+                'token' => Str::random(self::TOKEN_LENGTH),
+                'expires_at' => now()->addHours(self::INVITE_EXPIRY_HOURS),
+                'is_revoked' => false,
+            ]);
+
+            /** @var QRInvite $rotated */
+            $rotated = $invite->fresh();
+            if (! $rotated) {
+                throw ValidationException::withMessages([
+                    'invite' => ['The invite could not be rotated.'],
+                ]);
+            }
+
+            Log::info('Invite token rotated', [
+                'invite_id' => $rotated->id,
+                'expires_at' => $rotated->expires_at,
+            ]);
+
+            return $rotated;
+        });
     }
 
     public function getInviteUrl(string $token): string

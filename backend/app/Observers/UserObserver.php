@@ -29,7 +29,7 @@ class UserObserver
         ]);
 
         foreach ($files as $url) {
-            $storage->deleteFile($url);
+            $storage->deleteFile($url, 'profiles');
         }
     }
 }

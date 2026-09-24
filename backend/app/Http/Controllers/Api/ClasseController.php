@@ -231,7 +231,9 @@ class ClasseController extends Controller
                 $orderedIds[] = $rawId;
             }
         }
-        $this->classeService->updateOrder($orderedIds);
+        /** @var User $actor */
+        $actor = $request->user();
+        $this->classeService->updateOrder($orderedIds, $actor);
 
         return response()->json(['message' => 'Class order updated successfully.']);
     }

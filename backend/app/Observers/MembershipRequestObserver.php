@@ -25,6 +25,6 @@ class MembershipRequestObserver
         }
 
         $storage = App::make(StorageServiceInterface::class);
-        $storage->deleteFile($request->file_url);
+        $storage->deleteFile($request->file_url, 'documents');
     }
 }

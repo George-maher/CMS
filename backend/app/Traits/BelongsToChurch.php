@@ -31,13 +31,6 @@ trait BelongsToChurch
                 }
             }
 
-            // Resolve from HTTP header
-            if (! app()->runningInConsole() && request()->hasHeader('X-Church-ID')) {
-                $model->setAttribute('church_id', intval(request()->header('X-Church-ID')));
-
-                return;
-            }
-
             // Allow models without church_id only if explicitly opted in
             // (e.g., PlatformAdmin-created records, church creation itself)
         });

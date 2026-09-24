@@ -341,13 +341,7 @@ class EventRegistrationController extends Controller
         /** @var string $token */
         $token = $request->input('qr_token');
 
-        $registration = $this->registrationService->checkInByToken($token, $checkedInBy);
-
-        if ($registration->event_id !== $event->id) {
-            return response()->json([
-                'message' => 'This QR code belongs to a different event.',
-            ], 422);
-        }
+        $registration = $this->registrationService->checkInByToken($event, $token, $checkedInBy);
 
         return response()->json([
             'message' => 'Participant checked in.',

@@ -36,7 +36,9 @@ class FileUploadService implements FileUploadServiceInterface
 
     public function delete(?string $path): bool
     {
-        return $this->storageService->deleteFile($path ?? '');
+        $value = $path ?? '';
+
+        return $this->storageService->deleteFile($value, $this->resolveBucket($value));
     }
 
     public function url(string $path): ?string

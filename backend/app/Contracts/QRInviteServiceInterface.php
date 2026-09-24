@@ -26,6 +26,8 @@ interface QRInviteServiceInterface
 
     public function revokeInvite(int $id): bool;
 
+    public function rotateInvite(int $id): QRInvite;
+
     public function getInviteUrl(string $token): string;
 
     /** @param array<string, mixed> $filters */

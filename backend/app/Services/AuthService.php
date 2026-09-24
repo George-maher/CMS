@@ -65,6 +65,12 @@ class AuthService implements AuthServiceInterface
             ]);
         }
 
+        if (! $user->email_verified_at) {
+            throw ValidationException::withMessages([
+                'email' => [__('auth.email_not_verified')],
+            ]);
+        }
+
         if ($user->church_id) {
             $church = Church::withTrashed()->where('id', $user->church_id)->first();
             if ($church && $church->is_suspended) {
@@ -259,7 +265,6 @@ class AuthService implements AuthServiceInterface
 
             Log::info('Invite consumed via registration', [
                 'invite_id' => $freshInvite->id,
-                'token' => $inviteToken,
                 'user_id' => $user->id,
                 'role' => $role->value,
             ]);

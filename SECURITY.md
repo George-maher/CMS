@@ -69,6 +69,10 @@ discover a security vulnerability, please follow these steps:
 
 ## Commercial Deployment
 
+Production deployments must run the Laravel scheduler (`php artisan schedule:work`)
+alongside PHP-FPM and the queue worker, or configure an equivalent external scheduler.
+The scheduler is required for expiry and cleanup tasks.
+
 For commercial deployments, additional security requirements apply:
 
 - Environment variables must use strong, unique values

@@ -213,6 +213,38 @@ class QRInviteController extends Controller
         ]);
     }
 
+    public function rotate(Request $request, int $id): JsonResponse
+    {
+        $invite = $this->qrInviteService->findById($id);
+        if (! $invite) {
+            return response()->json(['message' => 'QR invite not found.'], 404);
+        }
+
+        /** @var User $user */
+        $user = $request->user();
+        if ($user->isServant() && $invite->created_by !== $user->id) {
+            return response()->json(['message' => 'Forbidden.'], 403);
+        }
+        if ($user->isStageAdmin()
+            && $invite->created_by !== $user->id
+            && ($invite->stage_id === null || $invite->stage_id !== $user->stage_id)) {
+            return response()->json(['message' => 'Forbidden.'], 403);
+        }
+        if (! $user->isPlatformAdmin() && $invite->church_id !== $user->church_id) {
+            return response()->json(['message' => 'Forbidden.'], 403);
+        }
+
+        $rotated = $this->qrInviteService->rotateInvite($id);
+
+        return response()->json([
+            'message' => 'QR invite token rotated successfully.',
+            'data' => [
+                'invite' => new QRInviteResource($rotated),
+                'url' => $this->qrInviteService->getInviteUrl($rotated->token),
+            ],
+        ]);
+    }
+
     public function index(Request $request): JsonResponse
     {
         /** @var array<string, mixed> $filters */

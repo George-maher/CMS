@@ -36,7 +36,7 @@ for complete terms.
 | **Frontend** | React 19 + TypeScript + TailwindCSS 4 |
 | **Database** | PostgreSQL 15 |
 | **Storage** | Supabase Storage (native REST API) |
-| **Email** | Resend |
+| **Email** | Authenticated SMTP via Laravel Mail; production requires explicit SMTP credentials |
 | **Queue** | Laravel Database Queue |
 | **Auth** | Laravel Sanctum (token-based) |
 | **Infrastructure** | Docker + Nginx |
@@ -52,8 +52,8 @@ for complete terms.
                            │
                            ▼
                      ┌─────────────┐
-                     │   Resend    │
-                     │   (Email)   │
+                     │ Laravel Mail│
+                     │  Provider   │
                      └─────────────┘
 ```
 
@@ -97,8 +97,7 @@ For licensing inquiries:
 git clone <repository-url>
 cd church-manager
 
-# 2. Copy environment files
-cp docker-compose.override.yml.example docker-compose.override.yml
+# 2. Copy the backend environment file
 cp backend/.env.example backend/.env
 
 # 3. Configure your environment in backend/.env
@@ -107,9 +106,10 @@ cp backend/.env.example backend/.env
 docker compose up -d
 
 # 5. Access the application
-#    Frontend: http://localhost:3000
-#    Backend:  http://localhost:8000
+#    Backend/Nginx API: http://localhost:8000
 #    Health:   http://localhost:8000/health
+
+# Run the Vite frontend separately from frontend/ (default port 5173).
 ```
 
 ## Security

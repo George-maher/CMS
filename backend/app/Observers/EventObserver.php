@@ -25,6 +25,6 @@ class EventObserver
         }
 
         $storage = App::make(StorageServiceInterface::class);
-        $storage->deleteFile($event->image);
+        $storage->deleteFile($event->image, 'events');
     }
 }

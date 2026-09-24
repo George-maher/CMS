@@ -24,7 +24,7 @@ interface EventRegistrationServiceInterface
 
     public function remove(EventRegistration $registration): void;
 
-    public function checkInByToken(string $token, int $checkedInBy): EventRegistration;
+    public function checkInByToken(Event $event, string $token, int $checkedInBy): EventRegistration;
 
     public function checkIn(EventRegistration $registration, int $checkedInBy): EventRegistration;
 
