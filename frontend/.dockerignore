@@ -3,3 +3,9 @@ node_modules
 .gitignore
 *.md
 .vite
+dist
+# Build-time env files must not enter the image context.
+.env
+.env.*
+!.env.example
+coverage/

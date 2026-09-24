@@ -16,6 +16,11 @@ RUN set -eux; \
     apt-get autoremove -y; \
     rm -rf /var/lib/apt/lists/*
 
+# Runtime limits + hardening: uploads up to 20M, bounded execution time and
+# memory, and no X-Powered-By header fingerprint.
+RUN printf 'expose_php=Off\nupload_max_filesize=20M\npost_max_size=25M\nmemory_limit=256M\nmax_execution_time=60\n' \
+    > /usr/local/etc/php/conf.d/zz-app.ini
+
 COPY --from=composer:2.8 /usr/bin/composer /usr/local/bin/composer
 
 WORKDIR /var/www

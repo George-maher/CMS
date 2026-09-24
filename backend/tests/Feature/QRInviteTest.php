@@ -5,15 +5,16 @@ namespace Tests\Feature;
 use App\Enums\QRInviteType;
 use App\Enums\UserRole;
 use App\Enums\UserScope;
+use App\Models\AttendanceContext;
 use App\Models\Church;
 use App\Models\Classe;
 use App\Models\Permission;
+use App\Models\QRInvite;
 use App\Models\Stage;
 use App\Models\User;
 use Database\Seeders\PermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
-use App\Models\QRInvite;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -229,5 +230,116 @@ class QRInviteTest extends TestCase
         $this->getJson('/api/v1/invite/'.$newToken)->assertOk();
 
         Carbon::setTestNow();
+    }
+
+    public function test_public_invite_details_returns_eligible_classes_and_stage(): void
+    {
+        $church = Church::factory()->create();
+        $stage = Stage::factory()->forChurch($church)->create();
+        $classe = Classe::factory()->forChurch($church)->state(['stage_id' => $stage->id])->create();
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'church_id' => $church->id,
+            'application_status' => 'approved',
+        ]);
+
+        $invite = QRInvite::create([
+            'type' => QRInviteType::ServantToMemberInvite,
+            'token' => Str::random(64),
+            'created_by' => $admin->id,
+            'church_id' => $church->id,
+            'stage_id' => $stage->id,
+            'expires_at' => now()->addHours(4),
+            'is_single_use' => true,
+            'max_uses' => 1,
+            'use_count' => 0,
+        ]);
+
+        $response = $this->getJson('/api/v1/invite/'.$invite->token);
+
+        $response->assertOk()
+            ->assertJsonPath('data.valid', true)
+            ->assertJsonPath('data.stage_name', $stage->name);
+
+        $classes = $response->json('data.classes');
+        $this->assertNotEmpty($classes, 'Public invite details must list the eligible classes of the invite church/stage.');
+        $this->assertSame($classe->id, $classes[0]['id']);
+    }
+
+    public function test_public_invite_details_does_not_expose_used_by_users_pii(): void
+    {
+        $church = Church::factory()->create();
+        $stage = Stage::factory()->forChurch($church)->create();
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'church_id' => $church->id,
+            'application_status' => 'approved',
+        ]);
+
+        $invite = QRInvite::create([
+            'type' => QRInviteType::ServantToMemberInvite,
+            'token' => Str::random(64),
+            'created_by' => $admin->id,
+            'church_id' => $church->id,
+            'stage_id' => $stage->id,
+            'expires_at' => now()->addHours(4),
+            'use_count' => 1,
+        ]);
+        $invite->forceFill([
+            'used_by_users' => [[
+                'id' => 999,
+                'name' => 'Secret Member',
+                'role' => 'member',
+                'phone' => '01099999999',
+                'class_id' => null,
+                'class_name' => null,
+                'stage_name' => null,
+                'used_at' => '2026-09-24T10:00:00Z',
+            ]],
+        ])->save();
+
+        $response = $this->getJson('/api/v1/invite/'.$invite->token);
+
+        $response->assertOk();
+        $this->assertArrayNotHasKey(
+            'used_by_users',
+            $response->json('data'),
+            'Public invite details must not expose the usage roster (names/phones of past users).'
+        );
+    }
+
+    public function test_public_qr_validate_returns_classes_stage_and_own_church_context(): void
+    {
+        $church = Church::factory()->create();
+        $stage = Stage::factory()->forChurch($church)->create();
+        $classe = Classe::factory()->forChurch($church)->state(['stage_id' => $stage->id])->create();
+        $context = AttendanceContext::factory()->create(['church_id' => $church->id]);
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'church_id' => $church->id,
+            'application_status' => 'approved',
+        ]);
+
+        $invite = QRInvite::create([
+            'type' => QRInviteType::AttendanceQR,
+            'token' => Str::random(64),
+            'created_by' => $admin->id,
+            'church_id' => $church->id,
+            'stage_id' => $stage->id,
+            'attendance_context_id' => $context->id,
+            'expires_at' => now()->addHours(4),
+            'is_single_use' => true,
+            'max_uses' => 1,
+            'use_count' => 0,
+        ]);
+
+        $response = $this->getJson('/api/v1/qr/validate/'.$invite->token);
+
+        $response->assertOk()
+            ->assertJsonPath('data.valid', true)
+            ->assertJsonPath('data.stage_name', $stage->name)
+            ->assertJsonPath('data.attendance_context.id', $context->id);
+
+        $this->assertNotEmpty($response->json('data.classes'));
     }
 }

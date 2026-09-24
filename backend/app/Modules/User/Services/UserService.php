@@ -144,13 +144,41 @@ class UserService implements UserServiceInterface
 
     /** @param array<string, mixed> $data */
     /** @return array<string, mixed>|null */
-    public function update(int $id, array $data): ?array
+    public function update(int $id, array $data, int $authUserId): ?array
     {
         /** @var User|null $user */
         $user = $this->userRepository->findById($id);
 
         if (! $user) {
             return null;
+        }
+
+        /** @var User|null $authUser */
+        $authUser = User::find($authUserId);
+        if ($authUser === null) {
+            throw ValidationException::withMessages(['user' => ['Forbidden.']]);
+        }
+
+        if (! $authUser->isPlatformAdmin()) {
+            // Defense-in-depth for the controller's P0 escalation guards:
+            // privileged-role changes and password resets are church-admin tier
+            // only, and admin-tier targets are immutable to lower-tier callers.
+            if (($user->isAdmin() || $user->isPlatformAdmin()) && ! $authUser->isAdmin()) {
+                throw ValidationException::withMessages(['user' => ['Forbidden.']]);
+            }
+
+            if (array_key_exists('role', $data) && ! $authUser->isAdmin()) {
+                $requestedRoleValue = is_string($data['role']) ? $data['role'] : null;
+                $currentRoleValue = $user->role?->value;
+                if (in_array($requestedRoleValue, $this->privilegedRoleValues(), true)
+                    || in_array($currentRoleValue, $this->privilegedRoleValues(), true)) {
+                    throw ValidationException::withMessages(['role' => ['Forbidden.']]);
+                }
+            }
+
+            if (array_key_exists('password', $data) && ! $authUser->isAdmin()) {
+                throw ValidationException::withMessages(['password' => ['Forbidden.']]);
+            }
         }
 
         if (isset($data['password'])) {
@@ -192,6 +220,18 @@ class UserService implements UserServiceInterface
         return [
             'message' => 'User updated successfully.',
             'data' => new UserResource($user->load(['classe.stage', 'servant', 'church'])),
+        ];
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function privilegedRoleValues(): array
+    {
+        return [
+            UserRole::Admin->value,
+            UserRole::AssistantAdmin->value,
+            UserRole::StageAdmin->value,
         ];
     }
 

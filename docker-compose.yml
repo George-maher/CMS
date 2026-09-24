@@ -19,10 +19,13 @@ services:
     environment:
       APP_ENV: ${APP_ENV:-development}
       APP_DEBUG: ${APP_DEBUG:-false}
+      RUN_MIGRATIONS: "true"
     networks:
       - church_network
     healthcheck:
-      test: ["CMD-SHELL", "ps aux | grep -q php-fpm || exit 1"]
+      # Functional check: PHP-FPM must accept connections. A `ps | grep` test
+      # matches its own grep process and reports healthy even when FPM is dead.
+      test: ["CMD-SHELL", "php -r 'exit(@fsockopen(\"127.0.0.1\",9000)?0:1);'"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -84,10 +87,16 @@ services:
       - backend_storage:/var/www/storage
     env_file:
       - ./backend/.env
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      APP_DEBUG: ${APP_DEBUG:-false}
+      # Only the app service migrates — prevents concurrent-migration races.
+      RUN_MIGRATIONS: "false"
     networks:
       - church_network
     healthcheck:
-      test: ["CMD-SHELL", "ps aux | grep -q 'queue:work' || exit 1"]
+      # pgrep matches the real worker process (ps|grep matches itself).
+      test: ["CMD-SHELL", "pgrep -f 'artisan queue:work' > /dev/null"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -115,10 +124,16 @@ services:
       - backend_storage:/var/www/storage
     env_file:
       - ./backend/.env
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      APP_DEBUG: ${APP_DEBUG:-false}
+      # Only the app service migrates — prevents concurrent-migration races.
+      RUN_MIGRATIONS: "false"
     networks:
       - church_network
     healthcheck:
-      test: ["CMD-SHELL", "ps aux | grep -q 'schedule:work' || exit 1"]
+      # pgrep matches the real scheduler process (ps|grep matches itself).
+      test: ["CMD-SHELL", "pgrep -f 'artisan schedule:work' > /dev/null"]
       interval: 30s
       timeout: 10s
       retries: 3

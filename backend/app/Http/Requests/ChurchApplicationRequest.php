@@ -5,7 +5,7 @@ namespace App\Http\Requests;
 use App\Models\ChurchApplication;
 use App\Rules\NotPlaceholder;
 use App\Rules\PhoneRule;
-use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 

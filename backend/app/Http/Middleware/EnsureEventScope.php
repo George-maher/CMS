@@ -14,6 +14,9 @@ class EnsureEventScope
         private readonly EventAuthorizationService $eventAuthorization,
     ) {}
 
+    /**
+     * @param  Closure(Request): Response  $next
+     */
     public function handle(Request $request, Closure $next): Response
     {
         $eventId = $request->route('id');

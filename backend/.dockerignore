@@ -2,4 +2,11 @@ public/storage
 vendor/
 node_modules/
 .git/
+# Never bake environment files into an image layer: .env holds real secrets
+# and .env.docker holds local credentials. Only the placeholder is shipped.
 .env
+.env.*
+!.env.example
+storage/logs/*.log
+.phpunit.result.cache
+coverage/

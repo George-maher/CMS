@@ -35,8 +35,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'role' => RoleMiddleware::class,
             'permission' => PermissionMiddleware::class,
             'approved' => CheckApproval::class,
-                'approval' => EnsureApproval::class,
-                'event.scope' => EnsureEventScope::class,
+            'approval' => EnsureApproval::class,
+            'event.scope' => EnsureEventScope::class,
             'track.activity' => TrackActivity::class,
             'reauth' => RequireReauth::class,
         ]);

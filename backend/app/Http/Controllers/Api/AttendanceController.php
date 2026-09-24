@@ -11,6 +11,7 @@ use App\Http\Requests\RecordAttendanceRequest;
 use App\Http\Resources\AttendanceResource;
 use App\Http\Resources\UserResource;
 use App\Models\AttendanceContext;
+use App\Models\Classe;
 use App\Models\QRInvite;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
@@ -455,6 +456,16 @@ class AttendanceController extends Controller
             // If the requested class is not the servant's class, return 403
             if (! in_array($classYearId, $servantClassIds)) {
                 return response()->json(['message' => 'Unauthorized access to another class\'s members.'], 403);
+            }
+        } elseif (! $user->isPlatformAdmin()) {
+            // Non-servant callers: the class must exist inside their church
+            // (Classe carries ChurchScope) and inside their stage/class scope.
+            $classe = Classe::find($classYearId);
+            if ($classe === null) {
+                return response()->json(['message' => 'Class not found.'], 404);
+            }
+            if (! $this->scopeResolver->canAccessClass($user, $classe)) {
+                return response()->json(['message' => 'Forbidden.'], 403);
             }
         }
 

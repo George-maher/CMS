@@ -5,8 +5,10 @@ namespace App\Http\Resources;
 use App\Models\AttendanceContext;
 use App\Models\Classe;
 use App\Models\QRInvite;
+use App\Models\Scopes\ChurchScope;
 use App\Models\Stage;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Collection;
@@ -181,7 +183,16 @@ class QRInviteResource extends JsonResource
             return;
         }
 
-        $users = User::whereIn('id', $userIds)->with('classe.stage')->get()->keyBy('id');
+        // User ids come from the server-authored used_by_users snapshots; load
+        // their class/stage unscoped so public (unauthenticated) invite responses
+        // don't degrade class_name/stage_name to null.
+        $users = User::whereIn('id', $userIds)
+            ->with([
+                'classe' => static fn (Relation $query) => $query->withoutGlobalScope(ChurchScope::class),
+                'classe.stage' => static fn (Relation $query) => $query->withoutGlobalScope(ChurchScope::class),
+            ])
+            ->get()
+            ->keyBy('id');
         /** @var array<int, User> $allUsers */
         $allUsers = $users->all();
         self::$liveUsersCache = $allUsers;

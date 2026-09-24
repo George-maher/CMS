@@ -7,11 +7,15 @@ use App\Enums\UserRole;
 use App\Enums\UserScope;
 use App\Models\Church;
 use App\Models\Classe;
+use App\Models\Event;
 use App\Models\Permission;
 use App\Models\Stage;
 use App\Models\User;
+use App\Modules\User\Services\UserService;
 use Database\Seeders\PermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
 class StageAdminScopeTest extends TestCase
@@ -615,5 +619,243 @@ class StageAdminScopeTest extends TestCase
 
         // Cross-church classes are invisible via the church global scope → 404.
         $response->assertStatus(404);
+    }
+
+    // ---------------------------------------------------------------
+    // I. Privileged role / password changes via PUT /users/{id} — P0
+    //    guards mirroring promote()/destroy(): church-admin tier only.
+    // ---------------------------------------------------------------
+
+    public function test_stage_admin_cannot_grant_admin_role_via_user_update(): void
+    {
+        $s = $this->makeScenario();
+
+        $response = $this->authAs($s['secAdminToken'])
+            ->putJson("/api/v1/users/{$s['secMember']->id}", [
+                'role' => UserRole::Admin->value,
+            ]);
+
+        $response->assertStatus(403);
+        $this->assertDatabaseHas('users', [
+            'id' => $s['secMember']->id,
+            'role' => UserRole::Member->value,
+        ]);
+    }
+
+    public function test_stage_admin_cannot_reset_in_scope_user_password_via_user_update(): void
+    {
+        $s = $this->makeScenario();
+        $beforeHash = User::find($s['secServant']->id)?->password;
+
+        $response = $this->authAs($s['secAdminToken'])
+            ->putJson("/api/v1/users/{$s['secServant']->id}", [
+                'password' => 'Hijacked@123',
+                'password_confirmation' => 'Hijacked@123',
+            ]);
+
+        $response->assertStatus(403);
+        $this->assertSame($beforeHash, User::find($s['secServant']->id)?->password);
+    }
+
+    public function test_stage_admin_cannot_demote_peer_stage_admin_via_user_update(): void
+    {
+        $s = $this->makeScenario();
+        $peer = User::factory()->create([
+            'role' => UserRole::StageAdmin,
+            'church_id' => $s['church']->id,
+            'stage_id' => $s['secStage']->id,
+            'class_id' => $s['secClasse']->id,
+            'scope' => UserScope::Stage->value,
+            'application_status' => 'approved',
+        ]);
+
+        $response = $this->authAs($s['secAdminToken'])
+            ->putJson("/api/v1/users/{$peer->id}", [
+                'role' => UserRole::Member->value,
+            ]);
+
+        $response->assertStatus(403);
+        $this->assertDatabaseHas('users', [
+            'id' => $peer->id,
+            'role' => UserRole::StageAdmin->value,
+        ]);
+    }
+
+    public function test_church_admin_can_change_role_and_password_via_user_update(): void
+    {
+        $s = $this->makeScenario();
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'church_id' => $s['church']->id,
+            'application_status' => 'approved',
+        ]);
+        $token = $admin->createToken('test', [$admin->role->value])->plainTextToken;
+
+        $response = $this->authAs($token)
+            ->putJson("/api/v1/users/{$s['secMember']->id}", [
+                'role' => UserRole::AssistantAdmin->value,
+                'password' => 'Upgraded@123',
+                'password_confirmation' => 'Upgraded@123',
+            ]);
+
+        $response->assertOk();
+        $this->assertDatabaseHas('users', [
+            'id' => $s['secMember']->id,
+            'role' => UserRole::AssistantAdmin->value,
+        ]);
+        $this->assertTrue(Hash::check('Upgraded@123', (string) User::find($s['secMember']->id)?->password));
+    }
+
+    public function test_user_service_update_defense_in_depth_blocks_privileged_role_grant(): void
+    {
+        $s = $this->makeScenario();
+
+        // Defense-in-depth: even if a future controller forgets the guard,
+        // UserService::update must refuse a non-admin-tier privileged grant.
+        $this->expectException(ValidationException::class);
+
+        app(UserService::class)->update(
+            $s['secMember']->id,
+            ['role' => UserRole::Admin->value],
+            $s['secAdmin']->id,
+        );
+    }
+
+    // ---------------------------------------------------------------
+    // P2 scope hardening — absent members, points, events, demote
+    // ---------------------------------------------------------------
+
+    public function test_stage_admin_cannot_read_absent_members_of_another_stage_class(): void
+    {
+        $s = $this->makeScenario();
+
+        $this->authAs($s['secAdminToken'])
+            ->getJson('/api/v1/attendances/absent-members?class_id='.$s['prepClasse']->id)
+            ->assertStatus(403);
+    }
+
+    public function test_absent_members_class_lookup_is_church_scoped(): void
+    {
+        $s = $this->makeScenario();
+
+        $foreignChurch = Church::factory()->create();
+        $foreignStage = Stage::factory()->forChurch($foreignChurch)->create();
+        Classe::factory()->forChurch($foreignChurch)->state(['stage_id' => $foreignStage->id])->create();
+        $foreignAdmin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'church_id' => $foreignChurch->id,
+            'application_status' => 'approved',
+        ]);
+        $foreignToken = $foreignAdmin->createToken('test', ['admin'])->plainTextToken;
+
+        // A class of another church must not resolve for this caller.
+        $this->authAs($foreignToken)
+            ->getJson('/api/v1/attendances/absent-members?class_id='.$s['secClasse']->id)
+            ->assertStatus(404);
+    }
+
+    public function test_stage_admin_cannot_demote_peer_stage_admin_via_demote_endpoint(): void
+    {
+        $s = $this->makeScenario();
+
+        $peer = User::factory()->create([
+            'role' => UserRole::StageAdmin,
+            'church_id' => $s['church']->id,
+            'stage_id' => $s['secStage']->id,
+            'scope' => UserScope::Stage->value,
+            'application_status' => 'approved',
+        ]);
+
+        $this->authAs($s['secAdminToken'])
+            ->postJson('/api/v1/users/'.$peer->id.'/demote', ['role' => 'member'])
+            ->assertStatus(403);
+
+        $this->assertDatabaseHas('users', [
+            'id' => $peer->id,
+            'role' => UserRole::StageAdmin->value,
+        ]);
+    }
+
+    public function test_stage_admin_cannot_read_points_history_of_member_in_another_stage(): void
+    {
+        $s = $this->makeScenario();
+
+        $this->authAs($s['secAdminToken'])
+            ->getJson('/api/v1/points/user/'.$s['prepMember']->id.'/history')
+            ->assertStatus(403);
+    }
+
+    public function test_stage_admin_cannot_read_points_balance_of_member_in_another_stage(): void
+    {
+        $s = $this->makeScenario();
+
+        $this->authAs($s['secAdminToken'])
+            ->getJson('/api/v1/points/user/'.$s['prepMember']->id.'/balance')
+            ->assertStatus(403);
+    }
+
+    public function test_stage_admin_cannot_award_bonus_points_to_member_in_another_stage(): void
+    {
+        $s = $this->makeScenario();
+
+        $this->authAs($s['secAdminToken'])
+            ->postJson('/api/v1/points/bonus', [
+                'user_id' => $s['prepMember']->id,
+                'points' => 10,
+                'reason' => 'Cross-stage bonus attempt',
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['user_id']);
+    }
+
+    public function test_event_update_cannot_target_class_in_another_church(): void
+    {
+        $s = $this->makeScenario();
+
+        $churchAdmin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'church_id' => $s['church']->id,
+            'application_status' => 'approved',
+        ]);
+        $churchAdminToken = $churchAdmin->createToken('test', ['admin'])->plainTextToken;
+
+        $event = Event::factory()->create([
+            'church_id' => $s['church']->id,
+            'created_by' => $churchAdmin->id,
+            'class_year_id' => $s['secClasse']->id,
+        ]);
+
+        $foreignChurch = Church::factory()->create();
+        $foreignStage = Stage::factory()->forChurch($foreignChurch)->create();
+        $foreignClasse = Classe::factory()->forChurch($foreignChurch)->state(['stage_id' => $foreignStage->id])->create();
+
+        $this->authAs($churchAdminToken)
+            ->putJson('/api/v1/events/'.$event->id, ['class_id' => $foreignClasse->id])
+            ->assertStatus(403);
+
+        $this->assertDatabaseHas('events', [
+            'id' => $event->id,
+            'class_year_id' => $s['secClasse']->id,
+        ]);
+    }
+
+    public function test_stage_admin_cannot_update_event_to_foreign_stage_class(): void
+    {
+        $s = $this->makeScenario();
+
+        $event = Event::factory()->create([
+            'church_id' => $s['church']->id,
+            'created_by' => $s['secAdmin']->id,
+            'class_year_id' => $s['secClasse']->id,
+        ]);
+
+        $this->authAs($s['secAdminToken'])
+            ->putJson('/api/v1/events/'.$event->id, ['class_id' => $s['prepClasse']->id])
+            ->assertStatus(403);
+
+        $this->assertDatabaseHas('events', [
+            'id' => $event->id,
+            'class_year_id' => $s['secClasse']->id,
+        ]);
     }
 }

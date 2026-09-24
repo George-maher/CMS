@@ -170,6 +170,10 @@ class ProfileUpdateRequestTest extends TestCase
 
         $response->assertOk();
 
+        // TestCase::call() forgets auth guards after the request; re-authenticate
+        // so the fail-closed ChurchScope can resolve the member's church.
+        Sanctum::actingAs($this->member);
+
         $request = ProfileUpdateRequest::where('user_id', $this->member->id)->first();
         $this->assertNotNull($request);
         $this->assertEquals($this->member->phone, $request->old_values['phone']);
@@ -472,6 +476,10 @@ class ProfileUpdateRequestTest extends TestCase
 
         $response->assertOk();
 
+        // TestCase::call() forgets auth guards after the request; re-authenticate
+        // so the fail-closed ChurchScope can resolve the member's church.
+        Sanctum::actingAs($this->member);
+
         $request = ProfileUpdateRequest::where('user_id', $this->member->id)->first();
         $this->assertNotNull($request);
         $this->assertEquals('01012345678', $request->new_values['phone']);
@@ -577,6 +585,10 @@ class ProfileUpdateRequestTest extends TestCase
         ]);
 
         $response->assertOk();
+
+        // TestCase::call() forgets auth guards after the request; re-authenticate
+        // so the fail-closed ChurchScope can resolve the member's church.
+        Sanctum::actingAs($this->member);
 
         $request = ProfileUpdateRequest::where('user_id', $this->member->id)->first();
         $this->assertNotNull($request);

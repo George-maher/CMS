@@ -11,6 +11,7 @@ use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Auth;
 
 class ChurchApplicationController extends Controller
 {
@@ -32,6 +33,13 @@ class ChurchApplicationController extends Controller
         $password = $request->input('password', '');
         /** @var array<string, mixed> $safeData */
         $safeData = $request->safe()->except(['front_id', 'back_id', 'church_permission_doc', 'password', 'password_confirmation']);
+
+        // Ownership proof for updates of an existing application: resolve the
+        // applicant session via the sanctum guard on this public route
+        // (null when the caller is anonymous).
+        /** @var User|null $authUser */
+        $authUser = Auth::guard('sanctum')->user();
+
         $result = $this->churchApplicationService->submit(
             $safeData,
             $frontId,
@@ -39,6 +47,7 @@ class ChurchApplicationController extends Controller
             $email,
             $password,
             $permissionDoc,
+            $authUser?->id,
         );
 
         $statusCode = $result['is_update'] ? 200 : 201;
@@ -72,6 +81,22 @@ class ChurchApplicationController extends Controller
 
         if (! $application) {
             return response()->json(['data' => null]);
+        }
+
+        // PII minimization: the full resource (names, phones, address, ID
+        // document URLs, reviewer notes) is only returned to the authenticated
+        // applicant account. Anonymous callers get existence + status only.
+        /** @var User|null $authUser */
+        $authUser = Auth::guard('sanctum')->user();
+
+        if ($authUser === null || $authUser->church_application_id !== $application->id) {
+            return response()->json([
+                'data' => [
+                    'contact_email' => $application->contact_email,
+                    'status' => $application->status,
+                ],
+                'message' => __('application.exists_sign_in'),
+            ]);
         }
 
         return response()->json([

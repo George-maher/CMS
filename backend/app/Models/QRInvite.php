@@ -3,11 +3,13 @@
 namespace App\Models;
 
 use App\Enums\QRInviteType;
+use App\Models\Scopes\ChurchScope;
 use App\Traits\AuditableTrait;
 use App\Traits\BelongsToChurch;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -154,7 +156,13 @@ class QRInvite extends Model
 
     public function markAsUsed(int $userId): bool
     {
-        $user = User::with('classe.stage')->find($userId);
+        // The invite row is already token-authorized and the user's class FKs
+        // are church-validated; load the snapshot unscoped because registration
+        // runs without an authenticated tenant.
+        $user = User::with([
+            'classe' => static fn (Relation $query) => $query->withoutGlobalScope(ChurchScope::class),
+            'classe.stage' => static fn (Relation $query) => $query->withoutGlobalScope(ChurchScope::class),
+        ])->find($userId);
 
         $userEntry = [
             'id' => $userId,
@@ -184,8 +192,11 @@ class QRInvite extends Model
             $updates['used_at'] = now();
         }
 
-        // Optimistic lock: only apply if use_count hasn't moved since we loaded it
-        $query = static::where('id', $this->id)
+        // Optimistic lock: only apply if use_count hasn't moved since we loaded it.
+        // Unscoped: this row was authorized by its token; during public registration
+        // no tenant is authenticated and the fail-closed scope would match 0 rows.
+        $query = static::withoutGlobalScope(ChurchScope::class)
+            ->where('id', $this->id)
             ->where('use_count', $this->use_count);
 
         if ($isFinalUse) {

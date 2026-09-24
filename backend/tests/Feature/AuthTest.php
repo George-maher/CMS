@@ -6,7 +6,9 @@ use App\Enums\QRInviteType;
 use App\Enums\UserRole;
 use App\Models\Church;
 use App\Models\ChurchApplication;
+use App\Models\Classe;
 use App\Models\QRInvite;
+use App\Models\Stage;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -432,5 +434,76 @@ class AuthTest extends TestCase
         $this->withHeader('Authorization', "Bearer $token")
             ->getJson('/api/v1/dashboard/stats')
             ->assertStatus(200);
+    }
+
+    public function test_register_with_class_id_assigns_class_stage_and_consumes_invite(): void
+    {
+        $church = Church::factory()->create();
+        $stage = Stage::factory()->forChurch($church)->create();
+        $classe = Classe::factory()->forChurch($church)->state(['stage_id' => $stage->id])->create();
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'church_id' => $church->id,
+        ]);
+
+        $invite = QRInvite::create([
+            'type' => QRInviteType::ServantToMemberInvite,
+            'token' => str_repeat('f', 64),
+            'created_by' => $admin->id,
+            'church_id' => $church->id,
+            'expires_at' => now()->addHours(4),
+            'is_single_use' => true,
+            'max_uses' => 1,
+            'use_count' => 0,
+        ]);
+
+        $response = $this->postJson('/api/v1/auth/register', [
+            'name' => 'Class Member',
+            'email' => 'classmember@test.com',
+            'password' => 'Test@1234',
+            'password_confirmation' => 'Test@1234',
+            'invite_token' => $invite->token,
+            'class_id' => $classe->id,
+        ]);
+
+        $response->assertStatus(201)
+            ->assertJsonPath('data.user.class_id', $classe->id);
+
+        // Church, class and stage are assigned server-side from the invite + class.
+        $this->assertDatabaseHas('users', [
+            'email' => 'classmember@test.com',
+            'church_id' => $church->id,
+            'class_id' => $classe->id,
+            'stage_id' => $stage->id,
+        ]);
+
+        // The single-use invite is consumed exactly once.
+        $this->assertDatabaseHas('qr_invites', [
+            'id' => $invite->id,
+            'use_count' => 1,
+        ]);
+    }
+
+    public function test_login_returns_class_for_class_linked_user(): void
+    {
+        $church = Church::factory()->create();
+        $stage = Stage::factory()->forChurch($church)->create();
+        $classe = Classe::factory()->forChurch($church)->state(['stage_id' => $stage->id])->create();
+        User::factory()->create([
+            'role' => UserRole::Servant,
+            'email' => 'servant-class@test.com',
+            'password' => bcrypt('Test@1234'),
+            'application_status' => 'approved',
+            'church_id' => $church->id,
+            'class_id' => $classe->id,
+        ]);
+
+        $response = $this->postJson('/api/v1/auth/login', [
+            'email' => 'servant-class@test.com',
+            'password' => 'Test@1234',
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('data.user.classe.id', $classe->id);
     }
 }

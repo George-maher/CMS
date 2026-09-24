@@ -1,6 +1,6 @@
 import axios from 'axios'
 import { logAxiosError } from '@/lib/debug'
-import { addToSyncQueue } from '@/lib/db'
+import { addToSyncQueue, clearAllData } from '@/lib/db'
 import { getCached, setCache, isStale, getInflight, setInflight, invalidateCache, getGeneration } from '@/lib/requestCache'
 import { recordApiTiming } from '@/lib/perf'
 
@@ -181,7 +181,11 @@ client.interceptors.request.use(async (config) => {
   if (!navigator.onLine && config.method && ['post', 'put', 'patch', 'delete'].includes(config.method) && config.url) {
     const isOfflineWritable = OFFLINE_WRITABLE_PATTERNS.some(p => p.test(config.url || ''))
     if (isOfflineWritable) {
-      const token = config.headers?.Authorization?.toString().replace('Bearer ', '') || ''
+      // Read the token directly from storage: this branch early-returns
+      // BEFORE the Authorization header is attached below, so reading it
+      // from config.headers queued every item with an empty token and the
+      // replay later failed with 401 (silent data loss).
+      const token = localStorage.getItem('auth_token') || ''
       await addToSyncQueue({
         operation: config.method === 'delete' ? 'delete' : config.method === 'put' || config.method === 'patch' ? 'update' : 'create',
         endpoint: config.url,
@@ -282,7 +286,15 @@ client.interceptors.response.use(
         localStorage.removeItem('auth_token')
         localStorage.removeItem('auth_user')
         localStorage.removeItem('auth_validated_at')
-        window.location.href = '/login'
+        // Await the IndexedDB wipe before the hard redirect: queued offline
+        // writes persist the (now dead) bearer token, and cached responses
+        // must not leak into the next session.
+        return clearAllData()
+          .catch(() => {})
+          .then(() => {
+            window.location.href = '/login'
+            return Promise.reject(error)
+          })
       }
     }
     if (error.response?.status === 429) {

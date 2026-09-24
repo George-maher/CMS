@@ -147,15 +147,52 @@ class UserController extends Controller
                     return response()->json(['message' => 'Forbidden.'], 403);
                 }
             }
+
+            // P0 escalation guards (mirror promote() and bulkUpdatePermissions()):
+            // privileged-role changes, password resets, and edits to admin-tier
+            // targets are church-admin tier only — update() must never bypass the
+            // authority rules enforced on the promote()/destroy() endpoints.
+            if (($target->isAdmin() || $target->isPlatformAdmin()) && ! $authUser->isAdmin()) {
+                return response()->json(['message' => 'Forbidden.'], 403);
+            }
+
+            if (array_key_exists('role', $data) && ! $authUser->isAdmin()) {
+                $requestedRoleValue = is_string($data['role']) ? $data['role'] : null;
+                $currentRoleValue = $target->role?->value;
+                if (in_array($requestedRoleValue, $this->privilegedRoleValues(), true)
+                    || in_array($currentRoleValue, $this->privilegedRoleValues(), true)) {
+                    return response()->json(['message' => 'Forbidden.'], 403);
+                }
+            }
+
+            if (array_key_exists('password', $data) && ! $authUser->isAdmin()) {
+                return response()->json(['message' => 'Forbidden.'], 403);
+            }
         }
 
-        $result = $this->userService->update($id, $data);
+        if ($authUser === null) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
+        $result = $this->userService->update($id, $data, (int) $authUser->id);
 
         if (! $result) {
             return response()->json(['message' => 'User not found.'], 404);
         }
 
         return response()->json($result);
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function privilegedRoleValues(): array
+    {
+        return [
+            UserRole::Admin->value,
+            UserRole::AssistantAdmin->value,
+            UserRole::StageAdmin->value,
+        ];
     }
 
     public function destroy(Request $request, int $id): JsonResponse
@@ -356,6 +393,17 @@ class UserController extends Controller
         }
 
         if (! $this->scopeResolver->canAccessUser($authUser, $target)) {
+            return response()->json(['message' => 'Forbidden.'], 403);
+        }
+
+        // Privileged targets (admin / assistant_admin / stage_admin / platform
+        // admin) may only be demoted by church-admin tier — mirrors the
+        // update() authority guard; stage admins cannot remove peers.
+        $targetIsPrivileged = $target->isAdmin()
+            || $target->isAssistantAdmin()
+            || $target->isStageAdmin()
+            || $target->isPlatformAdmin();
+        if ($targetIsPrivileged && ! $authUser->isAdmin() && ! $authUser->isPlatformAdmin()) {
             return response()->json(['message' => 'Forbidden.'], 403);
         }
 

@@ -10,6 +10,7 @@ use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\EventRequest;
 use App\Http\Resources\EventResource;
+use App\Models\Classe;
 use App\Models\Event;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
@@ -229,6 +230,31 @@ class EventController extends Controller
             $data['class_year_id'] = $data['class_id'];
         }
         unset($data['class_id']);
+
+        // Tenant + stage boundary for retargeting: the exists:classes rule is
+        // global, so without this a foreign-church class id would be accepted
+        // and a stage admin could re-point events at another stage's classes.
+        if (! $user->isPlatformAdmin()) {
+            $requestedClassIds = [];
+            if (is_numeric($data['class_year_id'] ?? null)) {
+                $requestedClassIds[] = (int) $data['class_year_id'];
+            }
+            if (is_array($data['target_class_ids'] ?? null)) {
+                foreach ($data['target_class_ids'] as $targetClassId) {
+                    if (is_numeric($targetClassId)) {
+                        $requestedClassIds[] = (int) $targetClassId;
+                    }
+                }
+            }
+            foreach ($requestedClassIds as $classId) {
+                if (Classe::find($classId) === null) {
+                    return response()->json(['message' => 'Forbidden.'], 403);
+                }
+            }
+            if ($user->isStageAdmin() && ! $this->stageAdminTargetsInScope($user, $data)) {
+                return response()->json(['message' => 'Forbidden.'], 403);
+            }
+        }
 
         if ($request->hasFile('image')) {
             if ($eventModel->image ?? null) {

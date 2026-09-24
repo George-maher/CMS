@@ -15,13 +15,17 @@ Route::get('/health', function () {
         $dbStatus = 'disconnected';
     }
 
+    $healthy = $dbStatus === 'connected';
+
+    // Fail closed for monitoring: a degraded dependency must produce a
+    // non-2xx status so load balancers/orchestrators pull the instance.
     return response()->json([
-        'status' => $dbStatus === 'connected' ? 'healthy' : 'degraded',
+        'status' => $healthy ? 'healthy' : 'degraded',
         'service' => 'Church Manager API',
         'version' => '1.0.0',
         'database' => $dbStatus,
         'timestamp' => now()->toISOString(),
-    ]);
+    ], $healthy ? 200 : 503);
 });
 
 /*
@@ -40,9 +44,16 @@ Route::get('/health', function () {
 |
 */
 Route::get('/storage/{path}', function (string $path) {
-    $fullPath = storage_path('app/public/'.$path);
+    // Realpath containment: the resolved file must live inside
+    // storage/app/public. This refuses `..` traversal, absolute paths and
+    // symlink escapes before the file is ever opened.
+    $base = realpath(storage_path('app/public'));
+    $fullPath = $base !== false ? realpath($base.DIRECTORY_SEPARATOR.ltrim($path, '/\\')) : false;
 
-    if (! file_exists($fullPath) || is_dir($fullPath)) {
+    if ($base === false
+        || $fullPath === false
+        || ! str_starts_with($fullPath, $base.DIRECTORY_SEPARATOR)
+        || is_dir($fullPath)) {
         abort(404);
     }
 

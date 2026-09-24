@@ -191,7 +191,7 @@ class StorageController extends Controller
 
         Log::info('File deleted from storage', [
             'bucket' => $bucket,
-            'bucket' => $bucket,
+            'url' => $fileUrl,
         ]);
 
         return response()->json([

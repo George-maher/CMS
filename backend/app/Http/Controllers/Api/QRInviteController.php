@@ -10,9 +10,12 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\CreateQRInviteRequest;
 use App\Http\Resources\QRInviteResource;
 use App\Http\Resources\UserResource;
+use App\Models\AttendanceContext;
 use App\Models\Classe;
 use App\Models\QRInvite;
+use App\Models\Scopes\ChurchScope;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -89,13 +92,34 @@ class QRInviteController extends Controller
         /** @var array{valid: bool, invite: QRInvite, type: QRInviteType} $result */
         $result = $this->qrInviteService->validateToken($token);
         $invite = $result['invite'];
-        $invite->load(['stage']);
-        $classesQuery = Classe::where('church_id', $invite->church_id);
+
+        // Public, unauthenticated endpoint: the invite is authorized by its token.
+        // Relation/class loads run unscoped but stay bound to the invite's own
+        // FKs and church so foreign-church data can never be selected.
+        $unscope = static fn (Relation $query) => $query->withoutGlobalScope(ChurchScope::class);
+        $invite->load([
+            'stage' => $unscope,
+            'classe' => $unscope,
+            'classe.stage' => $unscope,
+        ]);
+        $classesQuery = Classe::withoutGlobalScope(ChurchScope::class)
+            ->where('church_id', $invite->church_id);
         if ($invite->stage_id !== null) {
             // Only classes inside the invitation's stage are selectable.
             $classesQuery->where('stage_id', $invite->stage_id);
         }
         $classes = $classesQuery->orderBy('name')->get(['id', 'name']);
+
+        // Resolve the attendance context explicitly, bound to the invite's
+        // church: a foreign-church context id (data anomaly) resolves to null.
+        $attendanceContext = null;
+        if ($invite->attendance_context_id !== null) {
+            $attendanceContext = AttendanceContext::withoutGlobalScope(ChurchScope::class)
+                ->where('id', $invite->attendance_context_id)
+                ->where('church_id', $invite->church_id)
+                ->first();
+        }
+        $invite->setRelation('attendanceContext', $attendanceContext);
 
         $data = [
             'valid' => $result['valid'],
@@ -104,16 +128,16 @@ class QRInviteController extends Controller
             'stage_id' => $invite->stage_id,
             'stage_name' => $invite->stage?->name,
             'classes' => $classes->toArray(),
-            'attendance_context_id' => $invite->attendance_context_id,
-            'attendance_context' => $invite->attendanceContext ? [
-                'id' => $invite->attendanceContext->id,
-                'name' => $invite->attendanceContext->name,
-                'slug' => $invite->attendanceContext->slug,
+            'attendance_context_id' => $attendanceContext?->id,
+            'attendance_context' => $attendanceContext ? [
+                'id' => $attendanceContext->id,
+                'name' => $attendanceContext->name,
+                'slug' => $attendanceContext->slug,
             ] : null,
         ];
 
         if ($result['type'] === QRInviteType::ServantToMemberInvite) {
-            $invite->load('creator.classe');
+            $invite->load(['creator.classe' => $unscope]);
             $data['creator_class_id'] = $invite->creator?->classe?->id;
             $data['creator_class_name'] = $invite->creator?->classe?->name;
         }
@@ -125,7 +149,7 @@ class QRInviteController extends Controller
 
     public function details(string $token): JsonResponse
     {
-        /** @var array{valid: bool, invite: QRInvite, type: QRInviteType, type_label: string, role: UserRole|null, role_label: string|null, creator_name: string|null, creator_class_id: int|null, creator_class_name: string|null, class_id: int|null, class_name: string|null, classes: array<int, array<string, mixed>>, expires_at: mixed, is_expired: bool, is_used: bool, is_revoked: bool} $result */
+        /** @var array{valid: bool, invite: QRInvite, type: QRInviteType, type_label: string, role: UserRole|null, role_label: string|null, creator_name: string|null, creator_class_id: int|null, creator_class_name: string|null, class_id: int|null, class_name: string|null, stage_id: int|null, stage_name: string|null, classes: array<int, array<string, mixed>>, expires_at: mixed, is_expired: bool, is_used: bool, is_revoked: bool} $result */
         $result = $this->qrInviteService->getInviteDetails($token);
 
         /** @var QRInvite $invite */
@@ -143,6 +167,8 @@ class QRInviteController extends Controller
                 'creator_class_name' => $result['creator_class_name'] ?? null,
                 'class_id' => $result['class_id'] ?? null,
                 'class_name' => $result['class_name'] ?? null,
+                'stage_id' => $result['stage_id'],
+                'stage_name' => $result['stage_name'],
                 'classes' => $result['classes'] ?? [],
                 'expires_at' => $result['expires_at'] ?? null,
                 'is_expired' => $result['is_expired'] ?? false,
@@ -156,7 +182,9 @@ class QRInviteController extends Controller
                 'usage_label' => $invite->max_uses
                     ? ($invite->use_count.' / '.$invite->max_uses)
                     : null,
-                'used_by_users' => $invite->used_by_users,
+                // used_by_users (names/phones roster) is intentionally omitted:
+                // this endpoint is public and token-bound only. Authenticated
+                // management lists get the roster via QRInviteResource.
             ],
         ]);
     }

@@ -63,11 +63,23 @@ class PasswordResetRequestTest extends TestCase
             'status' => 'pending',
         ]);
 
-        $notification = Notification::where('user_id', $admin->id)->first();
-        $this->assertNotNull($notification, 'Church Admin should have an in-app notification.');
-        $this->assertSame('password_reset', $notification->type);
-        $this->assertSame($church->id, $notification->church_id);
-        $this->assertStringContainsString('Password Reset Request', (string) $notification->title);
+        // Verify through the authenticated production path: the fail-closed
+        // ChurchScope only reveals notifications bound to the admin's church.
+        $notifications = $this->actingAsUser($admin)->getJson('/api/v1/notifications');
+        $notifications->assertOk()
+            ->assertJsonFragment(['type' => 'password_reset']);
+
+        $titles = collect($notifications->json('data.*.title'));
+        $this->assertTrue(
+            $titles->contains(fn ($title) => str_contains((string) $title, 'Password Reset Request')),
+            'Church Admin should have an in-app notification.'
+        );
+
+        $this->assertDatabaseHas('notifications', [
+            'user_id' => $admin->id,
+            'church_id' => $church->id,
+            'type' => 'password_reset',
+        ]);
     }
 
     public function test_servant_submit_creates_request_and_notifies_church_admin(): void
@@ -89,10 +101,17 @@ class PasswordResetRequestTest extends TestCase
             'status' => 'pending',
         ]);
 
-        $this->assertNotNull(
-            Notification::where('user_id', $admin->id)->first(),
-            'Church Admin should be notified when a servant requests a reset.'
-        );
+        // Verify through the authenticated production path (church-scoped list).
+        $this->actingAsUser($admin)
+            ->getJson('/api/v1/notifications')
+            ->assertOk()
+            ->assertJsonFragment(['type' => 'password_reset']);
+
+        $this->assertDatabaseHas('notifications', [
+            'user_id' => $admin->id,
+            'church_id' => $church->id,
+            'type' => 'password_reset',
+        ]);
     }
 
     public function test_request_is_not_created_for_unknown_email(): void

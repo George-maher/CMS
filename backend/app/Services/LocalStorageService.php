@@ -91,6 +91,18 @@ class LocalStorageService implements StorageServiceInterface
 
             return false;
         }
+
+        // Bucket containment (parity with SupabaseStorageService): the key
+        // must live under the authorized bucket so a caller claiming bucket A
+        // can never mutate objects under bucket B.
+        if ($bucket !== null && ! str_starts_with($key, trim($bucket, '/').'/')) {
+            Log::warning('Rejected storage mutation for mismatched bucket', [
+                'authorized_bucket' => $bucket,
+                'key' => $key,
+            ]);
+
+            return false;
+        }
         try {
             if (Storage::disk($this->disk)->exists($key)) {
                 Storage::disk($this->disk)->delete($key);
@@ -113,7 +125,9 @@ class LocalStorageService implements StorageServiceInterface
 
     public function replaceFile(string $oldUrl, UploadedFile $newFile, string $bucket, ?string $path = null): string
     {
-        $this->deleteFile($oldUrl);
+        if (! $this->deleteFile($oldUrl, $bucket)) {
+            throw new \InvalidArgumentException('The existing storage object is invalid or outside the authorized bucket.');
+        }
 
         return $this->uploadImage($newFile, $bucket, $path);
     }
@@ -165,8 +179,11 @@ class LocalStorageService implements StorageServiceInterface
     protected function generateKey(UploadedFile $file, string $bucket, ?string $path = null): string
     {
         $uuid = strval(Str::uuid());
-        $extension = $file->getClientOriginalExtension();
-        $filename = $uuid.'.'.$extension;
+        // Derive the extension from the already-validated content MIME type —
+        // the client-supplied filename extension is never trusted (validate*
+        // runs before generateKey, so the MIME is guaranteed allowlisted).
+        $extension = $this->extensionForMime($file->getMimeType());
+        $filename = $extension !== null ? $uuid.'.'.$extension : $uuid;
         $parts = [$bucket];
         if ($path) {
             $parts[] = trim($path, '/');
@@ -174,6 +191,23 @@ class LocalStorageService implements StorageServiceInterface
         $parts[] = $filename;
 
         return implode('/', $parts);
+    }
+
+    /**
+     * Server-derived extension for a validated MIME type.
+     */
+    protected function extensionForMime(?string $mime): ?string
+    {
+        return match ($mime) {
+            'image/jpeg' => 'jpg',
+            'image/png' => 'png',
+            'image/gif' => 'gif',
+            'image/webp' => 'webp',
+            'application/pdf' => 'pdf',
+            'application/msword' => 'doc',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => 'docx',
+            default => null,
+        };
     }
 
     protected function extractKeyFromUrl(string $url): ?string

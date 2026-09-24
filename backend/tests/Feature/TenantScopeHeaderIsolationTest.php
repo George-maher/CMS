@@ -5,8 +5,8 @@ namespace Tests\Feature;
 use App\Models\Stage;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Route;
-use Throwable;
 use Tests\TestCase;
+use Throwable;
 
 class TenantScopeHeaderIsolationTest extends TestCase
 {

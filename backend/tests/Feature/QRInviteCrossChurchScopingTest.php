@@ -113,4 +113,46 @@ class QRInviteCrossChurchScopingTest extends TestCase
             ->assertJsonPath('data.attendance_context_id', null)
             ->assertJsonPath('data.attendance_context', null);
     }
+
+    public function test_user_from_another_church_cannot_accept_invite(): void
+    {
+        $churchA = Church::factory()->create();
+        $churchB = Church::factory()->create();
+
+        $adminA = User::factory()->create([
+            'role' => UserRole::Admin,
+            'church_id' => $churchA->id,
+            'application_status' => 'approved',
+        ]);
+
+        $invite = QRInvite::create([
+            'type' => QRInviteType::ServantToMemberInvite,
+            'token' => Str::random(64),
+            'created_by' => $adminA->id,
+            'church_id' => $churchA->id,
+            'expires_at' => now()->addHours(4),
+            'is_single_use' => true,
+            'max_uses' => 1,
+            'use_count' => 0,
+        ]);
+
+        $servantB = User::factory()->create([
+            'role' => UserRole::Servant,
+            'church_id' => $churchB->id,
+            'application_status' => 'approved',
+        ]);
+        $token = $servantB->createToken('test', [$servantB->role->value])->plainTextToken;
+
+        $this->withHeader('Authorization', "Bearer $token")
+            ->postJson('/api/v1/invite/'.$invite->token.'/accept')
+            ->assertStatus(422)
+            ->assertJsonPath('errors.invite.0', __('invite.church_mismatch'));
+
+        // The foreign invite stays unconsumed and the user's role is untouched.
+        $this->assertDatabaseHas('qr_invites', [
+            'id' => $invite->id,
+            'use_count' => 0,
+        ]);
+        $this->assertSame(UserRole::Servant, $servantB->fresh()->role);
+    }
 }

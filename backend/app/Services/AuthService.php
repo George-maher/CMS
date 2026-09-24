@@ -11,8 +11,10 @@ use App\Enums\UserScope;
 use App\Models\Church;
 use App\Models\Classe;
 use App\Models\QRInvite;
+use App\Models\Scopes\ChurchScope;
 use App\Models\User;
 use App\Notifications\VerifyEmailNotification;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
@@ -87,7 +89,14 @@ class AuthService implements AuthServiceInterface
 
         $token = $user->createToken('auth-token', [$user->role->value])->plainTextToken;
 
-        $user->load(['classe', 'servant', 'church', 'churchApplication']);
+        // Login is a public route: the fail-closed ChurchScope must not null out
+        // the user's class relation in the response.
+        $user->load([
+            'classe' => static fn (Relation $query) => $query->withoutGlobalScope(ChurchScope::class),
+            'servant',
+            'church',
+            'churchApplication',
+        ]);
 
         $rejectionReason = null;
         if ($user->isRejected() && $user->churchApplication && $user->churchApplication->rejection_reason) {
@@ -183,8 +192,13 @@ class AuthService implements AuthServiceInterface
         $registerEmail = $data['email'] ?? '';
         $data['email'] = strtolower(trim($registerEmail));
 
-        return DB::transaction(function () use ($data, $invite, $role, $inviteToken) {
-            $freshInvite = QRInvite::where('id', $invite->id)
+        return DB::transaction(function () use ($data, $invite, $role) {
+            // The invite was already authorized by its token (findByToken runs
+            // unscoped with explicit token binding); public registration has no
+            // authenticated tenant, so the fail-closed ChurchScope must not hide
+            // this lock re-fetch.
+            $freshInvite = QRInvite::withoutGlobalScope(ChurchScope::class)
+                ->where('id', $invite->id)
                 ->lockForUpdate()
                 ->first();
 
@@ -216,7 +230,9 @@ class AuthService implements AuthServiceInterface
             if (! empty($data['class_id'])) {
                 /** @var int $classId */
                 $classId = $data['class_id'];
-                $classe = Classe::query()
+                // Explicitly church-bound: safe to bypass the fail-closed scope
+                // (public request context) because the church filter is kept.
+                $classe = Classe::withoutGlobalScope(ChurchScope::class)
                     ->where('id', $classId)
                     ->where('church_id', $invite->church_id)
                     ->first();
@@ -270,7 +286,9 @@ class AuthService implements AuthServiceInterface
             ]);
 
             return [
-                'user' => $user->load('classe'),
+                'user' => $user->load([
+                    'classe' => static fn (Relation $query) => $query->withoutGlobalScope(ChurchScope::class),
+                ]),
                 'message' => 'Registration successful. You can now log in with your credentials.',
             ];
         });

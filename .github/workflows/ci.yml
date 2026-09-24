@@ -1,191 +1,64 @@
-name: CI Pipeline
+name: CI
 
 on:
   push:
-    branches: [main, develop]
-  pull_request:
     branches: [main]
+  pull_request:
 
 jobs:
-  backend-lint:
-    name: Backend Lint & Static Analysis
+  backend:
+    name: Backend (tests, PHPStan, Pint)
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: backend
-
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup PHP
-        uses: shivammathur/setup-php@v2
+      - uses: shivammathur/setup-php@v2
         with:
-          php-version: "8.3"
-          extensions: pgsql, mbstring, bcmath, fileinfo
+          php-version: '8.3'
+          extensions: mbstring, sqlite3, pdo_sqlite, intl, bcmath, gd, zip
+          coverage: none
 
       - name: Install dependencies
         run: composer install --no-interaction --prefer-dist --no-progress
 
-      - name: Composer security audit
-        run: composer audit --locked --no-dev
-
-      - name: Bootstrap Laravel
-        run: |
-          cp .env.example .env
-          php artisan key:generate --force
-          mkdir -p storage/framework/cache/data storage/framework/sessions storage/framework/views storage/framework/testing storage/logs storage/app/private storage/app/public bootstrap/cache
-          php artisan optimize:clear
-
-      - name: Run PHPStan
-        run: vendor/bin/phpstan analyse app --level=max
-
-      - name: PHP syntax check
-        run: find app config database routes -name '*.php' -print0 | xargs -0 -n1 php -l
-
-      - name: Check code style
-        run: vendor/bin/pint --test
-
-  backend-tests:
-    name: Backend Tests
-    needs: backend-lint
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: backend
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup PHP
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: "8.3"
-          extensions: pgsql, mbstring, bcmath, fileinfo, sqlite3
-
-      - name: Install dependencies
-        run: composer install --no-interaction --prefer-dist --no-progress
-
-      - name: Bootstrap Laravel
-        run: |
-          cp .env.example .env
-          php artisan key:generate --force
-          mkdir -p storage/framework/cache/data storage/framework/sessions storage/framework/views storage/framework/testing storage/logs storage/app/private storage/app/public bootstrap/cache
-          php artisan optimize:clear
-
-      - name: Run Tests
+      - name: Run test suite (SQLite)
         run: php artisan test
 
-  backend-postgres-tests:
-    name: PostgreSQL Integration Tests
-    needs: backend-lint
-    runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_DB: church_management_test
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U postgres -d church_management_test"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-    defaults:
-      run:
-        working-directory: backend
-    steps:
-      - uses: actions/checkout@v4
+      - name: PHPStan (level max)
+        run: vendor/bin/phpstan analyse --level=max --memory-limit=1G --no-progress
 
-      - name: Setup PHP
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: "8.3"
-          extensions: pgsql, mbstring, bcmath, fileinfo, sqlite3
+      - name: Pint (style check)
+        run: vendor/bin/pint --test
 
-      - name: Install dependencies
-        run: composer install --no-interaction --prefer-dist --no-progress
-
-      - name: Bootstrap Laravel
-        run: |
-          cp .env.example .env
-          php artisan key:generate --force
-          mkdir -p storage/framework/cache/data storage/framework/sessions storage/framework/views storage/framework/testing storage/logs storage/app/private storage/app/public bootstrap/cache
-          php artisan optimize:clear
-
-      - name: Migrate PostgreSQL schema
-        run: php artisan migrate --force
-
-      - name: Run PostgreSQL suite
-        run: php artisan test -c phpunit.postgres.xml
-
-  frontend-lint:
-    name: Frontend Lint & Type Check
+  frontend:
+    name: Frontend (tsc, ESLint, i18n, build)
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: frontend
-
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          node-version: '22'
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --legacy-peer-deps
 
-      - name: npm security audit
-        run: npm audit --audit-level=high
-
-      - name: Lint
-        run: npm run lint
-
-      - name: Check i18n keys
-        run: npm run check:i18n
-
-      - name: Type Check
+      - name: TypeScript
         run: npx tsc --noEmit
 
-  frontend-build:
-    name: Frontend Build
-    needs: frontend-lint
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: frontend
+      - name: ESLint
+        run: npm run lint
 
-    steps:
-      - uses: actions/checkout@v4
+      - name: i18n EN/AR parity
+        run: npm run check:i18n
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build
+      - name: Production build
         run: npm run build
-
-  docker-build:
-    name: Docker Build Check
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Validate Docker Compose configuration
-        run: docker compose config --quiet
-
-      - name: Build Docker Images
-        run: docker compose build

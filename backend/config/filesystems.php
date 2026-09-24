@@ -20,7 +20,12 @@ return [
         'local' => [
             'driver' => 'local',
             'root' => storage_path('app/private'),
-            'serve' => true,
+            // Signed URL serving is disabled: no part of the application
+            // generates signed storage URLs, and leaving it enabled registers
+            // a framework GET|PUT /storage/{path} route that shadows the
+            // explicit public-file fallback in routes/web.php. Private files
+            // are only ever served through authenticated API endpoints.
+            'serve' => false,
             'throw' => false,
             'report' => false,
         ],

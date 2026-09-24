@@ -88,7 +88,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .catch((e) => {
         logCatch('AuthContext.getMe', e)
         const status = e?.response?.status
-        if (status === 401 || !navigator.onLine || status === undefined) {
+        if (status === 401) {
+          // Only an explicit 401 from the server invalidates the session.
+          // Offline / network errors (status undefined) must keep the cached
+          // session — this app is offline-first and a flaky connection must
+          // not log the user out.
           setToken(null)
           setUser(null)
           localStorage.removeItem(STORAGE_TOKEN_KEY)

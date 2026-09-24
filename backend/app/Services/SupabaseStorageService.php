@@ -348,14 +348,34 @@ class SupabaseStorageService implements StorageServiceInterface
     protected function generateKey(UploadedFile $file, string $bucket, ?string $path = null): string
     {
         $uuid = (string) Str::uuid();
-        $extension = $file->getClientOriginalExtension();
-        $filename = $uuid.'.'.$extension;
+        // Derive the extension from the already-validated content MIME type —
+        // the client-supplied filename extension is never trusted (validate*
+        // runs before generateKey, so the MIME is guaranteed allowlisted).
+        $extension = $this->extensionForMime($file->getMimeType());
+        $filename = $extension !== null ? $uuid.'.'.$extension : $uuid;
 
         if ($path) {
             return trim($bucket, '/').'/'.trim($path, '/').'/'.$filename;
         }
 
         return trim($bucket, '/').'/'.$filename;
+    }
+
+    /**
+     * Server-derived extension for a validated MIME type.
+     */
+    protected function extensionForMime(?string $mime): ?string
+    {
+        return match ($mime) {
+            'image/jpeg' => 'jpg',
+            'image/png' => 'png',
+            'image/gif' => 'gif',
+            'image/webp' => 'webp',
+            'application/pdf' => 'pdf',
+            'application/msword' => 'doc',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => 'docx',
+            default => null,
+        };
     }
 
     protected function extractKeyFromUrl(string $url): ?string

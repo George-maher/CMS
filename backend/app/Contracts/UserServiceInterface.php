@@ -21,7 +21,7 @@ interface UserServiceInterface
 
     /** @param array<string, mixed> $data */
     /** @return array<string, mixed>|null */
-    public function update(int $id, array $data): ?array;
+    public function update(int $id, array $data, int $authUserId): ?array;
 
     public function delete(int $id): bool;
 

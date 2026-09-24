@@ -81,18 +81,24 @@ else
     php /var/www/artisan key:generate --force
 fi
 
-if php /var/www/artisan migrate --force 2>/dev/null; then
-    echo "Migrations complete."
-elif [ "$PRODUCTION_MODE" -eq 1 ]; then
-    echo "Production migrations failed."
-    exit 1
-else
-    echo "Migrations skipped."
-fi
+if [ "${RUN_MIGRATIONS:-true}" = "true" ]; then
+    if php /var/www/artisan migrate --force 2>/dev/null; then
+        echo "Migrations complete."
+    elif [ "$PRODUCTION_MODE" -eq 1 ]; then
+        echo "Production migrations failed."
+        exit 1
+    else
+        echo "Migrations skipped."
+    fi
 
-if php /var/www/artisan tinker --execute="\App\Models\Permission::clearCache(); echo \App\Models\Permission::getPermissionsForRole('admin') === [] ? 'missing' : 'seeded';" 2>/dev/null | grep -q "missing"; then
-    echo "Admin role permissions missing — seeding default roles and permissions..."
-    php /var/www/artisan db:seed --class=PermissionSeeder --force 2>/dev/null && echo "Permission seeder complete." || echo "Permission seeder skipped."
+    if php /var/www/artisan tinker --execute="\App\Models\Permission::clearCache(); echo \App\Models\Permission::getPermissionsForRole('admin') === [] ? 'missing' : 'seeded';" 2>/dev/null | grep -q "missing"; then
+        echo "Admin role permissions missing — seeding default roles and permissions..."
+        php /var/www/artisan db:seed --class=PermissionSeeder --force 2>/dev/null && echo "Permission seeder complete." || echo "Permission seeder skipped."
+    fi
+else
+    # Multi-service stacks (compose: worker/scheduler) must not race the app
+    # service's migrator — only one service migrates/seeds.
+    echo "Migrations disabled for this service (RUN_MIGRATIONS=${RUN_MIGRATIONS:-unset})."
 fi
 
 if [ ! -L /var/www/public/storage ] && [ ! -e /var/www/public/storage ]; then

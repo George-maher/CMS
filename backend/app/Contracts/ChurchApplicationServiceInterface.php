@@ -14,7 +14,7 @@ interface ChurchApplicationServiceInterface
 
     /** @param array<string, mixed> $data */
     /** @return array<string, mixed> */
-    public function submit(array $data, ?UploadedFile $frontId, ?UploadedFile $backId, string $email, string $password, ?UploadedFile $churchPermissionDoc = null): array;
+    public function submit(array $data, ?UploadedFile $frontId, ?UploadedFile $backId, string $email, string $password, ?UploadedFile $churchPermissionDoc = null, ?int $authUserId = null): array;
 
     public function approve(ChurchApplication $application, User $platformAdmin, ?string $notes = null): Church;
 

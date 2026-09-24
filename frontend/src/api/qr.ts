@@ -72,7 +72,6 @@ export interface InviteDetails {
   max_uses: number | null
   remaining_uses: number | null
   usage_label: string | null
-  used_by_users: UsedByUserEntry[] | null
 }
 
 export async function getInviteDetails(token: string): Promise<InviteDetails> {

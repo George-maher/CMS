@@ -51,15 +51,18 @@ The project contains ALL necessary architecture components for commercial operat
 
 | File | Issue | Action Taken |
 |------|-------|-------------|
-| `backend/.env` | **LIVE Supabase URL** (`https://hjmdcdtpnlhpxizqndhc.supabase.co`) | ✅ Replaced with placeholder |
-| `backend/.env` | **LIVE Supabase Anon Key** (JWT token) | ✅ Replaced with empty value |
-| `backend/.env` | **LIVE Supabase Service Role Key** (with `service_role` claim) | ✅ Replaced with empty value |
-| `backend/.env` | **LIVE DB Password** (`VY%^z8e?3u9+%?x`) | ✅ Replaced with empty value |
-| `backend/.env` | **LIVE DB Host** (`aws-1-eu-central-1.pooler.supabase.com`) | ✅ Replaced with placeholder |
-| `backend/.env` | **LIVE DB Username** (`ppostgres.hjmdcdtpnlhpxizqndhc`) | ✅ Replaced with placeholder |
-| `backend/.env` | **LIVE APP_KEY** (`base64:kz2/be4WdkfDy5NNSpmXKcBUR/grblrYZN9uod6dcG8=`) | ✅ Replaced with empty value |
-| `frontend/.env` | **Production Vercel URL** (`https://cms-flame-eta.vercel.app`) | ✅ Replaced with `/api` |
+| `backend/.env` | **LIVE Supabase URL** (redacted) | ✅ Replaced with placeholder |
+| `backend/.env` | **LIVE Supabase Anon Key** (redacted) | ✅ Replaced with empty value |
+| `backend/.env` | **LIVE Supabase Service Role Key** (redacted) | ✅ Replaced with empty value |
+| `backend/.env` | **LIVE DB Password** (redacted) | ✅ Replaced with empty value |
+| `backend/.env` | **LIVE DB Host** (redacted) | ✅ Replaced with placeholder |
+| `backend/.env` | **LIVE DB Username** (redacted) | ✅ Replaced with placeholder |
+| `backend/.env` | **LIVE APP_KEY** (redacted) | ✅ Replaced with empty value |
+| `frontend/.env` | **Production Vercel URL** (redacted) | ✅ Replaced with `/api` |
 | `.env` | No live credentials (already clean) | ✅ Verified clean |
+
+> **Note:** credential values are intentionally not reproduced anywhere in
+> this document. They must be treated as compromised and rotated (see §9).
 
 ### Other Sensitive Files Reviewed
 

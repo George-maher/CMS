@@ -6,10 +6,12 @@ use App\Enums\UserRole;
 use App\Models\Church;
 use App\Models\Permission;
 use App\Models\User;
+use App\Services\LocalStorageService;
 use App\Services\SupabaseStorageService;
 use Database\Seeders\PermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class StorageEndpointAuthorizationTest extends TestCase
@@ -174,6 +176,24 @@ class StorageEndpointAuthorizationTest extends TestCase
             ->assertJsonStructure(['url']);
     }
 
+    public function test_upload_derives_stored_extension_from_content_not_client_filename(): void
+    {
+        // A PNG whose client filename claims a non-blocked script extension
+        // (`.pht`) must be stored with the server-derived extension for its
+        // validated MIME type — the client extension is never trusted.
+        $response = $this->actingAsUser($this->admin)
+            ->postJson('/api/v1/storage/upload/profiles', [
+                'file' => $this->makePng('payload.pht'),
+            ])
+            ->assertStatus(201)
+            ->assertJsonStructure(['url']);
+
+        $url = $response->json('url');
+        $this->assertIsString($url);
+        $this->assertStringNotContainsString('.pht', $url);
+        $this->assertStringContainsString('.png', $url);
+    }
+
     public function test_unauthenticated_user_cannot_access_storage_endpoints(): void
     {
         $this->postJson('/api/v1/storage/upload-document', [
@@ -195,5 +215,40 @@ class StorageEndpointAuthorizationTest extends TestCase
             'https://project.supabase.co/storage/v1/object/public/events/event.png',
             'profiles',
         ));
+    }
+
+    public function test_local_storage_rejects_url_bucket_mismatch_before_mutation(): void
+    {
+        Storage::disk('public')->putFileAs('events', $this->makePng(), 'scope-target.png');
+
+        $service = new LocalStorageService;
+
+        $deleted = $service->deleteFile(
+            Storage::disk('public')->url('events/scope-target.png'),
+            'profiles',
+        );
+
+        $this->assertFalse(
+            $deleted,
+            'LocalStorageService must refuse to delete an object outside the authorized bucket.'
+        );
+        Storage::disk('public')->assertExists('events/scope-target.png');
+    }
+
+    public function test_local_storage_replace_rejects_cross_bucket_old_url(): void
+    {
+        Storage::disk('public')->putFileAs('events', $this->makePng(), 'replace-scope-target.png');
+        $oldUrl = Storage::disk('public')->url('events/replace-scope-target.png');
+
+        $service = new LocalStorageService;
+
+        try {
+            $service->replaceFile($oldUrl, $this->makePng(), 'profiles');
+            $this->fail('Expected InvalidArgumentException for a cross-bucket replace.');
+        } catch (\InvalidArgumentException) {
+            // Expected: deletion is refused before any mutation happens.
+        }
+
+        Storage::disk('public')->assertExists('events/replace-scope-target.png');
     }
 }

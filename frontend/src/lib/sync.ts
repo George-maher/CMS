@@ -28,20 +28,10 @@ export async function queueOfflineRequest(
 }
 
 export async function processSyncQueue(): Promise<void> {
-  const items = await getPendingSyncItems()
-  if (items.length === 0) return
-
-  emit({ type: 'start', message: `Syncing ${items.length} item(s)...` })
-
-  for (const item of items) {
-    if (item.status === 'completed') continue
-
-    await markSyncCompleted(item.id!)
-    emit({ type: 'item-complete', item: item.endpoint })
-  }
-
-  await clearCompletedSyncItems()
-  emit({ type: 'complete', message: 'Sync complete' })
+  // Delegate to the real replay routine. The previous implementation marked
+  // every queued item "completed" without ever issuing the HTTP request,
+  // silently dropping all pending offline writes.
+  await trySyncAll()
 }
 
 export async function trySyncAll(): Promise<{ synced: number; failed: number }> {

@@ -33,15 +33,44 @@ class ChurchApplicationService implements ChurchApplicationServiceInterface
 
     /** @param array<string, mixed> $data */
     /** @return array<string, mixed> */
-    public function submit(array $data, ?UploadedFile $frontId, ?UploadedFile $backId, string $email, string $password, ?UploadedFile $churchPermissionDoc = null): array
+    public function submit(array $data, ?UploadedFile $frontId, ?UploadedFile $backId, string $email, string $password, ?UploadedFile $churchPermissionDoc = null, ?int $authUserId = null): array
     {
         $existing = $this->findByEmail($email);
 
         if ($existing) {
+            $this->authorizeApplicationUpdate($existing, $password, $authUserId);
+
             return $this->updateExisting($existing, $data, $frontId, $backId, $churchPermissionDoc);
         }
 
         return $this->createNew($data, $frontId, $backId, $email, $password, $churchPermissionDoc);
+    }
+
+    /**
+     * Ownership proof for public resubmissions of an existing application.
+     *
+     * The caller must either be authenticated as the applicant's own account
+     * or present the applicant account's password. Approved records are never
+     * editable through the public endpoint. Every path fails closed.
+     */
+    private function authorizeApplicationUpdate(ChurchApplication $application, string $password, ?int $authUserId): void
+    {
+        if ($application->status === 'approved') {
+            throw ValidationException::withMessages([
+                'email' => __('application.approved_locked'),
+            ]);
+        }
+
+        $owner = User::where('church_application_id', $application->id)->first();
+
+        $isOwnerSession = $owner !== null && $authUserId !== null && $authUserId === $owner->id;
+        $isOwnerPassword = $owner !== null && $password !== '' && Hash::check($password, $owner->password);
+
+        if (! $isOwnerSession && ! $isOwnerPassword) {
+            throw ValidationException::withMessages([
+                'email' => __('application.exists_sign_in'),
+            ]);
+        }
     }
 
     /** @param array<string, mixed> $data */

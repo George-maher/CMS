@@ -4,6 +4,7 @@ namespace App\Repositories;
 
 use App\Contracts\MembershipRequestRepositoryInterface;
 use App\Models\MembershipRequest;
+use App\Models\Scopes\ChurchScope;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 class MembershipRequestRepository implements MembershipRequestRepositoryInterface
@@ -55,7 +56,10 @@ class MembershipRequestRepository implements MembershipRequestRepositoryInterfac
 
     public function findByEmailChurch(string $email, int $churchId): ?MembershipRequest
     {
-        return MembershipRequest::where('email', $email)
+        // Already bound to an explicit church; the public submit flow runs
+        // without an authenticated tenant, so bypass the fail-closed scope.
+        return MembershipRequest::withoutGlobalScope(ChurchScope::class)
+            ->where('email', $email)
             ->where('church_id', $churchId)
             ->first();
     }

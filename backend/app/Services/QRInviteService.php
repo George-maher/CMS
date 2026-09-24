@@ -9,7 +9,9 @@ use App\Enums\UserRole;
 use App\Enums\UserScope;
 use App\Models\Classe;
 use App\Models\QRInvite;
+use App\Models\Scopes\ChurchScope;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -238,8 +240,17 @@ class QRInviteService implements QRInviteServiceInterface
             ]);
         }
 
-        $invite->load(['creator.classe.stage', 'classe.stage', 'stage']);
-        $classesQuery = Classe::query()
+        // Public endpoint: the invite is authorized by its token, so relation and
+        // class loads run unscoped but stay bound to the invite's own FKs/church.
+        $unscope = static fn (Relation $query) => $query->withoutGlobalScope(ChurchScope::class);
+        $invite->load([
+            'creator.classe' => $unscope,
+            'creator.classe.stage' => $unscope,
+            'classe' => $unscope,
+            'classe.stage' => $unscope,
+            'stage' => $unscope,
+        ]);
+        $classesQuery = Classe::withoutGlobalScope(ChurchScope::class)
             ->where('church_id', $invite->church_id)
             ->select(['id', 'name', 'stage_id']);
         if ($invite->stage_id !== null) {
@@ -277,6 +288,7 @@ class QRInviteService implements QRInviteServiceInterface
     {
         /** @var array{valid: bool, invite: QRInvite, type: QRInviteType} $validation */
         $validation = $this->validateToken($token);
+
         /** @var QRInvite $invite */
         $invite = $validation['invite'];
         $role = $invite->type->targetRole();
@@ -287,8 +299,11 @@ class QRInviteService implements QRInviteServiceInterface
             ]);
         }
 
-        return DB::transaction(function () use ($invite, $role, $token, $userId, $classId) {
-            $freshInvite = QRInvite::where('id', $invite->id)
+        return DB::transaction(function () use ($invite, $role, $userId, $classId) {
+            // Unscoped lock fetch (invite already authorized by token); the
+            // explicit church binding below is the cross-tenant guard.
+            $freshInvite = QRInvite::withoutGlobalScope(ChurchScope::class)
+                ->where('id', $invite->id)
                 ->lockForUpdate()
                 ->first();
 
@@ -305,6 +320,16 @@ class QRInviteService implements QRInviteServiceInterface
             if (! $user) {
                 throw ValidationException::withMessages([
                     'user' => ['User not found.'],
+                ]);
+            }
+
+            // Cross-tenant guard: an invite may only be accepted by a user of the
+            // same church. The lock fetch above intentionally runs unscoped (the
+            // invite is token-authorized), so this explicit binding is the
+            // security boundary — fail-closed on any church mismatch.
+            if ((int) $freshInvite->church_id !== (int) $user->church_id) {
+                throw ValidationException::withMessages([
+                    'invite' => [__('invite.church_mismatch')],
                 ]);
             }
 

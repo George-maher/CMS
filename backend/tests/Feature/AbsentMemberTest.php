@@ -375,10 +375,10 @@ class AbsentMemberTest extends TestCase
 
         $response = $this->getJson('/api/v1/attendances/absent-members?class_id='.$classeChurch2->id);
 
-        $response->assertStatus(200);
-
-        $data = $response->json('data');
-        $this->assertEquals(0, $data['summary']['total_members'], 'Cross-church access should return no members');
+        // Hardened: a class of another church must not resolve at all for
+        // this caller (previously 200 + empty payload — soft isolation that
+        // still confirmed the class id to a foreign tenant).
+        $response->assertStatus(404);
     }
 
     // ──────────────────────────────────────────────
