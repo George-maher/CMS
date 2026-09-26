@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\LoginRequest;
 use App\Http\Requests\RegisterRequest;
 use App\Http\Resources\UserResource;
+use App\Models\Scopes\ChurchScope;
 use App\Models\User;
 use App\Notifications\VerifyEmailNotification;
 use Illuminate\Http\JsonResponse;
@@ -97,7 +98,9 @@ class AuthController extends Controller
             'email' => ['required', 'email'],
         ]);
 
-        $user = User::where('email', $request->input('email'))
+        // Public endpoint: opt out of ChurchScope since verification is token-authorized
+        $user = User::withoutGlobalScope(ChurchScope::class)
+            ->where('email', $request->input('email'))
             ->where('email_verification_token', $request->input('token'))
             ->first();
 
@@ -125,7 +128,10 @@ class AuthController extends Controller
             'email' => ['required', 'email'],
         ]);
 
-        $user = User::where('email', $request->input('email'))->first();
+        // Public endpoint: opt out of ChurchScope
+        $user = User::withoutGlobalScope(ChurchScope::class)
+            ->where('email', $request->input('email'))
+            ->first();
 
         if (! $user) {
             return response()->json([

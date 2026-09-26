@@ -166,7 +166,11 @@ export default function InviteLanding() {
             </div>
             <h2 className="text-lg font-semibold">{t('common.confirm')}</h2>
             <p className="mt-2 text-sm text-secondary">{t('auth.registeredSuccessfully')}</p>
-            <p className="mt-1 text-xs text-muted">{t('auth.loginAfterRegister')}</p>
+            <div className="mt-4 p-3 rounded-lg bg-primary-50 dark:bg-primary-900/20 text-left text-sm">
+              <p className="font-medium text-primary-800 dark:text-primary-300">{t('auth.verifyEmailRequired')}</p>
+              <p className="mt-1 text-primary-600 dark:text-primary-400">{t('auth.checkEmailInbox')}</p>
+            </div>
+            <p className="mt-2 text-xs text-muted">{t('auth.loginAfterRegister')}</p>
           </div>
         </div>
       </div>

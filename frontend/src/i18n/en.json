@@ -170,6 +170,8 @@
         "backToLogin": "Back to Login",
         "acceptWillLogout": "Accepting this invite will sign you out. Please sign in again with your new role.",
         "loginAfterRegister": "You will be redirected to login shortly.",
+        "verifyEmailRequired": "A verification email has been sent to your inbox. Please verify your email before logging in.",
+        "checkEmailInbox": "Check your email inbox (and spam folder) for the verification link.",
         "acceptInvite": "Accept Invite",
         "loginPendingInfo": "Welcome back! Your application is still pending approval.",
         "verifyEmail": "Verify Email",

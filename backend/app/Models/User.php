@@ -112,6 +112,8 @@ class User extends Authenticatable
         'is_active',
         'created_by',
         'attendance_qr_token',
+        'email_verified_at',
+        'email_verification_token',
     ];
 
     protected $hidden = [
