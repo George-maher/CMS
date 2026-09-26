@@ -71,7 +71,8 @@ class InviteRegistrationFlowTest extends TestCase
         $this->assertTrue($user->is_active);
         $this->assertEquals('approved', $user->application_status);
         $this->assertNull($user->email_verified_at); // Not verified yet
-        $this->assertNotNull($user->email_verification_token); // Has verification token
+        $this->assertNotNull($user->email_verification_token); // Has verification token (hashed)
+        $this->assertNotNull($user->email_verification_token_expires_at); // Has expiration
 
         // 4. VERIFY PASSWORD IS CORRECTLY HASHED (not double-hashed)
         $this->assertTrue(Hash::check($password, $user->password));
@@ -85,28 +86,12 @@ class InviteRegistrationFlowTest extends TestCase
         $loginResponseBeforeVerify->assertStatus(422)
             ->assertJsonPath('errors.email.0', 'Please verify your email address before logging in.');
 
-        // 6. VERIFY EMAIL: Simulate clicking the verification link
-        $verifyResponse = $this->postJson('/api/v1/auth/verify-email', [
-            'email' => $email,
-            'token' => $user->email_verification_token,
-        ]);
-
-        // Debug output
-        echo 'Verify Response Status: '.$verifyResponse->status()."\n";
-        echo 'Verify Response: '.$verifyResponse->getContent()."\n";
-
-        $verifyResponse->assertStatus(200)
-            ->assertJsonPath('message', 'Email verified successfully. You can now log in.');
-
-        // Verify user now has verified email
-        $user->refresh();
-
-        // Debug output
-        echo 'User email_verified_at after refresh: '.($user->email_verified_at ? $user->email_verified_at->toString() : 'NULL')."\n";
-        echo 'User email_verification_token after refresh: '.($user->email_verification_token ?? 'NULL')."\n";
-
-        $this->assertNotNull($user->email_verified_at);
-        $this->assertNull($user->email_verification_token);
+        // 6. VERIFY EMAIL: Manually verify by setting email_verified_at (token is hashed, can't retrieve raw)
+        // This simulates the user clicking the verification link from email
+        $user->email_verified_at = now();
+        $user->email_verification_token = null;
+        $user->email_verification_token_expires_at = null;
+        $user->save();
 
         // 7. LOGIN AFTER EMAIL VERIFICATION - Should succeed
         $loginResponseAfterVerify = $this->postJson('/api/v1/auth/login', [
@@ -127,6 +112,103 @@ class InviteRegistrationFlowTest extends TestCase
         $this->assertEquals(1, $invite->use_count);
         $this->assertNotNull($invite->used_at);
         $this->assertEquals($user->id, $invite->used_by);
+    }
+
+    /**
+     * Test the verify-email endpoint with valid token
+     */
+    public function test_verify_email_endpoint_with_valid_token(): void
+    {
+        // Create user with known verification token
+        $user = User::factory()->create([
+            'email' => 'verify-test@test.com',
+            'email_verified_at' => null,
+            'email_verification_token' => Hash::make('a'.str_repeat('a', 63)), // raw token = 'a' x 64
+            'email_verification_token_expires_at' => now()->addHours(12),
+            'password' => Hash::make('Test@1234'),
+        ]);
+
+        // Verify with correct token
+        $response = $this->postJson('/api/v1/auth/verify-email', [
+            'email' => 'verify-test@test.com',
+            'token' => 'a'.str_repeat('a', 63), // 64 chars
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('message', 'Email verified successfully. You can now log in.');
+
+        $user->refresh();
+        $this->assertNotNull($user->email_verified_at);
+        $this->assertNull($user->email_verification_token);
+        $this->assertNull($user->email_verification_token_expires_at);
+    }
+
+    /**
+     * Test the verify-email endpoint rejects invalid token
+     */
+    public function test_verify_email_endpoint_rejects_invalid_token(): void
+    {
+        $user = User::factory()->create([
+            'email' => 'verify-invalid@test.com',
+            'email_verified_at' => null,
+            'email_verification_token' => Hash::make('a'.str_repeat('a', 63)),
+            'email_verification_token_expires_at' => now()->addHours(12),
+            'password' => Hash::make('Test@1234'),
+        ]);
+
+        // Wrong token
+        $response = $this->postJson('/api/v1/auth/verify-email', [
+            'email' => 'verify-invalid@test.com',
+            'token' => 'b'.str_repeat('b', 63), // Different 64-char token
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonPath('message', 'Invalid or expired verification link.');
+    }
+
+    /**
+     * Test the verify-email endpoint rejects expired token
+     */
+    public function test_verify_email_endpoint_rejects_expired_token(): void
+    {
+        $user = User::factory()->create([
+            'email' => 'verify-expired@test.com',
+            'email_verified_at' => null,
+            'email_verification_token' => Hash::make('a'.str_repeat('a', 63)),
+            'email_verification_token_expires_at' => now()->subHour(), // Expired
+            'password' => Hash::make('Test@1234'),
+        ]);
+
+        $response = $this->postJson('/api/v1/auth/verify-email', [
+            'email' => 'verify-expired@test.com',
+            'token' => 'a'.str_repeat('a', 63),
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonPath('message', 'Invalid or expired verification link.');
+    }
+
+    /**
+     * Test the verify-email endpoint rejects token for wrong email
+     */
+    public function test_verify_email_endpoint_rejects_wrong_email(): void
+    {
+        $user = User::factory()->create([
+            'email' => 'verify-email@test.com',
+            'email_verified_at' => null,
+            'email_verification_token' => Hash::make('a'.str_repeat('a', 63)),
+            'email_verification_token_expires_at' => now()->addHours(12),
+            'password' => Hash::make('Test@1234'),
+        ]);
+
+        // Correct token but wrong email
+        $response = $this->postJson('/api/v1/auth/verify-email', [
+            'email' => 'wrong-email@test.com',
+            'token' => 'a'.str_repeat('a', 63),
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonPath('message', 'Invalid or expired verification link.');
     }
 
     /**
@@ -162,6 +244,7 @@ class InviteRegistrationFlowTest extends TestCase
         $user = User::where('email', 'wrongpass@test.com')->first();
         $user->email_verified_at = now();
         $user->email_verification_token = null;
+        $user->email_verification_token_expires_at = null;
         $user->save();
 
         // Try with wrong password
@@ -209,6 +292,8 @@ class InviteRegistrationFlowTest extends TestCase
 
         // Verify email
         $user->email_verified_at = now();
+        $user->email_verification_token = null;
+        $user->email_verification_token_expires_at = null;
         $user->save();
 
         // Login
@@ -250,7 +335,7 @@ class InviteRegistrationFlowTest extends TestCase
         ])->assertStatus(201);
 
         $user = User::where('email', 'resend@test.com')->first();
-        $originalToken = $user->email_verification_token;
+        $originalTokenHash = $user->email_verification_token;
 
         // Resend verification
         $response = $this->postJson('/api/v1/auth/resend-verification', [
@@ -260,9 +345,10 @@ class InviteRegistrationFlowTest extends TestCase
         $response->assertStatus(200)
             ->assertJsonPath('message', 'If that email exists in our system, a verification email has been sent.');
 
-        // Token should be regenerated
+        // Token hash should be regenerated (different hash)
         $user->refresh();
-        $this->assertNotEquals($originalToken, $user->email_verification_token);
+        $this->assertNotEquals($originalTokenHash, $user->email_verification_token);
         $this->assertNotNull($user->email_verification_token);
+        $this->assertNotNull($user->email_verification_token_expires_at);
     }
 }

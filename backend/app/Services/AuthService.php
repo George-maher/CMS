@@ -255,12 +255,15 @@ class AuthService implements AuthServiceInterface
 
             $user = $this->userRepository->create($data);
 
-            $user->email_verification_token = Str::random(64);
+            // Generate secure verification token: store hash, send raw token in email
+            $rawToken = Str::random(64);
+            $user->email_verification_token = Hash::make($rawToken);
+            $user->email_verification_token_expires_at = now()->addHours(24);
             $user->save();
 
             /** @var string $frontendUrl */
             $frontendUrl = config('app.frontend_url');
-            $verificationUrl = $frontendUrl.'/verify-email?token='.urlencode($user->email_verification_token).'&email='.urlencode($user->email);
+            $verificationUrl = $frontendUrl.'/verify-email?token='.urlencode($rawToken).'&email='.urlencode($user->email);
             try {
                 $user->notify(new VerifyEmailNotification($user, $verificationUrl));
             } catch (\Exception $e) {

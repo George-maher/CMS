@@ -12,6 +12,8 @@ use App\Models\User;
 use App\Notifications\VerifyEmailNotification;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
@@ -101,7 +103,6 @@ class AuthController extends Controller
         // Public endpoint: opt out of ChurchScope since verification is token-authorized
         $user = User::withoutGlobalScope(ChurchScope::class)
             ->where('email', $request->input('email'))
-            ->where('email_verification_token', $request->input('token'))
             ->first();
 
         if (! $user) {
@@ -112,9 +113,27 @@ class AuthController extends Controller
             return response()->json(['message' => 'Email is already verified. You can log in.'], 200);
         }
 
+        // Check if token exists and is not expired
+        /** @var string|null $tokenHash */
+        $tokenHash = $user->email_verification_token;
+        /** @var Carbon|null $expiresAt */
+        $expiresAt = $user->email_verification_token_expires_at;
+
+        if (! $tokenHash || ! $expiresAt || $expiresAt->isPast()) {
+            return response()->json(['message' => 'Invalid or expired verification link.'], 422);
+        }
+
+        // Verify token using hash comparison
+        /** @var string $inputToken */
+        $inputToken = $request->input('token');
+        if (! is_string($inputToken) || ! Hash::check($inputToken, $tokenHash)) {
+            return response()->json(['message' => 'Invalid or expired verification link.'], 422);
+        }
+
         $user->update([
             'email_verified_at' => now(),
             'email_verification_token' => null,
+            'email_verification_token_expires_at' => null,
         ]);
 
         return response()->json([
@@ -145,12 +164,15 @@ class AuthController extends Controller
             ]);
         }
 
-        $user->email_verification_token = Str::random(64);
+        // Generate new secure token: store hash, send raw token in email
+        $rawToken = Str::random(64);
+        $user->email_verification_token = Hash::make($rawToken);
+        $user->email_verification_token_expires_at = now()->addHours(24);
         $user->save();
 
         /** @var string $frontendUrl */
         $frontendUrl = config('app.frontend_url');
-        $verificationUrl = $frontendUrl.'/verify-email?token='.urlencode($user->email_verification_token ?? '').'&email='.urlencode($user->email);
+        $verificationUrl = $frontendUrl.'/verify-email?token='.urlencode($rawToken).'&email='.urlencode($user->email);
 
         try {
             $user->notify(new VerifyEmailNotification($user, $verificationUrl));

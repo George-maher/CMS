@@ -114,6 +114,7 @@ class User extends Authenticatable
         'attendance_qr_token',
         'email_verified_at',
         'email_verification_token',
+        'email_verification_token_expires_at',
     ];
 
     protected $hidden = [
@@ -125,6 +126,7 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
+            'email_verification_token_expires_at' => 'datetime',
             'password' => 'hashed',
             'is_active' => 'boolean',
             'role' => UserRole::class,
