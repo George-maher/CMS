@@ -152,7 +152,12 @@ class AuthTest extends TestCase
             'password' => 'WrongPass1!',
         ]);
 
-        $response->assertStatus(422);
+        // Invalid credentials are an authentication failure, not a request
+        // validation failure: 401 + LOGIN_FAILED.
+        $response->assertStatus(401)
+            ->assertJsonPath('success', false)
+            ->assertJsonPath('code', 'LOGIN_FAILED')
+            ->assertJsonPath('message', __('auth.failed'));
     }
 
     public function test_user_with_placeholder_like_email_local_part_can_login(): void
@@ -353,7 +358,9 @@ class AuthTest extends TestCase
             'password' => 'Test@1234',
         ]);
 
-        $response->assertStatus(422);
+        // The regular login endpoint must not reveal that the account exists.
+        $response->assertStatus(401)
+            ->assertJsonPath('code', 'LOGIN_FAILED');
     }
 
     public function test_pending_login_returns_restricted_access_state(): void

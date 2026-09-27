@@ -2,8 +2,10 @@
 
 namespace Tests\Feature;
 
+use App\Contracts\UserRepositoryInterface;
 use App\Enums\UserRole;
 use App\Models\Church;
+use App\Models\Scopes\ChurchScope;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -27,9 +29,9 @@ class ChurchScopeLoginTest extends TestCase
         $this->assertDatabaseHas('users', ['email' => 'servant-login@test.com']);
 
         // Try to find the user via the repository (simulating login)
-        $repo = app(\App\Contracts\UserRepositoryInterface::class);
+        $repo = app(UserRepositoryInterface::class);
         $foundUser = $repo->findByEmail('servant-login@test.com');
-        
+
         $this->assertNotNull($foundUser, 'UserRepository::findByEmail should find the user');
         $this->assertEquals($servant->id, $foundUser->id);
 
@@ -38,12 +40,38 @@ class ChurchScopeLoginTest extends TestCase
             'email' => 'servant-login@test.com',
             'password' => 'Test@1234',
         ]);
-        
-        $this->assertEquals(200, $response->status(), 'Login should succeed: ' . json_encode($response->json()));
+
+        $this->assertEquals(200, $response->status(), 'Login should succeed: '.json_encode($response->json()));
         $this->assertEquals('servant', $response->json('data.user.role'));
     }
 
-    public function test_church_scope_behavior_during_unauthenticated_request(): void
+    /**
+     * The User model must NOT carry the fail-closed ChurchScope global scope.
+     *
+     * Login has to resolve a user by email before any tenant context exists.
+     * ChurchScope fail-closes to `1 = 0` for unauthenticated requests, so
+     * scoping User globally would make findByEmail() return null and lock
+     * every account out. Tenant isolation for users is therefore applied
+     * explicitly per query (UserRepository::findById/paginate call byChurch())
+     * rather than as a global scope.
+     */
+    public function test_user_model_has_no_fail_closed_global_church_scope(): void
+    {
+        $userModel = new User;
+        $globalScopes = $userModel->getGlobalScopes();
+
+        $this->assertArrayNotHasKey(
+            ChurchScope::class,
+            $globalScopes,
+            'User must not carry ChurchScope: login resolves the user before a tenant context exists.'
+        );
+    }
+
+    /**
+     * A servant must be able to log in from an unauthenticated request even
+     * though every tenant-scoped model fails closed at that point.
+     */
+    public function test_church_scope_does_not_block_servant_login(): void
     {
         $church = Church::factory()->create();
         User::factory()->create([
@@ -52,20 +80,15 @@ class ChurchScopeLoginTest extends TestCase
             'password' => bcrypt('Test@1234'),
             'application_status' => 'approved',
             'church_id' => $church->id,
+            'email_verified_at' => now(),
         ]);
 
-        // Check if ChurchScope is in the User model's global scopes
-        $userModel = new User();
-        $globalScopes = $userModel->getGlobalScopes();
-        $hasChurchScope = array_key_exists('App\\Models\\Scopes\\ChurchScope', $globalScopes);
-        $this->assertTrue($hasChurchScope, 'User model should have ChurchScope global scope');
-
-        // Make an actual HTTP request to trigger the ChurchScope in a real request context
         $response = $this->postJson('/api/v1/auth/login', [
             'email' => 'test-scope@test.com',
             'password' => 'Test@1234',
         ]);
-        
-        $this->assertEquals(200, $response->status(), 'Login should succeed: ' . json_encode($response->json()));
+
+        $this->assertEquals(200, $response->status(), 'Login should succeed: '.json_encode($response->json()));
+        $this->assertEquals('servant', $response->json('data.user.role'));
     }
 }

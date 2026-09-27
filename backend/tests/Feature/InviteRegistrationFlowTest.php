@@ -16,10 +16,13 @@ class InviteRegistrationFlowTest extends TestCase
     use RefreshDatabase;
 
     /**
-     * End-to-end test: Invite → Register → Verify Email → Login
-     * This test verifies the complete user journey from invite acceptance to successful login.
+     * End-to-end test: Invite → Register → Login
+     *
+     * Invitation acceptance is the proof of email ownership for this tenant,
+     * so registration completes the account as already verified and the user
+     * can log in immediately. No email round-trip is involved.
      */
-    public function test_complete_invite_register_verify_login_flow(): void
+    public function test_complete_invite_register_login_flow(): void
     {
         // 1. SETUP: Create church and admin who sends invite
         $church = Church::factory()->create();
@@ -70,36 +73,23 @@ class InviteRegistrationFlowTest extends TestCase
         $this->assertEquals($church->id, $user->church_id);
         $this->assertTrue($user->is_active);
         $this->assertEquals('approved', $user->application_status);
-        $this->assertNull($user->email_verified_at); // Not verified yet
-        $this->assertNotNull($user->email_verification_token); // Has verification token (hashed)
-        $this->assertNotNull($user->email_verification_token_expires_at); // Has expiration
 
-        // 4. VERIFY PASSWORD IS CORRECTLY HASHED (not double-hashed)
+        // 4. INVITATION ACCEPTANCE ESTABLISHES THE VERIFIED EMAIL STATE
+        $this->assertNotNull($user->email_verified_at);
+        // No pending verification work is left behind.
+        $this->assertNull($user->email_verification_token);
+        $this->assertNull($user->email_verification_token_expires_at);
+
+        // 5. VERIFY PASSWORD IS CORRECTLY HASHED (not double-hashed)
         $this->assertTrue(Hash::check($password, $user->password));
 
-        // 5. TRY LOGIN BEFORE EMAIL VERIFICATION - Should fail with specific message
-        $loginResponseBeforeVerify = $this->postJson('/api/v1/auth/login', [
+        // 6. LOGIN IMMEDIATELY AFTER ACCEPTING THE INVITATION
+        $loginResponse = $this->postJson('/api/v1/auth/login', [
             'email' => $email,
             'password' => $password,
         ]);
 
-        $loginResponseBeforeVerify->assertStatus(422)
-            ->assertJsonPath('errors.email.0', 'Please verify your email address before logging in.');
-
-        // 6. VERIFY EMAIL: Manually verify by setting email_verified_at (token is hashed, can't retrieve raw)
-        // This simulates the user clicking the verification link from email
-        $user->email_verified_at = now();
-        $user->email_verification_token = null;
-        $user->email_verification_token_expires_at = null;
-        $user->save();
-
-        // 7. LOGIN AFTER EMAIL VERIFICATION - Should succeed
-        $loginResponseAfterVerify = $this->postJson('/api/v1/auth/login', [
-            'email' => $email,
-            'password' => $password,
-        ]);
-
-        $loginResponseAfterVerify->assertStatus(200)
+        $loginResponse->assertStatus(200)
             ->assertJsonStructure([
                 'data' => ['user', 'token', 'token_type', 'application_status', 'access_state'],
             ])
@@ -107,11 +97,41 @@ class InviteRegistrationFlowTest extends TestCase
             ->assertJsonPath('data.user.role', 'member')
             ->assertJsonPath('data.access_state', 'full');
 
-        // 8. VERIFY INVITE WAS CONSUMED
+        // 7. VERIFY INVITE WAS CONSUMED
         $invite->refresh();
         $this->assertEquals(1, $invite->use_count);
         $this->assertNotNull($invite->used_at);
         $this->assertEquals($user->id, $invite->used_by);
+    }
+
+    /**
+     * The login gate is NOT removed: any account whose email is unverified is
+     * still refused, with the typed EMAIL_NOT_VERIFIED contract.
+     */
+    public function test_unverified_account_is_still_refused_at_login(): void
+    {
+        $church = Church::factory()->create();
+
+        $user = User::factory()->create([
+            'email' => 'legacy-unverified@test.com',
+            'password' => Hash::make('Test@1234'),
+            'application_status' => 'approved',
+            'church_id' => $church->id,
+            'role' => UserRole::Servant,
+            'email_verified_at' => null,
+        ]);
+
+        $response = $this->postJson('/api/v1/auth/login', [
+            'email' => 'legacy-unverified@test.com',
+            'password' => 'Test@1234',
+        ]);
+
+        $response->assertStatus(403)
+            ->assertJsonPath('success', false)
+            ->assertJsonPath('code', 'EMAIL_NOT_VERIFIED')
+            ->assertJsonPath('message', __('auth.email_not_verified'));
+
+        $this->assertNotNull($user->id);
     }
 
     /**
@@ -242,10 +262,7 @@ class InviteRegistrationFlowTest extends TestCase
         ])->assertStatus(201);
 
         $user = User::where('email', 'wrongpass@test.com')->first();
-        $user->email_verified_at = now();
-        $user->email_verification_token = null;
-        $user->email_verification_token_expires_at = null;
-        $user->save();
+        $this->assertNotNull($user->email_verified_at);
 
         // Try with wrong password
         $response = $this->postJson('/api/v1/auth/login', [
@@ -253,8 +270,9 @@ class InviteRegistrationFlowTest extends TestCase
             'password' => 'WrongPass123',
         ]);
 
-        $response->assertStatus(422)
-            ->assertJsonPath('errors.email.0', 'Incorrect email or password.');
+        $response->assertStatus(401)
+            ->assertJsonPath('code', 'LOGIN_FAILED')
+            ->assertJsonPath('message', __('auth.failed'));
     }
 
     /**
@@ -289,14 +307,9 @@ class InviteRegistrationFlowTest extends TestCase
 
         $user = User::where('email', 'servant@test.com')->first();
         $this->assertEquals(UserRole::Servant->value, $user->role->value);
+        $this->assertNotNull($user->email_verified_at);
 
-        // Verify email
-        $user->email_verified_at = now();
-        $user->email_verification_token = null;
-        $user->email_verification_token_expires_at = null;
-        $user->save();
-
-        // Login
+        // Login immediately — no manual verification step required.
         $this->postJson('/api/v1/auth/login', [
             'email' => 'servant@test.com',
             'password' => 'Test@1234',
@@ -305,9 +318,10 @@ class InviteRegistrationFlowTest extends TestCase
     }
 
     /**
-     * Test that resend verification works for unregistered user
+     * Resend verification must stay idempotent for an account that is already
+     * verified: it must not resurrect a token or silently "unverify" anyone.
      */
-    public function test_resend_verification_after_invite_registration(): void
+    public function test_resend_verification_is_a_noop_for_verified_invited_account(): void
     {
         $church = Church::factory()->create();
         $admin = User::factory()->create([
@@ -335,20 +349,20 @@ class InviteRegistrationFlowTest extends TestCase
         ])->assertStatus(201);
 
         $user = User::where('email', 'resend@test.com')->first();
-        $originalTokenHash = $user->email_verification_token;
+        $verifiedAt = $user->email_verified_at;
 
-        // Resend verification
         $response = $this->postJson('/api/v1/auth/resend-verification', [
             'email' => 'resend@test.com',
         ]);
 
+        // The response is intentionally identical for known and unknown
+        // addresses so the endpoint cannot be used to enumerate accounts.
         $response->assertStatus(200)
             ->assertJsonPath('message', 'If that email exists in our system, a verification email has been sent.');
 
-        // Token hash should be regenerated (different hash)
         $user->refresh();
-        $this->assertNotEquals($originalTokenHash, $user->email_verification_token);
-        $this->assertNotNull($user->email_verification_token);
-        $this->assertNotNull($user->email_verification_token_expires_at);
+        $this->assertNull($user->email_verification_token);
+        $this->assertNull($user->email_verification_token_expires_at);
+        $this->assertTrue($verifiedAt->equalTo($user->email_verified_at));
     }
 }

@@ -6,19 +6,19 @@ use App\Contracts\AuthServiceInterface;
 use App\Contracts\PasswordResetRequestServiceInterface;
 use App\Contracts\QRInviteServiceInterface;
 use App\Contracts\UserRepositoryInterface;
+use App\Enums\LoginFailureCode;
 use App\Enums\UserRole;
 use App\Enums\UserScope;
+use App\Exceptions\LoginFailedException;
 use App\Models\Church;
 use App\Models\Classe;
 use App\Models\QRInvite;
 use App\Models\Scopes\ChurchScope;
 use App\Models\User;
-use App\Notifications\VerifyEmailNotification;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class AuthService implements AuthServiceInterface
@@ -49,53 +49,44 @@ class AuthService implements AuthServiceInterface
                 $user->password = Hash::make($password);
                 $user->save();
             } else {
-                throw ValidationException::withMessages([
-                    'email' => [__('auth.failed')],
-                ]);
+                throw new LoginFailedException(LoginFailureCode::InvalidCredentials);
             }
         }
 
         if ($user->isPlatformAdmin()) {
-            throw ValidationException::withMessages([
-                'email' => [__('auth.failed')],
-            ]);
+            throw new LoginFailedException(LoginFailureCode::InvalidCredentials);
         }
 
         if ($user->is_active === false) {
-            throw ValidationException::withMessages([
-                'email' => [__('auth.inactive')],
-            ]);
+            throw new LoginFailedException(LoginFailureCode::AccountInactive);
         }
 
         if (! $user->email_verified_at) {
-            throw ValidationException::withMessages([
-                'email' => [__('auth.email_not_verified')],
-            ]);
+            throw new LoginFailedException(LoginFailureCode::EmailNotVerified);
         }
 
         if ($user->church_id) {
             $church = Church::withTrashed()->where('id', $user->church_id)->first();
             if ($church && $church->is_suspended) {
-                throw ValidationException::withMessages([
-                    'email' => [__('auth.suspended')],
-                ]);
+                throw new LoginFailedException(LoginFailureCode::ChurchSuspended);
             }
             if ($church && $church->trashed()) {
-                throw ValidationException::withMessages([
-                    'email' => [__('auth.church_deleted')],
-                ]);
+                throw new LoginFailedException(LoginFailureCode::ChurchDeleted);
             }
         }
 
         $token = $user->createToken('auth-token', [$user->role->value])->plainTextToken;
 
         // Login is a public route: the fail-closed ChurchScope must not null out
-        // the user's class relation in the response.
+        // the user's own class relation in the response.
+        // Every relation UserResource reads must be eager-loaded here; the
+        // resource never lazy-loads, so a missing key means a null field.
         $user->load([
             'classe' => static fn (Relation $query) => $query->withoutGlobalScope(ChurchScope::class),
             'servant',
             'church',
             'churchApplication',
+            'createdBy',
         ]);
 
         $rejectionReason = null;
@@ -126,39 +117,29 @@ class AuthService implements AuthServiceInterface
         $user = $this->userRepository->findByEmail($email);
 
         if (! $user || ! Hash::check($password, $user->password)) {
-            throw ValidationException::withMessages([
-                'email' => [__('auth.failed')],
-            ]);
+            throw new LoginFailedException(LoginFailureCode::InvalidCredentials);
         }
 
         if (! $user->isPlatformAdmin()) {
-            throw ValidationException::withMessages([
-                'email' => [__('auth.failed')],
-            ]);
+            throw new LoginFailedException(LoginFailureCode::InvalidCredentials);
         }
 
         if (! $user->is_active) {
-            throw ValidationException::withMessages([
-                'email' => [__('auth.inactive')],
-            ]);
+            throw new LoginFailedException(LoginFailureCode::AccountInactive);
         }
 
         if ($user->application_status === 'pending') {
-            throw ValidationException::withMessages([
-                'email' => [__('auth.pending')],
-            ]);
+            throw new LoginFailedException(LoginFailureCode::ApplicationPending);
         }
 
         if ($user->application_status === 'rejected') {
-            throw ValidationException::withMessages([
-                'email' => [__('auth.rejected')],
-            ]);
+            throw new LoginFailedException(LoginFailureCode::ApplicationRejected);
         }
 
         $token = $user->createToken('auth-token', [$user->role->value])->plainTextToken;
 
         return [
-            'user' => $user->load(['classe', 'servant', 'church']),
+            'user' => $user->load(['classe', 'createdBy', 'invite', 'servant', 'church']),
             'token' => $token,
             'token_type' => 'Bearer',
         ];
@@ -221,6 +202,22 @@ class AuthService implements AuthServiceInterface
             $data['invite_id'] = $invite->id;
             $data['church_id'] = $invite->church_id;
 
+            // The QR invitation IS the proof of email ownership for this
+            // tenant, and the only onboarding path that has one:
+            //  - the token is a 64-char secret, single-use, expiring and
+            //    revocable, physically handed over by the Church Admin;
+            //  - the invitee sets their own email + password while holding
+            //    it, and the Church Admin is vouching for that person;
+            //  - church_id/stage_id/class_id are derived from the invite
+            //    server-side, never from the client;
+            //  - the platform has NO working outbound mail channel
+            //    (Resend removed 2026-08-22), so a separate verification
+            //    link could never be delivered and would lock the account
+            //    out permanently.
+            // This mirrors the existing admin-onboarding precedent in
+            // ChurchApplicationService (email_verified_at on approval).
+            $data['email_verified_at'] = now();
+
             if ($role === UserRole::Member) {
                 $data['servant_id'] = $invite->created_by;
             }
@@ -255,24 +252,6 @@ class AuthService implements AuthServiceInterface
 
             $user = $this->userRepository->create($data);
 
-            // Generate secure verification token: store hash, send raw token in email
-            $rawToken = Str::random(64);
-            $user->email_verification_token = Hash::make($rawToken);
-            $user->email_verification_token_expires_at = now()->addHours(24);
-            $user->save();
-
-            /** @var string $frontendUrl */
-            $frontendUrl = config('app.frontend_url');
-            $verificationUrl = $frontendUrl.'/verify-email?token='.urlencode($rawToken).'&email='.urlencode($user->email);
-            try {
-                $user->notify(new VerifyEmailNotification($user, $verificationUrl));
-            } catch (\Exception $e) {
-                Log::warning('Failed to send verification email', [
-                    'user_id' => $user->id,
-                    'error' => $e->getMessage(),
-                ]);
-            }
-
             /** @var int $userId */
             $userId = $user->id;
             $used = $freshInvite->markAsUsed($userId);
@@ -304,12 +283,12 @@ class AuthService implements AuthServiceInterface
         $userId = $user->id;
 
         $freshUser = $this->cacheService->rememberUserAuth($userId, function () use ($userId) {
-            return User::with(['classe', 'createdBy', 'invite', 'servant'])->find($userId);
+            return User::with(['classe', 'createdBy', 'invite', 'servant', 'church'])->find($userId);
         });
 
         if (! $freshUser) {
             return [
-                'user' => $user->load(['classe', 'createdBy', 'invite', 'servant']),
+                'user' => $user->load(['classe', 'createdBy', 'invite', 'servant', 'church']),
             ];
         }
 

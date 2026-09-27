@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Http\Resources\UserResource;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -18,7 +19,7 @@ class UserResourceNullClasseTest extends TestCase
             'email_verified_at' => now(),
         ]);
 
-        $resource = new \App\Http\Resources\UserResource($user);
+        $resource = new UserResource($user);
         $array = $resource->resolve();
 
         $this->assertArrayHasKey('classe', $array);
@@ -35,8 +36,8 @@ class UserResourceNullClasseTest extends TestCase
 
         // Load the classe relationship (will be null)
         $user->load('classe');
-        
-        $resource = new \App\Http\Resources\UserResource($user);
+
+        $resource = new UserResource($user);
         $array = $resource->resolve();
 
         $this->assertArrayHasKey('classe', $array);

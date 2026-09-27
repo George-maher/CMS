@@ -127,7 +127,12 @@ class UserRepository implements UserRepositoryInterface
             $query->where('created_by', $filters['created_by']);
         }
 
-        return $query->with('classe')->withSum('points as points_sum', 'points')->latest()->paginate($perPage);
+        // UserResource never lazy-loads, so every relation it reads must be
+        // eager-loaded here or the list response would silently null them.
+        return $query->with(['classe', 'church', 'createdBy', 'servant'])
+            ->withSum('points as points_sum', 'points')
+            ->latest()
+            ->paginate($perPage);
     }
 
     /**

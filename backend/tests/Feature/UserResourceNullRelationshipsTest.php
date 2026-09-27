@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Http\Resources\UserResource;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -20,8 +21,8 @@ class UserResourceNullRelationshipsTest extends TestCase
 
         // Load the servant relationship (will be null)
         $user->load('servant');
-        
-        $resource = new \App\Http\Resources\UserResource($user);
+
+        $resource = new UserResource($user);
         $array = $resource->resolve();
 
         $this->assertArrayHasKey('servant', $array);
@@ -38,8 +39,8 @@ class UserResourceNullRelationshipsTest extends TestCase
 
         // Load the createdBy relationship (will be null)
         $user->load('createdBy');
-        
-        $resource = new \App\Http\Resources\UserResource($user);
+
+        $resource = new UserResource($user);
         $array = $resource->resolve();
 
         $this->assertArrayHasKey('created_by', $array);
@@ -56,8 +57,8 @@ class UserResourceNullRelationshipsTest extends TestCase
 
         // Load the church relationship (will be null)
         $user->load('church');
-        
-        $resource = new \App\Http\Resources\UserResource($user);
+
+        $resource = new UserResource($user);
         $array = $resource->resolve();
 
         $this->assertArrayHasKey('church', $array);

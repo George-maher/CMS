@@ -53,7 +53,15 @@ export default function Login() {
       navigate(roleRedirect[result.user.role] || '/login')
     } catch (err: unknown) {
       logCatch('Login.login', err)
-      const axiosErr = err as { response?: { data?: { message?: string; errors?: Record<string, string[] | string> } } }
+      const axiosErr = err as {
+        response?: {
+          data?: {
+            message?: string
+            code?: string
+            errors?: Record<string, string[] | string>
+          }
+        }
+      }
       const responseData = axiosErr?.response?.data
       const errors = responseData?.errors
 
@@ -68,15 +76,28 @@ export default function Login() {
 
       if (!msg) msg = t('auth.loginFailed')
 
-      if (msg.toLowerCase().includes('verify')) {
+      // Branch on the backend's machine-readable `code`, never on the
+      // human-readable message: message text is localized, so matching it
+      // only ever worked in English.
+      if (responseData?.code === 'EMAIL_NOT_VERIFIED') {
         toast(() => (
           <div className="flex flex-col gap-2">
             <span>{msg}</span>
-            <button onClick={() => { client.post('/auth/resend-verification', { email }).then(() => toast.success(t('auth.verificationSent'))).catch(() => toast.error(t('auth.verificationFailed'))) }} className="btn-primary btn-xs w-full">
+            <button
+              onClick={() => {
+                client
+                  .post('/auth/resend-verification', { email: email.trim().toLowerCase() })
+                  .then(() => toast.success(t('auth.verificationSent')))
+                  .catch(() => toast.error(t('auth.verificationFailed')))
+              }}
+              className="btn-primary btn-xs w-full"
+            >
               {t('auth.resendVerification')}
             </button>
           </div>
         ), { duration: 8000 })
+      } else if (responseData?.code === 'ACCOUNT_INACTIVE') {
+        toast.error(t('auth.accountInactiveContactAdmin'))
       } else {
         toast.error(msg)
       }

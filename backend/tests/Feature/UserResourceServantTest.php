@@ -2,9 +2,10 @@
 
 namespace Tests\Feature;
 
+use App\Enums\UserRole;
+use App\Http\Resources\UserResource;
 use App\Models\Church;
 use App\Models\User;
-use App\Enums\UserRole;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -30,9 +31,9 @@ class UserResourceServantTest extends TestCase
         ]);
 
         // Load all relationships as done in login
-        $servant->load(['classe', 'servant', 'church', 'churchApplication']);
-        
-        $resource = new \App\Http\Resources\UserResource($servant);
+        $servant->load(['classe', 'servant', 'church', 'churchApplication', 'createdBy']);
+
+        $resource = new UserResource($servant);
         $array = $resource->resolve();
 
         // Check that church is included
@@ -45,8 +46,9 @@ class UserResourceServantTest extends TestCase
         $this->assertNotNull($array['created_by']);
         $this->assertEquals($admin->id, $array['created_by']['id']);
 
-        // Check that servant is NOT included (null)
-        $this->assertArrayNotHasKey('servant', $array);
+        // Relationship keys are part of the contract: present, null when absent
+        $this->assertArrayHasKey('servant', $array);
+        $this->assertNull($array['servant']);
 
         // Check that classe is included (null)
         $this->assertArrayHasKey('classe', $array);

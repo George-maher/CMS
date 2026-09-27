@@ -5,7 +5,8 @@ namespace Tests\Feature;
 use App\Enums\QRInviteType;
 use App\Enums\UserRole;
 use App\Models\Church;
-use App\Models\QRInvite;
+use App\Models\Classe;
+use App\Models\Stage;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -21,14 +22,17 @@ class FullServantFlowTest extends TestCase
      * 3. Church Admin logs in
      * 4. Church Admin creates Servant QR invitation
      * 5. Servant registers via invitation
-     * 6. Servant verifies email
-     * 7. Servant logs in
-     * 8. Servant accesses /me
+     * 6. Servant logs in (invitation acceptance already established the
+     *    verified email state)
+     * 7. Servant accesses /me
+     * 8. Servant issues a member invitation within their own stage
      */
     public function test_complete_church_admin_to_servant_flow(): void
     {
         // 1. Create a Church
         $church = Church::factory()->create();
+        $stage = Stage::factory()->forChurch($church)->create();
+        $classe = Classe::factory()->forChurch($church)->state(['stage_id' => $stage->id])->create();
 
         // 2. Create Church Admin for that Church
         $admin = User::factory()->create([
@@ -51,6 +55,7 @@ class FullServantFlowTest extends TestCase
         $inviteResponse = $this->withHeader('Authorization', "Bearer $adminToken")
             ->postJson('/api/v1/qr/invites', [
                 'type' => QRInviteType::AdminToServantInvite->value,
+                'class_id' => $classe->id,
             ]);
         $inviteResponse->assertStatus(201);
         $inviteToken = $inviteResponse->json('data.url');
@@ -67,6 +72,7 @@ class FullServantFlowTest extends TestCase
             'password' => $servantPassword,
             'password_confirmation' => $servantPassword,
             'invite_token' => $inviteToken,
+            'class_id' => $classe->id,
         ]);
         $registerResponse->assertStatus(201);
         $this->assertEquals('servant', $registerResponse->json('data.user.role'));
@@ -78,14 +84,12 @@ class FullServantFlowTest extends TestCase
         $this->assertEquals($church->id, $servant->church_id);
         $this->assertTrue($servant->is_active);
         $this->assertEquals('approved', $servant->application_status);
-        $this->assertNull($servant->email_verified_at);
-        $this->assertNotNull($servant->email_verification_token);
 
-        // 6. Servant verifies email (simulate clicking verification link)
-        $servant->email_verified_at = now();
-        $servant->email_verification_token = null;
-        $servant->email_verification_token_expires_at = null;
-        $servant->save();
+        // 6. Invitation acceptance established the verified email state, so
+        //    no separate verification round-trip is required.
+        $this->assertNotNull($servant->email_verified_at);
+        $this->assertNull($servant->email_verification_token);
+        $this->assertNull($servant->email_verification_token_expires_at);
 
         // 7. Servant logs in
         $servantLoginResponse = $this->postJson('/api/v1/auth/login', [
@@ -100,25 +104,46 @@ class FullServantFlowTest extends TestCase
             ->assertJsonPath('data.access_state', 'full');
         $servantToken = $servantLoginResponse->json('data.token');
         $this->assertNotNull($servantToken);
-        
+
         // Check the user data structure
         $userData = $servantLoginResponse->json('data.user');
         $this->assertArrayHasKey('classe', $userData);
-        $this->assertNull($userData['classe']); // Should be null since no class assigned
+        $this->assertSame($classe->id, $userData['classe']['id']);
+        // church is a non-optional key in the frontend contract, never dropped
+        $this->assertArrayHasKey('church', $userData);
+        $this->assertSame($church->id, $userData['church']['id']);
+        $this->assertArrayHasKey('created_by', $userData);
+        $this->assertSame($admin->id, $userData['created_by']['id']);
 
         // 8. Servant accesses /me
         $meResponse = $this->withHeader('Authorization', "Bearer $servantToken")
             ->getJson('/api/v1/auth/me');
         $meResponse->assertStatus(200)
             ->assertJsonPath('data.user.role', 'servant')
-            ->assertJsonPath('data.user.church_id', $church->id);
+            ->assertJsonPath('data.user.church_id', $church->id)
+            ->assertJsonPath('data.user.church.id', $church->id);
 
-        // 9. Servant can access servant endpoints (e.g., create member invite)
+        // 9. Servant can create member invites within their own stage
         $memberInviteResponse = $this->withHeader('Authorization', "Bearer $servantToken")
             ->postJson('/api/v1/qr/invites', [
                 'type' => QRInviteType::ServantToMemberInvite->value,
             ]);
         $memberInviteResponse->assertStatus(201);
+
+        // 10. A servant from another church cannot be reached with this token.
+        //     The isolation is enforced server-side (UserPolicy): the response
+        //     is a refusal, never another tenant's data.
+        $otherChurch = Church::factory()->create();
+        $otherServant = User::factory()->create([
+            'role' => UserRole::Servant,
+            'church_id' => $otherChurch->id,
+            'application_status' => 'approved',
+            'email_verified_at' => now(),
+        ]);
+
+        $this->withHeader('Authorization', "Bearer $servantToken")
+            ->getJson("/api/v1/users/{$otherServant->id}")
+            ->assertStatus(403);
     }
 
     /**
@@ -127,8 +152,8 @@ class FullServantFlowTest extends TestCase
     public function test_complete_flow_with_class_assignment(): void
     {
         $church = Church::factory()->create();
-        $stage = \App\Models\Stage::factory()->forChurch($church)->create();
-        $classe = \App\Models\Classe::factory()->forChurch($church)->state(['stage_id' => $stage->id])->create();
+        $stage = Stage::factory()->forChurch($church)->create();
+        $classe = Classe::factory()->forChurch($church)->state(['stage_id' => $stage->id])->create();
 
         $admin = User::factory()->create([
             'role' => UserRole::Admin,
@@ -167,12 +192,7 @@ class FullServantFlowTest extends TestCase
         $servant = User::where('email', $servantEmail)->first();
         $this->assertEquals($classe->id, $servant->class_id);
         $this->assertEquals($stage->id, $servant->stage_id);
-
-        // Verify email
-        $servant->email_verified_at = now();
-        $servant->email_verification_token = null;
-        $servant->email_verification_token_expires_at = null;
-        $servant->save();
+        $this->assertNotNull($servant->email_verified_at);
 
         // Login
         $servantLoginResponse = $this->postJson('/api/v1/auth/login', [

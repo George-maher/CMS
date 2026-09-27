@@ -1,6 +1,7 @@
 <?php
 
 use App\Exceptions\ChurchDeletionException;
+use App\Exceptions\LoginFailedException;
 use App\Http\Middleware\CheckApproval;
 use App\Http\Middleware\EnsureApproval;
 use App\Http\Middleware\EnsureEventScope;
@@ -74,6 +75,19 @@ return Application::configure(basePath: dirname(__DIR__))
                     'errors' => $e->errors(),
                     'code' => 'VALIDATION_ERROR',
                 ], 422);
+            }
+        });
+
+        // Authentication failures are a typed contract, not a validation
+        // error: the client switches on `code` to pick the recovery action.
+        // Registered before the catch-all Throwable handler below.
+        $exceptions->render(function (LoginFailedException $e, Request $request) {
+            if ($request->is('api/*')) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $e->getMessage(),
+                    'code' => $e->failure->value,
+                ], $e->failure->status());
             }
         });
 

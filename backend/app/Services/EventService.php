@@ -445,7 +445,7 @@ class EventService implements EventServiceInterface
             return new Collection;
         }
 
-        $query = User::query()->byChurch()->whereIn('id', $viewedUserIds)->with('classe');
+        $query = User::query()->byChurch()->whereIn('id', $viewedUserIds)->with(['classe', 'church', 'createdBy']);
 
         if ($servantClassIds !== null) {
             $servantClassIds = is_array($servantClassIds) ? $servantClassIds : [$servantClassIds];
