@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Contracts\EmailServiceInterface;
 use App\Jobs\SendEmailJob;
 use App\Models\User;
+use Illuminate\Support\Facades\Log;
 
 class EmailService implements EmailServiceInterface
 {
@@ -12,7 +13,7 @@ class EmailService implements EmailServiceInterface
     {
         /** @var string $frontendUrl */
         $frontendUrl = config('app.frontend_url');
-        $resetUrl = $frontendUrl.'/reset-password?'.http_build_query([
+        $resetUrl = $frontendUrl . '/reset-password?' . http_build_query([
             'token' => $token,
             'email' => $user->getEmailForPasswordReset(),
         ]);
@@ -68,7 +69,7 @@ class EmailService implements EmailServiceInterface
     {
         /** @var string $frontendUrl */
         $frontendUrl = config('app.frontend_url');
-        $loginUrl = $frontendUrl.'/login';
+        $loginUrl = $frontendUrl . '/login';
 
         dispatch(new SendEmailJob(
             user: $user,
@@ -96,7 +97,7 @@ class EmailService implements EmailServiceInterface
     {
         /** @var string $frontendUrl */
         $frontendUrl = config('app.frontend_url');
-        $dashboardUrl = $frontendUrl.'/admin';
+        $dashboardUrl = $frontendUrl . '/admin';
 
         dispatch(new SendEmailJob(
             user: $user,
@@ -143,8 +144,8 @@ class EmailService implements EmailServiceInterface
         dispatch(new SendEmailJob(
             user: $user,
             subjectText: $user->preferredLocale() === 'ar'
-                ? 'حدث جديد: '.$eventName
-                : 'New Event: '.$eventName,
+                ? 'حدث جديد: ' . $eventName
+                : 'New Event: ' . $eventName,
             viewName: 'emails.event-notification',
             viewData: [
                 'eventName' => $eventName,

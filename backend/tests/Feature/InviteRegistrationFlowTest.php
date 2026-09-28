@@ -182,7 +182,7 @@ class InviteRegistrationFlowTest extends TestCase
             'token' => 'b'.str_repeat('b', 63), // Different 64-char token
         ]);
 
-        $response->assertStatus(422)
+        $response->assertStatus(400)
             ->assertJsonPath('message', 'Invalid or expired verification link.');
     }
 
@@ -204,7 +204,7 @@ class InviteRegistrationFlowTest extends TestCase
             'token' => 'a'.str_repeat('a', 63),
         ]);
 
-        $response->assertStatus(422)
+        $response->assertStatus(400)
             ->assertJsonPath('message', 'Invalid or expired verification link.');
     }
 
@@ -227,7 +227,7 @@ class InviteRegistrationFlowTest extends TestCase
             'token' => 'a'.str_repeat('a', 63),
         ]);
 
-        $response->assertStatus(422)
+        $response->assertStatus(400)
             ->assertJsonPath('message', 'Invalid or expired verification link.');
     }
 

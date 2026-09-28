@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Contracts\ChurchApplicationServiceInterface;
 use App\Contracts\FileUploadServiceInterface;
+use App\Enums\ProvisioningChannel;
 use App\Enums\UserRole;
 use App\Models\Church;
 use App\Models\ChurchApplication;
@@ -24,6 +25,7 @@ class ChurchApplicationService implements ChurchApplicationServiceInterface
     public function __construct(
         private readonly FileUploadServiceInterface $fileUploadService,
         private readonly AuditService $auditService,
+        private readonly UserProvisioningService $userProvisioning,
     ) {}
 
     public function findByEmail(string $email): ?ChurchApplication
@@ -31,54 +33,102 @@ class ChurchApplicationService implements ChurchApplicationServiceInterface
         return ChurchApplication::where('contact_email', $email)->first();
     }
 
-    /** @param array<string, mixed> $data */
-    /** @return array<string, mixed> */
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array{application: ChurchApplication|null, user: User|null, is_update: bool, accepted: bool, ownership_proven: bool}
+     */
     public function submit(array $data, ?UploadedFile $frontId, ?UploadedFile $backId, string $email, string $password, ?UploadedFile $churchPermissionDoc = null, ?int $authUserId = null): array
     {
         $existing = $this->findByEmail($email);
 
-        if ($existing) {
-            $this->authorizeApplicationUpdate($existing, $password, $authUserId);
+        if ($existing === null) {
+            // An address can already hold an account without owning a church
+            // application. Creating one here would either collide with the global
+            // `users.email` unique index or silently attach a second identity to
+            // the same mailbox, so it is suppressed and acknowledged identically.
+            $emailOwner = User::where('email', $email)->first();
 
-            return $this->updateExisting($existing, $data, $frontId, $backId, $churchPermissionDoc);
+            if ($emailOwner !== null) {
+                Log::info('church_application', [
+                    'event' => 'address_in_use_suppressed',
+                    'user_id' => $emailOwner->id,
+                    'has_application' => $emailOwner->church_application_id !== null,
+                ]);
+
+                return [
+                    'application' => null,
+                    'user' => null,
+                    'is_update' => false,
+                    'accepted' => true,
+                    'ownership_proven' => false,
+                ];
+            }
+
+            return $this->createNew($data, $frontId, $backId, $email, $password, $churchPermissionDoc);
         }
 
-        return $this->createNew($data, $frontId, $backId, $email, $password, $churchPermissionDoc);
+        $owner = User::where('church_application_id', $existing->id)->first();
+
+        if (! $this->ownershipIsProven($owner, $password, $authUserId)) {
+            // Metadata only: the submitted address is PII and is never logged.
+            Log::info('church_application', [
+                'event' => 'unowned_resubmission_suppressed',
+                'application_id' => $existing->id,
+                'application_status' => $existing->status,
+            ]);
+
+            return [
+                'application' => null,
+                'user' => null,
+                'is_update' => false,
+                'accepted' => true,
+                'ownership_proven' => false,
+            ];
+        }
+
+        $this->assertApplicationIsMutable($existing);
+
+        return $this->updateExisting($existing, $data, $frontId, $backId, $churchPermissionDoc);
     }
 
     /**
      * Ownership proof for public resubmissions of an existing application.
      *
-     * The caller must either be authenticated as the applicant's own account
-     * or present the applicant account's password. Approved records are never
-     * editable through the public endpoint. Every path fails closed.
+     * The caller must either be authenticated as the applicant's own account or
+     * present the applicant account's password. Evaluated *before* any business
+     * rule, so a business rule can never act as an existence oracle.
      */
-    private function authorizeApplicationUpdate(ChurchApplication $application, string $password, ?int $authUserId): void
+    private function ownershipIsProven(?User $owner, string $password, ?int $authUserId): bool
+    {
+        if ($owner === null) {
+            return false;
+        }
+
+        $isOwnerSession = $authUserId !== null && $authUserId === $owner->id;
+        $isOwnerPassword = $password !== '' && Hash::check($password, $owner->password);
+
+        return $isOwnerSession || $isOwnerPassword;
+    }
+
+    /**
+     * Business rules that apply only once ownership is already established.
+     */
+    private function assertApplicationIsMutable(ChurchApplication $application): void
     {
         if ($application->status === 'approved') {
             throw ValidationException::withMessages([
-                'email' => __('application.approved_locked'),
-            ]);
-        }
-
-        $owner = User::where('church_application_id', $application->id)->first();
-
-        $isOwnerSession = $owner !== null && $authUserId !== null && $authUserId === $owner->id;
-        $isOwnerPassword = $owner !== null && $password !== '' && Hash::check($password, $owner->password);
-
-        if (! $isOwnerSession && ! $isOwnerPassword) {
-            throw ValidationException::withMessages([
-                'email' => __('application.exists_sign_in'),
+                'email' => [__('application.approved_locked')],
             ]);
         }
     }
 
-    /** @param array<string, mixed> $data */
-    /** @return array<string, mixed> */
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array{application: ChurchApplication, user: User, is_update: false, accepted: true, ownership_proven: true}
+     */
     private function createNew(array $data, ?UploadedFile $frontId, ?UploadedFile $backId, string $email, string $password, ?UploadedFile $churchPermissionDoc = null): array
     {
         return DB::transaction(function () use ($data, $frontId, $backId, $email, $password, $churchPermissionDoc) {
-            /** @var array<string, mixed> $data */
             /** @var string $churchName */
             $churchName = $data['church_name'];
             /** @var string|null $serviceName */
@@ -106,7 +156,10 @@ class ChurchApplicationService implements ChurchApplicationServiceInterface
 
             $this->uploadApplicationFiles($application, $data, $frontId, $backId, $churchPermissionDoc);
 
-            $user = User::create([
+            // UNTRUSTED channel: the form was submitted by an anonymous
+            // visitor who chose this address themselves, so the account starts
+            // unverified. Platform approval below is what establishes it.
+            $user = $this->userProvisioning->create([
                 'church_application_id' => $application->id,
                 'name' => $priestName,
                 'email' => $email,
@@ -114,7 +167,7 @@ class ChurchApplicationService implements ChurchApplicationServiceInterface
                 'role' => UserRole::Admin,
                 'application_status' => 'pending',
                 'is_active' => true,
-            ]);
+            ], ProvisioningChannel::ChurchApplicationSubmitted);
 
             $this->auditService->log(
                 action: 'church_application_submitted',
@@ -129,12 +182,16 @@ class ChurchApplicationService implements ChurchApplicationServiceInterface
                 'application' => $application,
                 'user' => $user,
                 'is_update' => false,
+                'accepted' => true,
+                'ownership_proven' => true,
             ];
         });
     }
 
-    /** @param array<string, mixed> $data */
-    /** @return array<string, mixed> */
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array{application: ChurchApplication|null, user: User|null, is_update: true, accepted: true, ownership_proven: true}
+     */
     private function updateExisting(ChurchApplication $application, array $data, ?UploadedFile $frontId, ?UploadedFile $backId, ?UploadedFile $churchPermissionDoc = null): array
     {
         return DB::transaction(function () use ($application, $data, $frontId, $backId, $churchPermissionDoc) {
@@ -188,11 +245,15 @@ class ChurchApplicationService implements ChurchApplicationServiceInterface
                 'application' => $application->fresh(),
                 'user' => $user,
                 'is_update' => true,
+                'accepted' => true,
+                'ownership_proven' => true,
             ];
         });
     }
 
-    /** @param array<string, mixed> $data */
+    /**
+     * @param  array<string, mixed>  $data
+     */
     private function uploadApplicationFiles(ChurchApplication $application, array $data, ?UploadedFile $frontId, ?UploadedFile $backId, ?UploadedFile $churchPermissionDoc = null): void
     {
         /** @var string $idType */
@@ -293,7 +354,12 @@ class ChurchApplicationService implements ChurchApplicationServiceInterface
                     'application_status' => 'approved',
                     'role' => UserRole::Admin,
                     'is_active' => true,
-                    'email_verified_at' => $admin->email_verified_at ?? now(),
+                    // A platform admin has now vouched for this applicant and
+                    // this address, so ownership is established. The decision
+                    // comes from the same single source as user creation.
+                    ...$this->userProvisioning->verificationAttributes(
+                        ProvisioningChannel::ChurchApplicationApproved
+                    ),
                 ]);
             }
 

@@ -3,13 +3,10 @@
 namespace App\Http\Resources;
 
 use App\Contracts\FileUploadServiceInterface;
-use App\Models\Church;
-use App\Models\Classe;
-use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
-/** @mixin User */
+/** @mixin \App\Models\User */
 class UserResource extends JsonResource
 {
     /** @return array<string, mixed> */
@@ -21,37 +18,34 @@ class UserResource extends JsonResource
 
         return [
             'id' => $this->id,
-            'member_id' => $this->when($isStaff || $authUser?->id === $this->id, fn () => $this->member_id),
+            'member_id' => $this->when($isStaff || $authUser?->id === $this->id, fn() => $this->member_id),
             'church_id' => $this->church_id,
-            // Relationship keys are always present (null when unavailable)
-            // because the frontend types them as non-optional. They are read
-            // only from already-loaded relations: a resource must never issue
-            // its own queries, otherwise serializing a page of users becomes
-            // an N+1 and an unloaded relation silently becomes null.
-            'church' => $this->relationLoaded('church') && $this->church instanceof Church
-                ? [
-                    'id' => $this->church->id,
-                    'name' => $this->church->name,
-                    'slug' => $this->church->slug,
-                ]
-                : null,
+            'church' => $this->when($this->relationLoaded('church') && $this->church, function () {
+                /** @var \App\Models\Church $church */
+                $church = $this->church;
+                return [
+                    'id' => $church->id,
+                    'name' => $church->name,
+                    'slug' => $church->slug,
+                ];
+            }),
             'name' => $this->name,
             'email' => $this->email,
             'birthday' => $this->birthday?->format('Y-m-d'),
             'age' => $this->age,
             'role' => $this->role?->value,
             'role_label' => $this->role?->label(),
-            'classe' => $this->relationLoaded('classe') && $this->classe instanceof Classe
-                ? new ClasseResource($this->classe)
-                : null,
+            'classe' => new ClasseResource($this->whenLoaded('classe')),
             'class_id' => $this->class_id,
-            'servant' => $this->relationLoaded('servant') && $this->servant instanceof User
-                ? [
-                    'id' => $this->servant->id,
-                    'name' => $this->servant->name,
-                    'phone' => $this->servant->phone,
-                ]
-                : null,
+            'servant' => $this->when($this->relationLoaded('servant') && $this->servant, function () {
+                /** @var \App\Models\User $servant */
+                $servant = $this->servant;
+                return [
+                    'id' => $servant->id,
+                    'name' => $servant->name,
+                    'phone' => $servant->phone,
+                ];
+            }),
             'assigned_members_count' => $this->when((int) $this->assigned_members_count > 0, (int) $this->assigned_members_count),
             'phone' => $this->phone,
             'address' => $this->address,
@@ -62,14 +56,16 @@ class UserResource extends JsonResource
             'is_active' => $this->is_active,
             'application_status' => $this->application_status,
             'email_verified_at' => $this->email_verified_at?->toISOString(),
-            'attendance_qr_token' => $this->when($authUser?->id === $this->id, fn () => $this->attendance_qr_token),
+            'attendance_qr_token' => $this->when($authUser?->id === $this->id, fn() => $this->attendance_qr_token),
             'total_points' => $this->total_points,
-            'created_by' => $this->relationLoaded('createdBy') && $this->createdBy instanceof User
-                ? [
-                    'id' => $this->createdBy->id,
-                    'name' => $this->createdBy->name,
-                ]
-                : null,
+            'created_by' => $this->when($this->createdBy !== null, function () {
+                /** @var \App\Models\User $createdBy */
+                $createdBy = $this->createdBy;
+                return [
+                    'id' => $createdBy->id,
+                    'name' => $createdBy->name,
+                ];
+            }),
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
         ];

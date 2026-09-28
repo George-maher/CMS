@@ -9,10 +9,6 @@ use Illuminate\Support\Facades\DB;
 
 class NotificationService implements NotificationServiceInterface
 {
-    public function __construct(
-        private readonly CacheService $cacheService,
-    ) {}
-
     /** @return array<string, mixed> */
     public function listForUser(int $userId, int $perPage = 15): array
     {
@@ -34,11 +30,9 @@ class NotificationService implements NotificationServiceInterface
 
     public function unreadCount(int $userId): int
     {
-        return $this->cacheService->rememberUnreadCount($userId, function () use ($userId) {
-            return Notification::forUser($userId)
-                ->unread()
-                ->count();
-        });
+        return Notification::forUser($userId)
+            ->unread()
+            ->count();
     }
 
     public function markAsRead(int $notificationId, int $userId): void
@@ -49,7 +43,6 @@ class NotificationService implements NotificationServiceInterface
                 'is_read' => true,
                 'read_at' => now(),
             ]);
-        $this->cacheService->invalidateUnreadCount($userId);
     }
 
     public function markAllAsRead(int $userId): void
@@ -60,7 +53,6 @@ class NotificationService implements NotificationServiceInterface
                 'is_read' => true,
                 'read_at' => now(),
             ]);
-        $this->cacheService->invalidateUnreadCount($userId);
     }
 
     /** @param array<int> $targetUserIds */
@@ -89,10 +81,6 @@ class NotificationService implements NotificationServiceInterface
         }
 
         DB::table('notifications')->insert($inserts);
-
-        foreach ($targetUserIds as $userId) {
-            $this->cacheService->invalidateUnreadCount($userId);
-        }
     }
 
     public function createForFeedbackReply(int $feedbackId, int $userId, int $churchId, string $title, string $body): void
@@ -106,7 +94,6 @@ class NotificationService implements NotificationServiceInterface
             'type' => 'feedback_reply',
             'is_read' => false,
         ]);
-        $this->cacheService->invalidateUnreadCount($userId);
     }
 
     public function createForBonusPoints(int $pointsId, int $userId, int $churchId, string $title, string $body): void
@@ -120,20 +107,17 @@ class NotificationService implements NotificationServiceInterface
             'type' => 'bonus_points',
             'is_read' => false,
         ]);
-        $this->cacheService->invalidateUnreadCount($userId);
     }
 
-    public function create(int $userId, int $churchId, string $title, string $body, string $type = 'general', ?int $eventId = null): void
+    public function create(int $userId, int $churchId, string $title, string $body, string $type = 'general'): void
     {
         Notification::create([
             'church_id' => $churchId,
             'user_id' => $userId,
-            'event_id' => $eventId,
             'title' => $title,
             'body' => $body,
             'type' => $type,
             'is_read' => false,
         ]);
-        $this->cacheService->invalidateUnreadCount($userId);
     }
 }

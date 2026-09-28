@@ -2,10 +2,9 @@
 
 namespace Database\Seeders;
 
-use App\Enums\UserRole;
 use App\Models\AttendanceContext;
-use App\Models\Scopes\ChurchScope;
 use App\Models\User;
+use App\Enums\UserRole;
 use Illuminate\Database\Seeder;
 
 class AttendanceContextSeeder extends Seeder
@@ -27,7 +26,7 @@ class AttendanceContextSeeder extends Seeder
         ];
 
         foreach ($contexts as $context) {
-            AttendanceContext::withoutGlobalScope(ChurchScope::class)
+            AttendanceContext::withoutGlobalScope(\App\Models\Scopes\ChurchScope::class)
                 ->firstOrCreate(
                     ['slug' => $context['slug']],
                     array_merge($context, [

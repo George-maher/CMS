@@ -166,34 +166,27 @@ export default function JoinNow() {
       toast.error(t('join.errorAddressRequired'))
       return
     }
-    if (!existingApp) {
-      if (!form.password || form.password.length < 8) {
-        toast.error(t('auth.passwordMinLength'))
-        return
-      }
-      if (form.password !== form.password_confirmation) {
-        toast.error(t('auth.passwordsDoNotMatch'))
-        return
-      }
+    // The backend applies one uniform requirement set to every address, so the
+    // client mirrors it: a password is always required (it doubles as the
+    // ownership proof for a returning applicant), and identity documents are
+    // required whenever the selected id_type demands them — unless the caller is
+    // a proven applicant session, which this page cannot know about.
+    if (!form.password || form.password.length < 8) {
+      toast.error(t('auth.passwordMinLength'))
+      return
+    }
+    if (form.password !== form.password_confirmation) {
+      toast.error(t('auth.passwordsDoNotMatch'))
+      return
     }
     if (idType === 'national_id') {
-      if (!existingApp && (!frontIdFile || !backIdFile)) {
+      if (!frontIdFile || !backIdFile) {
         toast.error(t('join.idRequired'))
         return
       }
-      if (existingApp && !frontIdFile && !backIdFile && !existingApp.front_id_url && !existingApp.back_id_url) {
-        toast.error(t('join.idRequired'))
-        return
-      }
-    } else {
-      if (!existingApp && !permissionDocFile) {
-        toast.error(t('join.permissionRequired'))
-        return
-      }
-      if (existingApp && !permissionDocFile && !existingApp.church_permission_doc_url) {
-        toast.error(t('join.permissionRequired'))
-        return
-      }
+    } else if (!permissionDocFile) {
+      toast.error(t('join.permissionRequired'))
+      return
     }
     setSubmitting(true)
     try {
@@ -206,13 +199,13 @@ export default function JoinNow() {
       fd.append('address', form.address)
       fd.append('email', form.email)
       fd.append('id_type', idType)
-      if (existingApp) {
-        fd.append('password', '')
-        fd.append('password_confirmation', '')
-      } else {
-        fd.append('password', form.password)
-        fd.append('password_confirmation', form.password_confirmation)
-      }
+      // The backend applies ONE uniform requirement set to every address: the
+      // password and identity documents are always required unless the caller has
+      // a proven applicant session. Sending an empty password for a known
+      // application would fail validation and would reintroduce an
+      // address-existence side channel.
+      fd.append('password', form.password)
+      fd.append('password_confirmation', form.password_confirmation)
       if (frontIdFile) fd.append('front_id', frontIdFile)
       if (backIdFile) fd.append('back_id', backIdFile)
       if (permissionDocFile) fd.append('church_permission_doc', permissionDocFile)

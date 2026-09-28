@@ -3,19 +3,18 @@
 namespace App\Traits;
 
 use App\Contracts\AuditServiceInterface;
-use Illuminate\Database\Eloquent\Model;
 
 trait AuditableTrait
 {
     public static function bootAuditableTrait(): void
     {
-        static::created(function (Model $model) {
+        static::created(function (\Illuminate\Database\Eloquent\Model $model) {
             /** @var array<string, mixed> $newValues */
-            $newValues = $model->getAttributes();
+            $newValues = $model->toArray();
             static::logAction('created', $model, null, $newValues);
         });
 
-        static::updated(function (Model $model) {
+        static::updated(function (\Illuminate\Database\Eloquent\Model $model) {
             /** @var array<string, mixed> $changed */
             $changed = $model->getChanges();
             if (empty($changed)) {
@@ -28,17 +27,17 @@ trait AuditableTrait
             static::logAction('updated', $model, $oldValues, $changed);
         });
 
-        static::deleted(function (Model $model) {
+        static::deleted(function (\Illuminate\Database\Eloquent\Model $model) {
             /** @var array<string, mixed> $oldValues */
-            $oldValues = $model->getAttributes();
+            $oldValues = $model->toArray();
             static::logAction('deleted', $model, $oldValues, null);
         });
     }
 
     /**
-     * @param  object  $model
-     * @param  array<string, mixed>|null  $oldValues
-     * @param  array<string, mixed>|null  $newValues
+     * @param object $model
+     * @param array<string, mixed>|null $oldValues
+     * @param array<string, mixed>|null $newValues
      */
     protected static function logAction(string $action, $model, ?array $oldValues, ?array $newValues): void
     {

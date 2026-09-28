@@ -2,12 +2,10 @@
 
 namespace App\Http\Resources;
 
-use App\Models\Point;
-use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
-/** @mixin Point */
+/** @mixin \App\Models\Point */
 class PointResource extends JsonResource
 {
     /** @return array<string, mixed> */
@@ -16,18 +14,16 @@ class PointResource extends JsonResource
         return [
             'id' => $this->id,
             'user' => $this->when($this->user !== null, function () {
-                /** @var User $user */
+                /** @var \App\Models\User $user */
                 $user = $this->user;
-
                 return [
                     'id' => $user->id,
                     'name' => $user->name,
                 ];
             }),
             'added_by' => $this->when($this->addedBy !== null, function () {
-                /** @var User $addedBy */
+                /** @var \App\Models\User $addedBy */
                 $addedBy = $this->addedBy;
-
                 return [
                     'id' => $addedBy->id,
                     'name' => $addedBy->name,

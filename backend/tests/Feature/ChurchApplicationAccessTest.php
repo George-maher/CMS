@@ -6,9 +6,18 @@ use App\Enums\UserRole;
 use App\Models\ChurchApplication;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Testing\TestResponse;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
+/**
+ * Access control and enumeration resistance for the public church application
+ * endpoint.
+ *
+ * `/church-applications` and `/church-applications/lookup` are unauthenticated,
+ * so every response they produce is observable by anyone on the internet.
+ */
 class ChurchApplicationAccessTest extends TestCase
 {
     use RefreshDatabase;
@@ -43,6 +52,13 @@ class ChurchApplicationAccessTest extends TestCase
     }
 
     /**
+     * A complete submission body.
+     *
+     * The password and the identity documents are included for every address on
+     * purpose: the FormRequest's requirements must not depend on whether an
+     * application already exists, otherwise the validation response itself is an
+     * enumeration oracle.
+     *
      * @param  array<string, mixed>  $overrides
      * @return array<string, mixed>
      */
@@ -56,7 +72,29 @@ class ChurchApplicationAccessTest extends TestCase
             'email' => 'applicant@gracechurch.org',
             'address' => '45 Lake View, Giza',
             'id_type' => 'national_id',
+            'password' => 'Supplied@12345',
+            'password_confirmation' => 'Supplied@12345',
         ], $overrides);
+    }
+
+    /**
+     * Submit as multipart, which is how the real client sends it.
+     *
+     * @param  array<string, mixed>  $overrides
+     */
+    private function submitApplication(array $overrides = []): TestResponse
+    {
+        $frontId = UploadedFile::fake()->create('front.jpg', 8, 'image/jpeg');
+        $backId = UploadedFile::fake()->create('back.jpg', 8, 'image/jpeg');
+
+        return $this->post(
+            '/api/v1/church-applications',
+            array_merge($this->updatePayload($overrides), [
+                'front_id' => $frontId,
+                'back_id' => $backId,
+            ]),
+            ['Accept' => 'application/json'],
+        );
     }
 
     public function test_lookup_does_not_leak_application_pii_to_unauthenticated_caller(): void
@@ -103,13 +141,52 @@ class ChurchApplicationAccessTest extends TestCase
             ->assertJsonPath('data.address', '12 Nile Corniche, Cairo');
     }
 
-    public function test_anonymous_update_of_existing_application_is_rejected(): void
+    /**
+     * SECURITY: an anonymous resubmission for an address that already has an
+     * application must be indistinguishable from a first-time submission.
+     *
+     * A distinguishable "this email already exists" outcome is an enumeration
+     * oracle on a public endpoint, so the submission is suppressed internally and
+     * answered with the acknowledgement a new applicant receives.
+     */
+    public function test_anonymous_update_of_existing_application_is_indistinguishable_from_a_new_one(): void
     {
-        $response = $this->postJson('/api/v1/church-applications', $this->updatePayload());
+        $knownAddress = $this->submitApplication();
+        $unknownAddress = $this->submitApplication([
+            'email' => 'brand-new-applicant@gracechurch.org',
+        ]);
 
-        $response->assertStatus(422)
-            ->assertJsonValidationErrors(['email']);
+        $knownAddress->assertStatus(201);
+        $unknownAddress->assertStatus(201);
 
+        $knownBody = $knownAddress->json();
+        $unknownBody = $unknownAddress->json();
+        $this->assertIsArray($knownBody);
+        $this->assertIsArray($unknownBody);
+
+        $this->assertSame(array_keys($unknownBody), array_keys($knownBody));
+        $this->assertSame($unknownBody['code'], $knownBody['code']);
+        $this->assertSame($unknownBody['is_update'], $knownBody['is_update']);
+        $this->assertSame($unknownBody['message'], $knownBody['message']);
+
+        // The only field allowed to differ is the address the caller itself
+        // supplied, which it already knows. Everything that describes the stored
+        // record must be identical.
+        $knownData = $knownBody['data'];
+        $unknownData = $unknownBody['data'];
+        $this->assertIsArray($knownData);
+        $this->assertIsArray($unknownData);
+        $this->assertSame(array_keys($knownData), array_keys($unknownData));
+        $this->assertSame('pending', $knownData['status']);
+        $this->assertSame('pending', $unknownData['status']);
+        unset($knownData['contact_email'], $unknownData['contact_email']);
+        $this->assertSame($unknownData, $knownData);
+
+        // No application identity is disclosed for the suppressed case.
+        $this->assertArrayNotHasKey('id', $knownBody['data']);
+
+        // Only the genuine newcomer produced a record; the existing one is intact.
+        $this->assertDatabaseCount('church_applications', 2);
         $this->assertDatabaseHas('church_applications', [
             'id' => $this->application->id,
             'church_name' => 'Grace Community Church',
@@ -117,31 +194,101 @@ class ChurchApplicationAccessTest extends TestCase
         ]);
     }
 
-    public function test_wrong_password_update_of_existing_application_is_rejected(): void
+    /**
+     * SECURITY: the *validation response* must also be identical, otherwise the
+     * set of reported errors reveals which addresses are already registered.
+     */
+    public function test_validation_requirements_do_not_depend_on_whether_the_address_is_known(): void
     {
-        $response = $this->postJson('/api/v1/church-applications', $this->updatePayload([
-            'password' => 'WrongPassword@1',
-            'password_confirmation' => 'WrongPassword@1',
+        $body = [
+            'church_name' => 'Updated Grace Church',
+            'priest_name' => 'Fr. Peter Mourad',
+            'main_servant_name' => 'Basil Adel',
+            'phone' => '01087654321',
+            'address' => '45 Lake View, Giza',
+            'id_type' => 'national_id',
+        ];
+
+        $known = $this->postJson('/api/v1/church-applications', array_merge($body, [
+            'email' => 'applicant@gracechurch.org',
         ]));
 
-        $response->assertStatus(422)
-            ->assertJsonValidationErrors(['email']);
+        $unknown = $this->postJson('/api/v1/church-applications', array_merge($body, [
+            'email' => 'brand-new-applicant@gracechurch.org',
+        ]));
 
+        $known->assertStatus(422);
+        $unknown->assertStatus(422);
+
+        /** @var array<string, mixed> $knownErrors */
+        $knownErrors = $known->json('errors') ?? [];
+        /** @var array<string, mixed> $unknownErrors */
+        $unknownErrors = $unknown->json('errors') ?? [];
+
+        $this->assertSame(
+            array_keys($unknownErrors),
+            array_keys($knownErrors),
+            'The reported validation errors must not reveal whether the address is already registered.'
+        );
+        $this->assertArrayHasKey('password', $knownErrors);
+        $this->assertArrayHasKey('password', $unknownErrors);
+        $this->assertArrayHasKey('front_id', $knownErrors);
+        $this->assertArrayHasKey('front_id', $unknownErrors);
+    }
+
+    /**
+     * SECURITY: a wrong applicant password must not become an existence probe.
+     */
+    public function test_wrong_password_update_of_existing_application_is_indistinguishable(): void
+    {
+        $response = $this->submitApplication([
+            'password' => 'WrongPassword@1',
+            'password_confirmation' => 'WrongPassword@1',
+        ]);
+
+        $response->assertStatus(201)
+            ->assertJsonPath('is_update', false);
+
+        $this->assertDatabaseCount('church_applications', 1);
         $this->assertDatabaseHas('church_applications', [
             'id' => $this->application->id,
             'church_name' => 'Grace Community Church',
         ]);
     }
 
+    /**
+     * SECURITY: an address that already holds an account but no application must
+     * also be suppressed rather than surfacing a unique-constraint 500.
+     */
+    public function test_address_holding_an_account_without_an_application_is_suppressed(): void
+    {
+        User::factory()->create([
+            'email' => 'stranger@gracechurch.org',
+            'church_application_id' => null,
+            'application_status' => 'approved',
+            'email_verified_at' => now(),
+        ]);
+
+        $response = $this->submitApplication([
+            'email' => 'stranger@gracechurch.org',
+        ]);
+
+        $response->assertStatus(201)
+            ->assertJsonPath('is_update', false);
+
+        $this->assertDatabaseCount('church_applications', 1);
+    }
+
     public function test_owner_password_update_of_existing_application_is_accepted(): void
     {
-        $response = $this->postJson('/api/v1/church-applications', $this->updatePayload([
+        $response = $this->submitApplication([
             'password' => 'Original@123',
             'password_confirmation' => 'Original@123',
-        ]));
+        ]);
 
         $response->assertOk()
-            ->assertJsonPath('is_update', true);
+            ->assertJsonPath('is_update', true)
+            ->assertJsonPath('data.church_name', 'Updated Grace Church');
 
         $this->assertDatabaseHas('church_applications', [
             'id' => $this->application->id,
@@ -153,7 +300,7 @@ class ChurchApplicationAccessTest extends TestCase
     {
         Sanctum::actingAs($this->owner);
 
-        $response = $this->postJson('/api/v1/church-applications', $this->updatePayload());
+        $response = $this->submitApplication();
 
         $response->assertOk()
             ->assertJsonPath('is_update', true);
@@ -164,12 +311,35 @@ class ChurchApplicationAccessTest extends TestCase
         ]);
     }
 
+    /**
+     * A proven applicant session is the only caller attribute that may relax the
+     * submission requirements, and it is derived from the authenticated principal
+     * rather than from the submitted address.
+     */
+    public function test_proven_applicant_session_does_not_need_to_resupply_credentials(): void
+    {
+        Sanctum::actingAs($this->owner);
+
+        $response = $this->postJson('/api/v1/church-applications', [
+            'church_name' => 'Updated Grace Church',
+            'priest_name' => 'Fr. Peter Mourad',
+            'main_servant_name' => 'Basil Adel',
+            'phone' => '01087654321',
+            'email' => 'applicant@gracechurch.org',
+            'address' => '45 Lake View, Giza',
+            'id_type' => 'national_id',
+        ]);
+
+        $response->assertOk()
+            ->assertJsonPath('is_update', true);
+    }
+
     public function test_approved_application_cannot_be_updated_via_public_endpoint(): void
     {
         $this->application->update(['status' => 'approved']);
         Sanctum::actingAs($this->owner);
 
-        $response = $this->postJson('/api/v1/church-applications', $this->updatePayload());
+        $response = $this->submitApplication();
 
         $response->assertStatus(422)
             ->assertJsonValidationErrors(['email']);
@@ -190,7 +360,7 @@ class ChurchApplicationAccessTest extends TestCase
         ]);
         Sanctum::actingAs($this->owner);
 
-        $this->postJson('/api/v1/church-applications', $this->updatePayload())
+        $this->submitApplication()
             ->assertOk();
 
         $this->assertDatabaseHas('church_applications', [

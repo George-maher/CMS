@@ -4,13 +4,11 @@ namespace App\Models;
 
 use App\Traits\AuditableTrait;
 use Database\Factories\ChurchFactory;
-use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 
 /**
@@ -29,31 +27,31 @@ use Illuminate\Support\Str;
  * @property bool $is_suspended
  * @property int|null $deleted_by
  * @property string|null $deletion_type
- * @property Carbon|null $recoverable_until
- * @property Carbon|null $created_at
- * @property Carbon|null $updated_at
- * @property Carbon|null $deleted_at
- * @property-read User|null $deletedBy
- * @property-read Collection<int, User> $users
- * @property-read Collection<int, Event> $events
- * @property-read Collection<int, Attendance> $attendances
- * @property-read Collection<int, Point> $points
- * @property-read Collection<int, QRInvite> $qrInvites
- * @property-read Collection<int, Feedback> $feedback
- * @property-read Collection<int, DailyVerse> $dailyVerses
- * @property-read Collection<int, AttendanceContext> $attendanceContexts
- * @property-read Collection<int, Stage> $stages
- * @property-read Collection<int, Classe> $classes
- * @property-read Collection<int, MembershipRequest> $membershipRequests
- * @property-read Collection<int, Notification> $notifications
- * @property-read Collection<int, EventView> $eventViews
- * @property-read Collection<int, EventTarget> $eventTargets
- * @property-read Collection<int, AuditLog> $auditLogs
+ * @property \Illuminate\Support\Carbon|null $recoverable_until
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @property-read \App\Models\User|null $deletedBy
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\User> $users
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Event> $events
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Attendance> $attendances
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Point> $points
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\QRInvite> $qrInvites
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Feedback> $feedback
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\DailyVerse> $dailyVerses
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\AttendanceContext> $attendanceContexts
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Stage> $stages
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Classe> $classes
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\MembershipRequest> $membershipRequests
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Notification> $notifications
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\EventView> $eventViews
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\EventTarget> $eventTargets
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\AuditLog> $auditLogs
  */
 class Church extends Model
 {
     /** @use HasFactory<ChurchFactory> */
-    use AuditableTrait, HasFactory, SoftDeletes;
+    use HasFactory, AuditableTrait, SoftDeletes;
 
     protected $fillable = [
         'name',
@@ -87,7 +85,7 @@ class Church extends Model
     {
         static::creating(function (Church $church) {
             if (empty($church->slug)) {
-                $church->slug = Str::slug($church->name).'-'.Str::random(6);
+                $church->slug = Str::slug($church->name) . '-' . Str::random(6);
             }
         });
 
@@ -115,116 +113,114 @@ class Church extends Model
 
     public function isRecoverable(): bool
     {
-        if (! $this->trashed()) {
+        if (!$this->trashed()) {
             return false;
         }
-        if (! $this->recoverable_until) {
+        if (!$this->recoverable_until) {
             return false;
         }
-
         return now()->lessThan($this->recoverable_until);
     }
 
     public function daysUntilPurge(): ?int
     {
-        if (! $this->recoverable_until) {
+        if (!$this->recoverable_until) {
             return null;
         }
-
         return (int) now()->diffInDays($this->recoverable_until, false);
     }
 
-    /** @return BelongsTo<User, $this> */
+    /** @return BelongsTo<\App\Models\User, $this> */
     public function deletedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'deleted_by');
     }
 
-    /** @return HasMany<User, $this> */
+    /** @return HasMany<\App\Models\User, $this> */
     public function users(): HasMany
     {
         return $this->hasMany(User::class);
     }
 
-    /** @return HasMany<Event, $this> */
+    /** @return HasMany<\App\Models\Event, $this> */
     public function events(): HasMany
     {
         return $this->hasMany(Event::class);
     }
 
-    /** @return HasMany<Attendance, $this> */
+    /** @return HasMany<\App\Models\Attendance, $this> */
     public function attendances(): HasMany
     {
         return $this->hasMany(Attendance::class);
     }
 
-    /** @return HasMany<Point, $this> */
+    /** @return HasMany<\App\Models\Point, $this> */
     public function points(): HasMany
     {
         return $this->hasMany(Point::class);
     }
 
-    /** @return HasMany<QRInvite, $this> */
+    /** @return HasMany<\App\Models\QRInvite, $this> */
     public function qrInvites(): HasMany
     {
         return $this->hasMany(QRInvite::class);
     }
 
-    /** @return HasMany<Feedback, $this> */
+    /** @return HasMany<\App\Models\Feedback, $this> */
     public function feedback(): HasMany
     {
         return $this->hasMany(Feedback::class);
     }
 
-    /** @return HasMany<DailyVerse, $this> */
+    /** @return HasMany<\App\Models\DailyVerse, $this> */
     public function dailyVerses(): HasMany
     {
         return $this->hasMany(DailyVerse::class);
     }
 
-    /** @return HasMany<AttendanceContext, $this> */
+    /** @return HasMany<\App\Models\AttendanceContext, $this> */
     public function attendanceContexts(): HasMany
     {
         return $this->hasMany(AttendanceContext::class);
     }
 
-    /** @return HasMany<Stage, $this> */
+    /** @return HasMany<\App\Models\Stage, $this> */
     public function stages(): HasMany
     {
         return $this->hasMany(Stage::class);
     }
 
-    /** @return HasMany<Classe, $this> */
+    /** @return HasMany<\App\Models\Classe, $this> */
     public function classes(): HasMany
     {
         return $this->hasMany(Classe::class);
     }
 
-    /** @return HasMany<MembershipRequest, $this> */
+    /** @return HasMany<\App\Models\MembershipRequest, $this> */
     public function membershipRequests(): HasMany
     {
         return $this->hasMany(MembershipRequest::class);
     }
 
-    /** @return HasMany<Notification, $this> */
+    /** @return HasMany<\App\Models\Notification, $this> */
     public function notifications(): HasMany
     {
         return $this->hasMany(Notification::class);
     }
 
-    /** @return HasMany<EventView, $this> */
+    /** @return HasMany<\App\Models\EventView, $this> */
     public function eventViews(): HasMany
     {
         return $this->hasMany(EventView::class);
     }
 
-    /** @return HasMany<EventTarget, $this> */
+    /** @return HasMany<\App\Models\EventTarget, $this> */
     public function eventTargets(): HasMany
     {
         return $this->hasMany(EventTarget::class);
     }
 
-    /** @return HasMany<AuditLog, $this> */
+    /** @return HasMany<\App\Models\AuditLog, $this> */
     public function auditLogs(): HasMany
     {
         return $this->hasMany(AuditLog::class);

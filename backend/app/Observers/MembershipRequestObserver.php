@@ -20,11 +20,11 @@ class MembershipRequestObserver
 
     private function cleanupFiles(MembershipRequest $request): void
     {
-        if (! $request->file_url) {
+        if (!$request->file_url) {
             return;
         }
 
         $storage = App::make(StorageServiceInterface::class);
-        $storage->deleteFile($request->file_url, 'documents');
+        $storage->deleteFile($request->file_url);
     }
 }

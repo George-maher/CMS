@@ -21,13 +21,6 @@ class PointService implements PointServiceInterface
     /** @return array<string, mixed> */
     public function addPoints(int $userId, int $points, string $type, ?string $description = null, ?string $referenceType = null, ?int $referenceId = null): array
     {
-        $user = User::find($userId);
-        if (! $user || ! $user->isMember()) {
-            throw ValidationException::withMessages([
-                'user_id' => ['Only members can receive points.'],
-            ]);
-        }
-
         $point = $this->pointRepository->create([
             'user_id' => $userId,
             'points' => $points,
@@ -37,8 +30,9 @@ class PointService implements PointServiceInterface
             'reference_id' => $referenceId,
         ]);
 
-        $this->cacheService->invalidatePoints($user->church_id);
-        $this->cacheService->invalidateDashboard($user->church_id);
+        $user = User::find($userId);
+        $this->cacheService->invalidatePoints($user?->church_id);
+        $this->cacheService->invalidateDashboard($user?->church_id);
 
         return [
             'point' => $point,
@@ -49,23 +43,10 @@ class PointService implements PointServiceInterface
     /** @return array<string, mixed> */
     public function addBonusPoints(int $userId, int $points, int $addedBy, ?string $reason = null): array
     {
-        $user = User::byChurch()->find($userId);
-        if (! $user) {
+        $member = User::byChurch()->find($userId);
+        if (!$member) {
             throw ValidationException::withMessages([
-                'user_id' => ['User not found.'],
-            ]);
-        }
-
-        if (! $user->isMember()) {
-            throw ValidationException::withMessages([
-                'user_id' => ['Only members can receive bonus points.'],
-            ]);
-        }
-
-        $churchId = $user->church_id;
-        if ($churchId === null) {
-            throw ValidationException::withMessages([
-                'user_id' => ['Member must belong to a church to receive bonus points.'],
+                'user_id' => ['Member not found.'],
             ]);
         }
 
@@ -77,16 +58,18 @@ class PointService implements PointServiceInterface
             'description' => $reason ?? 'Bonus points awarded',
         ]);
 
+        /** @var int $pointChurchId */
+        $pointChurchId = $member->church_id;
         $this->notificationService->createForBonusPoints(
             pointsId: $point->id,
             userId: $userId,
-            churchId: $churchId,
+            churchId: $pointChurchId,
             title: 'Bonus Points Added',
-            body: "You received {$points} bonus points.".($reason ? " Reason: {$reason}" : ''),
+            body: "You received {$points} bonus points." . ($reason ? " Reason: {$reason}" : ''),
         );
 
-        $this->cacheService->invalidatePoints($churchId);
-        $this->cacheService->invalidateDashboard($churchId);
+        $this->cacheService->invalidatePoints($member->church_id);
+        $this->cacheService->invalidateDashboard($member->church_id);
 
         return [
             'point' => $point,
@@ -127,7 +110,6 @@ class PointService implements PointServiceInterface
             ->map(function ($user, $index) {
                 /** @var int $totalPoints */
                 $totalPoints = $user->total_points;
-
                 return [
                     'rank' => $index + 1,
                     'user_id' => $user->id,

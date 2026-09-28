@@ -5,19 +5,11 @@ namespace App\Services;
 use App\Contracts\EventRepositoryInterface;
 use App\Contracts\EventServiceInterface;
 use App\Contracts\NotificationServiceInterface;
-use App\Contracts\ScopeResolverInterface;
-use App\Enums\EventStatus;
 use App\Enums\UserRole;
 use App\Http\Resources\EventResource;
 use App\Models\Event;
-use App\Models\EventBus;
-use App\Models\EventRoom;
-use App\Models\EventRoomCell;
 use App\Models\User;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Database\Eloquent\Relations\Relation;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class EventService implements EventServiceInterface
@@ -26,7 +18,6 @@ class EventService implements EventServiceInterface
         private readonly EventRepositoryInterface $eventRepository,
         private readonly NotificationServiceInterface $notificationService,
         private readonly CacheService $cacheService,
-        private readonly ScopeResolverInterface $scopeResolver,
     ) {}
 
     /** @param array<string, mixed> $filters */
@@ -39,19 +30,10 @@ class EventService implements EventServiceInterface
             $user = User::find($userId);
             $classIds = $user?->getServantClassIds();
 
-            if (! empty($classIds)) {
+            if (!empty($classIds)) {
                 $queryFilters['class_year_ids'] = $classIds;
             } else {
                 $queryFilters['class_year_ids'] = [0];
-            }
-        }
-
-        if ($userRole === UserRole::StageAdmin->value && $userId) {
-            $stageAdmin = User::find($userId);
-            if ($stageAdmin) {
-                /** @var array<int, int> $stageClassIds */
-                $stageClassIds = $this->scopeResolver->allowedClassIds($stageAdmin) ?? [];
-                $queryFilters['class_year_ids'] = $stageClassIds === [] ? [0] : $stageClassIds;
             }
         }
 
@@ -65,7 +47,7 @@ class EventService implements EventServiceInterface
             }
         }
 
-        /** @var User|null $authUser */
+        /** @var \App\Models\User|null $authUser */
         $authUser = auth()->user();
         $churchId = $authUser?->church_id;
 
@@ -95,12 +77,12 @@ class EventService implements EventServiceInterface
     {
         $event = $this->eventRepository->findById($id);
 
-        if (! $event) {
+        if (!$event) {
             return null;
         }
 
-        if ($userRole && in_array($userRole, [UserRole::Admin->value, UserRole::AssistantAdmin->value, UserRole::StageAdmin->value, UserRole::Servant->value], true)) {
-            $event->load(['views.user.classe', 'targets.classe', 'responsibleServant', 'rooms.cells.accommodation.registration.user']);
+        if ($userRole && in_array($userRole, [UserRole::Admin->value, UserRole::AssistantAdmin->value, UserRole::Servant->value], true)) {
+            $event->load(['views.user.classe', 'targets.classe']);
         }
 
         $resource = new EventResource($event);
@@ -116,123 +98,30 @@ class EventService implements EventServiceInterface
     public function create(array $data, int $creatorId, ?string $creatorRole = null, ?int $creatorClassYearId = null): array
     {
         /** @var array<string, mixed> $data */
-        if (! isset($data['type'])) {
+        if (!isset($data['type'])) {
             $data['type'] = 'service';
         }
 
         if ($creatorRole === UserRole::Servant->value && $creatorClassYearId) {
-            if (! isset($data['class_year_id']) && ! isset($data['target_class_ids']) && empty($data['is_all_classes'])) {
+            if (!isset($data['class_year_id']) && !isset($data['target_class_ids']) && empty($data['is_all_classes'])) {
                 $data['class_year_id'] = $creatorClassYearId;
             }
         }
-
-        // Extract bulk configuration before creating event
-        /** @var array<int, array{count: int, capacity: int}>|null $roomGroups */
-        $roomGroups = $data['room_groups'] ?? null;
-        /** @var array<int, array{capacity: int}>|null $busConfig */
-        $busConfig = $data['bus_config'] ?? null;
-        unset($data['room_groups'], $data['bus_config']);
 
         /** @var array<string, mixed> $createData */
         $createData = [
             ...$data,
             'created_by' => $creatorId,
         ];
-
-        $createData = $this->normalizeActiveStatus($createData, null);
-
-        $event = DB::transaction(function () use ($createData, $roomGroups, $busConfig) {
-            /** @var Event $event */
-            $event = $this->eventRepository->create($createData);
-
-            if (! empty($roomGroups)) {
-                $this->bulkCreateRooms($event, $roomGroups);
-            }
-
-            if (! empty($busConfig)) {
-                $this->bulkCreateBuses($event, $busConfig);
-            }
-
-            return $event;
-        });
+        $event = $this->eventRepository->create($createData);
 
         $this->sendEventNotifications($event);
 
         $this->cacheService->invalidateEvents($event->church_id);
 
         return [
-            'data' => new EventResource($event->load(['creator', 'classe', 'targets.classe', 'responsibleServant'])),
+            'data' => new EventResource($event->load(['creator', 'classe', 'targets.classe'])),
         ];
-    }
-
-    /**
-     * Bulk-create rooms and cells from room group definitions.
-     *
-     * @param  array<int, array{count: int, capacity: int}>  $roomGroups
-     */
-    private function bulkCreateRooms(Event $event, array $roomGroups): void
-    {
-        $roomNumber = 1;
-
-        foreach ($roomGroups as $group) {
-            $count = (int) $group['count'];
-            $capacity = (int) $group['capacity'];
-            $memberCapacity = $capacity - 1; // 1 cell reserved for servant
-
-            for ($i = 0; $i < $count; $i++) {
-                /** @var EventRoom $room */
-                $room = EventRoom::create([
-                    'event_id' => $event->id,
-                    'room_number' => $roomNumber,
-                    'capacity' => $capacity,
-                    'member_capacity' => max(0, $memberCapacity),
-                ]);
-
-                // Create servant-reserved cell (cell_number 1)
-                EventRoomCell::create([
-                    'room_id' => $room->id,
-                    'cell_number' => 1,
-                    'type' => 'servant_reserved',
-                    'is_available' => false,
-                ]);
-
-                // Create member cells
-                for ($c = 2; $c <= $capacity; $c++) {
-                    EventRoomCell::create([
-                        'room_id' => $room->id,
-                        'cell_number' => $c,
-                        'type' => 'member',
-                        'is_available' => true,
-                    ]);
-                }
-
-                $roomNumber++;
-            }
-        }
-    }
-
-    /**
-     * Bulk-create buses from per-bus config.
-     *
-     * @param  array<int, array{capacity: int}>  $busConfig
-     */
-    private function bulkCreateBuses(Event $event, array $busConfig): void
-    {
-        $busNumber = 1;
-
-        foreach ($busConfig as $bus) {
-            $capacity = (int) $bus['capacity'];
-
-            if ($capacity > 0) {
-                EventBus::create([
-                    'event_id' => $event->id,
-                    'bus_number' => (string) $busNumber,
-                    'capacity' => $capacity,
-                ]);
-
-                $busNumber++;
-            }
-        }
     }
 
     private function sendEventNotifications(Event $event): void
@@ -244,7 +133,7 @@ class EventService implements EventServiceInterface
 
         if ($hasAllClasses) {
             // Send to all active members — no additional class filter needed
-        } elseif (! empty($targetClassIds)) {
+        } elseif (!empty($targetClassIds)) {
             $query->whereIn('class_id', $targetClassIds);
         } elseif ($event->class_year_id) {
             $query->where('class_year_id', $event->class_year_id);
@@ -259,7 +148,7 @@ class EventService implements EventServiceInterface
 
         $churchId = $event->church_id ?? 0;
         $title = 'New Event Available';
-        $body = strval($event->name).' — '.($event->event_date ? $event->event_date->format('M j, Y g:i A') : 'Check it out!');
+        $body = strval($event->name) . ' — ' . ($event->event_date ? $event->event_date->format('M j, Y g:i A') : 'Check it out!');
 
         $this->notificationService->createForEvent(
             targetUserIds: $targetUserIds,
@@ -275,19 +164,9 @@ class EventService implements EventServiceInterface
     public function update(int $id, array $data): array
     {
         /** @var array<string, mixed> $data */
-        /** @var Event|null $current */
-        $current = $this->eventRepository->findById($id);
-
-        if (! $current) {
-            throw ValidationException::withMessages([
-                'event' => ['Event not found.'],
-            ]);
-        }
-
-        $data = $this->normalizeActiveStatus($data, $current);
         $updated = $this->eventRepository->update($id, $data);
 
-        if (! $updated) {
+        if (!$updated) {
             throw ValidationException::withMessages([
                 'event' => ['Event not found.'],
             ]);
@@ -295,7 +174,7 @@ class EventService implements EventServiceInterface
 
         $event = $this->eventRepository->findById($id);
 
-        if (! $event) {
+        if (!$event) {
             throw ValidationException::withMessages([
                 'event' => ['Event not found after update.'],
             ]);
@@ -308,76 +187,10 @@ class EventService implements EventServiceInterface
         ];
     }
 
-    /**
-     * Keep the single user-facing Active state coherent with the internal
-     * lifecycle status.
-     *
-     * Canonical model:
-     * - is_active (Active/Inactive) is what the UI shows and controls.
-     * - status (draft/open/closed/completed/cancelled) drives registration
-     *   gating and stays internal.
-     *
-     * Rules applied here:
-     * - Activating a draft/closed event opens it (publish-on-activate).
-     * - Deactivating an open event closes it.
-     * - An explicit status in the payload always wins; derived flags are then
-     *   recomputed so the two fields can never visibly contradict each other.
-     *
-     * @param  array<string, mixed>  $data
-     * @return array<string, mixed>
-     */
-    private function normalizeActiveStatus(array $data, ?Event $current): array
-    {
-        $hasActive = array_key_exists('is_active', $data);
-        $hasStatus = array_key_exists('status', $data) && $data['status'] !== null;
-
-        if (! $hasActive && ! $hasStatus) {
-            return $data;
-        }
-
-        $isActive = $hasActive
-            ? in_array($data['is_active'], [true, 1, '1', 'true'], true)
-            : ($current->is_active ?? false);
-
-        $status = null;
-        if ($hasStatus && is_string($data['status'])) {
-            $status = $data['status'];
-        }
-        if ($status === null) {
-            $status = $current->status->value ?? null;
-        }
-
-        if ($hasActive && ! $hasStatus && $current !== null) {
-            if ($isActive && in_array($status, [EventStatus::Draft->value, EventStatus::Closed->value], true)) {
-                $status = EventStatus::Open->value;
-            } elseif (! $isActive && $status === EventStatus::Open->value) {
-                $status = EventStatus::Closed->value;
-            }
-        }
-
-        // On creation with no explicit lifecycle, Active means open, Inactive means closed.
-        if ($current === null && ! $hasStatus) {
-            $status = $isActive ? EventStatus::Open->value : EventStatus::Closed->value;
-        }
-
-        if ($status === EventStatus::Open->value) {
-            $isActive = true;
-        } elseif (in_array($status, [EventStatus::Cancelled->value, EventStatus::Completed->value], true)) {
-            $isActive = false;
-        }
-
-        if ($hasStatus || $status !== null) {
-            $data['status'] = $status;
-        }
-        $data['is_active'] = $isActive;
-
-        return $data;
-    }
-
     public function delete(int $id): void
     {
         $event = $this->eventRepository->findById($id);
-        if (! $event) {
+        if (!$event) {
             throw ValidationException::withMessages([
                 'event' => ['Event not found.'],
             ]);
@@ -394,7 +207,7 @@ class EventService implements EventServiceInterface
     {
         $event = $this->eventRepository->findById($eventId);
 
-        if (! $event) {
+        if (!$event) {
             throw ValidationException::withMessages([
                 'event' => ['Event not found.'],
             ]);
@@ -428,12 +241,12 @@ class EventService implements EventServiceInterface
 
     /** @param array<string, mixed> $filters */
     /** @param array<int>|int|null $servantClassIds */
-    /** @return Collection<int, User> */
+    /** @return Collection<int, \App\Models\User> */
     public function viewedUsers(int $eventId, array $filters = [], array|int|null $servantClassIds = null): Collection
     {
         $event = $this->eventRepository->findById($eventId);
 
-        if (! $event) {
+        if (!$event) {
             throw ValidationException::withMessages([
                 'event' => ['Event not found.'],
             ]);
@@ -442,31 +255,31 @@ class EventService implements EventServiceInterface
         $viewedUserIds = $event->views()->pluck('user_id');
 
         if ($viewedUserIds->isEmpty()) {
-            return new Collection;
+            return new Collection();
         }
 
-        $query = User::query()->byChurch()->whereIn('id', $viewedUserIds)->with(['classe', 'church', 'createdBy']);
+        $query = User::query()->byChurch()->whereIn('id', $viewedUserIds)->with('classe');
 
         if ($servantClassIds !== null) {
             $servantClassIds = is_array($servantClassIds) ? $servantClassIds : [$servantClassIds];
             $query->whereIn('class_id', $servantClassIds);
         }
 
-        if (! empty($filters['class_id'])) {
+        if (!empty($filters['class_id'])) {
             $query->where('class_id', $filters['class_id']);
         }
 
-        if (! empty($filters['search'])) {
+        if (!empty($filters['search'])) {
             /** @var string $searchTerm */
             $searchTerm = $filters['search'];
-            $query->where('name', 'like', '%'.$searchTerm.'%');
+            $query->where('name', 'like', '%' . $searchTerm . '%');
         }
 
         $users = $query->get();
 
         $viewedUserIds = $users->pluck('id')->toArray();
         $viewedAtMap = [];
-        if (! empty($viewedUserIds)) {
+        if (!empty($viewedUserIds)) {
             $views = $event->views()->whereIn('user_id', $viewedUserIds)->get(['user_id', 'viewed_at']);
             foreach ($views as $view) {
                 $viewedAtMap[$view->user_id] = $view->viewed_at;
@@ -482,12 +295,12 @@ class EventService implements EventServiceInterface
 
     /** @param array<string, mixed> $filters */
     /** @param array<int>|int|null $servantClassIds */
-    /** @return Collection<int, User> */
+    /** @return \Illuminate\Database\Eloquent\Collection<int, \App\Models\User> */
     public function notViewedUsers(int $eventId, ?int $churchId = null, array $filters = [], array|int|null $servantClassIds = null): Collection
     {
         $event = $this->eventRepository->findById($eventId);
 
-        if (! $event) {
+        if (!$event) {
             throw ValidationException::withMessages([
                 'event' => ['Event not found.'],
             ]);
@@ -503,11 +316,11 @@ class EventService implements EventServiceInterface
             $query = $query->whereIn('class_id', $servantClassIds);
         }
 
-        if (! empty($filters['class_id'])) {
+        if (!empty($filters['class_id'])) {
             $query = $query->where('class_id', $filters['class_id']);
         }
 
-        if (! empty($filters['search'])) {
+        if (!empty($filters['search'])) {
             /** @var string $searchTerm */
             $searchTerm = $filters['search'];
             $query = $query->filter(function (User $user) use ($searchTerm) {
@@ -527,7 +340,7 @@ class EventService implements EventServiceInterface
     {
         $event = $this->eventRepository->findById($eventId);
 
-        if (! $event) {
+        if (!$event) {
             throw ValidationException::withMessages([
                 'event' => ['Event not found.'],
             ]);
@@ -536,7 +349,7 @@ class EventService implements EventServiceInterface
         $event->trackView($userId, $ipAddress, $userAgent);
     }
 
-    /** @return Collection<int, User> */
+    /** @return \Illuminate\Database\Eloquent\Collection<int, \App\Models\User> */
     private function targetUsers(Event $event): Collection
     {
         $query = User::query()->byChurch()->byRole(UserRole::Member)->active();
@@ -547,63 +360,12 @@ class EventService implements EventServiceInterface
 
         if ($hasAllClasses) {
             // All members
-        } elseif (! empty($targetClassIds)) {
+        } elseif (!empty($targetClassIds)) {
             $query->whereIn('class_id', $targetClassIds);
         } elseif ($event->class_year_id) {
             $query->where('class_year_id', $event->class_year_id);
         }
 
         return $query->get();
-    }
-
-    /**
-     * Events where the user is the responsible servant.
-     *
-     * @return array<string, mixed>
-     */
-    public function myAssignedEvents(int $userId, int $perPage = 15): array
-    {
-        $paginator = Event::query()
-            ->where('responsible_servant_id', $userId)
-            ->withCount([
-                'registrations as pending_count' => function (Builder $q) {
-                    $q->where('status', 'pending');
-                },
-                'registrations as confirmed_count' => function (Builder $q) {
-                    $q->where('status', 'confirmed');
-                },
-                'registrations as approved_count' => function (Builder $q) {
-                    $q->where('status', 'approved');
-                },
-            ])
-            ->with(['rooms.cells' => function (Relation $q) {
-                $q->where('type', 'member');
-            }])
-            ->orderByDesc('event_date')
-            ->paginate($perPage);
-
-        $data = collect($paginator->items())->map(function (Event $event) {
-            /** @var array<string, mixed> $resourceData */
-            $resourceData = (new EventResource($event))->resolve();
-
-            return array_merge($resourceData, [
-                'rooms_count' => $event->totalRooms(),
-                'total_capacity' => $event->totalCapacity(),
-                'total_member_capacity' => $event->totalMemberCapacity(),
-                'pending_count' => $event->pending_count ?? 0,
-                'confirmed_count' => $event->confirmed_count ?? 0,
-                'approved_count' => $event->approved_count ?? 0,
-            ]);
-        })->values();
-
-        return [
-            'data' => $data,
-            'meta' => [
-                'current_page' => $paginator->currentPage(),
-                'last_page' => $paginator->lastPage(),
-                'per_page' => $paginator->perPage(),
-                'total' => $paginator->total(),
-            ],
-        ];
     }
 }

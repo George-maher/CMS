@@ -2,15 +2,11 @@
 
 namespace App\Http\Resources;
 
-use App\Models\Attendance;
-use App\Models\AttendanceContext;
-use App\Models\Classe;
-use App\Models\Event;
-use App\Models\User;
+use App\Http\Resources\AttendanceContextResource;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
-/** @mixin Attendance */
+/** @mixin \App\Models\Attendance */
 class AttendanceResource extends JsonResource
 {
     /** @return array<string, mixed> */
@@ -20,36 +16,32 @@ class AttendanceResource extends JsonResource
             'id' => $this->id,
             'user' => new UserResource($this->whenLoaded('user')),
             'recorder' => $this->when($this->recorder !== null, function () {
-                /** @var User $recorder */
+                /** @var \App\Models\User $recorder */
                 $recorder = $this->recorder;
-
                 return [
                     'id' => $recorder->id,
                     'name' => $recorder->name,
                 ];
             }),
             'classe' => $this->when($this->relationLoaded('classe') && $this->classe, function () {
-                /** @var Classe $classe */
+                /** @var \App\Models\Classe $classe */
                 $classe = $this->classe;
-
                 return [
                     'id' => $classe->id,
                     'name' => $classe->name,
                 ];
             }),
             'event' => $this->when($this->relationLoaded('event') && $this->event, function () {
-                /** @var Event $event */
+                /** @var \App\Models\Event $event */
                 $event = $this->event;
-
                 return [
                     'id' => $event->id,
                     'name' => $event->name,
                 ];
             }),
             'attendance_context' => $this->when($this->relationLoaded('attendanceContext') && $this->attendanceContext, function () {
-                /** @var AttendanceContext $attendanceContext */
+                /** @var \App\Models\AttendanceContext $attendanceContext */
                 $attendanceContext = $this->attendanceContext;
-
                 return [
                     'id' => $attendanceContext->id,
                     'name' => $attendanceContext->name,
@@ -61,7 +53,6 @@ class AttendanceResource extends JsonResource
             'method' => $this->method,
             'attended_at' => $this->attended_at,
             'points_earned' => $this->points_earned,
-            'status' => $this->status,
             'created_at' => $this->created_at,
         ];
     }

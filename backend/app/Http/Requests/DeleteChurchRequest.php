@@ -3,7 +3,6 @@
 namespace App\Http\Requests;
 
 use App\Enums\UserRole;
-use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Hash;
 
@@ -21,9 +20,9 @@ class DeleteChurchRequest extends FormRequest
         return [
             'confirmation' => ['required', 'string', 'in:DELETE CHURCH'],
             'password' => ['required', 'string', function (string $attribute, string $value, \Closure $fail) {
-                /** @var User $user */
+                /** @var \App\Models\User $user */
                 $user = $this->user();
-                if (! Hash::check($value, $user->password)) {
+                if (!Hash::check($value, $user->password)) {
                     $fail(__('church_deletion.reauth_password_incorrect'));
                 }
             }],

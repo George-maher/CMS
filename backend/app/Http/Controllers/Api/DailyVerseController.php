@@ -6,7 +6,6 @@ use App\Contracts\VerseServiceInterface;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreVerseRequest;
 use App\Http\Requests\UpdateVerseRequest;
-use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -32,7 +31,7 @@ class DailyVerseController extends Controller
 
     public function store(StoreVerseRequest $request): JsonResponse
     {
-        /** @var User $user */
+        /** @var \App\Models\User $user */
         $user = $request->user();
         /** @var int $creatorId */
         $creatorId = $user->id;
@@ -51,7 +50,7 @@ class DailyVerseController extends Controller
     {
         $result = $this->verseService->findById($id);
 
-        if (! $result) {
+        if (!$result) {
             return response()->json(['message' => 'Verse not found.'], 404);
         }
 
@@ -91,7 +90,7 @@ class DailyVerseController extends Controller
     {
         $result = $this->verseService->getActive();
 
-        if (! $result) {
+        if (!$result) {
             return response()->json(['data' => null]);
         }
 

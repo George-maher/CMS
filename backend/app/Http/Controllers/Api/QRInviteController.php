@@ -3,76 +3,49 @@
 namespace App\Http\Controllers\Api;
 
 use App\Contracts\QRInviteServiceInterface;
-use App\Contracts\ScopeResolverInterface;
 use App\Enums\QRInviteType;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\CreateQRInviteRequest;
 use App\Http\Resources\QRInviteResource;
 use App\Http\Resources\UserResource;
-use App\Models\AttendanceContext;
 use App\Models\Classe;
-use App\Models\QRInvite;
-use App\Models\Scopes\ChurchScope;
-use App\Models\User;
-use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
 
 class QRInviteController extends Controller
 {
     public function __construct(
         private readonly QRInviteServiceInterface $qrInviteService,
-        private readonly ScopeResolverInterface $scopeResolver,
     ) {}
 
     public function store(CreateQRInviteRequest $request): JsonResponse
     {
-        /** @var User $user */
+        /** @var \App\Models\User $user */
         $user = $request->user();
         /** @var string $typeValue */
         $typeValue = $request->validated()['type'];
         $type = QRInviteType::from($typeValue);
 
-        if (! in_array($type->value, $this->allowedInviteTypesFor($user), true)) {
+        if ($user->role === UserRole::Servant && !in_array($type, [QRInviteType::ServantToMemberInvite, QRInviteType::AttendanceQR], true)) {
             throw ValidationException::withMessages([
-                'type' => [$this->inviteTypeRestrictionMessage($user)],
+                'type' => ['Servants can only create member or attendance invitations.'],
+            ]);
+        }
+
+        if ($user->role === UserRole::Admin && !in_array($type, [QRInviteType::AdminToServantInvite, QRInviteType::ServantToMemberInvite, QRInviteType::AttendanceQR], true)) {
+            throw ValidationException::withMessages([
+                'type' => ['Admins can only create servant, member, or attendance invitations.'],
             ]);
         }
 
         /** @var array<string, mixed> $data */
         $data = $request->validated();
 
-        if (! $user->isAdmin() && ! $user->isPlatformAdmin()) {
-            // The stage is derived server-side from the authenticated user's
-            // scope. Any client-supplied stage_id is ignored for stage-scoped
-            // roles, and the class (if any) must belong to that scope as well.
-            /** @var int|null $stageId */
-            $stageId = $this->scopeResolver->userStageId($user);
-            if ($stageId === null) {
-                throw ValidationException::withMessages([
-                    'stage_id' => [__('invite.stage_required')],
-                ]);
-            }
-            $data['stage_id'] = $stageId;
-
-            /** @var int|null $classId */
-            $classId = isset($data['class_id']) && is_numeric($data['class_id']) ? (int) $data['class_id'] : null;
-            if ($classId !== null) {
-                $allowedClasses = $this->scopeResolver->allowedClassIds($user);
-                if ($allowedClasses === null || ! in_array($classId, $allowedClasses, true)) {
-                    throw ValidationException::withMessages([
-                        'class_id' => [__('invite.class_stage_mismatch')],
-                    ]);
-                }
-            }
-        }
-
         /** @var int $creatorId */
         $creatorId = $user->id;
-        /** @var array{invite: QRInvite, url: string} $result */
+        /** @var array{invite: \App\Models\QRInvite, url: string} $result */
         $result = $this->qrInviteService->createInvite(
             data: $data,
             creatorId: $creatorId,
@@ -89,55 +62,27 @@ class QRInviteController extends Controller
 
     public function validateToken(string $token): JsonResponse
     {
-        /** @var array{valid: bool, invite: QRInvite, type: QRInviteType} $result */
+        /** @var array{valid: bool, invite: \App\Models\QRInvite, type: \App\Enums\QRInviteType} $result */
         $result = $this->qrInviteService->validateToken($token);
         $invite = $result['invite'];
-
-        // Public, unauthenticated endpoint: the invite is authorized by its token.
-        // Relation/class loads run unscoped but stay bound to the invite's own
-        // FKs and church so foreign-church data can never be selected.
-        $unscope = static fn (Relation $query) => $query->withoutGlobalScope(ChurchScope::class);
-        $invite->load([
-            'stage' => $unscope,
-            'classe' => $unscope,
-            'classe.stage' => $unscope,
-        ]);
-        $classesQuery = Classe::withoutGlobalScope(ChurchScope::class)
-            ->where('church_id', $invite->church_id);
-        if ($invite->stage_id !== null) {
-            // Only classes inside the invitation's stage are selectable.
-            $classesQuery->where('stage_id', $invite->stage_id);
-        }
-        $classes = $classesQuery->orderBy('name')->get(['id', 'name']);
-
-        // Resolve the attendance context explicitly, bound to the invite's
-        // church: a foreign-church context id (data anomaly) resolves to null.
-        $attendanceContext = null;
-        if ($invite->attendance_context_id !== null) {
-            $attendanceContext = AttendanceContext::withoutGlobalScope(ChurchScope::class)
-                ->where('id', $invite->attendance_context_id)
-                ->where('church_id', $invite->church_id)
-                ->first();
-        }
-        $invite->setRelation('attendanceContext', $attendanceContext);
+        $classes = Classe::where('church_id', $invite->church_id)
+            ->get(['id', 'name']);
 
         $data = [
             'valid' => $result['valid'],
             'type' => $result['type']->value,
             'invite' => new QRInviteResource($invite),
-            'stage_id' => $invite->stage_id,
-            'stage_name' => $invite->stage?->name,
             'classes' => $classes->toArray(),
-            'attendance_context_id' => $attendanceContext?->id,
-            'attendance_context' => $attendanceContext ? [
-                'id' => $attendanceContext->id,
-                'name' => $attendanceContext->name,
-                'slug' => $attendanceContext->slug,
+            'attendance_context_id' => $invite->attendance_context_id,
+            'attendance_context' => $invite->attendanceContext ? [
+                'id' => $invite->attendanceContext->id,
+                'name' => $invite->attendanceContext->name,
+                'slug' => $invite->attendanceContext->slug,
             ] : null,
         ];
 
         if ($result['type'] === QRInviteType::ServantToMemberInvite) {
-            $invite->load(['creator.classe' => $unscope]);
+            $invite->load('creator.classe');
             $data['creator_class_id'] = $invite->creator?->classe?->id;
             $data['creator_class_name'] = $invite->creator?->classe?->name;
         }
@@ -149,10 +94,10 @@ class QRInviteController extends Controller
 
     public function details(string $token): JsonResponse
     {
-        /** @var array{valid: bool, invite: QRInvite, type: QRInviteType, type_label: string, role: UserRole|null, role_label: string|null, creator_name: string|null, creator_class_id: int|null, creator_class_name: string|null, class_id: int|null, class_name: string|null, stage_id: int|null, stage_name: string|null, classes: array<int, array<string, mixed>>, expires_at: mixed, is_expired: bool, is_used: bool, is_revoked: bool} $result */
+        /** @var array{valid: bool, invite: \App\Models\QRInvite, type: \App\Enums\QRInviteType, type_label: string, role: \App\Enums\UserRole|null, role_label: string|null, creator_name: string|null, creator_class_id: int|null, creator_class_name: string|null, class_id: int|null, class_name: string|null, classes: array<int, array<string, mixed>>, expires_at: mixed, is_expired: bool, is_used: bool, is_revoked: bool} $result */
         $result = $this->qrInviteService->getInviteDetails($token);
 
-        /** @var QRInvite $invite */
+        /** @var \App\Models\QRInvite $invite */
         $invite = $result['invite'];
 
         return response()->json([
@@ -167,8 +112,6 @@ class QRInviteController extends Controller
                 'creator_class_name' => $result['creator_class_name'] ?? null,
                 'class_id' => $result['class_id'] ?? null,
                 'class_name' => $result['class_name'] ?? null,
-                'stage_id' => $result['stage_id'],
-                'stage_name' => $result['stage_name'],
                 'classes' => $result['classes'] ?? [],
                 'expires_at' => $result['expires_at'] ?? null,
                 'is_expired' => $result['is_expired'] ?? false,
@@ -180,23 +123,21 @@ class QRInviteController extends Controller
                     ? max(0, $invite->max_uses - $invite->use_count)
                     : null,
                 'usage_label' => $invite->max_uses
-                    ? ($invite->use_count.' / '.$invite->max_uses)
+                    ? ($invite->use_count . ' / ' . $invite->max_uses)
                     : null,
-                // used_by_users (names/phones roster) is intentionally omitted:
-                // this endpoint is public and token-bound only. Authenticated
-                // management lists get the roster via QRInviteResource.
+                'used_by_users' => $invite->used_by_users,
             ],
         ]);
     }
 
     public function accept(Request $request, string $token): JsonResponse
     {
-        /** @var User $user */
+        /** @var \App\Models\User $user */
         $user = $request->user();
         $classId = $request->integer('class_id') ?: null;
         /** @var int $userId */
         $userId = (int) $user->id;
-        /** @var array{message: string, user: User, role: UserRole} $result */
+        /** @var array{message: string, user: \App\Models\User, role: \App\Enums\UserRole} $result */
         $result = $this->qrInviteService->acceptInvite(
             token: $token,
             userId: $userId,
@@ -217,20 +158,15 @@ class QRInviteController extends Controller
     {
         $invite = $this->qrInviteService->findById($id);
 
-        if (! $invite) {
+        if (!$invite) {
             return response()->json(['message' => 'QR invite not found.'], 404);
         }
 
-        /** @var User $user */
+        /** @var \App\Models\User $user */
         $user = $request->user();
         /** @var int $uid */
         $uid = $user->id;
         if ($user->role === UserRole::Servant && $invite->created_by !== $uid) {
-            return response()->json(['message' => 'Forbidden.'], 403);
-        }
-        if ($user->isStageAdmin()
-            && $invite->created_by !== $uid
-            && ($invite->stage_id === null || $invite->stage_id !== $user->stage_id)) {
             return response()->json(['message' => 'Forbidden.'], 403);
         }
 
@@ -238,38 +174,6 @@ class QRInviteController extends Controller
 
         return response()->json([
             'message' => 'QR invite revoked successfully.',
-        ]);
-    }
-
-    public function rotate(Request $request, int $id): JsonResponse
-    {
-        $invite = $this->qrInviteService->findById($id);
-        if (! $invite) {
-            return response()->json(['message' => 'QR invite not found.'], 404);
-        }
-
-        /** @var User $user */
-        $user = $request->user();
-        if ($user->isServant() && $invite->created_by !== $user->id) {
-            return response()->json(['message' => 'Forbidden.'], 403);
-        }
-        if ($user->isStageAdmin()
-            && $invite->created_by !== $user->id
-            && ($invite->stage_id === null || $invite->stage_id !== $user->stage_id)) {
-            return response()->json(['message' => 'Forbidden.'], 403);
-        }
-        if (! $user->isPlatformAdmin() && $invite->church_id !== $user->church_id) {
-            return response()->json(['message' => 'Forbidden.'], 403);
-        }
-
-        $rotated = $this->qrInviteService->rotateInvite($id);
-
-        return response()->json([
-            'message' => 'QR invite token rotated successfully.',
-            'data' => [
-                'invite' => new QRInviteResource($rotated),
-                'url' => $this->qrInviteService->getInviteUrl($rotated->token),
-            ],
         ]);
     }
 
@@ -282,23 +186,15 @@ class QRInviteController extends Controller
             'expires_from', 'expires_to', 'search',
         ]);
 
-        /** @var User $currentUser */
+        /** @var \App\Models\User $currentUser */
         $currentUser = $request->user();
         if ($currentUser->role === UserRole::Servant) {
             $filters['created_by'] = $currentUser->id;
             // Ignore class_id filter — servants only see their own invites
             unset($filters['class_id']);
         }
-        if ($currentUser->isStageAdmin()) {
-            // Stage admins only see invitations scoped to their stage; any
-            // client-supplied filters that could leak another stage are dropped.
-            unset($filters['created_by'], $filters['class_id'], $filters['class_year_id']);
-            if ($currentUser->stage_id !== null) {
-                $filters['stage_id'] = $currentUser->stage_id;
-            }
-        }
 
-        /** @var array{data: Collection<int, QRInvite>, meta: array<string, mixed>} $result */
+        /** @var array{data: \Illuminate\Support\Collection<int, \App\Models\QRInvite>, meta: array<string, mixed>} $result */
         $result = $this->qrInviteService->listInvites(
             perPage: $request->integer('per_page', 15),
             filters: $filters
@@ -310,47 +206,5 @@ class QRInviteController extends Controller
             'data' => QRInviteResource::collection($result['data']),
             'meta' => $result['meta'],
         ]);
-    }
-
-    /**
-     * Invite types a given role may create.
-     *
-     * @return array<int, string>
-     */
-    private function allowedInviteTypesFor(User $user): array
-    {
-        if ($user->isStageAdmin()) {
-            return [
-                QRInviteType::AdminToServantInvite->value,
-                QRInviteType::ServantToMemberInvite->value,
-                QRInviteType::AttendanceQR->value,
-            ];
-        }
-
-        if ($user->isServant()) {
-            return [
-                QRInviteType::ServantToMemberInvite->value,
-                QRInviteType::AttendanceQR->value,
-            ];
-        }
-
-        return [
-            QRInviteType::AdminToServantInvite->value,
-            QRInviteType::ServantToMemberInvite->value,
-            QRInviteType::AttendanceQR->value,
-        ];
-    }
-
-    private function inviteTypeRestrictionMessage(User $user): string
-    {
-        if ($user->isStageAdmin()) {
-            return 'Stage admins can only create member, servant, or attendance invitations within their stage.';
-        }
-
-        if ($user->isServant()) {
-            return 'Servants can only create member or attendance invitations.';
-        }
-
-        return 'You are not allowed to create this invitation type.';
     }
 }

@@ -6,11 +6,13 @@ use App\Contracts\FileUploadServiceInterface;
 use App\Contracts\MembershipRequestRepositoryInterface;
 use App\Contracts\MembershipRequestServiceInterface;
 use App\Contracts\NotificationServiceInterface;
+use App\Enums\ProvisioningChannel;
 use App\Enums\UserRole;
 use App\Models\MembershipRequest;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -20,10 +22,22 @@ class MembershipRequestService implements MembershipRequestServiceInterface
         private readonly MembershipRequestRepositoryInterface $repository,
         private readonly FileUploadServiceInterface $fileUploadService,
         private readonly NotificationServiceInterface $notificationService,
+        private readonly UserProvisioningService $userProvisioning,
     ) {}
 
-    /** @param array<string, mixed> $data */
-    /** @return array<string, mixed> */
+    /**
+     * Accept a public join request.
+     *
+     * Enumeration-safe by construction: this endpoint is unauthenticated, so the
+     * response must never reveal whether the submitted address already has an
+     * account, or a pending request, in this church. A submission that would be
+     * refused internally is therefore *silently suppressed* — nothing is written
+     * and nothing is revealed — and the caller receives exactly the same
+     * acknowledgement it would have received had the request been accepted.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array{accepted: bool, message: string}
+     */
     public function submit(array $data, int $churchId): array
     {
         /** @var string $email */
@@ -31,20 +45,29 @@ class MembershipRequestService implements MembershipRequestServiceInterface
 
         $existing = $this->repository->findByEmailChurch($email, $churchId);
 
-        if ($existing && $existing->isPending()) {
-            throw ValidationException::withMessages([
-                'email' => ['A pending request already exists for this email.'],
+        if ($existing !== null && $existing->isPending()) {
+            // Metadata only. The submitted address is PII and is not logged.
+            Log::info('membership_request', [
+                'event' => 'duplicate_pending_suppressed',
+                'church_id' => $churchId,
+                'existing_request_id' => $existing->id,
             ]);
+
+            return $this->acknowledgement();
         }
 
         $existingUser = User::where('email', $email)
             ->where('church_id', $churchId)
             ->first();
 
-        if ($existingUser) {
-            throw ValidationException::withMessages([
-                'email' => ['This email is already registered in your church.'],
+        if ($existingUser !== null) {
+            Log::info('membership_request', [
+                'event' => 'existing_account_suppressed',
+                'church_id' => $churchId,
+                'user_id' => $existingUser->id,
             ]);
+
+            return $this->acknowledgement();
         }
 
         $fileUrl = null;
@@ -54,7 +77,7 @@ class MembershipRequestService implements MembershipRequestServiceInterface
             $fileUrl = $this->fileUploadService->url($path);
         }
 
-        $request = $this->repository->create([
+        $this->repository->create([
             'church_id' => $churchId,
             'name' => $data['name'],
             'email' => $email,
@@ -66,9 +89,23 @@ class MembershipRequestService implements MembershipRequestServiceInterface
             'status' => 'pending',
         ]);
 
+        return $this->acknowledgement();
+    }
+
+    /**
+     * The single acknowledgement returned for both accepted and suppressed
+     * submissions.
+     *
+     * It deliberately carries no row identity, so there is nothing for a caller
+     * to correlate, and it is byte-identical in every suppressed case.
+     *
+     * @return array{accepted: bool, message: string}
+     */
+    private function acknowledgement(): array
+    {
         return [
-            'request' => $request,
-            'message' => 'Your request has been submitted. Once approved, you will be able to log in.',
+            'accepted' => true,
+            'message' => __('membership_requests.received'),
         ];
     }
 
@@ -105,7 +142,10 @@ class MembershipRequestService implements MembershipRequestServiceInterface
 
             $tmpPassword = Str::random(40);
 
-            return User::create([
+            // The approving admin is the trusted party for this tenant, so the
+            // account is created verified and can authenticate as soon as the
+            // admin sets a password through the in-app reset workflow.
+            return $this->userProvisioning->create([
                 'church_id' => $request->church_id,
                 'name' => $request->name,
                 'email' => $request->email,
@@ -116,7 +156,8 @@ class MembershipRequestService implements MembershipRequestServiceInterface
                 'phone' => $request->phone,
                 'birthday' => $request->birthday,
                 'address' => $request->address,
-            ]);
+                'created_by' => $admin->id,
+            ], ProvisioningChannel::MembershipRequestApproved);
         });
 
         /** @var int $memUserId */

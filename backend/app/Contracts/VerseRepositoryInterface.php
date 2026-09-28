@@ -18,10 +18,8 @@ interface VerseRepositoryInterface
     public function delete(int $id): bool;
 
     /** @param array<string, mixed> $filters */
-    /** @return LengthAwarePaginator<int, DailyVerse> */
+    /** @return \Illuminate\Contracts\Pagination\LengthAwarePaginator<int, \App\Models\DailyVerse> */
     public function paginate(int $perPage, array $filters = []): LengthAwarePaginator;
-
     public function getActive(): ?DailyVerse;
-
     public function deactivateAll(): int;
 }

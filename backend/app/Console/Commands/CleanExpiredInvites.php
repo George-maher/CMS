@@ -3,7 +3,6 @@
 namespace App\Console\Commands;
 
 use App\Models\QRInvite;
-use App\Models\Scopes\ChurchScope;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
 
@@ -23,13 +22,13 @@ class CleanExpiredInvites extends Command
 
         $this->info("Expired Invite Cleanup — Retention: {$retentionDays} days");
 
-        $query = QRInvite::withoutGlobalScope(ChurchScope::class)
+        $query = QRInvite::withoutGlobalScope(\App\Models\Scopes\ChurchScope::class)
             ->where(function ($q) use ($cutoffDate) {
                 $q->where('expires_at', '<', $cutoffDate)
                     ->orWhere('is_revoked', true);
             });
 
-        if (! $isDryRun) {
+        if (!$isDryRun) {
             $count = $query->count();
             $query->delete();
 

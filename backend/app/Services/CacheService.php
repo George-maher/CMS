@@ -7,11 +7,8 @@ use Illuminate\Support\Facades\Cache;
 class CacheService
 {
     private const DEFAULT_TTL = 300;
-
     private const LONG_TTL = 3600;
-
     private const DAY_TTL = 86400;
-
     private const VERSION_TTL = 86400;
 
     private function versionKey(string $namespace, ?int $churchId): string
@@ -24,7 +21,7 @@ class CacheService
         return (int) Cache::remember(
             $this->versionKey($namespace, $churchId),
             self::VERSION_TTL,
-            fn () => 1,
+            fn() => 1,
         );
     }
 
@@ -44,8 +41,7 @@ class CacheService
 
     /**
      * @template T
-     *
-     * @param  \Closure(): T  $callback
+     * @param \Closure(): T $callback
      * @return T
      */
     public function rememberAttendanceToday(?int $churchId, ?int $classYearId, \Closure $callback): mixed
@@ -53,15 +49,13 @@ class CacheService
         if ($churchId === null) {
             return $callback();
         }
-        $key = $this->vKey('attendance', $churchId, 'today:'.($classYearId ?? 'all'));
-
+        $key = $this->vKey('attendance', $churchId, 'today:' . ($classYearId ?? 'all'));
         return Cache::remember($key, self::DEFAULT_TTL, $callback);
     }
 
     /**
      * @template T
-     *
-     * @param  \Closure(): T  $callback
+     * @param \Closure(): T $callback
      * @return T
      */
     public function rememberAttendanceStats(?int $churchId, int $userId, \Closure $callback): mixed
@@ -70,14 +64,12 @@ class CacheService
             return $callback();
         }
         $key = $this->vKey('attendance', $churchId, "stats:{$userId}");
-
         return Cache::remember($key, self::DEFAULT_TTL, $callback);
     }
 
     /**
      * @template T
-     *
-     * @param  \Closure(): T  $callback
+     * @param \Closure(): T $callback
      * @return T
      */
     public function rememberLeaderboard(?int $churchId, ?int $classYearId, int $limit, \Closure $callback): mixed
@@ -85,15 +77,13 @@ class CacheService
         if ($churchId === null) {
             return $callback();
         }
-        $key = $this->vKey('points', $churchId, 'leaderboard:'.($classYearId ?? 'all').":{$limit}");
-
+        $key = $this->vKey('points', $churchId, "leaderboard:" . ($classYearId ?? 'all') . ":{$limit}");
         return Cache::remember($key, self::LONG_TTL, $callback);
     }
 
     /**
      * @template T
-     *
-     * @param  \Closure(): T  $callback
+     * @param \Closure(): T $callback
      * @return T
      */
     public function rememberPointsBalance(?int $churchId, int $userId, \Closure $callback): mixed
@@ -102,14 +92,12 @@ class CacheService
             return $callback();
         }
         $key = $this->vKey('points', $churchId, "balance:{$userId}");
-
         return Cache::remember($key, self::DEFAULT_TTL, $callback);
     }
 
     /**
      * @template T
-     *
-     * @param  \Closure(): T  $callback
+     * @param \Closure(): T $callback
      * @return T
      */
     public function rememberDashboardStats(?int $churchId, \Closure $callback): mixed
@@ -118,14 +106,12 @@ class CacheService
             return $callback();
         }
         $key = $this->vKey('dashboard', $churchId, 'stats');
-
         return Cache::remember($key, self::LONG_TTL, $callback);
     }
 
     /**
      * @template T
-     *
-     * @param  \Closure(): T  $callback
+     * @param \Closure(): T $callback
      * @return T
      */
     public function rememberStagesLeaderboards(?int $churchId, \Closure $callback): mixed
@@ -134,14 +120,12 @@ class CacheService
             return $callback();
         }
         $key = $this->vKey('leaderboard', $churchId, 'stages');
-
         return Cache::remember($key, self::LONG_TTL, $callback);
     }
 
     /**
      * @template T
-     *
-     * @param  \Closure(): T  $callback
+     * @param \Closure(): T $callback
      * @return T
      */
     public function rememberActiveVerse(?int $churchId, \Closure $callback): mixed
@@ -150,14 +134,12 @@ class CacheService
             return $callback();
         }
         $key = $this->vKey('verse', $churchId, 'active');
-
         return Cache::remember($key, self::DAY_TTL, $callback);
     }
 
     /**
      * @template T
-     *
-     * @param  \Closure(): T  $callback
+     * @param \Closure(): T $callback
      * @return T
      */
     public function rememberEventList(?int $churchId, string $filterHash, \Closure $callback): mixed
@@ -166,14 +148,12 @@ class CacheService
             return $callback();
         }
         $key = $this->vKey('events', $churchId, "list:{$filterHash}");
-
         return Cache::remember($key, self::LONG_TTL, $callback);
     }
 
     /**
      * @template T
-     *
-     * @param  \Closure(): T  $callback
+     * @param \Closure(): T $callback
      * @return T
      */
     public function rememberContextSummary(?int $churchId, ?string $dateFrom, ?string $dateTo, ?int $classYearId, \Closure $callback): mixed
@@ -183,7 +163,6 @@ class CacheService
         }
         $hash = md5(serialize([$dateFrom, $dateTo, $classYearId]));
         $key = $this->vKey('attendance', $churchId, "context:summary:{$hash}");
-
         return Cache::remember($key, self::DEFAULT_TTL, $callback);
     }
 
@@ -222,42 +201,6 @@ class CacheService
         foreach (['attendance', 'points', 'dashboard', 'verse', 'events', 'leaderboard'] as $ns) {
             $this->invalidateNamespace($ns, $churchId);
         }
-    }
-
-    /**
-     * @template T
-     *
-     * @param  \Closure(): T  $callback
-     * @return T
-     */
-    public function rememberUserAuth(int $userId, \Closure $callback): mixed
-    {
-        $key = "user_auth:{$userId}";
-
-        return Cache::remember($key, self::DEFAULT_TTL, $callback);
-    }
-
-    public function invalidateUserAuth(int $userId): void
-    {
-        Cache::forget("user_auth:{$userId}");
-    }
-
-    /**
-     * @template T
-     *
-     * @param  \Closure(): T  $callback
-     * @return T
-     */
-    public function rememberUnreadCount(int $userId, \Closure $callback): mixed
-    {
-        $key = "notifications:unread:{$userId}";
-
-        return Cache::remember($key, 15, $callback);
-    }
-
-    public function invalidateUnreadCount(int $userId): void
-    {
-        Cache::forget("notifications:unread:{$userId}");
     }
 
     public function flush(): void

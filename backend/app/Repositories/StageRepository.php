@@ -4,20 +4,18 @@ namespace App\Repositories;
 
 use App\Contracts\StageRepositoryInterface;
 use App\Models\Stage;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class StageRepository implements StageRepositoryInterface
 {
     /** @return Collection<int, Stage> */
     public function all(?string $search = null): Collection
     {
-        /** @var Builder<Stage> $query */
+        /** @var \Illuminate\Database\Eloquent\Builder<\App\Models\Stage> $query */
         $query = Stage::withCount(['classes']);
 
         if ($search) {
-            $query->where(function (Builder $q) use ($search) {
+            $query->where(function (\Illuminate\Database\Eloquent\Builder $q) use ($search) {
                 $q->where('name', 'like', "%{$search}%");
             });
         }
@@ -28,15 +26,15 @@ class StageRepository implements StageRepositoryInterface
     /** @return Collection<int, Stage> */
     public function structure(?string $search = null): Collection
     {
-        /** @var Builder<Stage> $query */
-        $query = Stage::with(['classes' => function (HasMany $q) {
+        /** @var \Illuminate\Database\Eloquent\Builder<\App\Models\Stage> $query */
+        $query = Stage::with(['classes' => function (\Illuminate\Database\Eloquent\Builder $q) {
             $q->orderBy('display_order');
         }])->withCount(['classes']);
 
         if ($search) {
-            $query->where(function (Builder $q) use ($search) {
+            $query->where(function (\Illuminate\Database\Eloquent\Builder $q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                    ->orWhereHas('classes', fn (Builder $cq) => $cq->where('name', 'like', "%{$search}%"));
+                  ->orWhereHas('classes', fn(\Illuminate\Database\Eloquent\Builder $cq) => $cq->where('name', 'like', "%{$search}%"));
             });
         }
 
@@ -49,7 +47,7 @@ class StageRepository implements StageRepositoryInterface
     }
 
     /**
-     * @param  array<string, mixed>  $data
+     * @param array<string, mixed> $data
      */
     public function create(array $data): Stage
     {
@@ -57,25 +55,19 @@ class StageRepository implements StageRepositoryInterface
     }
 
     /**
-     * @param  array<string, mixed>  $data
+     * @param array<string, mixed> $data
      */
     public function update(int $id, array $data): bool
     {
         $stage = $this->findById($id);
-        if (! $stage) {
-            return false;
-        }
-
+        if (!$stage) return false;
         return $stage->update($data);
     }
 
     public function delete(int $id): bool
     {
         $stage = $this->findById($id);
-        if (! $stage) {
-            return false;
-        }
-
+        if (!$stage) return false;
         return (bool) $stage->delete();
     }
 

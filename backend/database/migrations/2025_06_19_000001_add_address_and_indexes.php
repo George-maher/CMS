@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -9,7 +10,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('users', function (Blueprint $table) {
-            if (! Schema::hasColumn('users', 'address')) {
+            if (!Schema::hasColumn('users', 'address')) {
                 $table->text('address')->nullable()->after('avatar');
             }
         });
@@ -57,7 +58,7 @@ return new class extends Migration
                     Schema::table($table, function (Blueprint $t) use ($index) {
                         $t->dropIndex($index);
                     });
-                } catch (Exception $e) {
+                } catch (\Exception $e) {
                     // Index may not exist
                 }
             }
@@ -70,7 +71,7 @@ return new class extends Migration
             Schema::table($table, function (Blueprint $t) use ($column, $indexName) {
                 $t->index($column, $indexName);
             });
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             // Index may already exist
         }
     }

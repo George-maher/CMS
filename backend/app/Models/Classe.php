@@ -3,14 +3,11 @@
 namespace App\Models;
 
 use App\Traits\BelongsToChurch;
-use Database\Factories\ClasseFactory;
-use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Support\Carbon;
 
 /**
  * @property int $id
@@ -19,22 +16,22 @@ use Illuminate\Support\Carbon;
  * @property string $name
  * @property string|null $description
  * @property int|null $display_order
- * @property Carbon|null $created_at
- * @property Carbon|null $updated_at
- * @property-read Stage|null $stage
- * @property-read Collection<int, User> $allUsers
- * @property-read Collection<int, User> $servants
- * @property-read Collection<int, Attendance> $attendances
- * @property-read Collection<int, Event> $events
- * @property-read Collection<int, Feedback> $feedback
- * @property-read Collection<int, QRInvite> $qrInvites
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \App\Models\Stage|null $stage
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\User> $allUsers
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\User> $servants
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Attendance> $attendances
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Event> $events
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Feedback> $feedback
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\QRInvite> $qrInvites
  * @property-read int|null $member_count
  * @property-read int|null $servant_count
  */
 class Classe extends Model
 {
-    /** @use HasFactory<ClasseFactory> */
-    use BelongsToChurch, HasFactory;
+    /** @use HasFactory<\Database\Factories\ClasseFactory> */
+    use HasFactory, BelongsToChurch;
 
     protected $fillable = [
         'church_id',
@@ -46,44 +43,44 @@ class Classe extends Model
 
     protected $table = 'classes';
 
-    /** @return BelongsTo<Stage, $this> */
+    /** @return BelongsTo<\App\Models\Stage, $this> */
     public function stage(): BelongsTo
     {
         return $this->belongsTo(Stage::class);
     }
 
-    /** @return HasMany<User, $this> */
+    /** @return HasMany<\App\Models\User, $this> */
     public function allUsers(): HasMany
     {
         return $this->hasMany(User::class, 'class_id');
     }
 
-    /** @return BelongsToMany<User, $this> */
+    /** @return BelongsToMany<\App\Models\User, $this> */
     public function servants(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'class_servant', 'class_id', 'user_id')
             ->withTimestamps();
     }
 
-    /** @return HasMany<Attendance, $this> */
+    /** @return HasMany<\App\Models\Attendance, $this> */
     public function attendances(): HasMany
     {
         return $this->hasMany(Attendance::class, 'class_year_id', 'id');
     }
 
-    /** @return HasMany<Event, $this> */
+    /** @return HasMany<\App\Models\Event, $this> */
     public function events(): HasMany
     {
         return $this->hasMany(Event::class, 'class_year_id', 'id');
     }
 
-    /** @return HasMany<Feedback, $this> */
+    /** @return HasMany<\App\Models\Feedback, $this> */
     public function feedback(): HasMany
     {
         return $this->hasMany(Feedback::class, 'class_year_id', 'id');
     }
 
-    /** @return HasMany<QRInvite, $this> */
+    /** @return HasMany<\App\Models\QRInvite, $this> */
     public function qrInvites(): HasMany
     {
         return $this->hasMany(QRInvite::class, 'class_year_id', 'id');

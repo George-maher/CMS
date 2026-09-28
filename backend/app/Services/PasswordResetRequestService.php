@@ -2,43 +2,35 @@
 
 namespace App\Services;
 
-use App\Contracts\NotificationServiceInterface;
 use App\Contracts\PasswordResetRequestServiceInterface;
 use App\Enums\PasswordResetRequestStatus;
 use App\Models\PasswordResetRequest;
 use App\Models\User;
-use Illuminate\Database\Eloquent\Collection;
+use App\Notifications\PasswordResetRequestApprovedNotification;
+use App\Notifications\PasswordResetRequestRejectedNotification;
+use App\Notifications\PasswordResetRequestSubmittedNotification;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
-/**
- * Admin-approved password reset workflow.
- *
- * Flow: Member/Servant submits request → in-app notification to their Church
- * Admin → admin verifies identity → approve/reject → on approval the admin
- * sets a brand-new password which is hashed and stored.
- *
- * There is deliberately NO email leg: no reset links, no tokens, no mail
- * dependency. The old password is never retrievable — only a new password
- * can be set.
- */
 class PasswordResetRequestService implements PasswordResetRequestServiceInterface
 {
-    public function __construct(
-        private readonly NotificationServiceInterface $notificationService,
-    ) {}
+    private const TOKEN_EXPIRY_HOURS = 24;
 
     /** @param array<string, mixed> $data */
-    /** @return array{message: string} */
+    /** @return array<string, mixed> */
     public function submitRequest(array $data): array
     {
         $user = User::where('email', $data['email'])->first();
 
-        // Always answer identically whether or not the account exists —
-        // prevents account enumeration.
-        if (! $user || $user->isPlatformAdmin() || $user->isAdmin()) {
+        if (!$user || $user->isPlatformAdmin()) {
+            return [
+                'message' => __('password_reset_requests.submitted'),
+            ];
+        }
+
+        if ($user->isAdmin()) {
             return [
                 'message' => __('password_reset_requests.submitted'),
             ];
@@ -64,75 +56,31 @@ class PasswordResetRequestService implements PasswordResetRequestServiceInterfac
         Log::info('Password reset request submitted', [
             'request_id' => $request->id,
             'user_id' => $user->id,
+            'email' => $user->email,
         ]);
 
-        $this->notifyChurchAdmins($request, $user);
+        try {
+            $admins = User::whereIn('role', ['admin', 'assistant_admin'])
+                ->where('church_id', $user->church_id)
+                ->where('is_active', true)
+                ->get();
+
+            foreach ($admins as $admin) {
+                $admin->notify(new PasswordResetRequestSubmittedNotification($user));
+            }
+        } catch (\Exception $e) {
+            Log::warning('Failed to notify admins about password reset request', [
+                'request_id' => $request->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
 
         return [
             'message' => __('password_reset_requests.submitted'),
         ];
     }
 
-    /**
-     * Create the in-app notification for every active admin/assistant-admin
-     * of the requester's church. Synchronous DB insert — never queued, so the
-     * notification always appears regardless of queue or mail health.
-     */
-    private function notifyChurchAdmins(PasswordResetRequest $request, User $requester): void
-    {
-        $churchId = $requester->church_id;
-
-        if ($churchId === null) {
-            Log::warning('Password reset request submitted by user without a church — no admin can be notified', [
-                'request_id' => $request->id,
-                'user_id' => $requester->id,
-            ]);
-
-            return;
-        }
-
-        /** @var Collection<int, User> $admins */
-        $admins = User::whereIn('role', ['admin', 'assistant_admin'])
-            ->where('church_id', $churchId)
-            ->where('is_active', true)
-            ->get();
-
-        if ($admins->isEmpty()) {
-            Log::warning('No active church admin found for password reset request', [
-                'request_id' => $request->id,
-                'user_id' => $requester->id,
-                'church_id' => $churchId,
-            ]);
-
-            return;
-        }
-
-        $title = __('password_reset_requests.submitted_notification_title');
-        $body = __('password_reset_requests.submitted_notification_body', ['name' => $requester->name ?? '']);
-
-        /** @var array<int, int> $adminIds */
-        $adminIds = $admins->pluck('id')->toArray();
-
-        foreach ($adminIds as $adminId) {
-            try {
-                $this->notificationService->create(
-                    userId: $adminId,
-                    churchId: $churchId,
-                    title: $title,
-                    body: $body,
-                    type: 'password_reset',
-                );
-            } catch (\Exception $e) {
-                Log::warning('Failed to create in-app notification for admin', [
-                    'request_id' => $request->id,
-                    'admin_id' => $adminId,
-                    'error' => $e->getMessage(),
-                ]);
-            }
-        }
-    }
-
-    /** @return array{message: string, request: PasswordResetRequest} */
+    /** @return array<string, mixed> */
     public function approve(int $id, int $adminId): array
     {
         return DB::transaction(function () use ($id, $adminId) {
@@ -140,43 +88,70 @@ class PasswordResetRequestService implements PasswordResetRequestServiceInterfac
                 ->lockForUpdate()
                 ->first();
 
-            if (! $request) {
+            if (!$request) {
                 throw ValidationException::withMessages([
                     'request' => [__('password_reset_requests.not_found')],
                 ]);
             }
 
-            if (! $request->isPending()) {
+            if (!$request->isPending()) {
                 throw ValidationException::withMessages([
                     'request' => [__('password_reset_requests.already_processed')],
                 ]);
             }
 
+            $token = PasswordResetRequest::generateToken();
+
             $request->update([
                 'status' => PasswordResetRequestStatus::Approved,
+                'token' => $token,
                 'reviewed_by' => $adminId,
                 'reviewed_at' => now(),
+                'token_expires_at' => now()->addHours(self::TOKEN_EXPIRY_HOURS),
             ]);
 
-            $this->notifyRequester(
-                $request,
-                __('password_reset_requests.approved_notification_title'),
-                __('password_reset_requests.approved_notification_body'),
-            );
+            $user = $request->user;
+
+            if ($user === null) {
+                throw ValidationException::withMessages([
+                    'request' => [__('password_reset_requests.user_not_found')],
+                ]);
+            }
+
+            /** @var string $frontendUrl */
+            $frontendUrl = config('app.frontend_url');
+            $resetUrl = $frontendUrl . '/reset-password-request?' . http_build_query([
+                'token' => $token,
+                'email' => $user->email,
+            ]);
+
+            try {
+                $user->notify(new PasswordResetRequestApprovedNotification($resetUrl));
+            } catch (\Exception $e) {
+                Log::warning('Failed to send approval notification', [
+                    'request_id' => $request->id,
+                    'user_id' => $user->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
 
             Log::info('Password reset request approved', [
                 'request_id' => $request->id,
+                'user_id' => $user->id,
                 'reviewed_by' => $adminId,
             ]);
 
+            /** @var PasswordResetRequest $freshRequest */
+            $freshRequest = $request->fresh(['user', 'reviewer']);
+
             return [
                 'message' => __('password_reset_requests.approved'),
-                'request' => $this->freshWithRelations($request),
+                'request' => $freshRequest,
             ];
         });
     }
 
-    /** @return array{message: string, request: PasswordResetRequest} */
+    /** @return array<string, mixed> */
     public function reject(int $id, int $adminId, string $reason): array
     {
         return DB::transaction(function () use ($id, $adminId, $reason) {
@@ -184,13 +159,13 @@ class PasswordResetRequestService implements PasswordResetRequestServiceInterfac
                 ->lockForUpdate()
                 ->first();
 
-            if (! $request) {
+            if (!$request) {
                 throw ValidationException::withMessages([
                     'request' => [__('password_reset_requests.not_found')],
                 ]);
             }
 
-            if (! $request->isPending()) {
+            if (!$request->isPending()) {
                 throw ValidationException::withMessages([
                     'request' => [__('password_reset_requests.already_processed')],
                 ]);
@@ -203,130 +178,102 @@ class PasswordResetRequestService implements PasswordResetRequestServiceInterfac
                 'reviewed_at' => now(),
             ]);
 
-            $this->notifyRequester(
-                $request,
-                __('password_reset_requests.rejected_notification_title'),
-                __('password_reset_requests.rejected_notification_body'),
-            );
-
-            Log::info('Password reset request rejected', [
-                'request_id' => $request->id,
-                'reviewed_by' => $adminId,
-            ]);
-
-            return [
-                'message' => __('password_reset_requests.rejected'),
-                'request' => $this->freshWithRelations($request),
-            ];
-        });
-    }
-
-    /**
-     * Set a brand-new password for an approved request.
-     * The old password cannot be recovered — it is only ever replaced.
-     */
-    /** @return array{message: string} */
-    public function resetPassword(int $id, int $adminId, string $password): array
-    {
-        return DB::transaction(function () use ($id, $adminId, $password) {
-            $request = PasswordResetRequest::where('id', $id)
-                ->lockForUpdate()
-                ->first();
-
-            if (! $request) {
-                throw ValidationException::withMessages([
-                    'request' => [__('password_reset_requests.not_found')],
-                ]);
-            }
-
-            if (! $request->isApproved()) {
-                throw ValidationException::withMessages([
-                    'request' => [__('password_reset_requests.not_approved')],
-                ]);
-            }
-
             $user = $request->user;
 
-            if ($user === null || $user->id === null) {
+            if ($user === null) {
                 throw ValidationException::withMessages([
                     'request' => [__('password_reset_requests.user_not_found')],
                 ]);
             }
 
-            $userId = $user->id;
+            try {
+                $user->notify(new PasswordResetRequestRejectedNotification($reason));
+            } catch (\Exception $e) {
+                Log::warning('Failed to send rejection notification', [
+                    'request_id' => $request->id,
+                    'user_id' => $user->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+
+            Log::info('Password reset request rejected', [
+                'request_id' => $request->id,
+                'user_id' => $user->id,
+                'reviewed_by' => $adminId,
+            ]);
+
+            /** @var PasswordResetRequest $freshRequest */
+            $freshRequest = $request->fresh(['user', 'reviewer']);
+
+            return [
+                'message' => __('password_reset_requests.rejected'),
+                'request' => $freshRequest,
+            ];
+        });
+    }
+
+    /** @return array<string, mixed> */
+    public function completeReset(string $token, string $password): array
+    {
+        return DB::transaction(function () use ($token, $password) {
+            $request = PasswordResetRequest::where('token', $token)
+                ->lockForUpdate()
+                ->first();
+
+            if (!$request || !$request->isValidToken()) {
+                throw ValidationException::withMessages([
+                    'token' => [__('password_reset_requests.invalid_token')],
+                ]);
+            }
+
+            $user = $request->user;
+
+            if ($user === null) {
+                throw ValidationException::withMessages([
+                    'token' => [__('password_reset_requests.invalid_token')],
+                ]);
+            }
 
             $user->forceFill([
                 'password' => Hash::make($password),
             ])->save();
 
-            // Revoke all existing sessions/tokens — they were issued under
-            // credentials that are no longer valid.
             $user->tokens()->delete();
 
-            $request->update([
-                'status' => PasswordResetRequestStatus::Completed,
-            ]);
+            $request->markAsUsed();
 
-            $this->notifyRequester(
-                $request,
-                __('password_reset_requests.completed_notification_title'),
-                __('password_reset_requests.completed_notification_body'),
-            );
+            event(new \Illuminate\Auth\Events\PasswordReset($user));
 
-            Log::info('Password reset completed by church admin — new password hashed and stored', [
+            try {
+                $user->notify(new \App\Notifications\PasswordChangedNotification());
+            } catch (\Exception $e) {
+                Log::warning('Failed to send password changed notification', [
+                    'user_id' => $user->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+
+            Log::info('Password reset via admin-approved request completed', [
                 'request_id' => $request->id,
-                'user_id' => $userId,
-                'reviewed_by' => $adminId,
+                'user_id' => $user->id,
             ]);
 
             return [
-                'message' => __('password_reset_requests.completed'),
+                'message' => __('passwords.reset'),
             ];
         });
-    }
-
-    /** In-app notification to the requester (synchronous DB insert). */
-    private function notifyRequester(PasswordResetRequest $request, string $title, string $body): void
-    {
-        $user = $request->user;
-
-        if ($user === null || $user->id === null) {
-            return;
-        }
-
-        try {
-            $this->notificationService->create(
-                userId: $user->id,
-                churchId: $user->church_id ?? 0,
-                title: $title,
-                body: $body,
-                type: 'password_reset',
-            );
-        } catch (\Exception $e) {
-            Log::warning('Failed to create in-app notification for requester', [
-                'request_id' => $request->id,
-                'user_id' => $user->id,
-                'error' => $e->getMessage(),
-            ]);
-        }
-    }
-
-    private function freshWithRelations(PasswordResetRequest $request): PasswordResetRequest
-    {
-        /** @var PasswordResetRequest */
-        return $request->fresh(['user.classe.stage', 'reviewer']) ?? $request;
     }
 
     /** @param array<string, mixed> $filters */
     /** @return array<string, mixed> */
     public function listRequests(int $churchId, int $perPage = 15, array $filters = []): array
     {
-        $query = PasswordResetRequest::with(['user.classe.stage', 'reviewer'])
+        $query = PasswordResetRequest::with(['user.classe', 'reviewer'])
             ->whereHas('user', function ($q) use ($churchId) {
                 $q->where('church_id', $churchId);
             });
 
-        if (! empty($filters['status'])) {
+        if (!empty($filters['status'])) {
             $query->where('status', $filters['status']);
         }
 

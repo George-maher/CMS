@@ -12,8 +12,16 @@ interface ChurchApplicationServiceInterface
 {
     public function findByEmail(string $email): ?ChurchApplication;
 
-    /** @param array<string, mixed> $data */
-    /** @return array<string, mixed> */
+    /**
+     * Submit or update a church application.
+     *
+     * A submission for an address that already has an application is suppressed
+     * (and acknowledged identically) unless the caller proves ownership, so this
+     * public endpoint cannot be used to enumerate addresses.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array{application: ChurchApplication|null, user: User|null, is_update: bool, accepted: bool, ownership_proven: bool}
+     */
     public function submit(array $data, ?UploadedFile $frontId, ?UploadedFile $backId, string $email, string $password, ?UploadedFile $churchPermissionDoc = null, ?int $authUserId = null): array;
 
     public function approve(ChurchApplication $application, User $platformAdmin, ?string $notes = null): Church;

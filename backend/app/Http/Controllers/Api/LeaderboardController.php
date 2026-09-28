@@ -3,17 +3,14 @@
 namespace App\Http\Controllers\Api;
 
 use App\Contracts\LeaderboardServiceInterface;
-use App\Contracts\ScopeResolverInterface;
 use App\Http\Controllers\Controller;
 use App\Models\Classe;
-use App\Models\User;
 use Illuminate\Http\JsonResponse;
 
 class LeaderboardController extends Controller
 {
     public function __construct(
         private readonly LeaderboardServiceInterface $leaderboardService,
-        private readonly ScopeResolverInterface $scopeResolver,
     ) {}
 
     public function global(): JsonResponse
@@ -27,13 +24,16 @@ class LeaderboardController extends Controller
 
     public function byClass(int $classId): JsonResponse
     {
-        /** @var User $user */
+        /** @var \App\Models\User $user */
         $user = request()->user();
 
         $classe = Classe::byChurch()->findOrFail($classId);
 
-        if (! $this->scopeResolver->canAccessClass($user, $classe)) {
-            abort(403, 'You can only view leaderboards for classes within your scope.');
+        if ($user->isServant()) {
+            $servantClassIds = $user->getServantClassIds() ?? [];
+            if (!in_array($classId, $servantClassIds)) {
+                abort(403, 'You can only view leaderboards for your assigned classes.');
+            }
         }
 
         $result = $this->leaderboardService->classLeaderboard($classId, 3);
@@ -54,10 +54,10 @@ class LeaderboardController extends Controller
 
     public function myClass(): JsonResponse
     {
-        /** @var User $user */
+        /** @var \App\Models\User $user */
         $user = request()->user();
 
-        if (! $user->class_id) {
+        if (!$user->class_id) {
             return response()->json([
                 'data' => [
                     'class' => null,
@@ -76,16 +76,10 @@ class LeaderboardController extends Controller
 
     public function myClasses(): JsonResponse
     {
-        /** @var User $user */
+        /** @var \App\Models\User $user */
         $user = request()->user();
 
-        if ($user->isStageAdmin()) {
-            /** @var array<int, int> $classIds */
-            $classIds = $this->scopeResolver->allowedClassIds($user) ?? [];
-        } else {
-            /** @var array<int, int> $classIds */
-            $classIds = $user->getServantClassIds() ?? [];
-        }
+        $classIds = $user->getServantClassIds() ?? [];
 
         if (empty($classIds)) {
             return response()->json([

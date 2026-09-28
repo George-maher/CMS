@@ -49,14 +49,27 @@ class ClasseController extends Controller
         return response()->json($result);
     }
 
+    /**
+     * Create a class inside a stage.
+     *
+     * The stage is resolved through the church scope, so a stage belonging to
+     * another tenant is indistinguishable from a non-existent one. It is then
+     * authorized as a *stage* resource via the explicit
+     * `createInStage` ability, which cannot be satisfied by a generic
+     * model-class check and therefore cannot degrade to "some stage".
+     */
     public function store(StoreClasseRequest $request): JsonResponse
     {
         /** @var array<string, mixed> $data */
         $data = $request->validated();
         /** @var int|null $stageId */
         $stageId = isset($data['stage_id']) && is_numeric($data['stage_id']) ? (int) $data['stage_id'] : null;
-        $stage = Stage::query()->find($stageId ?? 0);
-        $this->authorize('create', $stage ?? Stage::class);
+
+        $stage = $stageId !== null ? Stage::query()->find($stageId) : null;
+        if ($stage === null) {
+            return response()->json(['message' => 'Stage not found.'], 404);
+        }
+        $this->authorize('createInStage', [Classe::class, $stage]);
 
         $result = $this->classeService->create($data);
 
@@ -75,7 +88,7 @@ class ClasseController extends Controller
         if ($stage === null) {
             return response()->json(['message' => 'Stage not found.'], 404);
         }
-        $this->authorize('create', $stage);
+        $this->authorize('createInStage', [Classe::class, $stage]);
 
         $result = $this->classeService->createBulk($stage->id, $request->integer('count'));
 

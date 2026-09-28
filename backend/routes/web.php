@@ -1,6 +1,5 @@
 <?php
 
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -9,23 +8,19 @@ Route::get('/', function () {
 
 Route::get('/health', function () {
     try {
-        DB::connection()->getPdo();
+        \Illuminate\Support\Facades\DB::connection()->getPdo();
         $dbStatus = 'connected';
-    } catch (Exception $e) {
+    } catch (\Exception $e) {
         $dbStatus = 'disconnected';
     }
 
-    $healthy = $dbStatus === 'connected';
-
-    // Fail closed for monitoring: a degraded dependency must produce a
-    // non-2xx status so load balancers/orchestrators pull the instance.
     return response()->json([
-        'status' => $healthy ? 'healthy' : 'degraded',
+        'status' => $dbStatus === 'connected' ? 'healthy' : 'degraded',
         'service' => 'Church Manager API',
         'version' => '1.0.0',
         'database' => $dbStatus,
         'timestamp' => now()->toISOString(),
-    ], $healthy ? 200 : 503);
+    ]);
 });
 
 /*
@@ -44,16 +39,9 @@ Route::get('/health', function () {
 |
 */
 Route::get('/storage/{path}', function (string $path) {
-    // Realpath containment: the resolved file must live inside
-    // storage/app/public. This refuses `..` traversal, absolute paths and
-    // symlink escapes before the file is ever opened.
-    $base = realpath(storage_path('app/public'));
-    $fullPath = $base !== false ? realpath($base.DIRECTORY_SEPARATOR.ltrim($path, '/\\')) : false;
+    $fullPath = storage_path('app/public/' . $path);
 
-    if ($base === false
-        || $fullPath === false
-        || ! str_starts_with($fullPath, $base.DIRECTORY_SEPARATOR)
-        || is_dir($fullPath)) {
+    if (!file_exists($fullPath) || is_dir($fullPath)) {
         abort(404);
     }
 

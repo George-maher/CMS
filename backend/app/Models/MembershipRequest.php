@@ -4,10 +4,8 @@ namespace App\Models;
 
 use App\Enums\UserRole;
 use App\Traits\BelongsToChurch;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
@@ -17,7 +15,7 @@ use Illuminate\Support\Str;
  * @property string $name
  * @property string $email
  * @property string|null $phone
- * @property Carbon|null $birthday
+ * @property \Illuminate\Support\Carbon|null $birthday
  * @property string|null $address
  * @property string|null $preferred_role
  * @property string $status
@@ -25,12 +23,11 @@ use Illuminate\Support\Str;
  * @property string|null $rejection_reason
  * @property string|null $file_url
  * @property int|null $reviewed_by
- * @property Carbon|null $reviewed_at
- * @property Carbon|null $created_at
- * @property Carbon|null $updated_at
- * @property-read Church|null $church
- * @property-read User|null $reviewer
- *
+ * @property \Illuminate\Support\Carbon|null $reviewed_at
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \App\Models\Church|null $church
+ * @property-read \App\Models\User|null $reviewer
  * @method static \Illuminate\Database\Eloquent\Builder|\App\Models\MembershipRequest pending()
  * @method static \Illuminate\Database\Eloquent\Builder|\App\Models\MembershipRequest forChurch(int $churchId)
  */
@@ -62,32 +59,32 @@ class MembershipRequest extends Model
         ];
     }
 
-    /** @return BelongsTo<Church, $this> */
+    /** @return BelongsTo<\App\Models\Church, $this> */
     public function church(): BelongsTo
     {
         return $this->belongsTo(Church::class);
     }
 
-    /** @return BelongsTo<User, $this> */
+    /** @return BelongsTo<\App\Models\User, $this> */
     public function reviewer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'reviewed_by');
     }
 
     /**
-     * @param  Builder<MembershipRequest>  $query
-     * @return Builder<MembershipRequest>
+     * @param \Illuminate\Database\Eloquent\Builder<\App\Models\MembershipRequest> $query
+     * @return \Illuminate\Database\Eloquent\Builder<\App\Models\MembershipRequest>
      */
-    public function scopePending($query): Builder
+    public function scopePending($query): \Illuminate\Database\Eloquent\Builder
     {
         return $query->where('status', 'pending');
     }
 
     /**
-     * @param  Builder<MembershipRequest>  $query
-     * @return Builder<MembershipRequest>
+     * @param \Illuminate\Database\Eloquent\Builder<\App\Models\MembershipRequest> $query
+     * @return \Illuminate\Database\Eloquent\Builder<\App\Models\MembershipRequest>
      */
-    public function scopeForChurch($query, int $churchId): Builder
+    public function scopeForChurch($query, int $churchId): \Illuminate\Database\Eloquent\Builder
     {
         return $query->where('church_id', $churchId);
     }

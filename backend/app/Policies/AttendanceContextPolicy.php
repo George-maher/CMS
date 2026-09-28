@@ -2,7 +2,7 @@
 
 namespace App\Policies;
 
-use App\Models\AttendanceContext;
+use App\Enums\UserRole;
 use App\Models\User;
 use Illuminate\Auth\Access\HandlesAuthorization;
 
@@ -15,13 +15,9 @@ class AttendanceContextPolicy
         return $user->isAdmin() || $user->isServant();
     }
 
-    public function view(User $user, ?AttendanceContext $context = null): bool
+    public function view(User $user): bool
     {
-        if (! ($user->isAdmin() || $user->isServant())) {
-            return false;
-        }
-
-        return $this->belongsToUserChurch($user, $context);
+        return $user->isAdmin() || $user->isServant();
     }
 
     public function create(User $user): bool
@@ -29,51 +25,23 @@ class AttendanceContextPolicy
         return $user->isAdmin() || $user->isServant();
     }
 
-    public function update(User $user, ?AttendanceContext $context = null): bool
+    public function update(User $user): bool
     {
-        if (! ($user->isAdmin() || $user->isServant())) {
-            return false;
-        }
-
-        return $this->belongsToUserChurch($user, $context);
+        return $user->isAdmin() || $user->isServant();
     }
 
-    public function delete(User $user, ?AttendanceContext $context = null): bool
+    public function delete(User $user): bool
     {
-        if (! ($user->isAdmin() || $user->isAssistantAdmin())) {
-            return false;
-        }
-
-        return $this->belongsToUserChurch($user, $context);
+        return $user->isAdmin() || $user->isAssistantAdmin();
     }
 
-    public function toggleActive(User $user, ?AttendanceContext $context = null): bool
+    public function toggleActive(User $user): bool
     {
-        if (! ($user->isAdmin() || $user->isAssistantAdmin())) {
-            return false;
-        }
-
-        return $this->belongsToUserChurch($user, $context);
+        return $user->isAdmin() || $user->isAssistantAdmin();
     }
 
-    public function restore(User $user, ?AttendanceContext $context = null): bool
+    public function restore(User $user): bool
     {
-        if (! ($user->isAdmin() || $user->isAssistantAdmin() || $user->isServant())) {
-            return false;
-        }
-
-        return $this->belongsToUserChurch($user, $context);
-    }
-
-    private function belongsToUserChurch(User $user, ?AttendanceContext $context): bool
-    {
-        if ($user->isPlatformAdmin()) {
-            return true;
-        }
-
-        // Nullable church_id contexts are shared defaults (e.g., system defaults).
-        return $context === null
-            || $context->church_id === null
-            || $context->church_id === $user->church_id;
+        return $user->isAdmin() || $user->isAssistantAdmin() || $user->isServant();
     }
 }

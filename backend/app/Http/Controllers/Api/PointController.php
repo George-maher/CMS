@@ -3,26 +3,23 @@
 namespace App\Http\Controllers\Api;
 
 use App\Contracts\PointServiceInterface;
-use App\Contracts\ScopeResolverInterface;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\AddBonusPointsRequest;
 use App\Http\Resources\PointResource;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
 
 class PointController extends Controller
 {
     public function __construct(
         private readonly PointServiceInterface $pointService,
-        private readonly ScopeResolverInterface $scopeResolver,
     ) {}
 
     public function balance(Request $request): JsonResponse
     {
-        /** @var User $user */
+        /** @var \App\Models\User $user */
         $user = $request->user();
         /** @var int $userId */
         $userId = $user->id;
@@ -37,7 +34,7 @@ class PointController extends Controller
 
     public function history(Request $request): JsonResponse
     {
-        /** @var User $user */
+        /** @var \App\Models\User $user */
         $user = $request->user();
         /** @var int $perPage */
         $perPage = $request->integer('per_page', 15);
@@ -69,11 +66,6 @@ class PointController extends Controller
 
     public function userBalance(int $userId): JsonResponse
     {
-        $guard = $this->guardTargetUser($userId);
-        if ($guard !== null) {
-            return $guard;
-        }
-
         $balance = $this->pointService->getPointsBalance($userId);
 
         return response()->json([
@@ -86,11 +78,6 @@ class PointController extends Controller
 
     public function userHistory(Request $request, int $userId): JsonResponse
     {
-        $guard = $this->guardTargetUser($userId);
-        if ($guard !== null) {
-            return $guard;
-        }
-
         $result = $this->pointService->getPointsHistory(
             userId: $userId,
             perPage: $request->integer('per_page', 15)
@@ -104,28 +91,14 @@ class PointController extends Controller
 
     public function addBonusPoints(AddBonusPointsRequest $request): JsonResponse
     {
-        /** @var User $user */
+        /** @var \App\Models\User $user */
         $user = $request->user();
         $targetUserId = $request->integer('user_id');
         $targetUser = User::byChurch()->find($targetUserId);
 
-        if (! $targetUser) {
+        if (!$targetUser) {
             throw ValidationException::withMessages([
                 'user_id' => ['User not found in your church.'],
-            ]);
-        }
-
-        if (! $targetUser->isMember()) {
-            throw ValidationException::withMessages([
-                'user_id' => ['Only members can receive bonus points.'],
-            ]);
-        }
-
-        // Church scoping above is not enough: stage/class scoped actors must
-        // not award points to members outside their own scope.
-        if (! $this->scopeResolver->canAccessUser($user, $targetUser)) {
-            throw ValidationException::withMessages([
-                'user_id' => ['User not in your scope.'],
             ]);
         }
 
@@ -148,36 +121,5 @@ class PointController extends Controller
                 'balance' => $result['balance'],
             ],
         ], 201);
-    }
-
-    /**
-     * Tenant + scope guard for cross-user point reads: platform admins may
-     * read anyone; everyone else is limited to users resolvable inside their
-     * own church (User is not globally tenant-scoped, so this guard is the
-     * tenant boundary) and inside their own stage/class scope.
-     */
-    private function guardTargetUser(int $userId): ?JsonResponse
-    {
-        /** @var User|null $actor */
-        $actor = Auth::user();
-
-        if ($actor === null) {
-            return response()->json(['message' => 'Unauthenticated.'], 401);
-        }
-
-        if ($actor->isPlatformAdmin()) {
-            return null;
-        }
-
-        $target = User::byChurch()->find($userId);
-        if ($target === null) {
-            return response()->json(['message' => 'User not found.'], 404);
-        }
-
-        if (! $this->scopeResolver->canAccessUser($actor, $target)) {
-            return response()->json(['message' => 'Forbidden.'], 403);
-        }
-
-        return null;
     }
 }

@@ -20,11 +20,11 @@ class EventObserver
 
     private function cleanupFiles(Event $event): void
     {
-        if (! $event->image) {
+        if (!$event->image) {
             return;
         }
 
         $storage = App::make(StorageServiceInterface::class);
-        $storage->deleteFile($event->image, 'events');
+        $storage->deleteFile($event->image);
     }
 }

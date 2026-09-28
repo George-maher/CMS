@@ -2,11 +2,10 @@
 
 namespace App\Http\Resources;
 
-use App\Models\Church;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
-/** @mixin Church */
+/** @mixin \App\Models\Church */
 class ChurchResource extends JsonResource
 {
     /** @return array<string, mixed> */

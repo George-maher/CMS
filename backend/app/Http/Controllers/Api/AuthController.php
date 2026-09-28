@@ -3,24 +3,20 @@
 namespace App\Http\Controllers\Api;
 
 use App\Contracts\AuthServiceInterface;
+use App\Contracts\EmailVerificationServiceInterface;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\LoginRequest;
 use App\Http\Requests\RegisterRequest;
 use App\Http\Resources\UserResource;
-use App\Models\Scopes\ChurchScope;
 use App\Models\User;
-use App\Notifications\VerifyEmailNotification;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Str;
 
 class AuthController extends Controller
 {
     public function __construct(
         private readonly AuthServiceInterface $authService,
+        private readonly EmailVerificationServiceInterface $emailVerificationService,
     ) {}
 
     public function login(LoginRequest $request): JsonResponse
@@ -93,6 +89,21 @@ class AuthController extends Controller
         ]);
     }
 
+    /**
+     * Consume an email verification token.
+     *
+     * Contract (security):
+     *  - Success                -> 200
+     *  - Any failure whatsoever  -> 400 with one identical body
+     *
+     * "Any failure" covers: unknown address, already-verified address, no token
+     * issued, expired token, wrong token, and a lost consumption race. A 400
+     * (not 401) is used deliberately: 401 is reserved for "we will not tell you
+     * who you are" in the login contract, and the frontend client treats a 401
+     * as an expired session and force-logs the user out — which would be wrong
+     * for someone simply clicking an expired link. A 422 is likewise wrong,
+     * because the request itself is well formed; the credential is what failed.
+     */
     public function verifyEmail(Request $request): JsonResponse
     {
         $request->validate([
@@ -100,91 +111,59 @@ class AuthController extends Controller
             'email' => ['required', 'email'],
         ]);
 
-        // Public endpoint: opt out of ChurchScope since verification is token-authorized
-        $user = User::withoutGlobalScope(ChurchScope::class)
-            ->where('email', $request->input('email'))
-            ->first();
+        /** @var string $email */
+        $email = $request->input('email');
+        /** @var string $rawToken */
+        $rawToken = $request->input('token');
 
-        if (! $user) {
-            return response()->json(['message' => 'Invalid or expired verification link.'], 422);
+        $outcome = $this->emailVerificationService->verify($email, $rawToken);
+
+        if (! $outcome->isVerified()) {
+            return $this->verificationFailed();
         }
-
-        if ($user->email_verified_at !== null) {
-            return response()->json(['message' => 'Email is already verified. You can log in.'], 200);
-        }
-
-        // Check if token exists and is not expired
-        /** @var string|null $tokenHash */
-        $tokenHash = $user->email_verification_token;
-        /** @var Carbon|null $expiresAt */
-        $expiresAt = $user->email_verification_token_expires_at;
-
-        if (! $tokenHash || ! $expiresAt || $expiresAt->isPast()) {
-            return response()->json(['message' => 'Invalid or expired verification link.'], 422);
-        }
-
-        // Verify token using hash comparison
-        /** @var string $inputToken */
-        $inputToken = $request->input('token');
-        if (! is_string($inputToken) || ! Hash::check($inputToken, $tokenHash)) {
-            return response()->json(['message' => 'Invalid or expired verification link.'], 422);
-        }
-
-        $user->update([
-            'email_verified_at' => now(),
-            'email_verification_token' => null,
-            'email_verification_token_expires_at' => null,
-        ]);
 
         return response()->json([
-            'message' => 'Email verified successfully. You can now log in.',
+            'success' => true,
+            'message' => __('auth.verification_succeeded'),
+            'code' => 'VERIFIED',
         ]);
     }
 
+    /**
+     * The single, indistinguishable failure response.
+     */
+    private function verificationFailed(): JsonResponse
+    {
+        return response()->json([
+            'success' => false,
+            'message' => __('auth.verification_failed'),
+            'code' => 'VERIFICATION_FAILED',
+        ], 400);
+    }
+
+    /**
+     * Resend a verification link to an arbitrary address.
+     *
+     * Always answers with the same body and status, whatever happened, so the
+     * endpoint cannot be used to discover which addresses have accounts.
+     */
     public function resendVerification(Request $request): JsonResponse
     {
         $request->validate([
             'email' => ['required', 'email'],
         ]);
 
-        // Public endpoint: opt out of ChurchScope
-        $user = User::withoutGlobalScope(ChurchScope::class)
-            ->where('email', $request->input('email'))
-            ->first();
+        /** @var string $email */
+        $email = $request->input('email');
 
-        if (! $user) {
-            return response()->json([
-                'message' => 'If that email exists in our system, a verification email has been sent.',
-            ]);
-        }
-
-        if ($user->email_verified_at !== null) {
-            return response()->json([
-                'message' => 'If that email exists in our system, a verification email has been sent.',
-            ]);
-        }
-
-        // Generate new secure token: store hash, send raw token in email
-        $rawToken = Str::random(64);
-        $user->email_verification_token = Hash::make($rawToken);
-        $user->email_verification_token_expires_at = now()->addHours(24);
-        $user->save();
-
-        /** @var string $frontendUrl */
-        $frontendUrl = config('app.frontend_url');
-        $verificationUrl = $frontendUrl.'/verify-email?token='.urlencode($rawToken).'&email='.urlencode($user->email);
-
-        try {
-            $user->notify(new VerifyEmailNotification($user, $verificationUrl));
-        } catch (\Exception $e) {
-            Log::warning('Failed to resend verification email', [
-                'user_id' => $user->id,
-                'error' => $e->getMessage(),
-            ]);
-        }
+        // Any dispatch outcome (unknown address, already verified, refused
+        // transport, transport failure) is intentionally discarded: the response
+        // must not reflect it.
+        $this->emailVerificationService->resendForEmail($email);
 
         return response()->json([
-            'message' => 'If that email exists in our system, a verification email has been sent.',
+            'success' => true,
+            'message' => __('auth.verification_resent'),
         ]);
     }
 

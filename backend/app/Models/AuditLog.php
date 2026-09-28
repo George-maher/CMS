@@ -2,10 +2,8 @@
 
 namespace App\Models;
 
-use App\Casts\AuditLogValues;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Support\Carbon;
 
 /**
  * @property int $id
@@ -18,9 +16,9 @@ use Illuminate\Support\Carbon;
  * @property array<string, mixed>|null $new_values
  * @property string|null $ip_address
  * @property string|null $user_agent
- * @property Carbon|null $created_at
- * @property Carbon|null $updated_at
- * @property-read User|null $user
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \App\Models\User|null $user
  */
 class AuditLog extends Model
 {
@@ -39,12 +37,12 @@ class AuditLog extends Model
     protected function casts(): array
     {
         return [
-            'old_values' => AuditLogValues::class,
-            'new_values' => AuditLogValues::class,
+            'old_values' => 'array',
+            'new_values' => 'array',
         ];
     }
 
-    /** @return BelongsTo<User, $this> */
+    /** @return BelongsTo<\App\Models\User, $this> */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);

@@ -2,11 +2,10 @@
 
 namespace App\Http\Resources;
 
-use App\Models\Stage;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
-/** @mixin Stage */
+/** @mixin \App\Models\Stage */
 class StageDetailResource extends JsonResource
 {
     /** @return array<string, mixed> */

@@ -2,13 +2,14 @@
 
 namespace App\Contracts;
 
-use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use App\Models\User;
 
 interface UserServiceInterface
 {
     /**
-     * @param  array<string, mixed>  $filters
-     * @return array{data: AnonymousResourceCollection, meta: array{current_page: int, last_page: int, per_page: int, total: int}}
+     * @param array<string, mixed> $filters
+     * @return array{data: LengthAwarePaginator<int, User>, meta: array{current_page: int, last_page: int, per_page: int, total: int}}
      */
     public function listUsers(int $perPage = 15, array $filters = []): array;
 
@@ -19,8 +20,10 @@ interface UserServiceInterface
     /** @return array<string, mixed> */
     public function create(array $data, ?int $authUserId = null): array;
 
-    /** @param array<string, mixed> $data */
-    /** @return array<string, mixed>|null */
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>|null
+     */
     public function update(int $id, array $data, int $authUserId): ?array;
 
     public function delete(int $id): bool;
@@ -48,8 +51,8 @@ interface UserServiceInterface
     public function updatePermissions(int $userId, array $permissions, int $authUserId): array;
 
     /**
-     * @param  array<int, int>  $userIds
-     * @param  array<int, string>  $permissions
+     * @param array<int, int> $userIds
+     * @param array<int, string> $permissions
      * @return array<string, mixed>
      */
     public function bulkUpdatePermissions(array $userIds, array $permissions, int $authUserId): array;

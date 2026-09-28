@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\DeleteChurchRequest;
 use App\Http\Resources\ChurchResource;
 use App\Models\Church;
-use App\Models\User;
 use App\Services\ChurchDeletionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -70,26 +69,31 @@ class ChurchDeletionController extends Controller
     {
         $church = Church::withTrashed()->findOrFail($id);
 
-        $summary = $this->churchDeletionService->getDeletionSummary($church);
-
-        if ($church->trashed()) {
-            $summary['already_deleted'] = true;
-            $summary['deleted_at'] = $church->deleted_at?->toISOString();
-            $summary['deleted_by'] = $church->deletedBy?->name;
-            $summary['deletion_type'] = $church->deletion_type;
-            $summary['recoverable_until'] = $church->recoverable_until?->toISOString();
-            $summary['is_recoverable'] = $church->isRecoverable();
-            $summary['days_until_purge'] = $church->daysUntilPurge();
+        if (!$church->trashed()) {
+            $summary = $this->churchDeletionService->getDeletionSummary($church);
+            return response()->json(['data' => $summary]);
         }
 
-        return response()->json(['data' => $summary]);
+        return response()->json([
+            'data' => [
+                'church_id' => $church->id,
+                'church_name' => $church->name,
+                'deleted_at' => $church->deleted_at?->toISOString(),
+                'deleted_by' => $church->deletedBy?->name,
+                'deletion_type' => $church->deletion_type,
+                'recoverable_until' => $church->recoverable_until?->toISOString(),
+                'is_recoverable' => $church->isRecoverable(),
+                'days_until_purge' => $church->daysUntilPurge(),
+                'already_deleted' => true,
+            ],
+        ]);
     }
 
     public function softDelete(DeleteChurchRequest $request, int $id): JsonResponse
     {
-        $church = Church::withTrashed()->findOrFail($id);
+        $church = Church::findOrFail($id);
 
-        /** @var User $admin */
+        /** @var \App\Models\User $admin */
         $admin = $request->user();
         $this->churchDeletionService->softDelete($church, $admin);
 
@@ -101,9 +105,9 @@ class ChurchDeletionController extends Controller
 
     public function restore(DeleteChurchRequest $request, int $id): JsonResponse
     {
-        $church = Church::withTrashed()->findOrFail($id);
+        $church = Church::onlyTrashed()->findOrFail($id);
 
-        /** @var User $admin */
+        /** @var \App\Models\User $admin */
         $admin = $request->user();
         $restored = $this->churchDeletionService->restore($church, $admin);
 
@@ -117,7 +121,7 @@ class ChurchDeletionController extends Controller
     {
         $church = Church::withTrashed()->findOrFail($id);
 
-        /** @var User $admin */
+        /** @var \App\Models\User $admin */
         $admin = $request->user();
         $this->churchDeletionService->hardDelete($church, $admin);
 

@@ -17,14 +17,7 @@ class RoleRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'role' => ['required', Rule::in([
-                UserRole::Admin->value,
-                UserRole::AssistantAdmin->value,
-                UserRole::StageAdmin->value,
-                UserRole::Servant->value,
-                UserRole::Member->value,
-            ])],
-            'stage_id' => ['nullable', 'integer', 'exists:stages,id'],
+            'role' => ['required', Rule::in([UserRole::Servant->value, UserRole::Member->value])],
         ];
     }
 }

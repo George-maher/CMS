@@ -3,26 +3,22 @@
 namespace App\Http\Controllers\Api;
 
 use App\Contracts\FeedbackServiceInterface;
-use App\Contracts\ScopeResolverInterface;
+use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\FeedbackRequest;
-use App\Models\Feedback;
-use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
 
 class FeedbackController extends Controller
 {
     public function __construct(
         private readonly FeedbackServiceInterface $feedbackService,
-        private readonly ScopeResolverInterface $scopeResolver,
     ) {}
 
     public function submit(FeedbackRequest $request): JsonResponse
     {
-        /** @var User $user */
+        /** @var \App\Models\User $user */
         $user = $request->user();
         /** @var int|null $userId */
         $userId = $user->id;
@@ -45,7 +41,7 @@ class FeedbackController extends Controller
 
     public function myFeedback(Request $request): JsonResponse
     {
-        /** @var User $user */
+        /** @var \App\Models\User $user */
         $user = $request->user();
         /** @var int $perPage */
         $perPage = $request->integer('per_page', 15);
@@ -64,21 +60,12 @@ class FeedbackController extends Controller
     {
         /** @var array<string, mixed> $filters */
         $filters = $request->only(['category', 'is_resolved', 'unresolved']);
-        /** @var User $user */
+        /** @var \App\Models\User $user */
         $user = $request->user();
 
         $classYearIds = null;
-        if ($user->isServant()) {
+        if ($user->role === UserRole::Servant) {
             $classYearIds = $user->getServantClassIds();
-            if (empty($classYearIds)) {
-                return response()->json([
-                    'data' => [],
-                    'meta' => ['current_page' => 1, 'last_page' => 1, 'per_page' => 15, 'total' => 0],
-                    'unresolved_count' => 0,
-                ]);
-            }
-        } elseif ($user->isStageAdmin()) {
-            $classYearIds = $this->scopeResolver->allowedClassIds($user) ?? [];
             if (empty($classYearIds)) {
                 return response()->json([
                     'data' => [],
@@ -103,14 +90,15 @@ class FeedbackController extends Controller
 
     public function resolve(Request $request, int $id): JsonResponse
     {
-        /** @var User $user */
+        /** @var \App\Models\User $user */
         $user = $request->user();
 
-        // Servants/Stage admins: verify the feedback belongs to their scope
-        if ($this->isScopedReviewer($user)) {
-            $feedback = Feedback::byChurch()->find($id);
-            $scopeClassIds = $this->scopedReviewerClassIds($user);
-            if (! $feedback || ! in_array($feedback->class_year_id, $scopeClassIds, true)) {
+        // Servants: verify the feedback belongs to one of their classes
+        if ($user->role === UserRole::Servant) {
+            $feedback = \App\Models\Feedback::byChurch()->find($id);
+            /** @var array<int, int>|null $servantClassIds */
+            $servantClassIds = $user->getServantClassIds();
+            if (!$feedback || !in_array($feedback->class_year_id, (array) $servantClassIds)) {
                 throw ValidationException::withMessages([
                     'feedback' => ['Feedback not found.'],
                 ]);
@@ -128,14 +116,15 @@ class FeedbackController extends Controller
             'message' => ['required', 'string', 'max:2000'],
         ]);
 
-        /** @var User $user */
+        /** @var \App\Models\User $user */
         $user = $request->user();
 
-        // Servants/Stage admins: verify the feedback belongs to their scope
-        if ($this->isScopedReviewer($user)) {
-            $feedback = Feedback::byChurch()->find($id);
-            $scopeClassIds = $this->scopedReviewerClassIds($user);
-            if (! $feedback || ! in_array($feedback->class_year_id, $scopeClassIds, true)) {
+        // Servants: verify the feedback belongs to one of their classes
+        if ($user->role === UserRole::Servant) {
+            $feedback = \App\Models\Feedback::byChurch()->find($id);
+            /** @var array<int, int>|null $servantClassIds */
+            $servantClassIds = $user->getServantClassIds();
+            if (!$feedback || !in_array($feedback->class_year_id, (array) $servantClassIds)) {
                 throw ValidationException::withMessages([
                     'feedback' => ['Feedback not found.'],
                 ]);
@@ -159,7 +148,7 @@ class FeedbackController extends Controller
 
     public function markSeen(Request $request, int $id): JsonResponse
     {
-        /** @var User $user */
+        /** @var \App\Models\User $user */
         $user = $request->user();
 
         /** @var int $userId */
@@ -171,18 +160,18 @@ class FeedbackController extends Controller
 
     public function show(Request $request, int $id): JsonResponse
     {
-        /** @var User $user */
+        /** @var \App\Models\User $user */
         $user = $request->user();
         $filters = ['id' => $id];
 
-        if ($this->isScopedReviewer($user)) {
-            $scopeClassIds = $this->scopedReviewerClassIds($user);
-            if (empty($scopeClassIds)) {
+        if ($user->role === UserRole::Servant) {
+            $servantClassIds = $user->getServantClassIds();
+            if (empty($servantClassIds)) {
                 throw ValidationException::withMessages([
                     'feedback' => ['Feedback not found.'],
                 ]);
             }
-            $filters['class_year_ids'] = $scopeClassIds;
+            $filters['class_year_ids'] = $servantClassIds;
         }
 
         $result = $this->feedbackService->list(
@@ -190,10 +179,10 @@ class FeedbackController extends Controller
             filters: $filters,
         );
 
-        /** @var Collection<int, mixed> $feedbackCollection */
+        /** @var \Illuminate\Support\Collection<int, mixed> $feedbackCollection */
         $feedbackCollection = $result['data'];
         $feedback = $feedbackCollection->first();
-        if (! $feedback) {
+        if (!$feedback) {
             throw ValidationException::withMessages([
                 'feedback' => ['Feedback not found.'],
             ]);
@@ -202,25 +191,5 @@ class FeedbackController extends Controller
         return response()->json([
             'data' => $feedback,
         ]);
-    }
-
-    private function isScopedReviewer(User $user): bool
-    {
-        return $user->isServant() || $user->isStageAdmin();
-    }
-
-    /**
-     * @return array<int, int>
-     */
-    private function scopedReviewerClassIds(User $user): array
-    {
-        if ($user->isStageAdmin()) {
-            return $this->scopeResolver->allowedClassIds($user) ?? [];
-        }
-
-        /** @var array<int, int> $servantClassIds */
-        $servantClassIds = $user->getServantClassIds() ?? [];
-
-        return $servantClassIds;
     }
 }

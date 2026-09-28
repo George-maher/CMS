@@ -5,8 +5,10 @@ namespace App\Services;
 use App\Contracts\AuthServiceInterface;
 use App\Contracts\PasswordResetRequestServiceInterface;
 use App\Contracts\QRInviteServiceInterface;
+use App\Contracts\UserProvisioningServiceInterface;
 use App\Contracts\UserRepositoryInterface;
 use App\Enums\LoginFailureCode;
+use App\Enums\ProvisioningChannel;
 use App\Enums\UserRole;
 use App\Enums\UserScope;
 use App\Exceptions\LoginFailedException;
@@ -28,6 +30,7 @@ class AuthService implements AuthServiceInterface
         private readonly QRInviteServiceInterface $qrInviteService,
         private readonly PasswordResetRequestServiceInterface $passwordResetRequestService,
         private readonly CacheService $cacheService,
+        private readonly UserProvisioningServiceInterface $userProvisioning,
     ) {}
 
     /** @param array<string, mixed> $credentials */
@@ -150,7 +153,7 @@ class AuthService implements AuthServiceInterface
         /** @var int $userId */
         $userId = $user->id;
         $this->cacheService->invalidateUserAuth($userId);
-        $user->currentAccessToken()->delete();
+        $user->currentAccessToken()?->delete();
     }
 
     /** @param array{password: string, invite_token?: string, class_id?: int, email?: string, name?: string} $data */
@@ -173,7 +176,17 @@ class AuthService implements AuthServiceInterface
         $registerEmail = $data['email'] ?? '';
         $data['email'] = strtolower(trim($registerEmail));
 
-        return DB::transaction(function () use ($data, $invite, $role) {
+        // The provisioning channel is derived from the invite's own type, so
+        // the trust decision and the granted role can never diverge:
+        // admin_to_servant_invite => servant, servant_to_member_invite => member.
+        // validateTokenForRegistration() above has already rejected any invite
+        // that is unknown, expired, revoked, exhausted, or of a type that has
+        // no target role.
+        $channel = $role === UserRole::Member
+            ? ProvisioningChannel::QrInviteMember
+            : ProvisioningChannel::QrInviteServant;
+
+        return DB::transaction(function () use ($data, $invite, $role, $channel) {
             // The invite was already authorized by its token (findByToken runs
             // unscoped with explicit token binding); public registration has no
             // authenticated tenant, so the fail-closed ChurchScope must not hide
@@ -201,22 +214,6 @@ class AuthService implements AuthServiceInterface
             $data['created_by'] = $invite->created_by;
             $data['invite_id'] = $invite->id;
             $data['church_id'] = $invite->church_id;
-
-            // The QR invitation IS the proof of email ownership for this
-            // tenant, and the only onboarding path that has one:
-            //  - the token is a 64-char secret, single-use, expiring and
-            //    revocable, physically handed over by the Church Admin;
-            //  - the invitee sets their own email + password while holding
-            //    it, and the Church Admin is vouching for that person;
-            //  - church_id/stage_id/class_id are derived from the invite
-            //    server-side, never from the client;
-            //  - the platform has NO working outbound mail channel
-            //    (Resend removed 2026-08-22), so a separate verification
-            //    link could never be delivered and would lock the account
-            //    out permanently.
-            // This mirrors the existing admin-onboarding precedent in
-            // ChurchApplicationService (email_verified_at on approval).
-            $data['email_verified_at'] = now();
 
             if ($role === UserRole::Member) {
                 $data['servant_id'] = $invite->created_by;
@@ -250,11 +247,14 @@ class AuthService implements AuthServiceInterface
             $data['stage_id'] = $resolvedStageId;
             $data['scope'] = $role === UserRole::Member ? UserScope::Self->value : UserScope::ClassScope->value;
 
-            $user = $this->userRepository->create($data);
+            // Consuming a valid invite IS the proof of email ownership for this
+            // tenant, so the account is created already verified and can log in
+            // immediately. UserProvisioningService owns that decision; the
+            // invite-backed channels additionally require the validated
+            // `invite_id` that was just re-read under lock.
+            $user = $this->userProvisioning->create($data, $channel);
 
-            /** @var int $userId */
-            $userId = $user->id;
-            $used = $freshInvite->markAsUsed($userId);
+            $used = $freshInvite->markAsUsed($user->id);
             if (! $used) {
                 throw ValidationException::withMessages([
                     'invite_token' => [__('invite.max_uses_reached')],
@@ -265,6 +265,8 @@ class AuthService implements AuthServiceInterface
                 'invite_id' => $freshInvite->id,
                 'user_id' => $user->id,
                 'role' => $role->value,
+                'channel' => $channel->value,
+                'email_verified_at' => $user->email_verified_at?->toISOString(),
             ]);
 
             return [

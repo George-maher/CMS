@@ -2,7 +2,8 @@
 
 namespace App\Contracts;
 
-use App\Models\QRInvite;
+use App\Enums\QRInviteType;
+use App\Enums\UserRole;
 
 interface QRInviteServiceInterface
 {
@@ -12,22 +13,14 @@ interface QRInviteServiceInterface
 
     /** @return array<string, mixed> */
     public function validateToken(string $token): array;
-
     /** @return array<string, mixed> */
     public function validateTokenForRegistration(string $token): array;
-
     /** @return array<string, mixed> */
     public function getInviteDetails(string $token): array;
-
     /** @return array<string, mixed> */
     public function acceptInvite(string $token, int $userId, ?int $classId = null): array;
-
-    public function findById(int $id): ?QRInvite;
-
+    public function findById(int $id): ?\App\Models\QRInvite;
     public function revokeInvite(int $id): bool;
-
-    public function rotateInvite(int $id): QRInvite;
-
     public function getInviteUrl(string $token): string;
 
     /** @param array<string, mixed> $filters */

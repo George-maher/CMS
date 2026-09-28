@@ -20,7 +20,6 @@ trait HasPermissions
                 return true;
             }
         }
-
         return false;
     }
 
@@ -28,11 +27,10 @@ trait HasPermissions
     public function hasAllPermissions(array $permissionKeys): bool
     {
         foreach ($permissionKeys as $key) {
-            if (! $this->hasPermission($key)) {
+            if (!$this->hasPermission($key)) {
                 return false;
             }
         }
-
         return true;
     }
 
@@ -50,14 +48,14 @@ trait HasPermissions
         DB::transaction(function () use ($roleName, $permissions) {
             DB::table('role_permission')->where('role_name', $roleName)->delete();
 
-            $rows = array_map(fn (string $key) => [
+            $rows = array_map(fn(string $key) => [
                 'role_name' => $roleName,
                 'permission_key' => $key,
                 'created_at' => now(),
                 'updated_at' => now(),
             ], $permissions);
 
-            if (! empty($rows)) {
+            if (!empty($rows)) {
                 DB::table('role_permission')->insert($rows);
             }
         });

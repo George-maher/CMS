@@ -13,6 +13,7 @@ use App\Contracts\ClasseRepositoryInterface;
 use App\Contracts\ClasseServiceInterface;
 use App\Contracts\DailySpiritualRecordServiceInterface;
 use App\Contracts\EmailServiceInterface;
+use App\Contracts\EmailVerificationServiceInterface;
 use App\Contracts\EventAccommodationServiceInterface;
 use App\Contracts\EventLifecycleServiceInterface;
 use App\Contracts\EventPaymentServiceInterface;
@@ -27,6 +28,7 @@ use App\Contracts\FeedbackRepositoryInterface;
 use App\Contracts\FeedbackServiceInterface;
 use App\Contracts\FileUploadServiceInterface;
 use App\Contracts\LeaderboardServiceInterface;
+use App\Contracts\MailConfigurationValidatorInterface;
 use App\Contracts\MemberProfileServiceInterface;
 use App\Contracts\MembershipRequestRepositoryInterface;
 use App\Contracts\MembershipRequestServiceInterface;
@@ -41,6 +43,7 @@ use App\Contracts\ScopeResolverInterface;
 use App\Contracts\StageRepositoryInterface;
 use App\Contracts\StageServiceInterface;
 use App\Contracts\StorageServiceInterface;
+use App\Contracts\UserProvisioningServiceInterface;
 use App\Contracts\UserRepositoryInterface;
 use App\Contracts\UserServiceInterface;
 use App\Contracts\VerseRepositoryInterface;
@@ -102,6 +105,7 @@ use App\Services\ChurchApplicationService;
 use App\Services\ClasseService;
 use App\Services\DailySpiritualRecordService;
 use App\Services\EmailService;
+use App\Services\EmailVerificationService;
 use App\Services\EventAccommodationService;
 use App\Services\EventLifecycleService;
 use App\Services\EventPaymentService;
@@ -114,6 +118,7 @@ use App\Services\FeedbackService;
 use App\Services\FileUploadService;
 use App\Services\LeaderboardService;
 use App\Services\LocalStorageService;
+use App\Services\MailConfigurationValidator;
 use App\Services\MemberProfileService;
 use App\Services\MembershipRequestService;
 use App\Services\NotificationService;
@@ -124,6 +129,7 @@ use App\Services\QRInviteService;
 use App\Services\ScopeResolver;
 use App\Services\StageService;
 use App\Services\SupabaseStorageService;
+use App\Services\UserProvisioningService;
 use App\Services\VerseService;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Contracts\Foundation\Application;
@@ -133,6 +139,7 @@ use Illuminate\Http\Request;
 use Illuminate\Routing\Redirector;
 use Illuminate\Routing\UrlGenerator;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 
@@ -152,6 +159,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(AttendanceServiceInterface::class, AttendanceService::class);
         $this->app->bind(PointServiceInterface::class, PointService::class);
         $this->app->bind(UserServiceInterface::class, UserService::class);
+        $this->app->bind(UserProvisioningServiceInterface::class, UserProvisioningService::class);
 
         $this->app->bind(StageServiceInterface::class, StageService::class);
         $this->app->bind(ClasseServiceInterface::class, ClasseService::class);
@@ -186,12 +194,20 @@ class AppServiceProvider extends ServiceProvider
 
         $this->app->bind(MemberProfileServiceInterface::class, MemberProfileService::class);
 
+        $this->app->bind(DailySpiritualRecordServiceInterface::class, DailySpiritualRecordService::class);
+
+        /**
+         * The single source of truth for a user's organizational scope.
+         *
+         * Injected into the controllers, the policies and the services so that
+         * "which stage/class may this actor touch" is answered in exactly one
+         * place and can never drift between call sites.
+         */
         $this->app->bind(ScopeResolverInterface::class, ScopeResolver::class);
 
         $this->app->singleton(CacheService::class, fn () => new CacheService);
 
         $this->app->bind(ChurchApplicationServiceInterface::class, ChurchApplicationService::class);
-        $this->app->bind(DailySpiritualRecordServiceInterface::class, DailySpiritualRecordService::class);
 
         $this->app->bind(AuditServiceInterface::class, AuditService::class);
         $this->app->bind(FileUploadServiceInterface::class, FileUploadService::class);
@@ -211,10 +227,30 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(EmailServiceInterface::class, EmailService::class);
 
         $this->app->bind(NotificationServiceInterface::class, NotificationService::class);
+
+        $this->app->bind(MailConfigurationValidatorInterface::class, MailConfigurationValidator::class);
+        $this->app->bind(EmailVerificationServiceInterface::class, EmailVerificationService::class);
     }
 
     public function boot(): void
     {
+        // Fail the deployment loudly when outbound email cannot actually be
+        // delivered. A `log`/`array`/`null` transport would otherwise persist
+        // email verification links — i.e. account-verification tokens — into the
+        // application log, turning log read access into account takeover.
+        //
+        // Enforced for the web process (the production entry point) and for
+        // queue workers. Local and testing are exempt, and so is ordinary CLI
+        // tooling (migrations, `config:cache`, `route:list`) so a deploy pipeline
+        // can still run while mail configuration is being repaired. The
+        // authoritative control is EmailVerificationService::dispatch(), which
+        // refuses to hand a token to a transport that cannot deliver.
+        $mailConfiguration = $this->app->make(MailConfigurationValidatorInterface::class);
+
+        if ($mailConfiguration->shouldEnforceAtBoot()) {
+            $mailConfiguration->assertVerificationDeliveryConfigured();
+        }
+
         /** @var string|null $rootUrl */
         $rootUrl = config('app.url');
         if ($rootUrl !== null && $rootUrl !== '') {
@@ -244,6 +280,20 @@ class AppServiceProvider extends ServiceProvider
         Event::observe(EventObserver::class);
         ChurchApplication::observe(ChurchApplicationObserver::class);
         MembershipRequestModel::observe(MembershipRequestObserver::class);
+
+        // ──────────────────────────────────────────────
+        // Outbound sender
+        // ──────────────────────────────────────────────
+        // Pin the From address explicitly so a delivering transport cannot
+        // silently rewrite the sender, and so the MailConfigurationValidator's
+        // "MAIL_FROM_ADDRESS is not set" check reflects what is actually used.
+        /** @var string|null $fromAddress */
+        $fromAddress = config('mail.from.address');
+        /** @var string|null $fromName */
+        $fromName = config('mail.from.name');
+        if (is_string($fromAddress) && $fromAddress !== '') {
+            Mail::alwaysFrom($fromAddress, (string) $fromName);
+        }
 
         // ──────────────────────────────────────────────
         // Event → Listener Registrations

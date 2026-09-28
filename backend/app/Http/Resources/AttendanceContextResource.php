@@ -2,12 +2,10 @@
 
 namespace App\Http\Resources;
 
-use App\Models\AttendanceContext;
-use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
-/** @mixin AttendanceContext */
+/** @mixin \App\Models\AttendanceContext */
 class AttendanceContextResource extends JsonResource
 {
     /** @return array<string, mixed> */
@@ -22,9 +20,8 @@ class AttendanceContextResource extends JsonResource
             'is_active' => $this->is_active,
             'created_by' => $this->created_by,
             'creator_name' => $this->when($this->creator !== null, function () {
-                /** @var User $creator */
+                /** @var \App\Models\User $creator */
                 $creator = $this->creator;
-
                 return $creator->name;
             }),
             'updated_by' => $this->updated_by,

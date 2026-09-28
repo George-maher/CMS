@@ -2,15 +2,14 @@
 
 namespace App\Contracts;
 
-use App\Models\Event;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 interface EventRepositoryInterface
 {
-    public function findById(int $id): ?Event;
+    public function findById(int $id): ?\App\Models\Event;
 
     /** @param array<string, mixed> $data */
-    public function create(array $data): Event;
+    public function create(array $data): \App\Models\Event;
 
     /** @param array<string, mixed> $data */
     public function update(int $id, array $data): bool;
@@ -18,6 +17,6 @@ interface EventRepositoryInterface
     public function delete(int $id): bool;
 
     /** @param array<string, mixed> $filters */
-    /** @return LengthAwarePaginator<int, Event> */
+    /** @return \Illuminate\Contracts\Pagination\LengthAwarePaginator<int, \App\Models\Event> */
     public function paginate(int $perPage, array $filters = []): LengthAwarePaginator;
 }

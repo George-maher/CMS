@@ -19,14 +19,27 @@ class MembershipRequestController extends Controller
         private readonly MembershipRequestServiceInterface $membershipRequestService,
     ) {}
 
+    /**
+     * Public join request.
+     *
+     * The response is a fixed acknowledgement with no row identity, so a caller
+     * cannot tell an accepted submission from one that was suppressed because
+     * the address already exists. `membership-requests` is reachable
+     * unauthenticated and `/churches/active` is public, so any distinguishable
+     * outcome here would be a cross-church member enumeration oracle.
+     */
     public function store(MembershipRequestSubmitRequest $request): JsonResponse
     {
         /** @var int $churchId */
-        $churchId = $request->input('church_id');
+        $churchId = $request->integer('church_id');
         $church = Church::find($churchId);
 
-        if (! $church) {
-            return response()->json(['message' => 'Church not found.'], 404);
+        if ($church === null) {
+            return response()->json([
+                'success' => false,
+                'message' => __('membership_requests.church_not_found'),
+                'code' => 'CHURCH_NOT_FOUND',
+            ], 404);
         }
 
         $data = $request->validated();
@@ -37,14 +50,12 @@ class MembershipRequestController extends Controller
             $data['file'] = $uploadedFile;
         }
 
-        $result = $this->membershipRequestService->submit(
-            $data,
-            $churchId,
-        );
+        $result = $this->membershipRequestService->submit($data, $churchId);
 
         return response()->json([
+            'success' => true,
             'message' => $result['message'],
-            'data' => new MembershipRequestResource($result['request']),
+            'code' => 'REQUEST_RECEIVED',
         ], 201);
     }
 

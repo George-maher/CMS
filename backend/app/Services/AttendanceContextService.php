@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Contracts\AttendanceContextRepositoryInterface;
 use App\Contracts\AttendanceContextServiceInterface;
 use App\Http\Resources\AttendanceContextResource;
-use App\Models\User;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
@@ -18,23 +17,14 @@ class AttendanceContextService implements AttendanceContextServiceInterface
     /** @return array<string, mixed> */
     public function list(int $perPage = 15): array
     {
-        /** @var User|null $user */
+        /** @var \App\Models\User|null $user */
         $user = auth()->user();
         $churchId = $user?->church_id;
 
-        if (! $churchId && ! $user?->isPlatformAdmin()) {
-            return [
-                'data' => AttendanceContextResource::collection([]),
-                'meta' => [
-                    'current_page' => 1,
-                    'last_page' => 1,
-                    'per_page' => $perPage,
-                    'total' => 0,
-                ],
-            ];
+        $filters = [];
+        if ($churchId) {
+            $filters['church_id'] = $churchId;
         }
-
-        $filters = $churchId ? ['church_id' => $churchId] : [];
 
         $paginator = $this->contextRepository->paginate($perPage, $filters);
 
@@ -52,11 +42,13 @@ class AttendanceContextService implements AttendanceContextServiceInterface
     /** @return array<string, mixed> */
     public function listActive(): array
     {
-        /** @var User|null $user */
+        /** @var \App\Models\User|null $user */
         $user = auth()->user();
         $churchId = $user?->church_id;
 
-        $contexts = $churchId ? $this->contextRepository->getActiveForChurch($churchId) : collect();
+        $contexts = $churchId
+            ? $this->contextRepository->getActiveForChurch($churchId)
+            : $this->contextRepository->getActive();
 
         $count = $contexts->count();
 
@@ -88,9 +80,7 @@ class AttendanceContextService implements AttendanceContextServiceInterface
     public function findById(int $id): ?array
     {
         $context = $this->contextRepository->findById($id);
-        if (! $context) {
-            return null;
-        }
+        if (!$context) return null;
 
         return [
             'data' => new AttendanceContextResource($context),
@@ -100,7 +90,7 @@ class AttendanceContextService implements AttendanceContextServiceInterface
     /** @param array<string, mixed> $data */
     public function create(array $data, int $creatorId): array
     {
-        /** @var User|null $authUser */
+        /** @var \App\Models\User|null $authUser */
         $authUser = auth()->user();
         $churchId = $authUser?->church_id;
 
@@ -122,28 +112,18 @@ class AttendanceContextService implements AttendanceContextServiceInterface
     public function update(int $id, array $data, ?int $updaterId = null): array
     {
         $context = $this->contextRepository->findById($id);
-        if (! $context) {
+        if (!$context) {
             throw ValidationException::withMessages([
                 'id' => ['Attendance context not found.'],
             ]);
         }
 
         $updateData = [];
-        if (isset($data['name'])) {
-            $updateData['name'] = $data['name'];
-        }
-        if (array_key_exists('name_ar', $data)) {
-            $updateData['name_ar'] = $data['name_ar'];
-        }
-        if (array_key_exists('description', $data)) {
-            $updateData['description'] = $data['description'];
-        }
-        if (array_key_exists('is_active', $data)) {
-            $updateData['is_active'] = $data['is_active'];
-        }
-        if ($updaterId) {
-            $updateData['updated_by'] = $updaterId;
-        }
+        if (isset($data['name'])) $updateData['name'] = $data['name'];
+        if (array_key_exists('name_ar', $data)) $updateData['name_ar'] = $data['name_ar'];
+        if (array_key_exists('description', $data)) $updateData['description'] = $data['description'];
+        if (array_key_exists('is_active', $data)) $updateData['is_active'] = $data['is_active'];
+        if ($updaterId) $updateData['updated_by'] = $updaterId;
 
         $this->contextRepository->update($id, $updateData);
 
@@ -155,7 +135,7 @@ class AttendanceContextService implements AttendanceContextServiceInterface
     public function delete(int $id): void
     {
         $context = $this->contextRepository->findById($id);
-        if (! $context) {
+        if (!$context) {
             throw ValidationException::withMessages([
                 'id' => ['Attendance context not found.'],
             ]);

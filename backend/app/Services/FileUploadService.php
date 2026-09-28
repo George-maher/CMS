@@ -36,9 +36,7 @@ class FileUploadService implements FileUploadServiceInterface
 
     public function delete(?string $path): bool
     {
-        $value = $path ?? '';
-
-        return $this->storageService->deleteFile($value, $this->resolveBucket($value));
+        return $this->storageService->deleteFile($path ?? '');
     }
 
     public function url(string $path): ?string
@@ -60,7 +58,6 @@ class FileUploadService implements FileUploadServiceInterface
     {
         /** @var string $default */
         $default = config('filesystems.default');
-
         return $default;
     }
 
@@ -68,7 +65,6 @@ class FileUploadService implements FileUploadServiceInterface
     {
         /** @var string $default */
         $default = config('filesystems.default');
-
         return $default;
     }
 
@@ -102,7 +98,6 @@ class FileUploadService implements FileUploadServiceInterface
 
         if (str_starts_with($path, 'profiles') || str_starts_with($path, 'events') || str_starts_with($path, 'documents') || str_starts_with($path, 'ids')) {
             $parts = explode('/', $path);
-
             return $parts[0];
         }
 

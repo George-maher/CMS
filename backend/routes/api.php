@@ -4,36 +4,24 @@ use App\Enums\UserRole;
 use App\Http\Controllers\Api\AttendanceContextController;
 use App\Http\Controllers\Api\AttendanceController;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\ChurchApplicationController;
 use App\Http\Controllers\Api\ChurchDeletionController;
 use App\Http\Controllers\Api\ClasseController;
-use App\Http\Controllers\Api\DailySpiritualRecordController;
 use App\Http\Controllers\Api\DailyVerseController;
-use App\Http\Controllers\Api\DashboardController;
-use App\Http\Controllers\Api\EventAccommodationController;
 use App\Http\Controllers\Api\EventAnalyticsController;
-use App\Http\Controllers\Api\EventBusController;
 use App\Http\Controllers\Api\EventController;
-use App\Http\Controllers\Api\EventDashboardController;
-use App\Http\Controllers\Api\EventPaymentController;
-use App\Http\Controllers\Api\EventRegistrationController;
-use App\Http\Controllers\Api\EventReservationController;
-use App\Http\Controllers\Api\EventScheduleController;
 use App\Http\Controllers\Api\FeedbackController;
-use App\Http\Controllers\Api\LeaderboardController;
-use App\Http\Controllers\Api\MemberProfileController;
 use App\Http\Controllers\Api\MembershipRequestController;
-use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\PasswordResetRequestController;
+use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\PendingDashboardController;
 use App\Http\Controllers\Api\PlatformController;
+use App\Http\Controllers\Api\StorageController;
 use App\Http\Controllers\Api\PointController;
-use App\Http\Controllers\Api\ProfileUpdateRequestController;
 use App\Http\Controllers\Api\QRInviteController;
 use App\Http\Controllers\Api\StageController;
-use App\Http\Controllers\Api\StorageController;
 use App\Http\Controllers\Api\StructureController;
-use App\Models\Church;
 use App\Modules\User\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 
@@ -52,7 +40,7 @@ Route::prefix('v1')->group(function () {
     | Platform Admin Secret Login — path configured via PLATFORM_ADMIN_LOGIN_PATH env
     */
     $platformAdminPath = config('services.platform_admin_login_path', 'platform-secure-admin-login');
-    Route::post('/auth/'.$platformAdminPath, [AuthController::class, 'platformLogin'])
+    Route::post('/auth/' . $platformAdminPath, [AuthController::class, 'platformLogin'])
         ->middleware('throttle:login')
         ->name('platform.admin.login');
 
@@ -62,12 +50,16 @@ Route::prefix('v1')->group(function () {
     Route::post('/auth/forgot-password', [AuthController::class, 'forgotPassword'])
         ->middleware('throttle:login');
 
+    Route::post('/auth/reset-password', [AuthController::class, 'resetPassword'])
+        ->middleware('throttle:login');
+
     /*
-    | Password Reset Requests — public (member/servant submits).
-    | The new password is set by the Church Admin after approval —
-    | there is no public token-based reset endpoint and no email flow.
+    | Password Reset Requests — public (member/servant submits, user completes reset)
     */
     Route::post('/password-reset-requests', [PasswordResetRequestController::class, 'submit'])
+        ->middleware('throttle:login');
+
+    Route::post('/password-reset-requests/reset', [PasswordResetRequestController::class, 'completeReset'])
         ->middleware('throttle:login');
 
     Route::post('/auth/verify-email', [AuthController::class, 'verifyEmail'])
@@ -99,7 +91,7 @@ Route::prefix('v1')->group(function () {
     | Active churches — public listing for join request form
     */
     Route::get('/churches/active', function () {
-        $churches = Church::where('is_active', true)
+        $churches = \App\Models\Church::where('is_active', true)
             ->where('is_suspended', false)
             ->get(['id', 'name', 'slug', 'address']);
 
@@ -116,7 +108,7 @@ Route::prefix('v1')->group(function () {
 |--------------------------------------------------------------------------
 */
 
-Route::prefix('v1')->middleware(['auth:sanctum', 'approval', 'throttle:api'])->group(function () {
+Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:api'])->group(function () {
 
     /*
     | Auth
@@ -125,37 +117,20 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'approval', 'throttle:api'])->g
     Route::get('/auth/me', [AuthController::class, 'me']);
 
     /*
-    | Profile — own profile update (admin/servant direct, member via request)
-    */
-    Route::put('/profile', [ProfileUpdateRequestController::class, 'updateOwnProfile'])
-        ->middleware('throttle:user-update');
-    Route::post('/profile-update-requests', [ProfileUpdateRequestController::class, 'store'])
-        ->middleware('throttle:sensitive');
-    Route::get('/profile-update-requests/my', [ProfileUpdateRequestController::class, 'myRequests'])
-        ->middleware('throttle:api');
-
-    /*
     | Storage — direct file uploads to Supabase
-    |   upload-profile-image → any authenticated user (own avatar)
-    |   upload-event-image   → staff who can manage events
-    |   upload/{bucket}, upload-document, replace/{bucket}, delete/{bucket
-    |     → admin-managed generic endpoints (NOT used by the official SPA).
-    |       They operate on the shared Supabase project (service-role key), so
-    |       they are restricted to manage_users (admin / assistant / stage admin)
-    |       to prevent any authenticated user from deleting arbitrary objects.
     */
     Route::post('/storage/upload/{bucket}', [StorageController::class, 'upload'])
-        ->middleware(['permission:manage_users', 'throttle:storage-upload']);
+        ->middleware('throttle:storage-upload');
     Route::post('/storage/upload-profile-image', [StorageController::class, 'uploadProfileImage'])
         ->middleware('throttle:storage-upload');
     Route::post('/storage/upload-event-image', [StorageController::class, 'uploadEventImage'])
-        ->middleware(['permission:manage_events', 'throttle:storage-upload']);
+        ->middleware('throttle:storage-upload');
     Route::post('/storage/upload-document', [StorageController::class, 'uploadDocument'])
-        ->middleware(['permission:manage_users', 'throttle:storage-upload']);
+        ->middleware('throttle:storage-upload');
     Route::post('/storage/replace/{bucket}', [StorageController::class, 'replaceFile'])
-        ->middleware(['permission:manage_users', 'throttle:storage-upload']);
+        ->middleware('throttle:storage-upload');
     Route::delete('/storage/delete/{bucket}', [StorageController::class, 'delete'])
-        ->middleware(['permission:manage_users', 'throttle:storage-upload']);
+        ->middleware('throttle:storage-upload');
 
     /*
     | Application Status — any authenticated user
@@ -182,15 +157,15 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'approval', 'throttle:api'])->g
     /*
     | Leaderboards — read heavy
     */
-    Route::get('/leaderboard/global', [LeaderboardController::class, 'global'])
+    Route::get('/leaderboard/global', [\App\Http\Controllers\Api\LeaderboardController::class, 'global'])
         ->middleware('throttle:points-read');
-    Route::get('/leaderboard/my-class', [LeaderboardController::class, 'myClass'])
+    Route::get('/leaderboard/my-class', [\App\Http\Controllers\Api\LeaderboardController::class, 'myClass'])
         ->middleware('throttle:points-read');
-    Route::get('/leaderboard/my-classes', [LeaderboardController::class, 'myClasses'])
+    Route::get('/leaderboard/my-classes', [\App\Http\Controllers\Api\LeaderboardController::class, 'myClasses'])
         ->middleware(['permission:view_users', 'throttle:points-read']);
-    Route::get('/leaderboard/stages', [LeaderboardController::class, 'stages'])
+    Route::get('/leaderboard/stages', [\App\Http\Controllers\Api\LeaderboardController::class, 'stages'])
         ->middleware(['permission:view_users', 'throttle:points-read']);
-    Route::get('/leaderboard/class/{classId}', [LeaderboardController::class, 'byClass'])
+    Route::get('/leaderboard/class/{classId}', [\App\Http\Controllers\Api\LeaderboardController::class, 'byClass'])
         ->middleware(['permission:view_users', 'throttle:points-read']);
 
     /*
@@ -202,75 +177,41 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'approval', 'throttle:api'])->g
         ->middleware('throttle:attendance-read');
 
     /*
-    | Member Profile — attendance + spiritual summary (admin/servant/member)
-    */
-    Route::get('/member-profile/{id}', [MemberProfileController::class, 'getProfile'])
-        ->middleware('throttle:api');
-
-    /*
         | Stages + Classes — read
         */
-    Route::get('/stages', [StageController::class, 'index'])
-        ->middleware('throttle:structure-read');
-    Route::get('/stages/{id}', [StageController::class, 'show'])
-        ->middleware('throttle:structure-read');
-    Route::get('/stages/{id}/classes', [StageController::class, 'classes'])
-        ->middleware('throttle:structure-read');
+        Route::get('/stages', [StageController::class, 'index'])
+            ->middleware('throttle:structure-read');
+        Route::get('/stages/{id}', [StageController::class, 'show'])
+            ->middleware('throttle:structure-read');
+        Route::get('/stages/{id}/classes', [StageController::class, 'classes'])
+            ->middleware('throttle:structure-read');
 
-    Route::get('/classes', [ClasseController::class, 'index'])
-        ->middleware('throttle:structure-read');
-    Route::get('/classes/{id}', [ClasseController::class, 'show'])
-        ->middleware('throttle:structure-read');
+        Route::get('/classes', [ClasseController::class, 'index'])
+            ->middleware('throttle:structure-read');
+        Route::get('/classes/{id}', [ClasseController::class, 'show'])
+            ->middleware('throttle:structure-read');
 
-    /*
-    | Structure — unified stages with classes grouped
-    */
-    Route::get('/structure/classes', [StructureController::class, 'classes'])
-        ->middleware('throttle:structure-read');
-    Route::get('/structure/my-classes', [StructureController::class, 'myClasses'])
-        ->middleware('throttle:structure-read');
-    Route::get('/structure/my-class-servants', [StructureController::class, 'myClassServants'])
-        ->middleware('throttle:structure-read');
-    Route::get('/structure/stages-with-classes', [StructureController::class, 'stagesWithClasses'])
-        ->middleware('throttle:structure-read');
+        /*
+        | Structure — unified stages with classes grouped
+        */
+        Route::get('/structure/classes', [StructureController::class, 'classes'])
+            ->middleware('throttle:structure-read');
+        Route::get('/structure/my-classes', [StructureController::class, 'myClasses'])
+            ->middleware('throttle:structure-read');
+        Route::get('/structure/my-class-servants', [StructureController::class, 'myClassServants'])
+            ->middleware('throttle:structure-read');
+        Route::get('/structure/stages-with-classes', [StructureController::class, 'stagesWithClasses'])
+            ->middleware('throttle:structure-read');
 
     /*
     | Events — read
     */
     Route::get('/events', [EventController::class, 'index'])
         ->middleware('throttle:event-read');
-    // Must be registered before /events/{id} so these are not treated as an id.
-    Route::get('/events/my-registrations', [EventRegistrationController::class, 'my'])
-        ->middleware('throttle:event-read');
-    Route::get('/events/my-assigned', [EventController::class, 'myAssigned'])
-        ->middleware('throttle:event-read');
     Route::get('/events/{id}', [EventController::class, 'show'])
         ->middleware('throttle:event-read');
     Route::post('/events/{id}/track-view', [EventAnalyticsController::class, 'track'])
         ->middleware('throttle:event-read');
-
-    /*
-    | Events — member self-registration
-    */
-    /*
-    | Events — member self-registration + own reservation requests.
-    | Identity and tenant are derived from the authenticated user; members may
-    | only act on their own behalf. Management endpoints stay behind
-    | manage_event_registrations below.
-    */
-    Route::post('/events/{id}/register-self', [EventRegistrationController::class, 'selfRegister'])
-        ->middleware(['throttle:event-crud']);
-    Route::post('/events/{id}/member-reservation-request', [EventRegistrationController::class, 'submitMemberReservationRequest'])
-        ->middleware('throttle:event-crud');
-
-    /*
-    | Member accommodation — approval-gated on the backend. Identity is derived
-    | from the authenticated user; members can only view/select for themselves.
-    */
-    Route::get('/events/{id}/accommodation/my-view', [EventAccommodationController::class, 'memberView'])
-        ->middleware('throttle:event-read');
-    Route::post('/events/{id}/accommodation/select-cell', [EventAccommodationController::class, 'selectCell'])
-        ->middleware('throttle:event-crud');
 
     /*
     | QR Invite Accept
@@ -293,11 +234,10 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'approval', 'throttle:api'])->g
     /*
     | Attendance Contexts — read (active list, no auth restriction)
     */
-    Route::get('/attendance-contexts', [AttendanceContextController::class, 'active'])
-        ->middleware('auth:sanctum');
+    Route::get('/attendance-contexts', [AttendanceContextController::class, 'active']);
 
-    /*
-    | Daily Verse — read
+        /*
+        | Daily Verse — read
     */
     Route::get('/verses', [DailyVerseController::class, 'index'])
         ->middleware('throttle:verse-read');
@@ -313,18 +253,6 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'approval', 'throttle:api'])->g
         ->middleware('throttle:feedback-read');
     Route::post('/feedback/{id}/mark-seen', [FeedbackController::class, 'markSeen'])
         ->middleware('throttle:feedback-read');
-
-    /*
-    | Daily Spiritual Records — member self-service + admin/servant read
-    */
-    Route::get('/spiritual-records', [DailySpiritualRecordController::class, 'index'])
-        ->middleware('throttle:spiritual-record');
-    Route::get('/spiritual-records/{activityDate}', [DailySpiritualRecordController::class, 'show'])
-        ->middleware('throttle:spiritual-record');
-    Route::post('/spiritual-records', [DailySpiritualRecordController::class, 'store'])
-        ->middleware('throttle:spiritual-record');
-    Route::delete('/spiritual-records/{activityDate}', [DailySpiritualRecordController::class, 'destroy'])
-        ->middleware('throttle:spiritual-record');
 
     /*
     |--------------------------------------------------------------------------
@@ -376,8 +304,6 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'approval', 'throttle:api'])->g
         Route::get('/qr/invites', [QRInviteController::class, 'index']);
         Route::post('/qr/invites/{id}/revoke', [QRInviteController::class, 'revoke'])
             ->middleware('throttle:invite-generate');
-        Route::post('/qr/invites/{id}/rotate', [QRInviteController::class, 'rotate'])
-            ->middleware('throttle:invite-generate');
 
         /*
         | Attendance — record + read + lookup + context analytics
@@ -411,9 +337,9 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'approval', 'throttle:api'])->g
             ->middleware('throttle:user-list');
 
         /*
-        | User — servants list (eligible Responsible Servants for events)
+        | User — servants list
         */
-        Route::get('/users/servants', [UserController::class, 'servants'])
+        Route::get('/users/servants', [UserController::class, 'servantsMe'])
             ->middleware('throttle:user-list');
 
         /*
@@ -443,199 +369,14 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'approval', 'throttle:api'])->g
             ->middleware('throttle:attendance-context-crud');
         Route::delete('/attendance-contexts/{id}', [AttendanceContextController::class, 'destroy'])
             ->middleware('throttle:attendance-context-crud');
+    });
 
         /*
-        | Profile Update Requests — servant/admin review
+        | My Class Servants — any authenticated user (members need this to see contacts)
+        | Placed here before manage_users group to avoid /users/{id} catching it.
         */
-        Route::get('/profile-update-requests', [ProfileUpdateRequestController::class, 'index'])
-            ->middleware('throttle:api');
-        Route::get('/profile-update-requests/{id}', [ProfileUpdateRequestController::class, 'show'])
-            ->middleware('throttle:api');
-        Route::post('/profile-update-requests/{id}/approve', [ProfileUpdateRequestController::class, 'approve'])
-            ->middleware('throttle:sensitive');
-        Route::post('/profile-update-requests/{id}/reject', [ProfileUpdateRequestController::class, 'reject'])
-            ->middleware('throttle:sensitive');
-    });
-
-    /*
-    |--------------------------------------------------------------------------
-    | Event Registrations — permission: manage_event_registrations
-    | (admin, assistant admin, servant)
-    |--------------------------------------------------------------------------
-    */
-
-    Route::middleware(['permission:manage_event_registrations', 'approved', 'event.scope'])->group(function () {
-        Route::get('/events/{id}/registrations', [EventRegistrationController::class, 'index'])
-            ->middleware('throttle:event-read');
-
-        Route::post('/events/{id}/registrations', [EventRegistrationController::class, 'store'])
-            ->middleware('throttle:event-crud');
-        // Static segment before {regId} params
-        Route::post('/events/{id}/registrations/check-in-by-token', [EventRegistrationController::class, 'checkInByToken'])
-            ->middleware('throttle:attendance-record');
-
-        Route::post('/events/{id}/registrations/{regId}/check-in', [EventRegistrationController::class, 'checkIn'])
-            ->middleware('throttle:attendance-record');
-        Route::post('/events/{id}/registrations/{regId}/undo-check-in', [EventRegistrationController::class, 'undoCheckIn'])
-            ->middleware('throttle:attendance-record');
-        Route::post('/events/{id}/registrations/{regId}/assign-bus', [EventRegistrationController::class, 'assignBus'])
-            ->middleware('throttle:event-crud');
-
-        Route::post('/events/{id}/registrations/{regId}/confirm', [EventRegistrationController::class, 'confirm'])
-            ->middleware('throttle:event-crud');
-        Route::post('/events/{id}/registrations/{regId}/cancel', [EventRegistrationController::class, 'cancel'])
-            ->middleware('throttle:event-crud');
-        Route::post('/events/{id}/registrations/{regId}/waitlist', [EventRegistrationController::class, 'waitlist'])
-            ->middleware('throttle:event-crud');
-
-        /*
-         | Reservation Requests list — for Conference/Trip accommodation CRM.
-         | (The old reservation-request submit/approve/reject/complete routes
-         | were removed: they pointed at controller methods that no longer
-         | exist. The live flow is member-reservation-request + /registrations
-         | /{regId}/approve|reject via EventReservationController.)
-         */
-        Route::middleware(['permission:manage_event_registrations,approved'])->group(function () {
-            Route::get('/events/{id}/reservation-requests', [EventRegistrationController::class, 'getEventReservationRequests'])
-                ->middleware('throttle:event-read');
-        });
-
-        /*
-         |--------------------------------------------------------------------------
-         | Event Lifecycle + Schedule — permission: manage_events
-         |--------------------------------------------------------------------------
-         */
-        /*
-         | Buses for trips
-         */
-        Route::get('/events/{id}/buses', [EventBusController::class, 'index'])
-            ->middleware('throttle:event-read');
-        Route::post('/events/{id}/buses', [EventBusController::class, 'store'])
-            ->middleware('throttle:event-crud');
-        Route::put('/events/{id}/buses/{busId}', [EventBusController::class, 'update'])
-            ->middleware('throttle:event-crud');
-        Route::patch('/events/{id}/buses/{busId}', [EventBusController::class, 'update'])
-            ->middleware('throttle:event-crud');
-        Route::delete('/events/{id}/buses/{busId}', [EventBusController::class, 'destroy'])
-            ->middleware('throttle:event-crud');
-
-        /*
-        | Event Reservations — approve / reject
-        */
-        Route::post('/events/{id}/registrations/{regId}/approve', [EventReservationController::class, 'approve'])
-            ->middleware('throttle:event-crud');
-        Route::post('/events/{id}/registrations/{regId}/reject', [EventReservationController::class, 'reject'])
-            ->middleware('throttle:event-crud');
-
-        /*
-        | Event Accommodation — rooms, cells, assignments
-        */
-        Route::get('/events/{id}/accommodation/dashboard', [EventAccommodationController::class, 'dashboard'])
-            ->middleware('throttle:event-read');
-        Route::get('/events/{id}/accommodation/rooms', [EventAccommodationController::class, 'roomsIndex'])
-            ->middleware('throttle:event-read');
-        Route::post('/events/{id}/accommodation/rooms', [EventAccommodationController::class, 'roomsStore'])
-            ->middleware('throttle:event-crud');
-        Route::get('/events/{id}/accommodation/rooms/{roomId}', [EventAccommodationController::class, 'roomsShow'])
-            ->middleware('throttle:event-read');
-        Route::put('/events/{id}/accommodation/rooms/{roomId}', [EventAccommodationController::class, 'roomsUpdate'])
-            ->middleware('throttle:event-crud');
-        Route::patch('/events/{id}/accommodation/rooms/{roomId}', [EventAccommodationController::class, 'roomsUpdate'])
-            ->middleware('throttle:event-crud');
-        Route::delete('/events/{id}/accommodation/rooms/{roomId}', [EventAccommodationController::class, 'roomsDestroy'])
-            ->middleware('throttle:event-crud');
-        Route::post('/events/{id}/accommodation/assign', [EventAccommodationController::class, 'assign'])
-            ->middleware('throttle:event-crud');
-        Route::delete('/events/{id}/accommodation/registrations/{regId}', [EventAccommodationController::class, 'removeAccommodation'])
-            ->middleware('throttle:event-crud');
-        Route::get('/events/{id}/accommodation/unaccommodated', [EventAccommodationController::class, 'unaccommodated'])
-            ->middleware('throttle:event-read');
-    });
-
-    /*
-    |--------------------------------------------------------------------------
-    | Event Payments — permission: manage_event_payments (admin only)
-    |--------------------------------------------------------------------------
-    */
-
-    Route::middleware(['permission:manage_event_payments', 'approved', 'event.scope'])->group(function () {
-        Route::get('/events/{id}/payments', [EventPaymentController::class, 'index'])
-            ->middleware('throttle:event-read');
-        Route::post('/events/{id}/registrations/{regId}/payments', [EventPaymentController::class, 'store'])
-            ->middleware('throttle:sensitive');
-        Route::post('/events/{id}/registrations/{regId}/payments/{paymentId}/refund', [EventPaymentController::class, 'refund'])
-            ->middleware('throttle:sensitive');
-    });
-
-    /*
-    |--------------------------------------------------------------------------
-    | Event Dashboard + Reports — permission: view_event_reports
-    |--------------------------------------------------------------------------
-    */
-
-    Route::middleware(['permission:view_event_reports', 'approved', 'event.scope'])->group(function () {
-        Route::get('/events/{id}/dashboard', [EventDashboardController::class, 'dashboard'])
-            ->middleware('throttle:event-read');
-        Route::get('/events/{id}/reports/participants', [EventDashboardController::class, 'participantsReport'])
-            ->middleware('throttle:event-read');
-        Route::get('/events/{id}/reports/financial', [EventDashboardController::class, 'financialReport'])
-            ->middleware('throttle:event-read');
-        Route::get('/events/{id}/reports/attendance', [EventDashboardController::class, 'attendanceReport'])
-            ->middleware('throttle:event-read');
-    });
-
-    /*
-    |--------------------------------------------------------------------------
-    | Event Lifecycle + Schedule — permission: manage_events
-    |--------------------------------------------------------------------------
-    */
-
-    Route::middleware(['permission:manage_events', 'approved', 'event.scope'])->group(function () {
-        Route::post('/events/{id}/publish', [EventController::class, 'publish'])
-            ->middleware('throttle:event-crud');
-        Route::post('/events/{id}/close-registration', [EventController::class, 'closeRegistration'])
-            ->middleware('throttle:event-crud');
-        Route::post('/events/{id}/reopen-registration', [EventController::class, 'reopenRegistration'])
-            ->middleware('throttle:event-crud');
-        Route::post('/events/{id}/cancel', [EventController::class, 'cancel'])
-            ->middleware('throttle:event-crud');
-        Route::post('/events/{id}/complete', [EventController::class, 'complete'])
-            ->middleware('throttle:event-crud');
-        Route::post('/events/{id}/duplicate', [EventController::class, 'duplicate'])
-            ->middleware('throttle:event-crud');
-
-        /*
-        | Conference schedule — sessions + speakers
-        */
-        Route::get('/events/{id}/sessions', [EventScheduleController::class, 'sessionsIndex'])
-            ->middleware('throttle:event-read');
-        Route::post('/events/{id}/sessions', [EventScheduleController::class, 'sessionsStore'])
-            ->middleware('throttle:event-crud');
-        Route::put('/events/{id}/sessions/{sessionId}', [EventScheduleController::class, 'sessionsUpdate'])
-            ->middleware('throttle:event-crud');
-        Route::patch('/events/{id}/sessions/{sessionId}', [EventScheduleController::class, 'sessionsUpdate'])
-            ->middleware('throttle:event-crud');
-        Route::delete('/events/{id}/sessions/{sessionId}', [EventScheduleController::class, 'sessionsDestroy'])
-            ->middleware('throttle:event-crud');
-
-        Route::get('/events/{id}/speakers', [EventScheduleController::class, 'speakersIndex'])
-            ->middleware('throttle:event-read');
-        Route::post('/events/{id}/speakers', [EventScheduleController::class, 'speakersStore'])
-            ->middleware('throttle:event-crud');
-        Route::put('/events/{id}/speakers/{speakerId}', [EventScheduleController::class, 'speakersUpdate'])
-            ->middleware('throttle:event-crud');
-        Route::patch('/events/{id}/speakers/{speakerId}', [EventScheduleController::class, 'speakersUpdate'])
-            ->middleware('throttle:event-crud');
-        Route::delete('/events/{id}/speakers/{speakerId}', [EventScheduleController::class, 'speakersDestroy'])
-            ->middleware('throttle:event-crud');
-    });
-
-    /*
-    | My Class Servants — any authenticated user (members need this to see contacts)
-    | Placed here before manage_users group to avoid /users/{id} catching it.
-    */
-    Route::get('/users/my-class-servants', [StructureController::class, 'myClassServants'])
-        ->middleware('throttle:user-list');
+        Route::get('/users/my-class-servants', [UserController::class, 'myClassServants'])
+            ->middleware('throttle:user-list');
 
     /*
     |--------------------------------------------------------------------------
@@ -646,8 +387,7 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'approval', 'throttle:api'])->g
     Route::middleware(['permission:manage_users', 'approved'])->group(function () {
 
         /*
-        | Password Reset Requests — admin review.
-        | Approve → Admin sets the new password directly (reset-password).
+        | Password Reset Requests — admin review
         */
         Route::get('/password-reset-requests', [PasswordResetRequestController::class, 'index'])
             ->middleware('throttle:api');
@@ -656,8 +396,6 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'approval', 'throttle:api'])->g
         Route::post('/password-reset-requests/{id}/approve', [PasswordResetRequestController::class, 'approve'])
             ->middleware('throttle:sensitive');
         Route::post('/password-reset-requests/{id}/reject', [PasswordResetRequestController::class, 'reject'])
-            ->middleware('throttle:sensitive');
-        Route::post('/password-reset-requests/{id}/reset-password', [PasswordResetRequestController::class, 'resetPassword'])
             ->middleware('throttle:sensitive');
 
         /*
@@ -700,8 +438,6 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'approval', 'throttle:api'])->g
         /*
         | Classes — full CRUD + assignments + order
         */
-        Route::post('/stages/{id}/classes/bulk', [ClasseController::class, 'bulkCreate'])
-            ->middleware('throttle:structure-crud');
         Route::post('/classes', [ClasseController::class, 'store'])
             ->middleware('throttle:structure-crud');
         Route::put('/classes/{id}', [ClasseController::class, 'update'])
@@ -730,7 +466,7 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'approval', 'throttle:api'])->g
         /*
         | QR token regeneration — sensitive
         */
-        Route::post('/users/{id}/regenerate-qr-token', [UserController::class, 'regenerateAttendanceToken'])
+        Route::post('/users/{id}/regenerate-qr-token', [UserController::class, 'regenerateUserQrToken'])
             ->middleware('throttle:qr-regenerate');
 
         /*
@@ -739,14 +475,14 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'approval', 'throttle:api'])->g
         Route::get('/churches', function () {
             $user = request()->user();
 
-            $query = Church::withCount('users');
+            $query = \App\Models\Church::withCount('users');
 
-            if (! $user->isPlatformAdmin()) {
+            if (!$user->isPlatformAdmin()) {
                 $query->where('id', $user->church_id);
             }
 
             return response()->json([
-                'data' => $query->get()->map(fn ($c) => [
+                'data' => $query->get()->map(fn($c) => [
                     'id' => $c->id,
                     'name' => $c->name,
                     'slug' => $c->slug,
@@ -777,14 +513,14 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'approval', 'throttle:api'])->g
     |--------------------------------------------------------------------------
     */
     Route::post('/points/bonus', [PointController::class, 'addBonusPoints'])
-        ->middleware(['permission:manage_users,view_points', 'approved', 'throttle:attendance-record']);
+        ->middleware(['permission:manage_users', 'approved', 'throttle:attendance-record']);
 
-    /*
-    | Own QR token regeneration — user scoped
-    */
-    Route::post('/users/regenerate-qr-token', [UserController::class, 'regenerateOwnQrToken'])
-        ->middleware('throttle:qr-regenerate');
-});
+        /*
+        | Own QR token regeneration — user scoped
+        */
+        Route::post('/users/regenerate-qr-token', [UserController::class, 'regenerateOwnQrToken'])
+            ->middleware('throttle:qr-regenerate');
+    });
 
 /*
 |--------------------------------------------------------------------------
@@ -797,7 +533,7 @@ Route::prefix('v1')->group(function () {
     Route::post('/membership-requests', [MembershipRequestController::class, 'store'])
         ->middleware('throttle:membership-request');
 
-    Route::middleware(['auth:sanctum', 'approval', 'throttle:api'])->group(function () {
+    Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
 
         Route::middleware(['permission:manage_membership_requests', 'approved'])->group(function () {
             Route::get('/membership-requests', [MembershipRequestController::class, 'index']);
@@ -816,7 +552,7 @@ Route::prefix('v1')->group(function () {
 |--------------------------------------------------------------------------
 */
 
-Route::prefix('v1')->middleware(['auth:sanctum', 'approval', 'role:'.UserRole::PlatformAdmin->value, 'throttle:api'])->group(function () {
+Route::prefix('v1')->middleware(['auth:sanctum', 'role:' . UserRole::PlatformAdmin->value, 'throttle:api'])->group(function () {
 
     Route::get('/platform/dashboard', [PlatformController::class, 'dashboard']);
 
@@ -827,10 +563,10 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'approval', 'role:'.UserRole::P
     Route::get('/platform/churches/{id}/deleted-detail', [ChurchDeletionController::class, 'deletedDetail']);
 
     Route::get('/platform/churches', function () {
-        $churches = Church::withTrashed()->withCount('users')->get();
+        $churches = \App\Models\Church::withTrashed()->withCount('users')->get();
 
         return response()->json([
-            'data' => $churches->map(fn ($c) => [
+            'data' => $churches->map(fn($c) => [
                 'id' => $c->id,
                 'name' => $c->name,
                 'slug' => $c->slug,
@@ -868,3 +604,5 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'approval', 'role:'.UserRole::P
         ->middleware('throttle:sensitive');
 
 });
+
+

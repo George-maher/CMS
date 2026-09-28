@@ -16,6 +16,16 @@ class CreateUserRequest extends FormRequest
     }
 
     /**
+     * Note on `class_id` / `stage_id`:
+     *
+     * These are validated for *existence* only, deliberately without tenant
+     * scoping. A `Rule::exists()->where('church_id', ...)` rule would report a
+     * cross-tenant reference as a 422 validation failure, but referencing a
+     * resource outside your tenant is an authorization failure and must surface
+     * as 403. The tenant boundary is therefore enforced in exactly one place —
+     * UserService::create() — which owns it for every caller. This rule only
+     * catches ids that do not exist at all.
+     *
      * @return array<string, mixed>
      */
     public function rules(): array

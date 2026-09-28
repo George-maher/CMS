@@ -3,10 +3,8 @@
 namespace App\Models;
 
 use App\Traits\BelongsToChurch;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Support\Carbon;
 
 /**
  * @property int $id
@@ -19,14 +17,13 @@ use Illuminate\Support\Carbon;
  * @property string|null $body
  * @property string $type
  * @property bool $is_read
- * @property Carbon|null $read_at
- * @property Carbon|null $created_at
- * @property Carbon|null $updated_at
- * @property-read User|null $user
- * @property-read Event|null $event
- * @property-read Feedback|null $feedback
- * @property-read Point|null $point
- *
+ * @property \Illuminate\Support\Carbon|null $read_at
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \App\Models\User|null $user
+ * @property-read \App\Models\Event|null $event
+ * @property-read \App\Models\Feedback|null $feedback
+ * @property-read \App\Models\Point|null $point
  * @method static \Illuminate\Database\Eloquent\Builder|\App\Models\Notification unread()
  * @method static \Illuminate\Database\Eloquent\Builder|\App\Models\Notification forUser(int $userId)
  */
@@ -55,44 +52,44 @@ class Notification extends Model
         ];
     }
 
-    /** @return BelongsTo<User, $this> */
+    /** @return BelongsTo<\App\Models\User, $this> */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
-    /** @return BelongsTo<Event, $this> */
+    /** @return BelongsTo<\App\Models\Event, $this> */
     public function event(): BelongsTo
     {
         return $this->belongsTo(Event::class);
     }
 
-    /** @return BelongsTo<Feedback, $this> */
+    /** @return BelongsTo<\App\Models\Feedback, $this> */
     public function feedback(): BelongsTo
     {
         return $this->belongsTo(Feedback::class);
     }
 
-    /** @return BelongsTo<Point, $this> */
+    /** @return BelongsTo<\App\Models\Point, $this> */
     public function point(): BelongsTo
     {
         return $this->belongsTo(Point::class, 'points_id');
     }
 
     /**
-     * @param  Builder<Notification>  $query
-     * @return Builder<Notification>
+     * @param \Illuminate\Database\Eloquent\Builder<\App\Models\Notification> $query
+     * @return \Illuminate\Database\Eloquent\Builder<\App\Models\Notification>
      */
-    public function scopeUnread($query): Builder
+    public function scopeUnread($query): \Illuminate\Database\Eloquent\Builder
     {
         return $query->where('is_read', false);
     }
 
     /**
-     * @param  Builder<Notification>  $query
-     * @return Builder<Notification>
+     * @param \Illuminate\Database\Eloquent\Builder<\App\Models\Notification> $query
+     * @return \Illuminate\Database\Eloquent\Builder<\App\Models\Notification>
      */
-    public function scopeForUser($query, int $userId): Builder
+    public function scopeForUser($query, int $userId): \Illuminate\Database\Eloquent\Builder
     {
         return $query->where('user_id', $userId);
     }

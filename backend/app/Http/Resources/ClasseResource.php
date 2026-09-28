@@ -2,12 +2,10 @@
 
 namespace App\Http\Resources;
 
-use App\Models\Classe;
-use App\Models\Stage;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
-/** @mixin Classe */
+/** @mixin \App\Models\Classe */
 class ClasseResource extends JsonResource
 {
     /** @return array<string, mixed> */
@@ -22,9 +20,8 @@ class ClasseResource extends JsonResource
             'member_count' => (int) ($this->member_count ?? 0),
             'servant_count' => (int) ($this->servant_count ?? 0),
             'stage' => $this->whenLoaded('stage', function () {
-                /** @var Stage $stage */
+                /** @var \App\Models\Stage $stage */
                 $stage = $this->stage;
-
                 return [
                     'id' => $stage->id,
                     'name' => $stage->name,

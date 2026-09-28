@@ -15,7 +15,6 @@ class AttendanceContextFactory extends Factory
     public function definition(): array
     {
         $name = fake()->unique()->words(2, true);
-
         return [
             'church_id' => Church::factory(),
             'name' => $name,

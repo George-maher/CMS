@@ -14,7 +14,6 @@ return [
     |
     */
 
-    // Temporary production mode: email is local-only and not a boot dependency.
     'default' => env('MAIL_MAILER', 'log'),
 
     /*
@@ -31,7 +30,7 @@ return [
     | your mailers below. You may also add additional mailers if needed.
     |
     | Supported: "smtp", "sendmail", "mailgun", "ses", "ses-v2",
-    |            "postmark", "log", "array",
+    |            "postmark", "resend", "log", "array",
     |            "failover", "roundrobin"
     |
     */
@@ -40,12 +39,12 @@ return [
 
         'smtp' => [
             'transport' => 'smtp',
-            'scheme' => env('MAIL_SCHEME', env('MAIL_ENCRYPTION')),
+            'scheme' => env('MAIL_SCHEME'),
             'url' => env('MAIL_URL'),
             'host' => env('MAIL_HOST', '127.0.0.1'),
             'port' => env('MAIL_PORT', 2525),
             'username' => env('MAIL_USERNAME'),
-            'password' => env('MAIL_PASSWORD'),
+            'password' => env('MAIL_PASSWORD', env('RESEND_API_KEY')),
             'timeout' => null,
             'local_domain' => env('MAIL_EHLO_DOMAIN', parse_url((string) env('APP_URL', 'http://localhost'), PHP_URL_HOST)),
         ],
@@ -60,6 +59,10 @@ return [
             // 'client' => [
             //     'timeout' => 5,
             // ],
+        ],
+
+        'resend' => [
+            'transport' => 'resend',
         ],
 
         'sendmail' => [

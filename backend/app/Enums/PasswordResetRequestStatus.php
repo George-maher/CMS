@@ -7,7 +7,6 @@ enum PasswordResetRequestStatus: string
     case Pending = 'pending';
     case Approved = 'approved';
     case Rejected = 'rejected';
-    case Completed = 'completed';
 
     public function label(): string
     {
@@ -15,7 +14,6 @@ enum PasswordResetRequestStatus: string
             self::Pending => 'Pending',
             self::Approved => 'Approved',
             self::Rejected => 'Rejected',
-            self::Completed => 'Completed',
         };
     }
 }

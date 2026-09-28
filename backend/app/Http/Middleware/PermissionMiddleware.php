@@ -3,7 +3,6 @@
 namespace App\Http\Middleware;
 
 use App\Models\Permission;
-use App\Models\User;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -14,11 +13,12 @@ class PermissionMiddleware
     {
         $user = $request->user();
 
-        if (! $user) {
+        if (!$user) {
             return response()->json(['message' => 'Unauthenticated.'], 401);
         }
 
-        /** @var User $user */
+        /** @var \App\Models\User $user */
+
         $requiredPermissions = [];
         foreach ($permissions as $perm) {
             foreach (explode(',', $perm) as $p) {
@@ -35,7 +35,6 @@ class PermissionMiddleware
 
         foreach ($requiredPermissions as $permission) {
             if (Permission::userHasPermission($user, $permission)) {
-
                 /** @var Response $response */
                 $response = $next($request);
 

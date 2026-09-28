@@ -2,7 +2,6 @@
 
 namespace App\Http\Middleware;
 
-use App\Models\User;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -13,12 +12,12 @@ class CheckApproval
     {
         $user = $request->user();
 
-        if (! $user) {
+        if (!$user) {
             return response()->json(['message' => 'Unauthenticated.'], 401);
         }
 
-        /** @var User $user */
-        if (! $user->isApproved()) {
+        /** @var \App\Models\User $user */
+        if (!$user->isApproved()) {
             return response()->json([
                 'message' => 'Your account is pending approval. You cannot perform this action until your application is approved.',
             ], 403);

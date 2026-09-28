@@ -3,10 +3,8 @@
 namespace App\Models;
 
 use App\Traits\BelongsToChurch;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Support\Carbon;
 
 /**
  * @property int $id
@@ -15,10 +13,9 @@ use Illuminate\Support\Carbon;
  * @property string $reference
  * @property int|null $created_by
  * @property bool $is_active
- * @property Carbon|null $created_at
- * @property Carbon|null $updated_at
- * @property-read User|null $creator
- *
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \App\Models\User|null $creator
  * @method static \Illuminate\Database\Eloquent\Builder|\App\Models\DailyVerse active()
  */
 class DailyVerse extends Model
@@ -40,17 +37,17 @@ class DailyVerse extends Model
         ];
     }
 
-    /** @return BelongsTo<User, $this> */
+    /** @return BelongsTo<\App\Models\User, $this> */
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
     }
 
     /**
-     * @param  Builder<DailyVerse>  $query
-     * @return Builder<DailyVerse>
+     * @param \Illuminate\Database\Eloquent\Builder<\App\Models\DailyVerse> $query
+     * @return \Illuminate\Database\Eloquent\Builder<\App\Models\DailyVerse>
      */
-    public function scopeActive($query): Builder
+    public function scopeActive($query): \Illuminate\Database\Eloquent\Builder
     {
         return $query->where('is_active', true);
     }

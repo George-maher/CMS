@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use App\Traits\BelongsToChurch;
-use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -21,12 +20,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int|null $church_id
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
- * @property-read User|null $user
- * @property-read User|null $recorder
- * @property-read Classe|null $classe
- * @property-read QRInvite|null $qrInvite
- * @property-read Event|null $event
- * @property-read AttendanceContext|null $attendanceContext
+ * @property-read \App\Models\User|null $user
+ * @property-read \App\Models\User|null $recorder
+ * @property-read \App\Models\Classe|null $classe
+ * @property-read \App\Models\QRInvite|null $qrInvite
+ * @property-read \App\Models\Event|null $event
+ * @property-read \App\Models\AttendanceContext|null $attendanceContext
  * @property-read string|null $last_attended_at
  * @property-read int $attended_days
  * @property-read int $count
@@ -47,14 +46,13 @@ class Attendance extends Model
         'attended_date',
         'points_earned',
         'church_id',
-        'status',
     ];
 
     protected static function booted(): void
     {
         static::creating(function (Attendance $attendance) {
-            if ($attendance->attended_at && ! $attendance->attended_date) {
-                $attendance->attended_date = $attendance->attended_at instanceof Carbon
+            if ($attendance->attended_at && !$attendance->attended_date) {
+                $attendance->attended_date = $attendance->attended_at instanceof \Carbon\Carbon
                     ? $attendance->attended_at->toDateString()
                     : $attendance->attended_at;
             }
@@ -67,41 +65,40 @@ class Attendance extends Model
             'attended_at' => 'datetime',
             'attended_date' => 'date:Y-m-d',
             'points_earned' => 'integer',
-            'status' => 'string',
         ];
     }
 
-    /** @return BelongsTo<User, $this> */
+    /** @return BelongsTo<\App\Models\User, $this> */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
-    /** @return BelongsTo<User, $this> */
+    /** @return BelongsTo<\App\Models\User, $this> */
     public function recorder(): BelongsTo
     {
         return $this->belongsTo(User::class, 'recorded_by');
     }
 
-    /** @return BelongsTo<Classe, $this> */
+    /** @return BelongsTo<\App\Models\Classe, $this> */
     public function classe(): BelongsTo
     {
         return $this->belongsTo(Classe::class, 'class_year_id');
     }
 
-    /** @return BelongsTo<QRInvite, $this> */
+    /** @return BelongsTo<\App\Models\QRInvite, $this> */
     public function qrInvite(): BelongsTo
     {
         return $this->belongsTo(QRInvite::class);
     }
 
-    /** @return BelongsTo<Event, $this> */
+    /** @return BelongsTo<\App\Models\Event, $this> */
     public function event(): BelongsTo
     {
         return $this->belongsTo(Event::class);
     }
 
-    /** @return BelongsTo<AttendanceContext, $this> */
+    /** @return BelongsTo<\App\Models\AttendanceContext, $this> */
     public function attendanceContext(): BelongsTo
     {
         return $this->belongsTo(AttendanceContext::class);
