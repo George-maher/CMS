@@ -1,7 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { trySyncAll, queueOfflineRequest, onSyncEvent } from '@/lib/sync'
-import { getSyncQueueLength } from '@/lib/db'
+import { getActionableSyncCount } from '@/lib/db'
 import { useOffline } from './OfflineContext'
 
 interface SyncContextType {
@@ -23,7 +23,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   const syncingRef = useRef(false)
 
   const refreshPendingCount = useCallback(async () => {
-    const count = await getSyncQueueLength()
+    const count = await getActionableSyncCount()
     setPendingCount(count)
   }, [])
 
@@ -50,7 +50,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let active = true
-    getSyncQueueLength().then((count) => {
+    getActionableSyncCount().then((count) => {
       if (active) setPendingCount(count)
     })
     return () => { active = false }
@@ -71,6 +71,18 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       triggerSync()
     }
   }, [wasOffline, isOnline, resetWasOffline, triggerSync])
+
+  // Drain the queue on mount as well as on an offline->online transition.
+  //
+  // `wasOffline` is only set by the browser's `offline` event, so a queue left
+  // over from a previous page load or a previous session sat untouched until
+  // the user happened to go offline and come back. Reloading the app is the
+  // ordinary case, not the exception.
+  //
+  // A no-op when the queue is empty, so this costs one IndexedDB read.
+  useEffect(() => {
+    void triggerSync()
+  }, [triggerSync])
 
   return (
     <SyncContext.Provider

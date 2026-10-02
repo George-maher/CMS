@@ -6,6 +6,7 @@ use Database\Factories\ChurchApplicationFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
 /**
  * @property int $id
@@ -23,13 +24,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string|null $church_permission_doc_path
  * @property string $status
  * @property int|null $reviewed_by
- * @property \Illuminate\Support\Carbon|null $reviewed_at
- * @property \Illuminate\Support\Carbon|null $rejected_at
+ * @property Carbon|null $reviewed_at
+ * @property Carbon|null $rejected_at
  * @property string|null $admin_notes
  * @property string|null $rejection_reason
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
- * @property-read \App\Models\User|null $reviewer
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
+ * @property-read User|null $reviewer
  */
 class ChurchApplication extends Model
 {
@@ -65,7 +66,7 @@ class ChurchApplication extends Model
         ];
     }
 
-    /** @return BelongsTo<\App\Models\User, $this> */
+    /** @return BelongsTo<User, $this> */
     public function reviewer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'reviewed_by');

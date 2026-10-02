@@ -342,6 +342,7 @@
         "attendanceRecorded": "تم تسجيل الحضور",
         "pointsEarned": "نقاط مكتسبة",
         "failedToRecord": "فشل تسجيل الحضور.",
+        "queuedOffline": "لا يوجد اتصال — تم حفظ الحضور وسيتم مزامنته تلقائيًا عند عودة الاتصال.",
         "memberNotFound": "العضو غير موجود أو الرمز غير صالح.",
         "attendanceHistory": "سجل الحضور",
         "date": "التاريخ",

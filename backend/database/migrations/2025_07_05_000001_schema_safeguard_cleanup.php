@@ -48,13 +48,13 @@ return new class extends Migration
     public function up(): void
     {
         foreach ($this->columnChecks as $table => $columns) {
-            if (!Schema::hasTable($table)) {
+            if (! Schema::hasTable($table)) {
                 continue;
             }
 
             Schema::table($table, function (Blueprint $t) use ($table, $columns) {
                 foreach ($columns as $column) {
-                    if (!Schema::hasColumn($table, $column)) {
+                    if (! Schema::hasColumn($table, $column)) {
                         $this->addSafeColumn($t, $table, $column);
                     }
                 }

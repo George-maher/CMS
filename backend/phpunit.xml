@@ -11,6 +11,48 @@
         <testsuite name="Feature">
             <directory>tests/Feature</directory>
         </testsuite>
+        <!--
+        Security testsuite: the tenant-isolation and authorization gate.
+
+        This is a NAMED, EXPLICIT list rather than a directory glob. It exists
+        so the PostgreSQL CI job can run a focused, high-signal security gate
+        on the real production engine without paying for the whole feature
+        suite, and so that adding a new security test is a deliberate act
+        (adding a line here) rather than something that happens by accident
+        when a file is created in tests/Feature.
+
+        The driver-independence of every test listed here is enforced by
+        running this same suite on BOTH SQLite and PostgreSQL in CI.
+        -->
+        <testsuite name="Security">
+            <file>tests/Feature/CompositeForeignKeyTest.php</file>
+            <file>tests/Feature/AttendanceConcurrencyTest.php</file>
+            <file>tests/Feature/AttendanceClassIdSpaceTest.php</file>
+            <file>tests/Feature/CreateUserStageOwnershipTest.php</file>
+            <file>tests/Feature/TenantArchitectureTest.php</file>
+            <file>tests/Feature/TenantConsistencyTest.php</file>
+            <file>tests/Feature/TenantHierarchyIntegrityTest.php</file>
+            <file>tests/Feature/TenantIsolationMatrixTest.php</file>
+            <file>tests/Feature/TenantOrphanRepairTest.php</file>
+            <file>tests/Feature/TenantOwnershipBoundaryTest.php</file>
+            <file>tests/Feature/TenantScopeHeaderIsolationTest.php</file>
+            <file>tests/Feature/PlatformAdminAuthorizationMatrixTest.php</file>
+            <file>tests/Feature/ChurchScopeLoginTest.php</file>
+            <file>tests/Feature/StageAdminScopeTest.php</file>
+            <file>tests/Feature/StageClassBulkTest.php</file>
+            <file>tests/Feature/QRInviteCrossChurchScopingTest.php</file>
+            <file>tests/Feature/QRInviteTest.php</file>
+            <file>tests/Feature/ChurchApplicationAccessTest.php</file>
+            <file>tests/Feature/ChurchDeletionTest.php</file>
+            <file>tests/Feature/StorageEndpointAuthorizationTest.php</file>
+            <file>tests/Feature/EmailVerificationTokenSecurityTest.php</file>
+            <file>tests/Feature/InviteRegistrationFlowTest.php</file>
+            <file>tests/Feature/ServantLoginLifecycleTest.php</file>
+            <file>tests/Feature/MembershipRequestSubmitTest.php</file>
+            <file>tests/Feature/PasswordResetRequestTest.php</file>
+            <file>tests/Feature/PasswordHashTest.php</file>
+            <file>tests/Feature/RequestIdTest.php</file>
+        </testsuite>
     </testsuites>
     <source>
         <include>

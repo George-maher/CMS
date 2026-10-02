@@ -24,6 +24,19 @@ jobs:
       - name: Install dependencies
         run: composer install --no-interaction --prefer-dist --no-progress
 
+      # `--locked`, not a bare `composer audit`.
+      #
+      # `composer audit` inspects vendor/, which on a developer machine can be
+      # newer than composer.lock. `composer audit --locked` inspects the lock
+      # file, which is what `composer install` — and therefore CI and every
+      # production deploy — actually resolves. A bare audit can be clean while
+      # the locked versions carry 24 advisories, which is exactly the state
+      # this repository was in: guzzle 7.10.4, laravel 12.61.0 and flysystem
+      # 3.34.0 were pinned in the lock while vendor/ already held the patched
+      # 7.15.5 / 12.69.2 / 3.36.0.
+      - name: Dependency audit (locked versions)
+        run: composer audit --locked --no-dev
+
       - name: Run test suite (SQLite)
         run: php artisan test
 
@@ -33,8 +46,111 @@ jobs:
       - name: Pint (style check)
         run: vendor/bin/pint --test
 
+      - name: Migration rollback lint
+        run: php scripts/scan-broken-migration-rollbacks.php
+
+  # ---------------------------------------------------------------------
+  # PostgreSQL is the PRODUCTION driver. Running the suite on SQLite alone
+  # is not sufficient, and this job exists because it demonstrably was:
+  #
+  #   The composite tenant foreign key migration contained
+  #   `church_id IS NOT (SELECT ...)`, which SQLite accepts and PostgreSQL
+  #   rejects as a syntax error. `php artisan migrate` therefore aborted on
+  #   the production driver, so none of the tenant constraints were ever
+  #   actually created — while every SQLite test stayed green.
+  #
+  # A second class of bug is also caught only here: SQLite allocates rowids
+  # from one database-wide counter, so ids from DIFFERENT tables collide.
+  # Two assertions compared a church id against a class id and passed on
+  # SQLite purely by coincidence; PostgreSQL's per-table sequences exposed
+  # them.
+  #
+  # This job runs the full suite plus an explicit schema gate.
+  # ---------------------------------------------------------------------
+  postgres:
+    name: Backend — PostgreSQL (production engine)
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: church_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    defaults:
+      run:
+        working-directory: backend
+
+    env:
+      APP_ENV: testing
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '5432'
+      DB_DATABASE: church_test
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+      DB_SSLMODE: disable
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: array
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, intl, bcmath, gd, zip, pdo_pgsql, pgsql
+          coverage: none
+
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Dependency audit (locked versions)
+        run: composer audit --locked --no-dev
+
+      - name: Report engine version
+        run: php artisan db:show --database=pgsql
+
+      - name: Migrate from scratch (PostgreSQL)
+        run: php artisan migrate:fresh --force
+
+      - name: Tenant audit must be clean on a fresh database
+        run: php artisan tenant:audit
+
+      # Hard gate: the constraints must exist, be attached to the right
+      # columns, and NOT use ON UPDATE CASCADE. A migration can report DONE
+      # while having created nothing, so the catalog is inspected directly.
+      - name: Tenant schema verification
+        run: php artisan tenant:verify-schema
+
+      - name: Rollback and re-apply the newest migrations
+        run: |
+          php artisan migrate:rollback --step=4 --force
+          php artisan migrate --force
+          php artisan tenant:verify-schema
+
+      # The named, high-signal security gate, run on the production engine.
+      - name: Security suite (PostgreSQL)
+        run: php artisan test --testsuite=Security
+
+      # The whole suite. It is known to pass on PostgreSQL, so there is no
+      # reason to leave any part of it unverified on the real engine.
+      - name: Full test suite (PostgreSQL)
+        run: php artisan test
+
   frontend:
-    name: Frontend (tsc, ESLint, i18n, build)
+    name: Frontend (tsc, ESLint, i18n, unit tests, build)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -60,5 +176,20 @@ jobs:
       - name: i18n EN/AR parity
         run: npm run check:i18n
 
+      # Session isolation, offline queue state machine, and the PWA
+      # no-API-caching guards.
+      #
+      # The build runs FIRST on purpose: `pwaIsolation.test.ts` inspects the
+      # GENERATED dist/sw.js, not just vite.config.ts, so the artifact checks
+      # are skipped rather than silently passing when there is no build. A
+      # workbox default, an injected manifest, or a hand-placed sw.js in
+      # public/ would pass a source-only check while caching authenticated API
+      # responses to disk.
       - name: Production build
         run: npm run build
+
+      - name: Unit tests (Vitest)
+        run: npm test
+
+      - name: Dependency audit
+        run: npm audit --audit-level=high

@@ -34,7 +34,9 @@ class VerseService implements VerseServiceInterface
     public function findById(int $id): ?array
     {
         $verse = $this->verseRepository->findById($id);
-        if (!$verse) return null;
+        if (! $verse) {
+            return null;
+        }
 
         return [
             'data' => new DailyVerseResource($verse),
@@ -75,7 +77,7 @@ class VerseService implements VerseServiceInterface
     {
         /** @var array<string, mixed> $data */
         $verse = $this->verseRepository->findById($id);
-        if (!$verse) {
+        if (! $verse) {
             throw ValidationException::withMessages([
                 'id' => ['Verse not found.'],
             ]);
@@ -83,7 +85,7 @@ class VerseService implements VerseServiceInterface
 
         $this->verseRepository->update($id, $data);
 
-        if (!empty($data['is_active'])) {
+        if (! empty($data['is_active'])) {
             $this->verseRepository->deactivateAll();
             $verse->update(['is_active' => true]);
         }
@@ -98,7 +100,7 @@ class VerseService implements VerseServiceInterface
     public function delete(int $id): void
     {
         $verse = $this->verseRepository->findById($id);
-        if (!$verse) {
+        if (! $verse) {
             throw ValidationException::withMessages([
                 'id' => ['Verse not found.'],
             ]);
@@ -110,7 +112,7 @@ class VerseService implements VerseServiceInterface
     public function activate(int $id): array
     {
         $verse = $this->verseRepository->findById($id);
-        if (!$verse) {
+        if (! $verse) {
             throw ValidationException::withMessages([
                 'id' => ['Verse not found.'],
             ]);
@@ -131,7 +133,9 @@ class VerseService implements VerseServiceInterface
     {
         return $this->cacheService->rememberActiveVerse(0, function () {
             $verse = $this->verseRepository->getActive();
-            if (!$verse) return null;
+            if (! $verse) {
+                return null;
+            }
 
             return [
                 'data' => new DailyVerseResource($verse),

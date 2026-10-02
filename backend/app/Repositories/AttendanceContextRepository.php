@@ -4,7 +4,6 @@ namespace App\Repositories;
 
 use App\Contracts\AttendanceContextRepositoryInterface;
 use App\Models\AttendanceContext;
-use App\Models\Scopes\ChurchScope;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Schema;
@@ -13,16 +12,16 @@ class AttendanceContextRepository implements AttendanceContextRepositoryInterfac
 {
     public function findById(int $id): ?AttendanceContext
     {
-        return AttendanceContext::withoutGlobalScope(ChurchScope::class)->find($id);
+        return AttendanceContext::query()->find($id);
     }
 
     public function findBySlug(string $slug): ?AttendanceContext
     {
-        return AttendanceContext::withoutGlobalScope(ChurchScope::class)->where('slug', $slug)->first();
+        return AttendanceContext::query()->where('slug', $slug)->first();
     }
 
     /**
-     * @param array<string, mixed> $data
+     * @param  array<string, mixed>  $data
      */
     public function create(array $data): AttendanceContext
     {
@@ -30,29 +29,35 @@ class AttendanceContextRepository implements AttendanceContextRepositoryInterfac
     }
 
     /**
-     * @param array<string, mixed> $data
+     * @param  array<string, mixed>  $data
      */
     public function update(int $id, array $data): bool
     {
         $context = $this->findById($id);
-        if (!$context) return false;
+        if (! $context) {
+            return false;
+        }
+
         return $context->update($data);
     }
 
     public function delete(int $id): bool
     {
         $context = $this->findById($id);
-        if (!$context) return false;
+        if (! $context) {
+            return false;
+        }
+
         return (bool) $context->delete();
     }
 
     /**
-     * @param array<string, mixed> $filters
+     * @param  array<string, mixed>  $filters
      * @return LengthAwarePaginator<int, AttendanceContext>
      */
     public function paginate(int $perPage, array $filters = []): LengthAwarePaginator
     {
-        $query = AttendanceContext::withoutGlobalScope(ChurchScope::class)
+        $query = AttendanceContext::query()
             ->with('creator')
             ->orderBy('is_active', 'desc')
             ->orderBy('name');
@@ -61,10 +66,10 @@ class AttendanceContextRepository implements AttendanceContextRepositoryInterfac
             $query->with('updater');
         }
 
-        if (!empty($filters['church_id'])) {
+        if (array_key_exists('church_id', $filters) && $filters['church_id'] !== null) {
             $query->where(function ($q) use ($filters) {
                 $q->where('church_id', $filters['church_id'])
-                  ->orWhereNull('church_id');
+                    ->orWhereNull('church_id');
             });
         }
 
@@ -77,16 +82,18 @@ class AttendanceContextRepository implements AttendanceContextRepositoryInterfac
     public function getActive(): Collection
     {
         $churchId = auth()->user()?->church_id;
-        $query = AttendanceContext::withoutGlobalScope(ChurchScope::class)
+        if (! $churchId) {
+            return new Collection;
+        }
+
+        $query = AttendanceContext::query()
             ->active()
             ->orderBy('name');
 
-        if ($churchId) {
-            $query->where(function ($q) use ($churchId) {
-                $q->where('church_id', $churchId)
-                  ->orWhereNull('church_id');
-            });
-        }
+        $query->where(function ($q) use ($churchId) {
+            $q->where('church_id', $churchId)
+                ->orWhereNull('church_id');
+        });
 
         return $query->get();
     }
@@ -106,10 +113,10 @@ class AttendanceContextRepository implements AttendanceContextRepositoryInterfac
      */
     public function getActiveForChurch(int $churchId): Collection
     {
-        return AttendanceContext::withoutGlobalScope(ChurchScope::class)
+        return AttendanceContext::query()
             ->where(function ($q) use ($churchId) {
                 $q->where('church_id', $churchId)
-                  ->orWhereNull('church_id');
+                    ->orWhereNull('church_id');
             })
             ->active()
             ->orderBy('name')

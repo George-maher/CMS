@@ -19,7 +19,7 @@ class DashboardController extends Controller
 
     public function stats(Request $request): JsonResponse
     {
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = $request->user();
         $churchId = $user->church_id;
 
@@ -37,11 +37,15 @@ class DashboardController extends Controller
             $totalServants = (clone $query)->where('role', UserRole::Servant)->count();
 
             $totalAttendances = Attendance::whereHas('user', function ($q) use ($churchId) {
-                if ($churchId) $q->where('church_id', $churchId);
+                if ($churchId) {
+                    $q->where('church_id', $churchId);
+                }
             })->count();
 
             $totalPoints = Point::whereHas('user', function ($q) use ($churchId) {
-                if ($churchId) $q->where('church_id', $churchId);
+                if ($churchId) {
+                    $q->where('church_id', $churchId);
+                }
             })->sum('points');
 
             return [

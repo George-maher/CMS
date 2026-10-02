@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\User;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -13,11 +14,11 @@ class RequireReauth
     {
         $user = $request->user();
 
-        if (!$user) {
+        if (! $user) {
             return response()->json(['message' => 'Unauthenticated.'], 401);
         }
 
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         /** @var string|null $password */
         /** @var string|null $password */
         $password = $request->input('password');
@@ -33,7 +34,7 @@ class RequireReauth
         /** @var string|null $reauthToken */
         $reauthToken = $request->header('X-Reauth-Token');
         if ($reauthToken && $password) {
-            $expected = hash_hmac('sha256', 'reauth:' . $user->id, $password);
+            $expected = hash_hmac('sha256', 'reauth:'.$user->id, $password);
             if (hash_equals($expected, $reauthToken)) {
                 /** @var Response $response */
                 $response = $next($request);

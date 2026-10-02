@@ -4,7 +4,9 @@ namespace App\Models;
 
 use App\Enums\UserRole;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 
 /**
  * @property int $id
@@ -12,8 +14,8 @@ use Illuminate\Support\Facades\Cache;
  * @property string $name
  * @property string|null $group
  * @property string|null $description
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
  */
 class Permission extends Model
 {
@@ -28,26 +30,59 @@ class Permission extends Model
         'key' => 'string',
     ];
 
-    /** @return array<int, string> */
+    /**
+     * @return array<int, string>
+     */
     public static function getPermissionsForRole(string $roleName): array
     {
-        $result = \Illuminate\Support\Facades\DB::table('role_permission as rp')
-            ->join('permissions as p', 'rp.permission_key', '=', 'p.key')
-            ->where('rp.role_name', $roleName)
-            ->pluck('p.key')
-            ->toArray();
-        /** @var array<int, string> $result */
-        return $result;
+        // Short TTL (1h) so a stale/empty mapping self-heals without an
+        // operator having to clear the cache or re-run the PermissionSeeder.
+        return Cache::remember("permissions_role_{$roleName}", 3600, function () use ($roleName) {
+            $result = DB::table('role_permission as rp')
+                ->join('permissions as p', 'rp.permission_key', '=', 'p.key')
+                ->where('rp.role_name', $roleName)
+                ->pluck('p.key')
+                ->toArray();
+
+            /** @var array<int, string> $result */
+            return $result;
+        });
     }
 
-    public static function roleHasPermission(string $roleName, string $permissionKey): bool
+    /**
+     * Whether the role_permission mapping has been seeded at all.
+     * Used to fall back to defaults when deployments forget to run the seeder.
+     */
+    public static function rolePermissionsSeeded(): bool
     {
-        return in_array($permissionKey, self::getPermissionsForRole($roleName), true);
+        return DB::table('role_permission')->exists();
     }
 
     public static function userHasPermission(User $user, string $permissionKey): bool
     {
-        return self::roleHasPermission($user->role->value, $permissionKey);
+        $roleName = $user->role->value;
+        /** @var array<int, string>|null $defaults */
+        $defaults = self::defaultRolePermissions()[$roleName] ?? null;
+
+        if (! self::rolePermissionsSeeded()) {
+            return $defaults !== null && in_array($permissionKey, $defaults, true);
+        }
+
+        /** @var array<int, string> $mapped */
+        $mapped = self::getPermissionsForRole($roleName);
+
+        // Defensive fallback: a partially seeded database, a corrupt
+        // role_permission→permissions join, or a stale empty cache would
+        // otherwise lock every user of this role out of all permission-gated
+        // routes. When the DB mapping resolves empty but the role has built-in
+        // defaults, prefer the defaults — the next seed/boot repairs the DB.
+        if ($mapped === [] && $defaults !== null) {
+            self::clearCache();
+
+            return in_array($permissionKey, $defaults, true);
+        }
+
+        return in_array($permissionKey, $mapped, true);
     }
 
     public static function clearCache(): void
@@ -67,6 +102,9 @@ class Permission extends Model
             ['key' => 'view_users', 'name' => 'View Users', 'group' => 'users'],
             ['key' => 'manage_events', 'name' => 'Manage Events', 'group' => 'events'],
             ['key' => 'view_events', 'name' => 'View Events', 'group' => 'events'],
+            ['key' => 'manage_event_registrations', 'name' => 'Manage Event Registrations', 'group' => 'events'],
+            ['key' => 'manage_event_payments', 'name' => 'Manage Event Payments', 'group' => 'events'],
+            ['key' => 'view_event_reports', 'name' => 'View Event Reports', 'group' => 'events'],
             ['key' => 'manage_class_years', 'name' => 'Manage Class Years', 'group' => 'classes'],
             ['key' => 'view_class_years', 'name' => 'View Class Years', 'group' => 'classes'],
             ['key' => 'manage_attendance', 'name' => 'Manage Attendance', 'group' => 'attendance'],
@@ -93,37 +131,16 @@ class Permission extends Model
     public static function defaultRolePermissions(): array
     {
         return [
-            UserRole::Admin->value => [
-                'manage_members', 'manage_servants', 'manage_users', 'view_users',
-                'manage_events', 'view_events',
-                'manage_class_years', 'view_class_years',
-                'manage_attendance', 'record_attendance', 'view_attendance',
-                'manage_invites', 'view_invites',
-                'manage_feedback', 'view_feedback',
-                'manage_verses', 'view_verses',
-                'manage_attendance_contexts',
-                'view_analytics',
-                'manage_church_settings',
-                'manage_points', 'view_points',
-                'manage_membership_requests', 'view_membership_requests',
-            ],
-            UserRole::AssistantAdmin->value => [
-                'manage_members', 'manage_servants', 'manage_users', 'view_users',
-                'manage_events', 'view_events',
-                'manage_class_years', 'view_class_years',
-                'manage_attendance', 'record_attendance', 'view_attendance',
-                'manage_invites', 'view_invites',
-                'manage_feedback', 'view_feedback',
-                'manage_verses', 'view_verses',
-                'manage_attendance_contexts',
-                'view_analytics',
-                'manage_church_settings',
-                'manage_points', 'view_points',
-                'manage_membership_requests', 'view_membership_requests',
-            ],
+            UserRole::Admin->value => self::adminPermissionKeys(),
+            UserRole::AssistantAdmin->value => self::adminPermissionKeys(),
+            UserRole::StageAdmin->value => array_values(array_diff(
+                self::adminPermissionKeys(),
+                ['manage_church_settings'],
+            )),
             UserRole::Servant->value => [
                 'view_users',
                 'view_events', 'manage_events',
+                'manage_event_registrations', 'view_event_reports',
                 'view_class_years',
                 'record_attendance', 'view_attendance',
                 'manage_invites', 'view_invites',
@@ -140,6 +157,28 @@ class Permission extends Model
                 'view_points',
                 'submit_feedback',
             ],
+        ];
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private static function adminPermissionKeys(): array
+    {
+        return [
+            'manage_members', 'manage_servants', 'manage_users', 'view_users',
+            'manage_events', 'view_events',
+            'manage_event_registrations', 'manage_event_payments', 'view_event_reports',
+            'manage_class_years', 'view_class_years',
+            'manage_attendance', 'record_attendance', 'view_attendance',
+            'manage_invites', 'view_invites',
+            'manage_feedback', 'view_feedback',
+            'manage_verses', 'view_verses',
+            'manage_attendance_contexts',
+            'view_analytics',
+            'manage_church_settings',
+            'manage_points', 'view_points',
+            'manage_membership_requests', 'view_membership_requests',
         ];
     }
 }

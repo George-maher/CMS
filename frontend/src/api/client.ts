@@ -1,6 +1,7 @@
 import axios from 'axios'
 import { logAxiosError } from '@/lib/debug'
 import { addToSyncQueue, clearAllData } from '@/lib/db'
+import { API_BASE_URL } from '@/lib/apiUrl'
 import { getCached, setCache, isStale, getInflight, setInflight, invalidateCache, getGeneration } from '@/lib/requestCache'
 import { recordApiTiming } from '@/lib/perf'
 
@@ -12,28 +13,17 @@ import { recordApiTiming } from '@/lib/perf'
  *   For Docker dev, leave as default:
  *     VITE_API_URL=/api
  *
- * The code below always appends /api/v1 to construct the final baseURL,
- * regardless of whether VITE_API_URL already includes /api or not.
- * This guarantees the URL always matches Laravel's automatic /api prefix.
+ * The base URL is built once in `@/lib/apiUrl` and imported, so the live
+ * client and the offline replay loop cannot derive it two different ways.
+ * It always resolves to `<origin>/api/v1`, regardless of whether VITE_API_URL
+ * already includes /api, matching Laravel's automatic /api prefix.
  *
  * withCredentials: true is required for cross-origin requests (Vercel → Railway)
  * to send cookies for Sanctum SPA authentication and ensure CORS credentials flow.
  * It also forces the browser to include Origin header on every request.
  */
-const API_URL = import.meta.env.VITE_API_URL || '/api'
-
-function buildBaseUrl(rawUrl: string): string {
-  if (rawUrl.startsWith('http')) {
-    const url = new URL(rawUrl.replace(/\/+$/, ''))
-    url.pathname = '/api/v1'
-    return url.toString().replace(/\/+$/, '')
-  }
-  const normalized = rawUrl.replace(/\/+$/, '') || '/api'
-  return `${normalized}/v1`
-}
-
 const client = axios.create({
-  baseURL: buildBaseUrl(API_URL),
+  baseURL: API_BASE_URL,
   withCredentials: true,
   headers: { Accept: 'application/json' },
 })
@@ -47,15 +37,34 @@ const client = axios.create({
  * index.html as API data).
  */
 const networkClient = axios.create({
-  baseURL: buildBaseUrl(API_URL),
+  baseURL: API_BASE_URL,
   withCredentials: true,
   headers: { Accept: 'application/json' },
 })
 
+/**
+ * Endpoints whose writes are safe to replay later, and are queued when the
+ * device is offline.
+ *
+ * These are matched against `config.url`, which is the RELATIVE path the API
+ * layer passes to `client.post(...)` — e.g. `/attendances/record`. The `/api/v1`
+ * prefix is only ever applied to the instance's `baseURL` (see
+ * `@/lib/apiUrl`); it never appears in `config.url`. An earlier version of this
+ * list matched `/\/api\/v1\/attendance$/`, which therefore could never match
+ * anything, and no attendance write was ever queued.
+ *
+ * Only attendance is offline-writable. Attendance is the one write where
+ * losing it to a dropped connection is a real loss of a business record, and
+ * the backend rejects an exact replay as a duplicate (`AttendanceService`
+ * checks for the day's attendance and a unique index backs it up), so
+ * at-least-once delivery here degrades safely to at-most-once.
+ *
+ * Pinned by `src/test/offlineAttendancePath.test.ts`, which drives the real
+ * interceptor rather than matching a pattern against this source text.
+ */
 const OFFLINE_WRITABLE_PATTERNS = [
-  /\/api\/v1\/attendance$/,
-  /\/api\/v1\/attendance\/bulk$/,
-  /\/api\/v1\/attendance\/scan$/,
+  /^\/attendances\/record$/,
+  /^\/attendances\/record-by-member-id$/,
 ]
 
 /*
@@ -279,7 +288,12 @@ client.interceptors.response.use(
     logAxiosError('Response Interceptor', error)
 
     if (error.response?.status === 401) {
-      const publicPaths = ['/login', '/register', '/invite/', '/forgot-password']
+      // `/chconfirmation777` is the platform-admin login route (see App.tsx).
+      // It was missing here, so a wrong platform password returned 401, was
+      // treated as a dead session, and wiped the IndexedDB queue + cache and
+      // redirected to `/login` — destroying the user's queued offline work
+      // and bouncing them off the page they were on.
+      const publicPaths = ['/login', '/register', '/invite/', '/forgot-password', '/chconfirmation777']
       const onPublicPage = publicPaths.some(p => window.location.pathname.startsWith(p))
       if (!onPublicPage) {
         clearRequestCache()

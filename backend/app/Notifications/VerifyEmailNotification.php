@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\User;
+use App\Services\EmailVerificationService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeEncrypted;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -23,7 +24,7 @@ use Illuminate\Support\Facades\Log;
  *  2. `failed()` writes metadata only. It must never interpolate `$verificationUrl`
  *     or any exception message that could contain it.
  *
- * @see \App\Services\EmailVerificationService which builds the URL and stores only its hash.
+ * @see EmailVerificationService which builds the URL and stores only its hash.
  */
 class VerifyEmailNotification extends Notification implements ShouldBeEncrypted, ShouldQueue
 {

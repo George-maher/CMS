@@ -6,15 +6,8 @@ use App\Models\MembershipRequest;
 
 interface MembershipRequestServiceInterface
 {
-    /**
-     * Accept a public join request without revealing account existence.
-     *
-     * Never throws for "this address already exists" reasons: such submissions
-     * are suppressed internally and acknowledged identically.
-     *
-     * @param  array<string, mixed>  $data
-     * @return array{accepted: bool, message: string}
-     */
+    /** @param array<string, mixed> $data */
+    /** @return array<string, mixed> */
     public function submit(array $data, int $churchId): array;
 
     /** @return array<string, mixed> */

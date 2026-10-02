@@ -139,7 +139,7 @@ use Illuminate\Http\Request;
 use Illuminate\Routing\Redirector;
 use Illuminate\Routing\UrlGenerator;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 
@@ -159,7 +159,6 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(AttendanceServiceInterface::class, AttendanceService::class);
         $this->app->bind(PointServiceInterface::class, PointService::class);
         $this->app->bind(UserServiceInterface::class, UserService::class);
-        $this->app->bind(UserProvisioningServiceInterface::class, UserProvisioningService::class);
 
         $this->app->bind(StageServiceInterface::class, StageService::class);
         $this->app->bind(ClasseServiceInterface::class, ClasseService::class);
@@ -194,20 +193,12 @@ class AppServiceProvider extends ServiceProvider
 
         $this->app->bind(MemberProfileServiceInterface::class, MemberProfileService::class);
 
-        $this->app->bind(DailySpiritualRecordServiceInterface::class, DailySpiritualRecordService::class);
-
-        /**
-         * The single source of truth for a user's organizational scope.
-         *
-         * Injected into the controllers, the policies and the services so that
-         * "which stage/class may this actor touch" is answered in exactly one
-         * place and can never drift between call sites.
-         */
         $this->app->bind(ScopeResolverInterface::class, ScopeResolver::class);
 
         $this->app->singleton(CacheService::class, fn () => new CacheService);
 
         $this->app->bind(ChurchApplicationServiceInterface::class, ChurchApplicationService::class);
+        $this->app->bind(DailySpiritualRecordServiceInterface::class, DailySpiritualRecordService::class);
 
         $this->app->bind(AuditServiceInterface::class, AuditService::class);
         $this->app->bind(FileUploadServiceInterface::class, FileUploadService::class);
@@ -228,29 +219,14 @@ class AppServiceProvider extends ServiceProvider
 
         $this->app->bind(NotificationServiceInterface::class, NotificationService::class);
 
+        $this->app->bind(UserProvisioningServiceInterface::class, UserProvisioningService::class);
+
         $this->app->bind(MailConfigurationValidatorInterface::class, MailConfigurationValidator::class);
         $this->app->bind(EmailVerificationServiceInterface::class, EmailVerificationService::class);
     }
 
     public function boot(): void
     {
-        // Fail the deployment loudly when outbound email cannot actually be
-        // delivered. A `log`/`array`/`null` transport would otherwise persist
-        // email verification links — i.e. account-verification tokens — into the
-        // application log, turning log read access into account takeover.
-        //
-        // Enforced for the web process (the production entry point) and for
-        // queue workers. Local and testing are exempt, and so is ordinary CLI
-        // tooling (migrations, `config:cache`, `route:list`) so a deploy pipeline
-        // can still run while mail configuration is being repaired. The
-        // authoritative control is EmailVerificationService::dispatch(), which
-        // refuses to hand a token to a transport that cannot deliver.
-        $mailConfiguration = $this->app->make(MailConfigurationValidatorInterface::class);
-
-        if ($mailConfiguration->shouldEnforceAtBoot()) {
-            $mailConfiguration->assertVerificationDeliveryConfigured();
-        }
-
         /** @var string|null $rootUrl */
         $rootUrl = config('app.url');
         if ($rootUrl !== null && $rootUrl !== '') {
@@ -280,20 +256,6 @@ class AppServiceProvider extends ServiceProvider
         Event::observe(EventObserver::class);
         ChurchApplication::observe(ChurchApplicationObserver::class);
         MembershipRequestModel::observe(MembershipRequestObserver::class);
-
-        // ──────────────────────────────────────────────
-        // Outbound sender
-        // ──────────────────────────────────────────────
-        // Pin the From address explicitly so a delivering transport cannot
-        // silently rewrite the sender, and so the MailConfigurationValidator's
-        // "MAIL_FROM_ADDRESS is not set" check reflects what is actually used.
-        /** @var string|null $fromAddress */
-        $fromAddress = config('mail.from.address');
-        /** @var string|null $fromName */
-        $fromName = config('mail.from.name');
-        if (is_string($fromAddress) && $fromAddress !== '') {
-            Mail::alwaysFrom($fromAddress, (string) $fromName);
-        }
 
         // ──────────────────────────────────────────────
         // Event → Listener Registrations
@@ -329,14 +291,14 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('api', function (Request $request) {
             return Limit::perMinute(300)
                 ->by($request->user()?->id ?: $request->ip())
-                ->response(fn () => self::rateLimitResponse());
+                ->response(fn (Request $request, array $headers) => self::rateLimitResponse($request, $headers));
         });
 
         // Guest general — 60 req/min per IP
         RateLimiter::for('guest', function (Request $request) {
             return Limit::perMinute(60)
                 ->by($request->ip())
-                ->response(fn () => self::rateLimitResponse());
+                ->response(fn (Request $request, array $headers) => self::rateLimitResponse($request, $headers));
         });
 
         // Login — 5 attempts/min per IP/email combo
@@ -347,217 +309,217 @@ class AppServiceProvider extends ServiceProvider
 
             return Limit::perMinute(5)
                 ->by($loginIp.'|'.$loginEmail)
-                ->response(fn () => self::rateLimitResponse());
+                ->response(fn (Request $request, array $headers) => self::rateLimitResponse($request, $headers));
         });
 
         // Email verification — 10 attempts/minute per IP
         RateLimiter::for('verify-email', function (Request $request) {
             return Limit::perMinute(10)
                 ->by($request->ip())
-                ->response(fn () => self::rateLimitResponse());
+                ->response(fn (Request $request, array $headers) => self::rateLimitResponse($request, $headers));
         });
 
         // Register — 10 registrations/hour per IP
         RateLimiter::for('register', function (Request $request) {
             return Limit::perHour(10)
                 ->by($request->ip())
-                ->response(fn () => self::rateLimitResponse());
+                ->response(fn (Request $request, array $headers) => self::rateLimitResponse($request, $headers));
         });
 
         // Search — 60 req/min per authenticated user
         RateLimiter::for('search', function (Request $request) {
             return Limit::perMinute(60)
                 ->by($request->user()?->id ?: $request->ip())
-                ->response(fn () => self::rateLimitResponse());
+                ->response(fn (Request $request, array $headers) => self::rateLimitResponse($request, $headers));
         });
 
         // Invite generate — 3 invites/minute per user (prevents rapid duplicate creation)
         RateLimiter::for('invite-generate', function (Request $request) {
             return Limit::perMinute(3)
                 ->by($request->user()?->id ?: $request->ip())
-                ->response(fn () => self::rateLimitResponse());
+                ->response(fn (Request $request, array $headers) => self::rateLimitResponse($request, $headers));
         });
 
         // Invite validate/details — 10 req/min per IP
         RateLimiter::for('invite-public', function (Request $request) {
             return Limit::perMinute(10)
                 ->by($request->ip())
-                ->response(fn () => self::rateLimitResponse());
+                ->response(fn (Request $request, array $headers) => self::rateLimitResponse($request, $headers));
         });
 
         // Invite accept — 10 attempts/hour per invite token
         RateLimiter::for('invite-accept', function (Request $request) {
             return Limit::perHour(10)
                 ->by($request->user()?->id ?: $request->ip())
-                ->response(fn () => self::rateLimitResponse());
+                ->response(fn (Request $request, array $headers) => self::rateLimitResponse($request, $headers));
         });
 
         // User create — 30 req/min per user
         RateLimiter::for('user-create', function (Request $request) {
             return Limit::perMinute(30)
                 ->by($request->user()?->id ?: $request->ip())
-                ->response(fn () => self::rateLimitResponse());
+                ->response(fn (Request $request, array $headers) => self::rateLimitResponse($request, $headers));
         });
 
         // User update — 60 req/min per user
         RateLimiter::for('user-update', function (Request $request) {
             return Limit::perMinute(60)
                 ->by($request->user()?->id ?: $request->ip())
-                ->response(fn () => self::rateLimitResponse());
+                ->response(fn (Request $request, array $headers) => self::rateLimitResponse($request, $headers));
         });
 
         // User delete — 10 req/min per user
         RateLimiter::for('user-delete', function (Request $request) {
             return Limit::perMinute(10)
                 ->by($request->user()?->id ?: $request->ip())
-                ->response(fn () => self::rateLimitResponse());
+                ->response(fn (Request $request, array $headers) => self::rateLimitResponse($request, $headers));
         });
 
         // User list — 30 req/min per user (search + listing)
         RateLimiter::for('user-list', function (Request $request) {
             return Limit::perMinute(30)
                 ->by($request->user()?->id ?: $request->ip())
-                ->response(fn () => self::rateLimitResponse());
+                ->response(fn (Request $request, array $headers) => self::rateLimitResponse($request, $headers));
         });
 
         // Attendance record — 100 req/min per user
         RateLimiter::for('attendance-record', function (Request $request) {
             return Limit::perMinute(100)
                 ->by($request->user()?->id ?: $request->ip())
-                ->response(fn () => self::rateLimitResponse());
+                ->response(fn (Request $request, array $headers) => self::rateLimitResponse($request, $headers));
         });
 
         // Attendance read (history, stats, today, by-class) — 60 req/min
         RateLimiter::for('attendance-read', function (Request $request) {
             return Limit::perMinute(60)
                 ->by($request->user()?->id ?: $request->ip())
-                ->response(fn () => self::rateLimitResponse());
+                ->response(fn (Request $request, array $headers) => self::rateLimitResponse($request, $headers));
         });
 
         // Attendance bulk import — 5 uploads/hour per user
         RateLimiter::for('attendance-bulk', function (Request $request) {
             return Limit::perHour(5)
                 ->by($request->user()?->id ?: $request->ip())
-                ->response(fn () => self::rateLimitResponse());
+                ->response(fn (Request $request, array $headers) => self::rateLimitResponse($request, $headers));
         });
 
         // File upload — 10 uploads/min per user
         RateLimiter::for('file-upload', function (Request $request) {
             return Limit::perMinute(10)
                 ->by($request->user()?->id ?: $request->ip())
-                ->response(fn () => self::rateLimitResponse());
+                ->response(fn (Request $request, array $headers) => self::rateLimitResponse($request, $headers));
         });
 
         // File import — 5 imports/hour per user
         RateLimiter::for('file-import', function (Request $request) {
             return Limit::perHour(5)
                 ->by($request->user()?->id ?: $request->ip())
-                ->response(fn () => self::rateLimitResponse());
+                ->response(fn (Request $request, array $headers) => self::rateLimitResponse($request, $headers));
         });
 
         // Structure CRUD — 30 req/min per user
         RateLimiter::for('structure-crud', function (Request $request) {
             return Limit::perMinute(30)
                 ->by($request->user()?->id ?: $request->ip())
-                ->response(fn () => self::rateLimitResponse());
+                ->response(fn (Request $request, array $headers) => self::rateLimitResponse($request, $headers));
         });
 
         // Structure read — 60 req/min per user
         RateLimiter::for('structure-read', function (Request $request) {
             return Limit::perMinute(60)
                 ->by($request->user()?->id ?: $request->ip())
-                ->response(fn () => self::rateLimitResponse());
+                ->response(fn (Request $request, array $headers) => self::rateLimitResponse($request, $headers));
         });
 
         // Event CRUD — 30 req/min per user
         RateLimiter::for('event-crud', function (Request $request) {
             return Limit::perMinute(30)
                 ->by($request->user()?->id ?: $request->ip())
-                ->response(fn () => self::rateLimitResponse());
+                ->response(fn (Request $request, array $headers) => self::rateLimitResponse($request, $headers));
         });
 
         // Event read — 60 req/min per user
         RateLimiter::for('event-read', function (Request $request) {
             return Limit::perMinute(60)
                 ->by($request->user()?->id ?: $request->ip())
-                ->response(fn () => self::rateLimitResponse());
+                ->response(fn (Request $request, array $headers) => self::rateLimitResponse($request, $headers));
         });
 
         // Feedback submit — 10 req/min per user
         RateLimiter::for('feedback-submit', function (Request $request) {
             return Limit::perMinute(10)
                 ->by($request->user()?->id ?: $request->ip())
-                ->response(fn () => self::rateLimitResponse());
+                ->response(fn (Request $request, array $headers) => self::rateLimitResponse($request, $headers));
         });
 
         // Feedback read — 60 req/min per user
         RateLimiter::for('feedback-read', function (Request $request) {
             return Limit::perMinute(60)
                 ->by($request->user()?->id ?: $request->ip())
-                ->response(fn () => self::rateLimitResponse());
+                ->response(fn (Request $request, array $headers) => self::rateLimitResponse($request, $headers));
         });
 
         // Notification read — 60 req/min per user
         RateLimiter::for('notification-read', function (Request $request) {
             return Limit::perMinute(60)
                 ->by($request->user()?->id ?: $request->ip())
-                ->response(fn () => self::rateLimitResponse());
+                ->response(fn (Request $request, array $headers) => self::rateLimitResponse($request, $headers));
         });
 
         // Notification send — 20 req/min per admin
         RateLimiter::for('notification-send', function (Request $request) {
             return Limit::perMinute(20)
                 ->by($request->user()?->id ?: $request->ip())
-                ->response(fn () => self::rateLimitResponse());
+                ->response(fn (Request $request, array $headers) => self::rateLimitResponse($request, $headers));
         });
 
         // Notification bulk — 5 req/hour per admin
         RateLimiter::for('notification-bulk', function (Request $request) {
             return Limit::perHour(5)
                 ->by($request->user()?->id ?: $request->ip())
-                ->response(fn () => self::rateLimitResponse());
+                ->response(fn (Request $request, array $headers) => self::rateLimitResponse($request, $headers));
         });
 
         // Points read — 60 req/min
         RateLimiter::for('points-read', function (Request $request) {
             return Limit::perMinute(60)
                 ->by($request->user()?->id ?: $request->ip())
-                ->response(fn () => self::rateLimitResponse());
+                ->response(fn (Request $request, array $headers) => self::rateLimitResponse($request, $headers));
         });
 
         // Analytics — 30 req/min per admin
         RateLimiter::for('analytics', function (Request $request) {
             return Limit::perMinute(30)
                 ->by($request->user()?->id ?: $request->ip())
-                ->response(fn () => self::rateLimitResponse());
+                ->response(fn (Request $request, array $headers) => self::rateLimitResponse($request, $headers));
         });
 
         // Sensitive admin operations (promote, demote, delete) — 10 req/min
         RateLimiter::for('sensitive', function (Request $request) {
             return Limit::perMinute(10)
                 ->by($request->user()?->id ?: $request->ip())
-                ->response(fn () => self::rateLimitResponse());
+                ->response(fn (Request $request, array $headers) => self::rateLimitResponse($request, $headers));
         });
 
         // QR token regeneration — 5 req/hour per user
         RateLimiter::for('qr-regenerate', function (Request $request) {
             return Limit::perHour(5)
                 ->by($request->user()?->id ?: $request->ip())
-                ->response(fn () => self::rateLimitResponse());
+                ->response(fn (Request $request, array $headers) => self::rateLimitResponse($request, $headers));
         });
 
         // Verse CRUD — 30 req/min per user
         RateLimiter::for('verse-crud', function (Request $request) {
             return Limit::perMinute(30)
                 ->by($request->user()?->id ?: $request->ip())
-                ->response(fn () => self::rateLimitResponse());
+                ->response(fn (Request $request, array $headers) => self::rateLimitResponse($request, $headers));
         });
 
         // Verse read — 60 req/min per user
         RateLimiter::for('verse-read', function (Request $request) {
             return Limit::perMinute(60)
                 ->by($request->user()?->id ?: $request->ip())
-                ->response(fn () => self::rateLimitResponse());
+                ->response(fn (Request $request, array $headers) => self::rateLimitResponse($request, $headers));
         });
 
         // Membership request submit — 3 requests/hour per IP
@@ -568,35 +530,35 @@ class AppServiceProvider extends ServiceProvider
 
             return Limit::perHour(3)
                 ->by($membershipIp.'|'.$membershipEmail)
-                ->response(fn () => self::rateLimitResponse());
+                ->response(fn (Request $request, array $headers) => self::rateLimitResponse($request, $headers));
         });
 
         // Attendance context CRUD — 30 req/min per user
         RateLimiter::for('attendance-context-crud', function (Request $request) {
             return Limit::perMinute(30)
                 ->by($request->user()?->id ?: $request->ip())
-                ->response(fn () => self::rateLimitResponse());
+                ->response(fn (Request $request, array $headers) => self::rateLimitResponse($request, $headers));
         });
 
         // Spiritual record CRUD — 60 req/min per user
         RateLimiter::for('spiritual-record', function (Request $request) {
             return Limit::perMinute(60)
                 ->by($request->user()?->id ?: $request->ip())
-                ->response(fn () => self::rateLimitResponse());
+                ->response(fn (Request $request, array $headers) => self::rateLimitResponse($request, $headers));
         });
 
         // Email sending — 30 emails/min per user (prevents abuse)
         RateLimiter::for('email-send', function (Request $request) {
             return Limit::perMinute(30)
                 ->by($request->user()?->id ?: $request->ip())
-                ->response(fn () => self::rateLimitResponse());
+                ->response(fn (Request $request, array $headers) => self::rateLimitResponse($request, $headers));
         });
 
         // Storage upload — 10 uploads/min per user
         RateLimiter::for('storage-upload', function (Request $request) {
             return Limit::perMinute(10)
                 ->by($request->user()?->id ?: $request->ip())
-                ->response(fn () => self::rateLimitResponse());
+                ->response(fn (Request $request, array $headers) => self::rateLimitResponse($request, $headers));
         });
 
         // Fix: FormRequest's failedValidation() calls getRedirectUrl() which needs
@@ -612,15 +574,86 @@ class AppServiceProvider extends ServiceProvider
     }
 
     /**
-     * Generate a standardized 429 response with Retry-After header.
+     * Generate the 429 response for a named rate limiter.
+     *
+     * PHASE 1C — P0 FIX.
+     *
+     * Laravel invokes a limit's response callback POSITIONALLY with two
+     * arguments — see Illuminate\Routing\Middleware\ThrottleRequests::buildException():
+     *
+     *     new HttpResponseException($responseCallback($request, $headers))
+     *
+     * The callback was previously declared `fn () => ...`, which silently
+     * discarded both arguments. That meant the response could not carry the
+     * real Retry-After computed for the limiter, could not carry the
+     * X-RateLimit-* headers Laravel had already built, and emitted a body that
+     * did not match the JSON error contract every other API error uses.
+     *
+     * The body now mirrors the ThrottleRequestsException renderer in
+     * bootstrap/app.php, so BOTH throttle paths return one identical contract
+     * regardless of whether a limiter declares ->response().
+     *
+     * `$headers` is deliberately documented as a bare `array` so it matches the
+     * type PHPStan infers for the untyped closure parameter at the 38 call
+     * sites; every value is validated before use below.
+     *
+     * @param  array  $headers  Header map produced by ThrottleRequests::getHeaders().
      */
-    private static function rateLimitResponse(): JsonResponse
+    private static function rateLimitResponse(Request $request, array $headers): JsonResponse
     {
-        $retryAfter = 60;
+        $retryAfter = self::headerInt($headers['Retry-After'] ?? null) ?? 60;
+
+        // Replaces the previous (erroneous) ERROR-level "Unhandled API
+        // exception" record so routine throttling no longer fires 5xx alerting.
+        Log::warning('Rate limit exceeded', [
+            'request_id' => $request->attributes->get('request_id'),
+            'ip' => $request->ip(),
+            'path' => $request->path(),
+            'method' => $request->method(),
+            'user_id' => $request->user()?->id,
+            'user_agent' => $request->userAgent(),
+            'retry_after' => $retryAfter,
+        ]);
+
+        $responseHeaders = ['Retry-After' => (string) $retryAfter];
+
+        foreach (['X-RateLimit-Limit', 'X-RateLimit-Remaining', 'X-RateLimit-Reset'] as $headerName) {
+            $headerValue = self::headerInt($headers[$headerName] ?? null);
+
+            if ($headerValue !== null) {
+                $responseHeaders[$headerName] = (string) $headerValue;
+            }
+        }
 
         return response()->json([
+            'success' => false,
             'message' => 'Too many requests. Please try again later.',
             'retry_after' => $retryAfter,
-        ], 429, ['Retry-After' => $retryAfter]);
+            'code' => 'RATE_LIMITED',
+        ], 429, $responseHeaders);
+    }
+
+    /**
+     * Narrow a value taken from the untyped throttle header map to an int.
+     *
+     * The closure parameter at every ->response() call site is untyped, so
+     * PHPStan infers a plain `array` and each value reaching this provider is
+     * `mixed`. Validating here keeps level-max analysis honest instead of
+     * silencing it with a cast.
+     *
+     * Returns null when the value is absent or not a non-negative integer,
+     * so callers decide whether a missing header is acceptable.
+     */
+    private static function headerInt(mixed $value): ?int
+    {
+        if (is_int($value) && $value >= 0) {
+            return $value;
+        }
+
+        if (is_string($value) && preg_match('/^\d+$/', $value) === 1) {
+            return (int) $value;
+        }
+
+        return null;
     }
 }

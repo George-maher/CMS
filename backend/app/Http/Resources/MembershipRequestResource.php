@@ -3,10 +3,12 @@
 namespace App\Http\Resources;
 
 use App\Enums\UserRole;
+use App\Models\MembershipRequest;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
-/** @mixin \App\Models\MembershipRequest */
+/** @mixin MembershipRequest */
 class MembershipRequestResource extends JsonResource
 {
     /** @return array<string, mixed> */
@@ -32,10 +34,11 @@ class MembershipRequestResource extends JsonResource
             'status' => $this->status,
             'notes' => $this->notes,
             'rejection_reason' => $this->rejection_reason,
-            'file_url' => $this->when($isAdminOrPlatform, fn() => $this->file_url),
+            'file_url' => $this->when($isAdminOrPlatform, fn () => $this->file_url),
             'reviewer' => $this->when($this->relationLoaded('reviewer') && $this->reviewer, function () {
-                /** @var \App\Models\User $reviewer */
+                /** @var User $reviewer */
                 $reviewer = $this->reviewer;
+
                 return [
                     'id' => $reviewer->id,
                     'name' => $reviewer->name,

@@ -2,7 +2,6 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -67,8 +66,8 @@ return new class extends Migration
         foreach ($indexes as $table => $names) {
             foreach ($names as $name) {
                 try {
-                    Schema::table($table, fn(Blueprint $t) => $t->dropIndex($name));
-                } catch (\Exception $e) {
+                    Schema::table($table, fn (Blueprint $t) => $t->dropIndex($name));
+                } catch (Exception $e) {
                     // Index may not exist
                 }
             }
@@ -78,8 +77,8 @@ return new class extends Migration
     private function createIndexIfNotExists(string $table, string $name, array $columns): void
     {
         try {
-            Schema::table($table, fn(Blueprint $t) => $t->index($columns, $name));
-        } catch (\Exception $e) {
+            Schema::table($table, fn (Blueprint $t) => $t->index($columns, $name));
+        } catch (Exception $e) {
             // Index may already exist
         }
     }

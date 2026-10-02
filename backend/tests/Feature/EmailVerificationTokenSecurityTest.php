@@ -17,7 +17,8 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Log\Events\MessageLogged;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Testing\TestResponse;
+use Illuminate\Support\Str;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 /**
@@ -52,7 +53,7 @@ class EmailVerificationTokenSecurityTest extends TestCase
      * Laravel's `log` transport writes the rendered message — verification token
      * included — straight into the application log.
      */
-    #[\PHPUnit\Framework\Attributes\DataProvider('nonDeliveringDriverProvider')]
+    #[DataProvider('nonDeliveringDriverProvider')]
     public function test_production_rejects_non_delivering_transports(string $driver): void
     {
         $this->forceEnvironment('production');
@@ -128,7 +129,7 @@ class EmailVerificationTokenSecurityTest extends TestCase
         ];
     }
 
-    #[\PHPUnit\Framework\Attributes\DataProvider('bootEnforcementProvider')]
+    #[DataProvider('bootEnforcementProvider')]
     public function test_boot_enforcement_is_scoped_to_processes_that_can_send_mail(
         bool $runningInConsole,
         string $argvCommand,
@@ -363,7 +364,7 @@ class EmailVerificationTokenSecurityTest extends TestCase
 
         $this->assertSame(
             EmailVerificationOutcome::Failed,
-            $service->verify($user->email, \Illuminate\Support\Str::random(64))
+            $service->verify($user->email, Str::random(64))
         );
         $this->assertNull($user->fresh()?->email_verified_at);
     }

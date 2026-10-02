@@ -3,10 +3,12 @@
 namespace App\Http\Resources;
 
 use App\Contracts\FileUploadServiceInterface;
+use App\Models\ChurchApplication;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
-/** @mixin \App\Models\ChurchApplication */
+/** @mixin ChurchApplication */
 class ChurchApplicationResource extends JsonResource
 {
     /** @return array<string, mixed> */
@@ -38,8 +40,9 @@ class ChurchApplicationResource extends JsonResource
             'admin_notes' => $this->admin_notes,
             'rejection_reason' => $this->rejection_reason,
             'reviewed_by' => $this->whenLoaded('reviewer', function () {
-                /** @var \App\Models\User $reviewer */
+                /** @var User $reviewer */
                 $reviewer = $this->reviewer;
+
                 return [
                     'id' => $reviewer->id,
                     'name' => $reviewer->name,

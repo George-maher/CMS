@@ -7,7 +7,6 @@ use App\Enums\UserRole;
 use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Support\Collection as SupportCollection;
 use LogicException;
 
 class UserRepository implements UserRepositoryInterface
@@ -34,14 +33,6 @@ class UserRepository implements UserRepositoryInterface
     }
 
     /**
-     * Insert a user.
-     *
-     * The payload MUST contain an explicit `email_verified_at` key (value may
-     * be null). This makes the provisioning decision unavoidable at the call
-     * site: the only sanctioned way in is UserProvisioningService, which
-     * derives that value from the ProvisioningChannel. A caller can no longer
-     * create an account while silently inheriting "unverified" by omission.
-     *
      * @param  array<string, mixed>  $data
      */
     public function create(array $data): User
@@ -268,12 +259,13 @@ class UserRepository implements UserRepositoryInterface
 
     /**
      * @param  array<int, int>  $ids
-     * @return SupportCollection<int, User>
+     * @return \Illuminate\Support\Collection<int, User>
      */
-    public function findByIds(array $ids): SupportCollection
+    /** @return \Illuminate\Support\Collection<int, User> */
+    public function findByIds(array $ids): \Illuminate\Support\Collection
     {
         if (empty($ids)) {
-            /** @var SupportCollection<int, User> $empty */
+            /** @var \Illuminate\Support\Collection<int, User> $empty */
             $empty = collect();
 
             return $empty;

@@ -2,15 +2,18 @@
 
 namespace App\Contracts;
 
+use App\Models\AttendanceContext;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Collection;
 
 interface AttendanceContextRepositoryInterface
 {
-    public function findById(int $id): ?\App\Models\AttendanceContext;
-    public function findBySlug(string $slug): ?\App\Models\AttendanceContext;
+    public function findById(int $id): ?AttendanceContext;
+
+    public function findBySlug(string $slug): ?AttendanceContext;
 
     /** @param array<string, mixed> $data */
-    public function create(array $data): \App\Models\AttendanceContext;
+    public function create(array $data): AttendanceContext;
 
     /** @param array<string, mixed> $data */
     public function update(int $id, array $data): bool;
@@ -18,12 +21,16 @@ interface AttendanceContextRepositoryInterface
     public function delete(int $id): bool;
 
     /** @param array<string, mixed> $filters */
-    /** @return \Illuminate\Contracts\Pagination\LengthAwarePaginator<int, \App\Models\AttendanceContext> */
+    /** @return LengthAwarePaginator<int, AttendanceContext> */
     public function paginate(int $perPage, array $filters = []): LengthAwarePaginator;
-    /** @return \Illuminate\Database\Eloquent\Collection<int, \App\Models\AttendanceContext> */
-    public function getActive(): \Illuminate\Database\Eloquent\Collection;
-    public function getDefault(): ?\App\Models\AttendanceContext;
+
+    /** @return Collection<int, AttendanceContext> */
+    public function getActive(): Collection;
+
+    public function getDefault(): ?AttendanceContext;
+
     public function clearDefault(): int;
-    /** @return \Illuminate\Database\Eloquent\Collection<int, \App\Models\AttendanceContext> */
-    public function getActiveForChurch(int $churchId): \Illuminate\Database\Eloquent\Collection;
+
+    /** @return Collection<int, AttendanceContext> */
+    public function getActiveForChurch(int $churchId): Collection;
 }

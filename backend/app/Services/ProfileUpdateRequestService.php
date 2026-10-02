@@ -124,7 +124,7 @@ class ProfileUpdateRequestService implements ProfileUpdateRequestServiceInterfac
             $this->notifyResponsibleServant($request, $user);
 
             Log::info('Profile update request submitted', [
-                'request_id' => $request->id,
+                'profile_update_request_id' => $request->id,
                 'user_id' => $userId,
                 'reviewer_id' => $reviewerId,
             ]);
@@ -230,7 +230,7 @@ class ProfileUpdateRequestService implements ProfileUpdateRequestServiceInterfac
             );
 
             Log::info('Profile update request approved', [
-                'request_id' => $request->id,
+                'profile_update_request_id' => $request->id,
                 'user_id' => $request->user_id,
                 'reviewed_by' => $reviewerId,
             ]);
@@ -293,7 +293,7 @@ class ProfileUpdateRequestService implements ProfileUpdateRequestServiceInterfac
             );
 
             Log::info('Profile update request rejected', [
-                'request_id' => $request->id,
+                'profile_update_request_id' => $request->id,
                 'user_id' => $request->user_id,
                 'reviewed_by' => $reviewerId,
             ]);
@@ -547,7 +547,7 @@ class ProfileUpdateRequestService implements ProfileUpdateRequestServiceInterfac
         $reviewerId = $request->reviewer_id;
         if ($reviewerId === null) {
             Log::warning('No responsible servant found for profile update request', [
-                'request_id' => $request->id,
+                'profile_update_request_id' => $request->id,
                 'user_id' => $member->id,
             ]);
 
@@ -564,7 +564,7 @@ class ProfileUpdateRequestService implements ProfileUpdateRequestServiceInterfac
             );
         } catch (\Exception $e) {
             Log::warning('Failed to create profile update notification for servant', [
-                'request_id' => $request->id,
+                'profile_update_request_id' => $request->id,
                 'reviewer_id' => $reviewerId,
                 'error' => $e->getMessage(),
             ]);
@@ -588,7 +588,7 @@ class ProfileUpdateRequestService implements ProfileUpdateRequestServiceInterfac
             );
         } catch (\Exception $e) {
             Log::warning('Failed to create profile update notification for requester', [
-                'request_id' => $request->id,
+                'profile_update_request_id' => $request->id,
                 'user_id' => $user->id,
                 'error' => $e->getMessage(),
             ]);

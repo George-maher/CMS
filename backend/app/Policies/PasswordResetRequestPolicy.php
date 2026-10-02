@@ -2,7 +2,6 @@
 
 namespace App\Policies;
 
-use App\Enums\PasswordResetRequestStatus;
 use App\Models\PasswordResetRequest;
 use App\Models\User;
 
@@ -15,7 +14,10 @@ class PasswordResetRequestPolicy
 
     public function view(User $user, PasswordResetRequest $request): bool
     {
-        if ($user->isAdminOrAssistantAdmin()) return true;
+        if ($user->isAdminOrAssistantAdmin()) {
+            return true;
+        }
+
         return $user->id === $request->user_id;
     }
 
@@ -31,6 +33,14 @@ class PasswordResetRequestPolicy
     {
         return $user->isAdminOrAssistantAdmin()
             && $request->isPending()
+            && $request->user !== null
+            && $request->user->church_id === $user->church_id;
+    }
+
+    public function resetPassword(User $user, PasswordResetRequest $request): bool
+    {
+        return $user->isAdminOrAssistantAdmin()
+            && $request->isApproved()
             && $request->user !== null
             && $request->user->church_id === $user->church_id;
     }

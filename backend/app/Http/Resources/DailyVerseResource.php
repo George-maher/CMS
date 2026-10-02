@@ -2,10 +2,12 @@
 
 namespace App\Http\Resources;
 
+use App\Models\DailyVerse;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
-/** @mixin \App\Models\DailyVerse */
+/** @mixin DailyVerse */
 class DailyVerseResource extends JsonResource
 {
     /** @return array<string, mixed> */
@@ -17,8 +19,9 @@ class DailyVerseResource extends JsonResource
             'reference' => $this->reference,
             'created_by' => $this->created_by,
             'creator_name' => $this->when($this->creator !== null, function () {
-                /** @var \App\Models\User $creator */
+                /** @var User $creator */
                 $creator = $this->creator;
+
                 return $creator->name;
             }),
             'is_active' => $this->is_active,

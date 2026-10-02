@@ -2,6 +2,7 @@
 
 use App\Exceptions\ChurchDeletionException;
 use App\Exceptions\LoginFailedException;
+use App\Http\Middleware\AssignRequestId;
 use App\Http\Middleware\CheckApproval;
 use App\Http\Middleware\EnsureApproval;
 use App\Http\Middleware\EnsureEventScope;
@@ -16,12 +17,15 @@ use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\Exceptions\ThrottleRequestsException;
 use Illuminate\Http\Middleware\TrustProxies;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -42,7 +46,11 @@ return Application::configure(basePath: dirname(__DIR__))
             'reauth' => RequireReauth::class,
         ]);
 
+        // AssignRequestId is FIRST so the id exists before anything else can
+        // log or short-circuit. ForceJsonResponse can return early (e.g. on a
+        // non-JSON Accept header), so the id must be established before it.
         $middleware->api(prepend: [
+            AssignRequestId::class,
             ForceJsonResponse::class,
             SetLocale::class,
             'track.activity',
@@ -130,6 +138,7 @@ return Application::configure(basePath: dirname(__DIR__))
                 /** @var User|null $user */
                 $user = $request->user();
                 Log::warning('Rate limit exceeded', [
+                    'request_id' => $request->attributes->get('request_id'),
                     'ip' => $request->ip(),
                     'path' => $request->path(),
                     'method' => $request->method(),
@@ -147,11 +156,73 @@ return Application::configure(basePath: dirname(__DIR__))
             }
         });
 
+        // PHASE 1C — P0 FIX.
+        //
+        // Laravel's Handler::render() invokes registered render callbacks
+        // (renderViaCallbacks) BEFORE its own
+        // ` $e instanceof HttpResponseException => $e->getResponse() ` branch.
+        //
+        // The named rate limiters declare ->response(...), so ThrottleRequests
+        // throws HttpResponseException carrying the intended 429 response.
+        // Because HttpResponseException IS a Throwable, the catch-all callback
+        // below matched it first, logged "Unhandled API exception" (the wrapped
+        // exception has an empty message) and returned 500 — so every one of the
+        // 30+ named limiters returned 500 instead of 429.
+        //
+        // Registering this callback ahead of the catch-all restores the
+        // framework's own precedence: return the wrapped response verbatim.
+        $exceptions->render(function (HttpResponseException $e) {
+            return $e->getResponse();
+        });
+
+        // Every OTHER Symfony HttpException — abort(403) from a controller,
+        // MethodNotAllowedHttpException from the router, and so on (Phase 1C
+        // finding C-4). Application::abort() throws a PLAIN HttpException
+        // (Application.php:1440 special-cases only 404), so it matched NONE
+        // of the typed callbacks above and fell through to the catch-all
+        // Throwable handler below: correct HTTP status, but the body claimed
+        // INTERNAL_ERROR / "Internal server error." for an expected 4xx.
+        //
+        // Registration order is load-bearing: renderViaCallbacks() walks
+        // callbacks in order and returns the first non-null response, so the
+        // specialised subclasses registered above (NotFound, AccessDenied,
+        // Throttle) still win, and this generic slot only sees what they
+        // deliberately pass on.
+        //
+        // 5xx is deferred to the catch-all so genuine server errors keep
+        // their error-level Log::error entry, and non-API requests are left
+        // to the framework's default HTML error pages.
+        $exceptions->render(function (HttpException $e, Request $request) {
+            if (! $request->is('api/*') || $e->getStatusCode() >= 500) {
+                return null;
+            }
+
+            $status = $e->getStatusCode();
+
+            /** @var array<string, string> $headers */
+            $headers = $e->getHeaders();
+
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage() !== '' ? $e->getMessage() : (Response::$statusTexts[$status] ?? 'Request failed.'),
+                'code' => match ($status) {
+                    401 => 'UNAUTHORIZED',
+                    403 => 'FORBIDDEN',
+                    404 => 'NOT_FOUND',
+                    405 => 'METHOD_NOT_ALLOWED',
+                    419 => 'CSRF_TOKEN_MISMATCH',
+                    429 => 'RATE_LIMITED',
+                    default => 'HTTP_'.$status,
+                },
+            ], $status, $headers);
+        });
+
         $exceptions->render(function (Throwable $e, Request $request) {
             if ($request->is('api/*')) {
                 /** @var User|null $errorUser */
                 $errorUser = $request->user();
                 Log::error('Unhandled API exception', [
+                    'request_id' => $request->attributes->get('request_id'),
                     'message' => $e->getMessage(),
                     'file' => $e->getFile(),
                     'line' => $e->getLine(),
@@ -168,6 +239,7 @@ return Application::configure(basePath: dirname(__DIR__))
                     'success' => false,
                     'message' => 'Internal server error.',
                     'code' => 'INTERNAL_ERROR',
+                    'request_id' => $request->attributes->get('request_id'),
                 ];
 
                 if (config('app.debug') && app()->isLocal()) {

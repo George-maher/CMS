@@ -19,23 +19,6 @@ class ChurchApplicationController extends Controller
         private readonly ChurchApplicationServiceInterface $churchApplicationService,
     ) {}
 
-    /**
-     * Public church application submission.
-     *
-     * Two distinct response shapes exist, and the split is drawn on a
-     * *proven* fact, not on whether an address happens to be on file:
-     *
-     *  - Ownership proven (authenticated owner session, or the correct applicant
-     *    password) -> 200 with the full application resource. This is an
-     *    authorised read of a record the caller already owns.
-     *  - Everything else (brand-new address, or a known address the caller could
-     *    not prove) -> 201 with a fixed, self-echoing acknowledgement that
-     *    contains no record identity.
-     *
-     * Because the acknowledgement is identical in both anonymous cases, this
-     * endpoint cannot be used to discover which addresses have applications on
-     * file.
-     */
     public function store(ChurchApplicationRequest $request): JsonResponse
     {
         /** @var UploadedFile|null $frontId */
@@ -67,51 +50,25 @@ class ChurchApplicationController extends Controller
             $authUser?->id,
         );
 
-        if ($result['is_update'] && $result['application'] instanceof ChurchApplication) {
-            /** @var ChurchApplication $application */
-            $application = $result['application'];
-            /** @var User|null $user */
-            $user = $result['user'];
+        $statusCode = $result['is_update'] ? 200 : 201;
+        $message = $result['is_update']
+            ? 'Application updated successfully.'
+            : 'Application submitted successfully. You can now login to track your application status.';
 
-            return response()->json([
-                'success' => true,
-                'message' => __('church_application.updated'),
-                'code' => 'APPLICATION_UPDATED',
-                'data' => new ChurchApplicationResource($application),
-                'user' => [
-                    'id' => $user?->id,
-                    'email' => $user?->email,
-                ],
-                'is_update' => true,
-            ], 200);
-        }
+        /** @var ChurchApplication $application */
+        $application = $result['application'];
+        /** @var User $user */
+        $user = $result['user'];
 
-        return $this->submissionAcknowledgement($email);
-    }
-
-    /**
-     * The one response a caller without proven ownership ever receives.
-     *
-     * It echoes only the address the caller itself submitted, and carries no
-     * application id, status, reviewer notes or document URLs, so there is
-     * nothing to correlate against a later lookup.
-     */
-    private function submissionAcknowledgement(string $submittedEmail): JsonResponse
-    {
         return response()->json([
-            'success' => true,
-            'message' => __('church_application.submitted'),
-            'code' => 'APPLICATION_RECEIVED',
-            'data' => [
-                'contact_email' => $submittedEmail,
-                'status' => 'pending',
-            ],
+            'message' => $message,
+            'data' => new ChurchApplicationResource($application),
             'user' => [
-                'id' => null,
-                'email' => $submittedEmail,
+                'id' => $user->id,
+                'email' => $user->email,
             ],
-            'is_update' => false,
-        ], 201);
+            'is_update' => $result['is_update'],
+        ], $statusCode);
     }
 
     public function lookup(Request $request): JsonResponse

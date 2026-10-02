@@ -5,6 +5,7 @@ namespace App\Repositories;
 use App\Contracts\ClasseRepositoryInterface;
 use App\Enums\UserRole;
 use App\Models\Classe;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 
 class ClasseRepository implements ClasseRepositoryInterface
@@ -12,15 +13,15 @@ class ClasseRepository implements ClasseRepositoryInterface
     /** @return Collection<int, Classe> */
     public function all(?string $search = null): Collection
     {
-        /** @var \Illuminate\Database\Eloquent\Builder<\App\Models\Classe> $query */
+        /** @var Builder<Classe> $query */
         $query = Classe::with(['stage'])
             ->withCount([
-                'allUsers as member_count' => fn(\Illuminate\Database\Eloquent\Builder $q) => $q->where('role', UserRole::Member),
+                'allUsers as member_count' => fn (Builder $q) => $q->where('role', UserRole::Member),
                 'servants as servant_count',
             ]);
 
         if ($search) {
-            $query->where(function (\Illuminate\Database\Eloquent\Builder $q) use ($search) {
+            $query->where(function (Builder $q) use ($search) {
                 $q->where('name', 'like', "%{$search}%");
             });
         }
@@ -30,10 +31,10 @@ class ClasseRepository implements ClasseRepositoryInterface
 
     public function findById(int $id): ?Classe
     {
-        /** @var \Illuminate\Database\Eloquent\Builder<\App\Models\Classe> $query */
+        /** @var Builder<Classe> $query */
         $query = Classe::with(['stage'])
             ->withCount([
-                'allUsers as member_count' => fn(\Illuminate\Database\Eloquent\Builder $q) => $q->where('role', UserRole::Member),
+                'allUsers as member_count' => fn (Builder $q) => $q->where('role', UserRole::Member),
                 'servants as servant_count',
             ]);
 
@@ -41,7 +42,7 @@ class ClasseRepository implements ClasseRepositoryInterface
     }
 
     /**
-     * @param array<string, mixed> $data
+     * @param  array<string, mixed>  $data
      */
     public function create(array $data): Classe
     {
@@ -49,34 +50,40 @@ class ClasseRepository implements ClasseRepositoryInterface
     }
 
     /**
-     * @param array<string, mixed> $data
+     * @param  array<string, mixed>  $data
      */
     public function update(int $id, array $data): bool
     {
         $classe = $this->findById($id);
-        if (!$classe) return false;
+        if (! $classe) {
+            return false;
+        }
+
         return $classe->update($data);
     }
 
     public function delete(int $id): bool
     {
         $classe = $this->findById($id);
-        if (!$classe) return false;
+        if (! $classe) {
+            return false;
+        }
+
         return (bool) $classe->delete();
     }
 
     /** @return Collection<int, Classe> */
     public function findByStage(int $stageId, ?string $search = null): Collection
     {
-        /** @var \Illuminate\Database\Eloquent\Builder<\App\Models\Classe> $query */
+        /** @var Builder<Classe> $query */
         $query = Classe::where('stage_id', $stageId)
             ->withCount([
-                'allUsers as member_count' => fn(\Illuminate\Database\Eloquent\Builder $q) => $q->where('role', UserRole::Member),
+                'allUsers as member_count' => fn (Builder $q) => $q->where('role', UserRole::Member),
                 'servants as servant_count',
             ]);
 
         if ($search) {
-            $query->where(function (\Illuminate\Database\Eloquent\Builder $q) use ($search) {
+            $query->where(function (Builder $q) use ($search) {
                 $q->where('name', 'like', "%{$search}%");
             });
         }
@@ -85,13 +92,14 @@ class ClasseRepository implements ClasseRepositoryInterface
     }
 
     /**
-     * @param array<int, int> $orderedIds
+     * @param  array<int, int>  $orderedIds
      */
     public function updateOrder(array $orderedIds): bool
     {
         foreach ($orderedIds as $index => $id) {
             Classe::where('id', $id)->update(['display_order' => $index + 1]);
         }
+
         return true;
     }
 }

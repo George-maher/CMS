@@ -3,12 +3,15 @@
 namespace App\Http\Controllers\Api;
 
 use App\Contracts\AttendanceServiceInterface;
+use App\Contracts\ScopeResolverInterface;
 use App\Enums\QRInviteType;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\RecordAttendanceRequest;
 use App\Http\Resources\AttendanceResource;
 use App\Http\Resources\UserResource;
+use App\Models\AttendanceContext;
+use App\Models\Classe;
 use App\Models\QRInvite;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
@@ -19,7 +22,34 @@ class AttendanceController extends Controller
 {
     public function __construct(
         private readonly AttendanceServiceInterface $attendanceService,
+        private readonly ScopeResolverInterface $scopeResolver,
     ) {}
+
+    /**
+     * Whether the acting user may view/manage a given member.
+     */
+    private function canAccessMember(User $actor, User $member): bool
+    {
+        return $this->scopeResolver->canAccessUser($actor, $member);
+    }
+
+    /**
+     * Class ids a user is allowed to view/manage. Null = church-wide.
+     *
+     * @return array<int, int>|null
+     */
+    private function allowedClassScope(?User $user): ?array
+    {
+        if ($user === null) {
+            return null;
+        }
+
+        if ($user->isAdmin() || $user->isAssistantAdmin()) {
+            return null;
+        }
+
+        return $this->scopeResolver->allowedClassIds($user) ?? [];
+    }
 
     public function recordByMemberId(Request $request): JsonResponse
     {
@@ -31,12 +61,20 @@ class AttendanceController extends Controller
             'method' => ['sometimes', 'string', 'in:qr,token,id'],
         ]);
 
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = $request->user();
-        /** @var int $recordedBy */
-        $recordedBy = $user->id;
         /** @var string $memberId */
         $memberId = $validated['member_id'];
+
+        if (! $user->isAdmin() && ! $user->isAssistantAdmin()) {
+            $member = User::byChurch()->byMemberId($memberId)->first();
+            if (! $member || ! $this->canAccessMember($user, $member)) {
+                return response()->json(['message' => 'Forbidden.'], 403);
+            }
+        }
+
+        /** @var int $recordedBy */
+        $recordedBy = $user->id;
         /** @var int $contextId */
         $contextId = $validated['attendance_context_id'];
         /** @var string $method */
@@ -60,8 +98,17 @@ class AttendanceController extends Controller
 
     public function record(RecordAttendanceRequest $request): JsonResponse
     {
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = $request->user();
+
+        if (! $user->isAdmin() && ! $user->isAssistantAdmin()) {
+            $qrToken = $request->str('qr_token', '');
+            $member = User::byChurch()->byAttendanceQrToken((string) $qrToken)->first();
+            if (! $member || ! $this->canAccessMember($user, $member)) {
+                return response()->json(['message' => 'Forbidden.'], 403);
+            }
+        }
+
         /** @var int $recordedBy */
         $recordedBy = $user->id;
         $qrToken = $request->str('qr_token', '');
@@ -88,11 +135,11 @@ class AttendanceController extends Controller
 
     public function contextSummary(Request $request): JsonResponse
     {
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = $request->user();
         /** @var array<int, int>|null $classYearIds */
-        $classYearIds = $user->role === UserRole::Servant
-            ? $user->getServantClassIds()
+        $classYearIds = $user->role === UserRole::Servant || $user->isStageAdmin()
+            ? $this->allowedClassScope($user)
             : ($request->input('class_id') ? [$request->integer('class_id')] : null);
 
         /** @var string|null $dateFrom */
@@ -121,20 +168,20 @@ class AttendanceController extends Controller
             'date_to' => ['sometimes', 'date'],
         ]);
 
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = $request->user();
         /** @var int|null $classYearId */
         $classYearId = $validated['class_id'] ?? null;
 
-        // Servants: silently fix class_id instead of rejecting
-        if ($user->role === UserRole::Servant) {
-            /** @var array<int, int>|null $servantClassIds */
-            $servantClassIds = $user->getServantClassIds();
-            if ($classYearId !== null && !in_array($classYearId, (array) $servantClassIds)) {
-                $classYearId = null; // ignore unauthorized value, fall through to enforce servant's classes
+        // Servants and stage admins: only their own classes
+        if ($user->role === UserRole::Servant || $user->isStageAdmin()) {
+            /** @var array<int, int>|null $allowedClassIds */
+            $allowedClassIds = $this->allowedClassScope($user);
+            if ($classYearId !== null && ! in_array($classYearId, (array) $allowedClassIds)) {
+                $classYearId = null; // ignore unauthorized value
             }
             if ($classYearId === null) {
-                $classYearId = $servantClassIds;
+                $classYearId = $allowedClassIds;
             }
         }
 
@@ -162,9 +209,17 @@ class AttendanceController extends Controller
 
     public function lookupByMemberId(Request $request, string $memberId): JsonResponse
     {
+        /** @var User $user */
+        $user = $request->user();
         $member = User::byChurch()->byMemberId($memberId)->first();
 
-        if (!$member) {
+        if (! $member) {
+            throw ValidationException::withMessages([
+                'member_id' => ['Member not found.'],
+            ]);
+        }
+
+        if (! $user->isAdmin() && ! $user->isAssistantAdmin() && ! $this->canAccessMember($user, $member)) {
             throw ValidationException::withMessages([
                 'member_id' => ['Member not found.'],
             ]);
@@ -179,12 +234,18 @@ class AttendanceController extends Controller
 
     public function lookupByToken(Request $request, string $qrToken): JsonResponse
     {
+        /** @var User $user */
+        $user = $request->user();
         $member = User::byChurch()->byAttendanceQrToken($qrToken)->first();
+
+        if ($member && ! $user->isAdmin() && ! $user->isAssistantAdmin() && ! $this->canAccessMember($user, $member)) {
+            return response()->json(['message' => 'Member not found.'], 404);
+        }
 
         $attendanceContextId = null;
 
         // If no user found, try invite token lookup (supports attendance_qr invite URLs)
-        if (!$member) {
+        if (! $member) {
             $inviteToken = $qrToken;
             // Extract token from URL pattern: {base}/qr/validate/{token}
             if (preg_match('#/qr/validate/([A-Za-z0-9]+)$#', $qrToken, $matches)) {
@@ -202,7 +263,7 @@ class AttendanceController extends Controller
             }
         }
 
-        if (!$member && !$attendanceContextId) {
+        if (! $member && ! $attendanceContextId) {
             return response()->json(['message' => 'Member not found.'], 404);
         }
 
@@ -213,8 +274,12 @@ class AttendanceController extends Controller
         }
 
         if ($attendanceContextId) {
+            /** @var AttendanceContext|null $ctx */
+            $ctx = AttendanceContext::byChurch()->find($attendanceContextId);
+            if (! $ctx) {
+                $attendanceContextId = null;
+            }
             $responseData['attendance_context_id'] = $attendanceContextId;
-            $ctx = \App\Models\AttendanceContext::withoutGlobalScope(\App\Models\Scopes\ChurchScope::class)->find($attendanceContextId);
             $responseData['attendance_context'] = $ctx ? [
                 'id' => $ctx->id,
                 'name' => $ctx->name,
@@ -227,22 +292,23 @@ class AttendanceController extends Controller
         ]);
     }
 
-    public function history(Request $request, int $userId = null): JsonResponse
+    public function history(Request $request, ?int $userId = null): JsonResponse
     {
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = $request->user();
         /** @var int $id */
         $id = $userId ?? (int) $user->id;
 
-        if ($user->role === UserRole::Servant && $id !== (int) $user->id) {
+        // Member can only view their own history
+        if ($user->role === UserRole::Member) {
+            $id = (int) $user->id;
+        }
+        // Servant or stage admin can only view members in scope
+        elseif (($user->role === UserRole::Servant || $user->isStageAdmin()) && $id !== (int) $user->id) {
             $member = User::byChurch()->find($id);
-            /** @var array<int, int>|null $servantClassIds */
-            $servantClassIds = $user->getServantClassIds();
-            if (!$member || !in_array($member->class_id, (array) $servantClassIds)) {
+            if (! $member || ! $this->canAccessMember($user, $member)) {
                 $id = (int) $user->id;
             }
-        } elseif ($user->role === UserRole::Member) {
-            $id = (int) $user->id;
         }
 
         /** @var int $perPage */
@@ -260,13 +326,13 @@ class AttendanceController extends Controller
 
     public function byClass(Request $request, int $classYearId): JsonResponse
     {
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = $request->user();
-        if ($user->role === UserRole::Servant) {
-            /** @var array<int, int>|null $servantClassIds */
-            $servantClassIds = $user->getServantClassIds();
-            if (!in_array($classYearId, (array) $servantClassIds)) {
-                $classYearId = ($servantClassIds[0] ?? $classYearId);
+        if ($user->role === UserRole::Servant || $user->isStageAdmin()) {
+            /** @var array<int, int>|null $allowedClassIds */
+            $allowedClassIds = $this->allowedClassScope($user);
+            if ($allowedClassIds !== null && ! in_array($classYearId, $allowedClassIds)) {
+                return response()->json(['message' => 'Unauthorized access to another class.'], 403);
             }
         }
 
@@ -292,10 +358,16 @@ class AttendanceController extends Controller
 
     public function today(Request $request): JsonResponse
     {
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = $request->user();
         /** @var array<int, int>|null $classYearIds */
-        $classYearIds = $user->role === UserRole::Servant ? $user->getServantClassIds() : null;
+        $classYearIds = $user->role === UserRole::Servant || $user->isStageAdmin()
+            ? $this->allowedClassScope($user)
+            : null;
+
+        if (($user->role === UserRole::Servant || $user->isStageAdmin()) && empty($classYearIds)) {
+            return response()->json(['data' => [], 'count' => 0, 'meta' => ['current_page' => 1, 'last_page' => 1, 'per_page' => 15, 'total' => 0]]);
+        }
 
         $result = $this->attendanceService->getTodayAttendance(
             classYearIds: $classYearIds,
@@ -322,22 +394,22 @@ class AttendanceController extends Controller
             'per_page' => ['sometimes', 'integer', 'min:1', 'max:100'],
         ]);
 
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = $request->user();
 
-        // Servants: silently fix class_id instead of rejecting
-        if ($user->role === UserRole::Servant) {
-            /** @var array<int, int>|null $servantClassIds */
-            $servantClassIds = $user->getServantClassIds();
-            if (empty($servantClassIds)) {
+        // Servants and stage admins: enforce class access
+        if ($user->role === UserRole::Servant || $user->isStageAdmin()) {
+            /** @var array<int, int>|null $allowedClassIds */
+            $allowedClassIds = $this->allowedClassScope($user);
+            if (empty($allowedClassIds)) {
                 return response()->json(['data' => [], 'meta' => ['current_page' => 1, 'last_page' => 1, 'per_page' => 15, 'total' => 0]]);
             }
             /** @var int|null $validatedClassId */
             $validatedClassId = $validated['class_id'] ?? null;
-            if ($validatedClassId !== null && !in_array($validatedClassId, $servantClassIds)) {
+            if ($validatedClassId !== null && ! in_array($validatedClassId, $allowedClassIds)) {
                 unset($validated['class_id']);
             }
-            $validated['class_ids'] = $servantClassIds;
+            $validated['class_ids'] = $allowedClassIds;
         }
 
         $result = $this->attendanceService->getFilteredAttendances(
@@ -350,10 +422,10 @@ class AttendanceController extends Controller
 
     public function absentMembers(Request $request): JsonResponse
     {
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = $request->user();
 
-        if (!$request->has('class_id')) {
+        if (! $request->has('class_id')) {
             return response()->json([
                 'success' => false,
                 'message' => 'Validation failed.',
@@ -372,14 +444,28 @@ class AttendanceController extends Controller
         /** @var string|null $dateTo */
         $dateTo = $request->input('date_to');
 
-        // Servants: silently override to their assigned class — never error, always enforce
+        // Servants: enforce class access
         if ($user->role === UserRole::Servant) {
             /** @var array<int, int>|null $servantClassIds */
             $servantClassIds = $user->getServantClassIds();
-            if (!empty($servantClassIds) && ($classYearId === 0 || !in_array($classYearId, $servantClassIds))) {
+            if (! empty($servantClassIds) && ($classYearId === 0 || ! in_array($classYearId, $servantClassIds))) {
                 $classYearId = $servantClassIds[0];
             } elseif (empty($servantClassIds)) {
                 return response()->json(['data' => ['summary' => ['total_members' => 0, 'present_count' => 0, 'absent_count' => 0], 'absent_members' => []]]);
+            }
+            // If the requested class is not the servant's class, return 403
+            if (! in_array($classYearId, $servantClassIds)) {
+                return response()->json(['message' => 'Unauthorized access to another class\'s members.'], 403);
+            }
+        } elseif (! $user->isPlatformAdmin()) {
+            // Non-servant callers: the class must exist inside their church
+            // (Classe carries ChurchScope) and inside their stage/class scope.
+            $classe = Classe::find($classYearId);
+            if ($classe === null) {
+                return response()->json(['message' => 'Class not found.'], 404);
+            }
+            if (! $this->scopeResolver->canAccessClass($user, $classe)) {
+                return response()->json(['message' => 'Forbidden.'], 403);
             }
         }
 
@@ -395,22 +481,23 @@ class AttendanceController extends Controller
         return response()->json(['data' => $result]);
     }
 
-    public function stats(Request $request, int $userId = null): JsonResponse
+    public function stats(Request $request, ?int $userId = null): JsonResponse
     {
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = $request->user();
         /** @var int $id */
         $id = $userId ?? (int) $user->id;
 
-        if ($user->role === UserRole::Servant && $id !== (int) $user->id) {
+        // Member can only view their own stats
+        if ($user->role === UserRole::Member) {
+            $id = (int) $user->id;
+        }
+        // Servant or stage admin can only view stats of members in scope
+        elseif (($user->role === UserRole::Servant || $user->isStageAdmin()) && $id !== (int) $user->id) {
             $member = User::byChurch()->find($id);
-            /** @var array<int, int>|null $servantClassIds */
-            $servantClassIds = $user->getServantClassIds();
-            if (!$member || !in_array($member->class_id, (array) $servantClassIds)) {
+            if (! $member || ! $this->canAccessMember($user, $member)) {
                 $id = (int) $user->id;
             }
-        } elseif ($user->role === UserRole::Member) {
-            $id = (int) $user->id;
         }
 
         $result = $this->attendanceService->getAttendanceStats($id);

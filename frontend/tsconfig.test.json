@@ -1,0 +1,31 @@
+{
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.test.tsbuildinfo",
+    "target": "es2023",
+    "lib": ["ES2023", "DOM", "ESNext", "WebWorker"],
+    "module": "esnext",
+    /* Test files run under vitest in jsdom and some read the vite config
+       from disk, so they need node's types as well as the browser's. The app
+       config deliberately pins `types: ["vite/client"]` to keep node globals
+       out of shipped code; putting tests in their own project is how both get
+       what they need without either leaking into the other. */
+    "types": ["vite/client", "node", "vitest/globals"],
+    "strict": true,
+    "skipLibCheck": true,
+    "noUncheckedIndexedAccess": true,
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "erasableSyntaxOnly": true,
+    "noFallthroughCasesInSwitch": true,
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": ["src/**/*.test.ts", "src/**/*.test.tsx", "src/test/*.ts", "src/test/*.tsx"]
+}

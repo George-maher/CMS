@@ -20,9 +20,9 @@ class EventAnalyticsController extends Controller
 
     public function summary(Request $request, int $id): JsonResponse
     {
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = $request->user();
-        $servantClassIds = $user->role === \App\Enums\UserRole::Servant ? $user->getServantClassIds() : null;
+        $servantClassIds = $user->role === UserRole::Servant ? $user->getServantClassIds() : null;
         $summary = $this->eventService->viewSummary($id, $servantClassIds);
 
         return response()->json(['data' => $summary]);
@@ -32,9 +32,9 @@ class EventAnalyticsController extends Controller
     {
         /** @var array<string, mixed> $filters */
         $filters = $request->only(['class_id', 'search']);
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = $request->user();
-        $servantClassIds = $user->role === \App\Enums\UserRole::Servant ? $user->getServantClassIds() : null;
+        $servantClassIds = $user->role === UserRole::Servant ? $user->getServantClassIds() : null;
         if ($servantClassIds !== null) {
             unset($filters['class_year_id']);
         }
@@ -42,7 +42,7 @@ class EventAnalyticsController extends Controller
         $users = $this->eventService->viewedUsers($id, $filters, $servantClassIds);
 
         return response()->json([
-            'data' => $users->map(fn(User $u) => [
+            'data' => $users->map(fn (User $u) => [
                 'id' => $u->id,
                 'name' => $u->name,
                 'email' => $u->email,
@@ -58,11 +58,11 @@ class EventAnalyticsController extends Controller
 
     public function notViewed(Request $request, int $id): JsonResponse
     {
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = $request->user();
         /** @var array<string, mixed> $filters */
         $filters = $request->only(['class_id', 'search']);
-        $servantClassIds = $user->role === \App\Enums\UserRole::Servant ? $user->getServantClassIds() : null;
+        $servantClassIds = $user->role === UserRole::Servant ? $user->getServantClassIds() : null;
         if ($servantClassIds !== null) {
             unset($filters['class_year_id']);
         }
@@ -71,7 +71,7 @@ class EventAnalyticsController extends Controller
         $users = $this->eventService->notViewedUsers($id, $user->church_id, $filters, $servantClassIds);
 
         return response()->json([
-            'data' => $users->map(fn(User $u) => [
+            'data' => $users->map(fn (User $u) => [
                 'id' => $u->id,
                 'name' => $u->name,
                 'email' => $u->email,
@@ -86,7 +86,7 @@ class EventAnalyticsController extends Controller
 
     public function track(Request $request, int $id): JsonResponse
     {
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = $request->user();
 
         if ($user->role !== UserRole::Member) {
@@ -94,7 +94,7 @@ class EventAnalyticsController extends Controller
         }
 
         $event = $this->eventRepository->findById($id);
-        if (!$event) {
+        if (! $event) {
             return response()->json(['message' => 'Event not found.'], 404);
         }
 

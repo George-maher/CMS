@@ -2,7 +2,6 @@
 
 namespace App\Contracts;
 
-use App\Models\Event;
 use Illuminate\Database\Eloquent\Collection;
 
 interface EventServiceInterface
@@ -37,4 +36,11 @@ interface EventServiceInterface
     public function notViewedUsers(int $eventId, ?int $churchId = null, array $filters = [], array|int|null $servantClassIds = null): Collection;
 
     public function trackView(int $eventId, int $userId, ?string $ipAddress = null, ?string $userAgent = null): void;
+
+    /**
+     * Events where the user is the responsible servant.
+     *
+     * @return array<string, mixed>
+     */
+    public function myAssignedEvents(int $userId, int $perPage = 15): array;
 }

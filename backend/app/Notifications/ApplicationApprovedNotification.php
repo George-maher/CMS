@@ -27,10 +27,11 @@ class ApplicationApprovedNotification extends Notification implements ShouldQueu
     {
         /** @var string $dashboardUrl */
         $dashboardUrl = config('app.frontend_url');
+
         return (new MailMessage)
-            ->subject('Your Church Registration Has Been Approved - ' . $this->churchName)
-            ->greeting('Congratulations, ' . ($this->applicant->name ?? '') . '!')
-            ->line('Your church registration for **' . $this->churchName . '** has been approved.')
+            ->subject('Your Church Registration Has Been Approved - '.$this->churchName)
+            ->greeting('Congratulations, '.($this->applicant->name ?? '').'!')
+            ->line('Your church registration for **'.$this->churchName.'** has been approved.')
             ->line('')
             ->line('You can now log in to your church\'s admin dashboard to start managing your community.')
             ->line('')
@@ -40,7 +41,7 @@ class ApplicationApprovedNotification extends Notification implements ShouldQueu
             ->line('- Create events and daily verses')
             ->line('- View analytics and reports')
             ->line('')
-            ->action('Go to Dashboard', $dashboardUrl . '/login')
+            ->action('Go to Dashboard', $dashboardUrl.'/login')
             ->line('Thank you for choosing our platform to serve your church community.')
             ->salutation('Best regards, The Church Management Team');
     }

@@ -20,6 +20,7 @@ use App\Services\CacheService;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 
@@ -97,6 +98,39 @@ class UserService implements UserServiceInterface
             }
         }
 
+        if ($authUser !== null && ! $authUser->isStageAdmin()) {
+            // Defense in depth for the class ownership boundary. The Class is
+            // resolved from the database and its owning Church derived from the
+            // persisted relationship, never from a client-supplied church_id
+            // or from the stored `scope` column. Stage admins keep the
+            // stricter branch above unchanged.
+            /** @var int|null $classId */
+            $classId = isset($data['class_id']) && is_numeric($data['class_id']) ? (int) $data['class_id'] : null;
+            if ($classId !== null) {
+                /** @var Classe|null $classe */
+                $classe = Classe::query()->find($classId);
+                if ($classe === null || ! $this->scopeResolver->canAccessClass($authUser, $classe)) {
+                    throw new AuthorizationException('The selected class is outside your authority.');
+                }
+            }
+
+            // Defense in depth for the stage ownership boundary, mirroring the
+            // class check above. This service is callable from commands,
+            // seeders and jobs where the controller's middleware never runs, so
+            // the stage has to be re-resolved here as well.
+            // `Stage::query()` carries the `ChurchScope` global scope, so a
+            // stage belonging to another church does not resolve at all.
+            /** @var int|null $requestedStageId */
+            $requestedStageId = isset($data['stage_id']) && is_numeric($data['stage_id']) ? (int) $data['stage_id'] : null;
+            if ($requestedStageId !== null) {
+                /** @var Stage|null $stage */
+                $stage = Stage::query()->find($requestedStageId);
+                if ($stage === null || ! $this->scopeResolver->canAccessStage($authUser, $stage)) {
+                    throw new AuthorizationException('The selected stage is outside your authority.');
+                }
+            }
+        }
+
         /** @var array<string, mixed> $data */
         $data['password'] = Hash::make($password);
 
@@ -106,13 +140,6 @@ class UserService implements UserServiceInterface
         $stageId = isset($data['stage_id']) && is_numeric($data['stage_id']) ? (int) $data['stage_id'] : null;
         /** @var int|null $classId */
         $classId = isset($data['class_id']) && is_numeric($data['class_id']) ? (int) $data['class_id'] : null;
-
-        // Tenant containment for the structural references. `exists:classes,id`
-        // and `exists:stages,id` are tenant-agnostic, so without this a church
-        // admin could bind a user to another church's class/stage and produce a
-        // row that violates the Church -> Stage -> Class -> User chain. Stage
-        // admins were already covered above; this covers every other tier.
-        $this->assertStructuralReferencesWithinTenant($classId, $stageId, $authUser);
 
         if ($stageId === null && $classId !== null) {
             $stageId = $this->stageForClass($classId);
@@ -127,16 +154,12 @@ class UserService implements UserServiceInterface
         $data['application_status'] = 'approved';
         $data['is_active'] = $data['is_active'] ?? true;
 
-        // An admin who holds `manage_users` is attesting the address on the
-        // tenant's behalf, so the account is verified from birth. The rule
-        // itself lives in UserProvisioningService, keyed by the channel.
         $user = $this->userProvisioning->create([
             'name' => $data['name'] ?? '',
             'email' => $email,
             'password' => $data['password'],
             'role' => $role,
             'class_id' => $data['class_id'] ?? null,
-            'class_year_id' => $data['class_year_id'] ?? null,
             'stage_id' => $stageId,
             'scope' => $this->deriveScopeValue($role, $stageId),
             'phone' => $data['phone'] ?? null,
@@ -185,7 +208,8 @@ class UserService implements UserServiceInterface
             if (array_key_exists('role', $data) && ! $authUser->isAdmin()) {
                 $requestedRoleValue = is_string($data['role']) ? $data['role'] : null;
                 $currentRoleValue = $user->role?->value;
-                if ($this->isPrivilegedRole($requestedRoleValue) || $this->isPrivilegedRole($currentRoleValue)) {
+                if (in_array($requestedRoleValue, $this->privilegedRoleValues(), true)
+                    || in_array($currentRoleValue, $this->privilegedRoleValues(), true)) {
                     throw ValidationException::withMessages(['role' => ['Forbidden.']]);
                 }
             }
@@ -205,6 +229,21 @@ class UserService implements UserServiceInterface
         $currentRole = $user->role?->value;
         /** @var string|null $targetRole */
         $targetRole = isset($data['role']) && is_string($data['role']) ? $data['role'] : $currentRole;
+
+        // Defense in depth for the class ownership boundary. The target Class is
+        // resolved from the database and its owning Church derived from the
+        // persisted relationship — never from a client-supplied church_id and
+        // never from the stored `scope` column. Mirrors create().
+        if (array_key_exists('class_id', $data) && isset($data['class_id']) && is_numeric($data['class_id'])) {
+            /** @var int $targetClassId */
+            $targetClassId = (int) $data['class_id'];
+            /** @var Classe|null $targetClass */
+            $targetClass = Classe::query()->find($targetClassId);
+
+            if ($targetClass === null || ! $this->scopeResolver->canAccessClass($authUser, $targetClass)) {
+                throw ValidationException::withMessages(['class_id' => ['The selected class is outside your authority.']]);
+            }
+        }
 
         if (array_key_exists('stage_id', $data) || $targetRole !== $currentRole || array_key_exists('class_id', $data)) {
             /** @var int|null $stageId */
@@ -238,12 +277,15 @@ class UserService implements UserServiceInterface
     }
 
     /**
-     * Role classification lives on the domain enum so that the controller and
-     * the service can never disagree about what counts as privileged.
+     * @return array<int, string>
      */
-    private function isPrivilegedRole(?string $role): bool
+    private function privilegedRoleValues(): array
     {
-        return $role !== null && in_array($role, UserRole::privilegedValues(), true);
+        return [
+            UserRole::Admin->value,
+            UserRole::AssistantAdmin->value,
+            UserRole::StageAdmin->value,
+        ];
     }
 
     public function delete(int $id): bool
@@ -299,7 +341,8 @@ class UserService implements UserServiceInterface
             throw ValidationException::withMessages(['user' => ['Forbidden.']]);
         }
 
-        if ($this->isPrivilegedRole($newRole) && $authUser?->isAdmin() !== true) {
+        if (in_array($newRole, [UserRole::Admin->value, UserRole::AssistantAdmin->value, UserRole::StageAdmin->value], true)
+            && $authUser?->isAdmin() !== true) {
             throw ValidationException::withMessages(['role' => ['Forbidden.']]);
         }
 
@@ -335,6 +378,10 @@ class UserService implements UserServiceInterface
     {
         /** @var User|null $user */
         $user = $this->userRepository->findById($userId);
+
+        if (! $user) {
+            throw ValidationException::withMessages(['user' => ['User not found.']]);
+        }
 
         /** @var User|null $authUser */
         $authUser = User::find($authUserId);
@@ -422,6 +469,24 @@ class UserService implements UserServiceInterface
      * @param  array<int, string>  $permissions
      * @return array<string, mixed>
      */
+    /**
+     * Replace the permission set for a batch of users.
+     *
+     * ATOMIC. The whole batch is all-or-nothing.
+     *
+     * The loop below mixes validation with mutation: it authorizes each user
+     * and immediately writes that user's permissions. Without a transaction,
+     * a request naming [allowed, forbidden] would leave the first user's
+     * permissions already rewritten when the second throws — a partial
+     * mutation that the caller is told failed. The HTTP controller happens to
+     * pre-validate every id before calling this, but the service is public and
+     * is called from places where that pre-check does not apply, and it is
+     * also the layer that is supposed to be safe on its own.
+     *
+     * `syncPermissions()` has its own inner transaction, which on PostgreSQL
+     * becomes a savepoint once nested, so the outer transaction is what makes
+     * the batch atomic rather than merely tidier.
+     */
     public function bulkUpdatePermissions(array $userIds, array $permissions, int $authUserId): array
     {
         /** @var Collection<int, User> $users */
@@ -430,20 +495,45 @@ class UserService implements UserServiceInterface
         /** @var User|null $authUser */
         $authUser = User::find($authUserId);
 
-        foreach ($users as $user) {
-            if ($authUser !== null && ! $this->scopeResolver->canAccessUser($authUser, $user)) {
-                throw ValidationException::withMessages(['user' => ['Forbidden.']]);
+        $updated = DB::transaction(function () use ($users, $authUser, $permissions): int {
+            foreach ($users as $user) {
+                if ($authUser !== null && ! $this->scopeResolver->canAccessUser($authUser, $user)) {
+                    throw ValidationException::withMessages(['user' => ['Forbidden.']]);
+                }
+                if ($user->isAdmin() && $authUser?->isAdmin() !== true) {
+                    throw ValidationException::withMessages(['user' => ['Forbidden.']]);
+                }
+                $user->syncPermissions($permissions);
             }
-            if ($user->isAdmin() && $authUser?->isAdmin() !== true) {
-                throw ValidationException::withMessages(['user' => ['Forbidden.']]);
-            }
-            $user->syncPermissions($permissions);
-        }
 
-        return ['message' => 'Permissions updated successfully for '.$users->count().' users.'];
+            return $users->count();
+        });
+
+        return ['message' => 'Permissions updated successfully for '.$updated.' users.'];
     }
 
     /** @return array<string, mixed> */
+    /**
+     * Issue a fresh attendance QR token for a user.
+     *
+     * This is a trusted internal method: it takes a resolved user id and does
+     * not re-derive the actor. Two properties make that safe today, and both are
+     * asserted by tests so neither can be removed silently:
+     *
+     *  1. `userRepository->findById()` is church-scoped, so a user from another
+     *     tenant cannot be addressed at all (404 / null).
+     *  2. Every caller performs the scope check before calling:
+     *      - `UserController::regenerateAttendanceToken()` — `canAccessUser()`
+     *        against the resolved target.
+     *      - `UserController::regenerateOwnQrToken()` — passes the actor's own
+     *        id, which is trivially in scope.
+     *
+     * `canAccessUser()` is deliberately NOT repeated here: it needs the actor
+     * id, which this signature does not carry, and adding it would mean
+     * changing the public contract for a check that no caller can bypass. If a
+     * future caller is added, it must resolve the target the same way — see
+     * TenantArchitectureTest for the named-owner guardrail.
+     */
     public function regenerateAttendanceToken(int $userId): array
     {
         /** @var User|null $user */
@@ -473,31 +563,6 @@ class UserService implements UserServiceInterface
         $fallback = $data['church_id'] ?? null;
 
         return is_int($fallback) ? $fallback : null;
-    }
-
-    /**
-     * Reject class/stage references that fall outside the actor's tenant.
-     *
-     * Cross-tenant references are authorization failures, so they are reported
-     * as such rather than as validation errors, and they are enforced here
-     * (service layer) so the rule holds for every caller instead of relying on
-     * a single controller or on tenant-agnostic `exists:` rules. Both models
-     * carry the ChurchScope global scope, so a foreign id simply does not
-     * resolve.
-     */
-    private function assertStructuralReferencesWithinTenant(?int $classId, ?int $stageId, ?User $authUser): void
-    {
-        if ($authUser === null || $authUser->isPlatformAdmin()) {
-            return;
-        }
-
-        if ($classId !== null && Classe::query()->where('id', $classId)->first() === null) {
-            throw new AuthorizationException('The selected class is outside your church.');
-        }
-
-        if ($stageId !== null && Stage::query()->where('id', $stageId)->first() === null) {
-            throw new AuthorizationException('The selected stage is outside your church.');
-        }
     }
 
     private function stageForClass(?int $classId): ?int

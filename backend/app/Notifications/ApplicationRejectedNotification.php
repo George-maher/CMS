@@ -29,10 +29,11 @@ class ApplicationRejectedNotification extends Notification implements ShouldQueu
     {
         /** @var string $statusUrl */
         $statusUrl = config('app.frontend_url');
+
         return (new MailMessage)
-            ->subject('Church Registration Update - ' . ($this->application->church_name ?? ''))
-            ->greeting('Dear ' . ($this->applicant->name ?? '') . ',')
-            ->line('Your church registration application for **' . ($this->application->church_name ?? '') . '** has been reviewed.')
+            ->subject('Church Registration Update - '.($this->application->church_name ?? ''))
+            ->greeting('Dear '.($this->applicant->name ?? '').',')
+            ->line('Your church registration application for **'.($this->application->church_name ?? '').'** has been reviewed.')
             ->line('')
             ->line('Unfortunately, your application could not be approved at this time.')
             ->line('')
@@ -42,7 +43,7 @@ class ApplicationRejectedNotification extends Notification implements ShouldQueu
             ->line('If you have any questions or would like to reapply with corrected information,')
             ->line('please feel free to contact our support team.')
             ->line('')
-            ->action('View Application Status', $statusUrl . '/login')
+            ->action('View Application Status', $statusUrl.'/login')
             ->salutation('Best regards, The Church Management Team');
     }
 }

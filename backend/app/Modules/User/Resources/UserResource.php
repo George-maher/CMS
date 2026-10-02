@@ -62,9 +62,9 @@ class UserResource extends JsonResource
 
         return [
             'id' => $this->id,
-            'member_id' => $this->when($isStaff || ($authUser !== null && $authUser->id === $this->id), fn() => $this->member_id),
+            'member_id' => $this->when($isStaff || ($authUser !== null && $authUser->id === $this->id), fn () => $this->member_id),
             'church_id' => $this->church_id,
-            'church' => $this->when($church !== null, fn() => $church),
+            'church' => $this->when($church !== null, fn () => $church),
             'name' => $this->name,
             'email' => $this->email,
             'birthday' => $this->birthday?->format('Y-m-d'),
@@ -74,7 +74,7 @@ class UserResource extends JsonResource
             'stage' => $classe !== null ? ($classe['stage'] ?? null) : null,
             'classe' => $classe,
             'class_id' => $this->class_id,
-            'servant' => $this->when($servant !== null, fn() => $servant),
+            'servant' => $this->when($servant !== null, fn () => $servant),
             'assigned_members_count' => $this->when((int) $this->assigned_members_count > 0, (int) $this->assigned_members_count),
             'phone' => $this->phone,
             'address' => $this->address,
@@ -85,9 +85,9 @@ class UserResource extends JsonResource
             'is_active' => $this->is_active,
             'application_status' => $this->application_status,
             'email_verified_at' => $this->email_verified_at?->toISOString(),
-            'attendance_qr_token' => $this->when($authUser !== null && $authUser->id === $this->id, fn() => $this->attendance_qr_token),
+            'attendance_qr_token' => $this->when($authUser !== null && $authUser->id === $this->id, fn () => $this->attendance_qr_token),
             'total_points' => $this->total_points,
-            'created_by' => $this->when($createdBy !== null, fn() => $createdBy),
+            'created_by' => $this->when($createdBy !== null, fn () => $createdBy),
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
         ];

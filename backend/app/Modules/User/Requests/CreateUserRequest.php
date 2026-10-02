@@ -16,16 +16,6 @@ class CreateUserRequest extends FormRequest
     }
 
     /**
-     * Note on `class_id` / `stage_id`:
-     *
-     * These are validated for *existence* only, deliberately without tenant
-     * scoping. A `Rule::exists()->where('church_id', ...)` rule would report a
-     * cross-tenant reference as a 422 validation failure, but referencing a
-     * resource outside your tenant is an authorization failure and must surface
-     * as 403. The tenant boundary is therefore enforced in exactly one place —
-     * UserService::create() — which owns it for every caller. This rule only
-     * catches ids that do not exist at all.
-     *
      * @return array<string, mixed>
      */
     public function rules(): array
@@ -38,7 +28,14 @@ class CreateUserRequest extends FormRequest
             'email' => ['required', 'email', 'unique:users,email', new NotPlaceholder],
             'password' => ['required', 'string', 'min:8', 'confirmed'],
             'role' => ['required', Rule::in($allowedRoles)],
-            'class_year_id' => ['nullable', 'integer', 'exists:class_years,id'],
+            // Legacy duplicate of class_id. Rejected rather than accepted:
+            // `users.class_year_id` is still foreign-keyed to the deprecated
+            // `class_years` table while every other `class_year_id` in the
+            // schema was repointed at `classes`. Accepting it allowed a client
+            // to point a user at a class_years row in any church (the rule was
+            // a bare `exists:`, with no ownership check), and it then leaked
+            // into EventPolicy's authorization comparison. See EventPolicy.
+            'class_year_id' => ['prohibited'],
             'class_id' => ['nullable', 'integer', 'exists:classes,id'],
             'stage_id' => ['nullable', 'integer', 'exists:stages,id'],
             'phone' => ['nullable', new PhoneRule, new NotPlaceholder],

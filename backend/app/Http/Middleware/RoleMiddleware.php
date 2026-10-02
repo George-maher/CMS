@@ -2,7 +2,7 @@
 
 namespace App\Http\Middleware;
 
-use App\Enums\UserRole;
+use App\Models\User;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -13,12 +13,11 @@ class RoleMiddleware
     {
         $user = $request->user();
 
-        if (!$user) {
+        if (! $user) {
             return response()->json(['message' => 'Unauthenticated.'], 401);
         }
 
-        /** @var \App\Models\User $user */
-
+        /** @var User $user */
         $allowedRoles = [];
         foreach ($roles as $role) {
             // Support comma-separated roles passed as single string: "admin,servant"
@@ -27,7 +26,7 @@ class RoleMiddleware
             }
         }
 
-        if (!in_array($user->role->value, $allowedRoles, true)) {
+        if (! in_array($user->role->value, $allowedRoles, true)) {
             return response()->json(['message' => 'Forbidden. You do not have the required role.'], 403);
         }
 

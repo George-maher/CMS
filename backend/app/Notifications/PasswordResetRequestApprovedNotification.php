@@ -4,11 +4,26 @@ namespace App\Notifications;
 
 use App\Models\User;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldBeEncrypted;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
-class PasswordResetRequestApprovedNotification extends Notification implements ShouldQueue
+/**
+ * Carries a password-reset URL (Phase 1C finding A-5).
+ *
+ * `ShouldBeEncrypted` is the project standard for secret-bearing queued
+ * notifications (see VerifyEmailNotification for the mechanism): the whole
+ * serialized job is encrypted before it is written to `jobs.payload`, so the
+ * reset URL never sits in a readable database column.
+ *
+ * NOTE: this notification is currently UNREACHABLE — no code constructs it
+ * (the approval flow does not email a link; the admin sets the password
+ * directly via POST /password-reset-requests/{id}/reset-password). The
+ * interface is defense-in-depth: if an emailed approval link is ever added,
+ * the payload must already be encrypted.
+ */
+class PasswordResetRequestApprovedNotification extends Notification implements ShouldBeEncrypted, ShouldQueue
 {
     use Queueable;
 
@@ -29,7 +44,7 @@ class PasswordResetRequestApprovedNotification extends Notification implements S
         if ($locale === 'ar') {
             return (new MailMessage)
                 ->subject('تمت الموافقة على طلب إعادة تعيين كلمة المرور')
-                ->greeting('مرحباً ' . ($notifiable->name ?? '') . '!')
+                ->greeting('مرحباً '.($notifiable->name ?? '').'!')
                 ->line('تمت الموافقة على طلب إعادة تعيين كلمة المرور.')
                 ->line('يمكنك الآن تعيين كلمة مرور جديدة باستخدام الرابط أدناه.')
                 ->action('تعيين كلمة مرور جديدة', $this->resetUrl)
@@ -40,7 +55,7 @@ class PasswordResetRequestApprovedNotification extends Notification implements S
 
         return (new MailMessage)
             ->subject('Your Password Reset Request Has Been Approved')
-            ->greeting('Hello ' . ($notifiable->name ?? '') . '!')
+            ->greeting('Hello '.($notifiable->name ?? '').'!')
             ->line('Your password reset request has been approved.')
             ->line('You may now set a new password using the link below.')
             ->action('Set New Password', $this->resetUrl)

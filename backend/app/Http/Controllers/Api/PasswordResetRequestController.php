@@ -6,9 +6,10 @@ use App\Contracts\PasswordResetRequestServiceInterface;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ApprovePasswordResetRequest;
 use App\Http\Requests\RejectPasswordResetRequest;
+use App\Http\Requests\ResetPasswordByAdminRequest;
 use App\Http\Requests\SubmitPasswordResetRequest;
 use App\Http\Resources\PasswordResetRequestResource;
-use App\Models\PasswordResetRequest;
+use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -30,7 +31,7 @@ class PasswordResetRequestController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = $request->user();
         /** @var int $churchId */
         $churchId = $user->church_id;
@@ -52,13 +53,13 @@ class PasswordResetRequestController extends Controller
 
     public function show(int $id): JsonResponse
     {
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = request()->user();
         /** @var int $churchId */
         $churchId = $user->church_id;
         $request = $this->passwordResetRequestService->findById($id, $churchId);
 
-        if (!$request) {
+        if (! $request) {
             return response()->json(['message' => 'Not found.'], 404);
         }
 
@@ -71,11 +72,13 @@ class PasswordResetRequestController extends Controller
 
     public function approve(int $id, ApprovePasswordResetRequest $request): JsonResponse
     {
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = $request->user();
-        $resetRequest = PasswordResetRequest::find($id);
+        /** @var int $userChurchId */
+        $userChurchId = $user->church_id;
+        $resetRequest = $this->passwordResetRequestService->findById($id, $userChurchId);
 
-        if (!$resetRequest) {
+        if (! $resetRequest) {
             return response()->json(['message' => 'Not found.'], 404);
         }
 
@@ -92,11 +95,13 @@ class PasswordResetRequestController extends Controller
 
     public function reject(int $id, RejectPasswordResetRequest $request): JsonResponse
     {
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = $request->user();
-        $resetRequest = PasswordResetRequest::find($id);
+        /** @var int $userChurchId */
+        $userChurchId = $user->church_id;
+        $resetRequest = $this->passwordResetRequestService->findById($id, $userChurchId);
 
-        if (!$resetRequest) {
+        if (! $resetRequest) {
             return response()->json(['message' => 'Not found.'], 404);
         }
 
@@ -117,19 +122,31 @@ class PasswordResetRequestController extends Controller
         ]);
     }
 
-    public function completeReset(Request $request): JsonResponse
+    /**
+     * Church Admin sets a brand-new password for an approved request.
+     * The password is hashed server-side and never returned or logged.
+     */
+    public function resetPassword(int $id, ResetPasswordByAdminRequest $request): JsonResponse
     {
-        $request->validate([
-            'token' => ['required', 'string', 'size:64'],
-            'password' => ['required', 'string', 'min:8', 'confirmed'],
-        ]);
+        /** @var User $user */
+        $user = $request->user();
+        /** @var int $userChurchId */
+        $userChurchId = $user->church_id;
+        $resetRequest = $this->passwordResetRequestService->findById($id, $userChurchId);
 
-        /** @var string $token */
-        $token = $request->input('token');
+        if (! $resetRequest) {
+            return response()->json(['message' => 'Not found.'], 404);
+        }
+
+        Gate::authorize('resetPassword', $resetRequest);
+
+        /** @var int $adminId */
+        $adminId = $user->id;
         /** @var string $password */
         $password = $request->input('password');
-        $result = $this->passwordResetRequestService->completeReset(
-            $token,
+        $result = $this->passwordResetRequestService->resetPassword(
+            $id,
+            $adminId,
             $password,
         );
 

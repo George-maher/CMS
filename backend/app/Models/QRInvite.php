@@ -3,48 +3,59 @@
 namespace App\Models;
 
 use App\Enums\QRInviteType;
+use App\Models\Scopes\ChurchScope;
 use App\Traits\AuditableTrait;
 use App\Traits\BelongsToChurch;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\Relation;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 
 /**
  * @property int $id
- * @property \App\Enums\QRInviteType $type
+ * @property QRInviteType $type
  * @property string $token
+ * @property string|null $client_request_id
  * @property int|null $created_by
  * @property int|null $class_id
+ * @property int|null $stage_id
  * @property int|null $class_year_id
  * @property int|null $attendance_context_id
  * @property int|null $used_by
- * @property \Illuminate\Support\Carbon $expires_at
- * @property \Illuminate\Support\Carbon|null $used_at
+ * @property Carbon $expires_at
+ * @property Carbon|null $used_at
  * @property bool $is_revoked
  * @property bool $is_single_use
  * @property int|null $max_uses
  * @property int $use_count
  * @property array<int, array{id: int, name: string, role: string|null, phone: string|null, member_id: string|null, class_id: int|null, class_name: string|null, stage_name: string|null, used_at: string}>|null $used_by_users
  * @property int|null $church_id
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
- * @property-read \App\Models\User|null $creator
- * @property-read \App\Models\User|null $usedBy
- * @property-read \App\Models\Classe|null $classe
- * @property-read \App\Models\Classe|null $classeYear
- * @property-read \App\Models\AttendanceContext|null $attendanceContext
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
+ * @property-read User|null $creator
+ * @property-read User|null $usedBy
+ * @property-read Classe|null $classe
+ * @property-read Classe|null $classeYear
+ * @property-read Stage|null $stage
+ * @property-read AttendanceContext|null $attendanceContext
+ *
  * @method static \Illuminate\Database\Eloquent\Builder|\App\Models\QRInvite valid()
  */
 class QRInvite extends Model
 {
-    use BelongsToChurch, AuditableTrait;
+    use AuditableTrait, BelongsToChurch;
 
     protected $table = 'qr_invites';
 
     protected $fillable = [
         'type',
         'token',
+        'client_request_id',
         'created_by',
         'class_id',
+        'stage_id',
         'class_year_id',
         'attendance_context_id',
         'used_by',
@@ -97,6 +108,14 @@ class QRInvite extends Model
     }
 
     /**
+     * @return BelongsTo<Stage, $this>
+     */
+    public function stage(): BelongsTo
+    {
+        return $this->belongsTo(Stage::class, 'stage_id');
+    }
+
+    /**
      * @return BelongsTo<Classe, $this>
      */
     public function classeYear(): BelongsTo
@@ -137,7 +156,13 @@ class QRInvite extends Model
 
     public function markAsUsed(int $userId): bool
     {
-        $user = \App\Models\User::with('classe.stage')->find($userId);
+        // The invite row is already token-authorized and the user's class FKs
+        // are church-validated; load the snapshot unscoped because registration
+        // runs without an authenticated tenant.
+        $user = User::with([
+            'classe' => static fn (Relation $query) => $query->withoutGlobalScope(ChurchScope::class),
+            'classe.stage' => static fn (Relation $query) => $query->withoutGlobalScope(ChurchScope::class),
+        ])->find($userId);
 
         $userEntry = [
             'id' => $userId,
@@ -158,7 +183,7 @@ class QRInvite extends Model
         $isFinalUse = $this->max_uses !== null && $newCount >= $this->max_uses;
 
         $updates = [
-            'use_count' => \Illuminate\Support\Facades\DB::raw('use_count + 1'),
+            'use_count' => DB::raw('use_count + 1'),
             'used_by_users' => json_encode($existingUsers),
         ];
 
@@ -167,8 +192,11 @@ class QRInvite extends Model
             $updates['used_at'] = now();
         }
 
-        // Optimistic lock: only apply if use_count hasn't moved since we loaded it
-        $query = static::where('id', $this->id)
+        // Optimistic lock: only apply if use_count hasn't moved since we loaded it.
+        // Unscoped: this row was authorized by its token; during public registration
+        // no tenant is authenticated and the fail-closed scope would match 0 rows.
+        $query = static::withoutGlobalScope(ChurchScope::class)
+            ->where('id', $this->id)
             ->where('use_count', $this->use_count);
 
         if ($isFinalUse) {
@@ -185,10 +213,10 @@ class QRInvite extends Model
     }
 
     /**
-     * @param \Illuminate\Database\Eloquent\Builder<\App\Models\QRInvite> $query
-     * @return \Illuminate\Database\Eloquent\Builder<\App\Models\QRInvite>
+     * @param  Builder<QRInvite>  $query
+     * @return Builder<QRInvite>
      */
-    public function scopeValid($query): \Illuminate\Database\Eloquent\Builder
+    public function scopeValid($query): Builder
     {
         return $query
             ->where('is_revoked', false)

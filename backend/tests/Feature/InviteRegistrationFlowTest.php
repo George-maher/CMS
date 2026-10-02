@@ -183,6 +183,8 @@ class InviteRegistrationFlowTest extends TestCase
         ]);
 
         $response->assertStatus(400)
+            ->assertJsonPath('success', false)
+            ->assertJsonPath('code', 'VERIFICATION_FAILED')
             ->assertJsonPath('message', 'Invalid or expired verification link.');
     }
 
@@ -205,6 +207,8 @@ class InviteRegistrationFlowTest extends TestCase
         ]);
 
         $response->assertStatus(400)
+            ->assertJsonPath('success', false)
+            ->assertJsonPath('code', 'VERIFICATION_FAILED')
             ->assertJsonPath('message', 'Invalid or expired verification link.');
     }
 
@@ -228,6 +232,8 @@ class InviteRegistrationFlowTest extends TestCase
         ]);
 
         $response->assertStatus(400)
+            ->assertJsonPath('success', false)
+            ->assertJsonPath('code', 'VERIFICATION_FAILED')
             ->assertJsonPath('message', 'Invalid or expired verification link.');
     }
 

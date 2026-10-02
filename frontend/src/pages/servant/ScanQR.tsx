@@ -2,7 +2,7 @@ import { fmtDate } from '@/lib/dates'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import toast from 'react-hot-toast'
-import { Camera, X, CheckCircle, AlertCircle, QrCode, ClipboardList } from 'lucide-react'
+import { Camera, X, CheckCircle, AlertCircle, QrCode, ClipboardList, CloudOff } from 'lucide-react'
 import CopyButton from '@/components/common/CopyButton'
 import { useTheme } from '@/hooks/useTheme'
 import { ctxOptionLabel } from '@/lib/contextLabels'
@@ -20,7 +20,10 @@ export default function ServantScanQR() {
   const [manualToken, setManualToken] = useState('')
   const [manualMemberId, setManualMemberId] = useState('')
   const [loading, setLoading] = useState(false)
-  const [result, setResult] = useState<{ success: boolean; message: string } | null>(null)
+  // `queued` is a deliberate third state: the write was NOT recorded (so it
+  // is not a green success), but it was captured for replay (so it is not a
+  // red failure either — see the offline-sentinel branch in confirmAttendance).
+  const [result, setResult] = useState<{ success: boolean; queued?: boolean; message: string } | null>(null)
   const [cameraActive, setCameraActive] = useState(false)
   const [events, setEvents] = useState<Event[]>([])
   const [selectedEventId, setSelectedEventId] = useState<number | ''>('')
@@ -112,6 +115,30 @@ export default function ServantScanQR() {
         setTodayAttended(new Set(today.data.map((a) => a.user?.id).filter(Boolean)))
       }).catch((e) => logCatch('ScanQR.refreshTodayAttended', e))
     } catch (err: unknown) {
+      // The API layer's offline-queue sentinel: the request interceptor took
+      // ownership of the write and stored it in IndexedDB for replay. This is
+      // neither a recorded success nor a failure — reporting
+      // `attendance.failedToRecord` here (Phase 1C finding A-2) made the
+      // servant see a red error, re-scan, and queue a SECOND copy of the same
+      // attendance write. Instead: show a distinct "queued offline" state and
+      // reset the flow exactly like a success does, so the confirm button
+      // cannot be pressed again for the same member. The today-list refresh
+      // is deliberately skipped: the write is not recorded yet, and the read
+      // would fail while the device is offline anyway.
+      if ((err as { __offline_queued?: boolean } | null)?.__offline_queued === true) {
+        const msg = t('attendance.queuedOffline')
+        setResult({ success: false, queued: true, message: msg })
+        toast(msg, { icon: <CloudOff className="h-4 w-4" /> })
+        setManualToken('')
+        setManualMemberId('')
+        setPendingMember(null)
+        setPendingToken(null)
+        setPendingMemberId(null)
+        setConfirmContextId('')
+        setQrContextName(null)
+        return
+      }
+
       const axiosErr = err as { response?: { data?: { message?: string; errors?: Record<string, string[]> } } }
       let msg = axiosErr?.response?.data?.message || t('attendance.failedToRecord')
       if (axiosErr?.response?.data?.errors) { msg += ` ${Object.values(axiosErr.response.data.errors).flat().join(' ')}` }
@@ -380,9 +407,11 @@ export default function ServantScanQR() {
 
         {result && (
           <div className={`mt-4 rounded-lg p-4 text-sm flex items-center gap-2 ${
-            result.success ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400' : 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400'
+            result.queued
+              ? 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400'
+              : result.success ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400' : 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400'
           }`}>
-            {result.success ? <CheckCircle className="h-5 w-5 shrink-0" /> : <AlertCircle className="h-5 w-5 shrink-0" />}
+            {result.queued ? <CloudOff className="h-5 w-5 shrink-0" /> : result.success ? <CheckCircle className="h-5 w-5 shrink-0" /> : <AlertCircle className="h-5 w-5 shrink-0" />}
             {result.message}
           </div>
         )}

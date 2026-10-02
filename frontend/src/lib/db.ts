@@ -10,7 +10,15 @@ export interface SyncQueueItem {
   method: 'POST' | 'PUT' | 'PATCH' | 'DELETE'
   body: unknown
   token: string
-  status: 'pending' | 'processing' | 'failed' | 'completed'
+  /**
+   * `abandoned` is a terminal dead-letter state. An item reaches it only after
+   * exhausting MAX_RETRIES, and it is deliberately never selected again.
+   *
+   * Without it, an exhausted item stayed `failed`, was re-read by
+   * getPendingSyncItems() on every single sync run, and retried forever — a
+   * poison item that could never drain and grew the queue indefinitely.
+   */
+  status: 'pending' | 'processing' | 'failed' | 'completed' | 'abandoned'
   retries: number
   createdAt: number
   updatedAt: number
@@ -77,6 +85,15 @@ export async function markSyncFailed(id: number, retries: number): Promise<void>
   await updateSyncItem(id, { status: 'failed', retries })
 }
 
+/**
+ * Move an item to the terminal dead-letter state so it is never retried again.
+ * The record is kept for diagnostics rather than deleted, so a failed write is
+ * not silently lost.
+ */
+export async function markSyncAbandoned(id: number, retries: number): Promise<void> {
+  await updateSyncItem(id, { status: 'abandoned', retries })
+}
+
 export async function clearCompletedSyncItems(): Promise<void> {
   const db = await getDb()
   const tx = db.transaction('syncQueue', 'readwrite')
@@ -88,9 +105,33 @@ export async function clearCompletedSyncItems(): Promise<void> {
   await tx.done
 }
 
+/**
+ * Total number of retained records, INCLUDING terminal ones.
+ *
+ * This is deliberately not "how many are still waiting". `abandoned` items are
+ * kept forever so a failed write is not silently lost, and `completed` items
+ * survive until the next purge pass; both are retained records. Use
+ * {@link getActionableSyncCount} for anything user-facing.
+ */
 export async function getSyncQueueLength(): Promise<number> {
   const db = await getDb()
   return db.count('syncQueue')
+}
+
+/**
+ * Number of items that can still make progress: `pending` + `failed`.
+ *
+ * Excludes `completed` (already sent) and `abandoned` (terminal dead-letter,
+ * never re-selected). This is what the "N change(s) waiting to sync" banner
+ * must show — counting an abandoned item produced a permanent, unsatisfiable
+ * amber banner, because nothing the user did could ever drain it.
+ */
+export async function getActionableSyncCount(): Promise<number> {
+  const db = await getDb()
+  const index = db.transaction('syncQueue').store.index('status')
+  const pending = await index.count('pending')
+  const failed = await index.count('failed')
+  return pending + failed
 }
 
 export async function cachePut(key: string, data: unknown, churchId: number | null): Promise<void> {

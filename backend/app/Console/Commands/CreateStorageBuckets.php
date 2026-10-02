@@ -30,7 +30,7 @@ class CreateStorageBuckets extends Command
 
         /** @var array<string, array<string, mixed>> $buckets */
         $buckets = config('supabase-storage.buckets', []);
-        $apiUrl = rtrim($projectUrl, '/') . '/storage/v1/bucket';
+        $apiUrl = rtrim($projectUrl, '/').'/storage/v1/bucket';
 
         $created = 0;
         $skipped = 0;
@@ -63,7 +63,7 @@ class CreateStorageBuckets extends Command
                     ]);
 
                     if ($update->successful()) {
-                        $this->info("  ↳ Bucket '{$bucketName}' updated to " . ($isPublic ? 'public' : 'private') . '.');
+                        $this->info("  ↳ Bucket '{$bucketName}' updated to ".($isPublic ? 'public' : 'private').'.');
                         $created++;
                     } else {
                         $this->error("  ✗ Failed to update bucket '{$bucketName}': {$update->body()}");
@@ -74,9 +74,10 @@ class CreateStorageBuckets extends Command
                         $failed++;
                     }
                 } else {
-                    $this->warn("  ↳ Bucket '{$bucketName}' already exists (public=" . ($currentlyPublic ? 'true' : 'false') . '). Skipping.');
+                    $this->warn("  ↳ Bucket '{$bucketName}' already exists (public=".($currentlyPublic ? 'true' : 'false').'). Skipping.');
                     $skipped++;
                 }
+
                 continue;
             }
 

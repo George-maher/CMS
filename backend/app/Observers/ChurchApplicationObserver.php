@@ -29,7 +29,7 @@ class ChurchApplicationObserver
         ]);
 
         foreach ($files as $url) {
-            $storage->deleteFile($url);
+            $storage->deleteFile($url, 'ids');
         }
     }
 }

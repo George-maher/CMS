@@ -55,6 +55,23 @@ return new class extends Migration
 
     public function down(): void
     {
+        // The index must be dropped before the column it covers.
+        //
+        // `up()` created `events_is_all_classes_index`, and this method only
+        // dropped the column. SQLite refuses to drop a column while an index
+        // still references it:
+        //
+        //   SQLSTATE[HY000]: General error: 1 error in index
+        //   events_is_all_classes_index after drop column: no such column: is_all_classes
+        //
+        // PostgreSQL hides this, because ALTER TABLE ... DROP COLUMN silently
+        // removes dependent indexes. Dropping it explicitly makes the rollback
+        // deterministic on both drivers. up() recreates the identical index,
+        // so migrate -> rollback -> migrate is lossless.
+        Schema::table('events', function (Blueprint $table) {
+            $table->dropIndex('events_is_all_classes_index');
+        });
+
         Schema::table('events', function (Blueprint $table) {
             $table->dropColumn('is_all_classes');
         });

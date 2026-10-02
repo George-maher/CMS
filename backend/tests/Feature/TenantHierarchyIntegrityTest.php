@@ -153,11 +153,39 @@ class TenantHierarchyIntegrityTest extends TestCase
     {
         [$churchA, $stageA] = $this->tenant('A');
         [, , $classB] = $this->tenant('B');
-        [, $stageB] = $this->tenant('B');
+        [, $stageB, $classInStageB] = $this->tenant('B2');
 
-        // Make the B tenant live inside church A so only the *stage* differs.
+        // Relocate the second B stage into church A so only the *stage* differs.
+        //
+        // The whole graph is moved in an order that never transiently creates
+        // an inconsistent state, because the composite tenant foreign key
+        // forbids one. Moving the stage first would fail: its class still
+        // references it in the old church. So the class is parked in a stage
+        // that is already consistent, then the stage moves, then the classes
+        // follow.
+        //
+        // The fixture previously moved the stage while leaving its class
+        // behind, which is precisely the cross-tenant state the constraint
+        // exists to prevent; the database now rejects it.
+        // Park the stage's class in the other B stage. Both columns move
+        // together, because (church_id, stage_id) is a single ownership pair.
+        // It then stays in Church B and is not part of the relocation.
+        $classInStageB->update([
+            'church_id' => $classB->church_id,
+            'stage_id' => $classB->stage_id,
+        ]);
+
+        // Safe now: nothing references stageB in Church B any more.
         $stageB->update(['church_id' => $churchA->id]);
-        $classB->update(['church_id' => $churchA->id, 'stage_id' => $stageB->id]);
+
+        // `classB` is placed in the relocated stage with a distinct name, since
+        // UNIQUE(church_id, stage_id, name) would otherwise collide with the
+        // class that already lives in that stage.
+        $classB->update([
+            'church_id' => $churchA->id,
+            'stage_id' => $stageB->id,
+            'name' => 'Class In Stage B',
+        ]);
 
         $stageAdmin = User::factory()->create([
             'role' => UserRole::StageAdmin,

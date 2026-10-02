@@ -6,7 +6,6 @@
  * Usage: php scripts/check-lang-parity.php
  * Exit code 0 on exact parity, 1 otherwise.
  */
-
 $langDir = __DIR__.'/../resources/lang';
 
 $readKeys = static function (string $path): array {

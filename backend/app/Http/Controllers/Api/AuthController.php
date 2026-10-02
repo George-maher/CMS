@@ -89,21 +89,6 @@ class AuthController extends Controller
         ]);
     }
 
-    /**
-     * Consume an email verification token.
-     *
-     * Contract (security):
-     *  - Success                -> 200
-     *  - Any failure whatsoever  -> 400 with one identical body
-     *
-     * "Any failure" covers: unknown address, already-verified address, no token
-     * issued, expired token, wrong token, and a lost consumption race. A 400
-     * (not 401) is used deliberately: 401 is reserved for "we will not tell you
-     * who you are" in the login contract, and the frontend client treats a 401
-     * as an expired session and force-logs the user out — which would be wrong
-     * for someone simply clicking an expired link. A 422 is likewise wrong,
-     * because the request itself is well formed; the credential is what failed.
-     */
     public function verifyEmail(Request $request): JsonResponse
     {
         $request->validate([
@@ -131,6 +116,10 @@ class AuthController extends Controller
 
     /**
      * The single, indistinguishable failure response.
+     *
+     * Unknown address, wrong token and already-verified account must all be
+     * reported identically, otherwise this endpoint becomes an account
+     * enumeration oracle.
      */
     private function verificationFailed(): JsonResponse
     {

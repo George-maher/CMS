@@ -12,7 +12,7 @@ return new class extends Migration
         // ============================================================
         // 2026_06_17_000001 — main_servant_name & phone on church_applications
         // ============================================================
-        if (!Schema::hasColumn('church_applications', 'main_servant_name')) {
+        if (! Schema::hasColumn('church_applications', 'main_servant_name')) {
             Schema::table('church_applications', function (Blueprint $table) {
                 $table->string('main_servant_name')->nullable()->after('priest_name');
                 $table->string('phone', 20)->nullable()->after('priest_phone');
@@ -22,7 +22,7 @@ return new class extends Migration
         // ============================================================
         // 2026_06_17_000002 — main_servant_name & phone on churches
         // ============================================================
-        if (!Schema::hasColumn('churches', 'main_servant_name')) {
+        if (! Schema::hasColumn('churches', 'main_servant_name')) {
             Schema::table('churches', function (Blueprint $table) {
                 $table->string('main_servant_name')->nullable()->after('priest_name');
                 $table->string('phone', 20)->nullable()->after('priest_phone');
@@ -55,7 +55,7 @@ return new class extends Migration
         // ============================================================
         // 2026_06_17_000005 — create event_targets table + is_all_classes on events
         // ============================================================
-        if (!Schema::hasTable('event_targets')) {
+        if (! Schema::hasTable('event_targets')) {
             Schema::create('event_targets', function (Blueprint $table) {
                 $table->id();
                 $table->foreignId('event_id')->constrained()->cascadeOnDelete();
@@ -69,7 +69,7 @@ return new class extends Migration
             });
         }
 
-        if (!Schema::hasColumn('events', 'is_all_classes')) {
+        if (! Schema::hasColumn('events', 'is_all_classes')) {
             Schema::table('events', function (Blueprint $table) {
                 $table->boolean('is_all_classes')->default(false)->after('is_active');
                 $table->index('is_all_classes');
@@ -79,7 +79,7 @@ return new class extends Migration
         // ============================================================
         // 2026_06_17_000006 — used_by_users JSON on qr_invites
         // ============================================================
-        if (!Schema::hasColumn('qr_invites', 'used_by_users')) {
+        if (! Schema::hasColumn('qr_invites', 'used_by_users')) {
             Schema::table('qr_invites', function (Blueprint $table) {
                 $table->json('used_by_users')->nullable()->after('used_by');
             });
@@ -88,7 +88,7 @@ return new class extends Migration
         // ============================================================
         // 2026_06_17_000007 — class_id FK on qr_invites
         // ============================================================
-        if (!Schema::hasColumn('qr_invites', 'class_id')) {
+        if (! Schema::hasColumn('qr_invites', 'class_id')) {
             Schema::table('qr_invites', function (Blueprint $table) {
                 $table->foreignId('class_id')->nullable()->after('created_by')
                     ->constrained('classes')->nullOnDelete();
@@ -114,27 +114,27 @@ return new class extends Migration
                     ");
                 }
             } else {
-                DB::statement("
+                DB::statement('
                     UPDATE attendances a
                     SET class_year_id = c.id
                     FROM class_years cy
                     INNER JOIN classes c ON c.church_id = cy.church_id AND c.name = cy.name
                     WHERE a.class_year_id = cy.id
-                ");
-                DB::statement("
+                ');
+                DB::statement('
                     UPDATE events e
                     SET class_year_id = c.id
                     FROM class_years cy
                     INNER JOIN classes c ON c.church_id = cy.church_id AND c.name = cy.name
                     WHERE e.class_year_id = cy.id
-                ");
-                DB::statement("
+                ');
+                DB::statement('
                     UPDATE qr_invites qi
                     SET class_year_id = c.id
                     FROM class_years cy
                     INNER JOIN classes c ON c.church_id = cy.church_id AND c.name = cy.name
                     WHERE qi.class_year_id = cy.id
-                ");
+                ');
             }
         }
         $this->fixForeignKey('attendances', 'class_year_id', 'classes');
@@ -157,7 +157,7 @@ return new class extends Migration
                 $t->dropForeign([$column]);
                 $t->foreign($column)->references('id')->on($referencedTable)->nullOnDelete();
             });
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Foreign key may not exist — skip gracefully
         }
     }

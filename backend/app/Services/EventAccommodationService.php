@@ -130,12 +130,30 @@ class EventAccommodationService implements EventAccommodationServiceInterface
             /** @var int|string|float|null $rawCapacity */
             $rawCapacity = $data['capacity'];
             $newCapacity = is_int($rawCapacity) ? $rawCapacity : intval($rawCapacity);
-            $currentMemberCells = $room->cells()->where('type', 'member')->count();
 
-            // Cannot reduce capacity below occupied member cells
-            if ($newCapacity < $currentMemberCells + 1) {
+            // Capture the CURRENT state BEFORE the update below (Phase 1C
+            // finding B-4): Eloquent's update() writes the new capacity into
+            // the model's attributes, so reading $room->capacity afterwards
+            // returned the NEW value. The comparison then compared the capacity
+            // to itself, both cell-sync branches were unreachable, and a
+            // resized room kept its old cell inventory.
+            $currentTotal = (int) $room->capacity;
+            $currentCells = $room->cells()->count();
+
+            // Cannot reduce capacity below the number of OCCUPIED member cells
+            // (plus the reserved servant cell). The guard previously counted
+            // ALL member cells — which for a consistent inventory equals
+            // capacity-1 — so every reduction was refused no matter the actual
+            // occupancy, while the message claimed to be counting occupied
+            // cells.
+            $occupiedMemberCells = $room->cells()
+                ->where('type', 'member')
+                ->where('is_available', false)
+                ->count();
+
+            if ($newCapacity < $occupiedMemberCells + 1) {
                 throw ValidationException::withMessages([
-                    'capacity' => ['Cannot reduce capacity below the number of occupied cells ('.$currentMemberCells.'). Minimum allowed: '.($currentMemberCells + 1).'.'],
+                    'capacity' => ['Cannot reduce capacity below the number of occupied cells ('.$occupiedMemberCells.'). Minimum allowed: '.($occupiedMemberCells + 1).'.'],
                 ]);
             }
 
@@ -144,9 +162,6 @@ class EventAccommodationService implements EventAccommodationServiceInterface
                 'capacity' => $newCapacity,
                 'member_capacity' => max(0, $newMemberCapacity),
             ]);
-
-            $currentCells = $room->cells()->count();
-            $currentTotal = $room->capacity;
 
             if ($newCapacity > $currentTotal) {
                 // Add new member cells

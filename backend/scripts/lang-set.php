@@ -20,7 +20,6 @@
  *
  * Exit codes: 0 ok, 1 usage/IO error, 2 invalid JSON in either file.
  */
-
 $root = dirname(__DIR__).'/resources/lang';
 
 if ($argc < 3) {

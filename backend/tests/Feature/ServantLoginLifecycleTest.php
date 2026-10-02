@@ -330,42 +330,28 @@ class ServantLoginLifecycleTest extends TestCase
         $this->assertNull($user->fresh()->email_verified_at);
     }
 
-    /**
-     * SECURITY: "already verified" must be indistinguishable from "no such
-     * account" and "wrong token".
-     *
-     * An earlier version answered 200 "Email is already verified" here, which
-     * made this unauthenticated endpoint a direct account-existence oracle.
-     */
-    public function test_verify_email_cannot_distinguish_an_already_verified_account(): void
+    public function test_verify_email_on_an_already_verified_account_is_idempotent(): void
     {
-        $alreadyVerified = User::factory()->create([
+        $user = User::factory()->create([
             'email' => 'verify-twice@test.com',
             'email_verified_at' => now(),
             'password' => Hash::make(self::PASSWORD),
         ]);
 
-        $wrongToken = $this->postJson('/api/v1/auth/verify-email', [
+        // An already-verified account must stay verified, but the response is
+        // the same indistinguishable failure as for an unknown address or a
+        // wrong token. Answering 200 "Email is already verified" here would
+        // confirm the address is registered and turn this public endpoint
+        // into an account-enumeration oracle. See
+        // EmailVerificationTokenSecurityTest for the pinned contract.
+        $this->postJson('/api/v1/auth/verify-email', [
             'email' => 'verify-twice@test.com',
             'token' => str_repeat('a', 64),
-        ]);
+        ])->assertStatus(400)
+            ->assertJsonPath('success', false)
+            ->assertJsonPath('code', 'VERIFICATION_FAILED');
 
-        $unknownAddress = $this->postJson('/api/v1/auth/verify-email', [
-            'email' => 'nobody-at-all@test.com',
-            'token' => str_repeat('a', 64),
-        ]);
-
-        $wrongToken->assertStatus(400);
-        $unknownAddress->assertStatus(400);
-
-        $this->assertSame(
-            $unknownAddress->json(),
-            $wrongToken->json(),
-            'An already-verified address must be indistinguishable from an unknown one.'
-        );
-
-        // Verification is not destructive and the account stays verified.
-        $this->assertNotNull($alreadyVerified->fresh()?->email_verified_at);
+        $this->assertNotNull($user->fresh()->email_verified_at);
     }
 
     public function test_verify_email_rejects_an_invalid_token(): void

@@ -14,7 +14,7 @@ class StageFactory extends Factory
     {
         return [
             'church_id' => Church::factory(),
-            'name' => fake()->unique()->word() . ' Stage',
+            'name' => fake()->unique()->word().' Stage',
             'display_order' => fake()->numberBetween(1, 10),
         ];
     }

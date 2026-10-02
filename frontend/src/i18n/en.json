@@ -342,6 +342,7 @@
         "attendanceRecorded": "Attendance recorded",
         "pointsEarned": "points earned",
         "failedToRecord": "Failed to record attendance.",
+        "queuedOffline": "No connection — attendance saved offline. It will sync automatically when you're back online.",
         "memberNotFound": "Member not found or invalid token.",
         "attendanceHistory": "Attendance History",
         "date": "Date",

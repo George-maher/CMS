@@ -16,7 +16,7 @@ class ClasseFactory extends Factory
         return [
             'church_id' => Church::factory(),
             'stage_id' => fn (array $attrs) => Stage::factory()->state(['church_id' => $attrs['church_id']]),
-            'name' => fn (array $attrs) => fake()->unique()->word() . ' Class',
+            'name' => fn (array $attrs) => fake()->unique()->word().' Class',
             'description' => fake()->sentence(),
             'display_order' => fake()->numberBetween(1, 20),
         ];

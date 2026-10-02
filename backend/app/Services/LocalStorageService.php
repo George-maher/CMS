@@ -57,6 +57,7 @@ class LocalStorageService implements StorageServiceInterface
             'size' => $file->getSize(),
             'mime' => $file->getMimeType(),
         ]);
+
         return $key;
     }
 
@@ -75,39 +76,59 @@ class LocalStorageService implements StorageServiceInterface
             'size' => $file->getSize(),
             'mime' => $file->getMimeType(),
         ]);
+
         return $key;
     }
 
-    public function deleteFile(string $url): bool
+    public function deleteFile(string $url, ?string $bucket = null): bool
     {
         if (empty($url)) {
             return false;
         }
         $key = $this->extractKeyFromUrl($url);
-        if (!$key) {
+        if (! $key) {
             Log::warning('Could not extract storage key from URL', ['url' => $url]);
+
+            return false;
+        }
+
+        // Bucket containment (parity with SupabaseStorageService): the key
+        // must live under the authorized bucket so a caller claiming bucket A
+        // can never mutate objects under bucket B.
+        if ($bucket !== null && ! str_starts_with($key, trim($bucket, '/').'/')) {
+            Log::warning('Rejected storage mutation for mismatched bucket', [
+                'authorized_bucket' => $bucket,
+                'key' => $key,
+            ]);
+
             return false;
         }
         try {
             if (Storage::disk($this->disk)->exists($key)) {
                 Storage::disk($this->disk)->delete($key);
                 Log::info('File deleted from local storage', ['key' => $key]);
+
                 return true;
             }
             Log::warning('File not found in local storage during delete', ['key' => $key]);
+
             return false;
         } catch (\Exception $e) {
             Log::warning('Failed to delete file from local storage', [
                 'key' => $key,
                 'error' => $e->getMessage(),
             ]);
+
             return false;
         }
     }
 
     public function replaceFile(string $oldUrl, UploadedFile $newFile, string $bucket, ?string $path = null): string
     {
-        $this->deleteFile($oldUrl);
+        if (! $this->deleteFile($oldUrl, $bucket)) {
+            throw new \InvalidArgumentException('The existing storage object is invalid or outside the authorized bucket.');
+        }
+
         return $this->uploadImage($newFile, $bucket, $path);
     }
 
@@ -121,6 +142,7 @@ class LocalStorageService implements StorageServiceInterface
         /** @var string $appUrl */
         $appUrl = config('app.url', 'http://localhost');
         $baseUrl = rtrim($appUrl, '/');
+
         return "{$baseUrl}/storage/{$bucket}";
     }
 
@@ -134,9 +156,10 @@ class LocalStorageService implements StorageServiceInterface
     {
         try {
             $path = Storage::disk($this->disk)->path($key);
-            if (!file_exists($path)) {
+            if (! file_exists($path)) {
                 return null;
             }
+
             return [
                 'name' => basename($key),
                 'size' => filesize($path),
@@ -148,6 +171,7 @@ class LocalStorageService implements StorageServiceInterface
                 'key' => $key,
                 'error' => $e->getMessage(),
             ]);
+
             return null;
         }
     }
@@ -155,14 +179,35 @@ class LocalStorageService implements StorageServiceInterface
     protected function generateKey(UploadedFile $file, string $bucket, ?string $path = null): string
     {
         $uuid = strval(Str::uuid());
-        $extension = $file->getClientOriginalExtension();
-        $filename = $uuid . '.' . $extension;
+        // Derive the extension from the already-validated content MIME type —
+        // the client-supplied filename extension is never trusted (validate*
+        // runs before generateKey, so the MIME is guaranteed allowlisted).
+        $extension = $this->extensionForMime($file->getMimeType());
+        $filename = $extension !== null ? $uuid.'.'.$extension : $uuid;
         $parts = [$bucket];
         if ($path) {
             $parts[] = trim($path, '/');
         }
         $parts[] = $filename;
+
         return implode('/', $parts);
+    }
+
+    /**
+     * Server-derived extension for a validated MIME type.
+     */
+    protected function extensionForMime(?string $mime): ?string
+    {
+        return match ($mime) {
+            'image/jpeg' => 'jpg',
+            'image/png' => 'png',
+            'image/gif' => 'gif',
+            'image/webp' => 'webp',
+            'application/pdf' => 'pdf',
+            'application/msword' => 'doc',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => 'docx',
+            default => null,
+        };
     }
 
     protected function extractKeyFromUrl(string $url): ?string
@@ -178,12 +223,13 @@ class LocalStorageService implements StorageServiceInterface
         if (str_starts_with($clean, 'storage/')) {
             return substr($clean, strlen('storage/'));
         }
+
         return $clean ?: null;
     }
 
     protected function validateImage(UploadedFile $file): void
     {
-        if (!in_array($file->getMimeType(), $this->allowedImageMimes)) {
+        if (! in_array($file->getMimeType(), $this->allowedImageMimes)) {
             throw new \InvalidArgumentException(
                 sprintf(
                     'Invalid image type. Allowed: %s. Got: %s.',
@@ -206,7 +252,7 @@ class LocalStorageService implements StorageServiceInterface
 
     protected function validateDocument(UploadedFile $file): void
     {
-        if (!in_array($file->getMimeType(), $this->allowedDocumentMimes)) {
+        if (! in_array($file->getMimeType(), $this->allowedDocumentMimes)) {
             throw new \InvalidArgumentException(
                 sprintf(
                     'Invalid document type. Allowed: %s. Got: %s.',

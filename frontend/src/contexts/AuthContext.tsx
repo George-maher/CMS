@@ -114,6 +114,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.setItem(STORAGE_TOKEN_KEY, result.token)
     localStorage.setItem(STORAGE_USER_KEY, JSON.stringify(result.user))
     markValidated()
+    // Wipe the offline write queue and the IndexedDB response cache when a NEW
+    // session starts.
+    //
+    // logout() and the 401 interceptor both do this, but nothing did it here.
+    // A session can be replaced without either firing — an expired token that
+    // is discarded before a request is made, localStorage being cleared
+    // directly, or simply signing in as a different user on a shared device.
+    // In that case the previous tenant's queued attendance writes survived and
+    // were later replayed, so one tenant could inherit another's pending
+    // operations. Clearing on login closes that window; the queue belongs to
+    // the session that created it.
+    clearAllData().catch(e => logCatch('AuthContext.login.clearAllData', e))
     return result
   }
 
@@ -125,6 +137,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.setItem(STORAGE_TOKEN_KEY, result.token)
     localStorage.setItem(STORAGE_USER_KEY, JSON.stringify(result.user))
     markValidated()
+    // Same reasoning as login(): a platform session must not inherit the
+    // previous tenant's queued writes.
+    clearAllData().catch(e => logCatch('AuthContext.platformLogin.clearAllData', e))
     return result
   }
 

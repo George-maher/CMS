@@ -3,26 +3,28 @@
 namespace App\Models;
 
 use App\Enums\PointType;
+use App\Enums\UserRole;
 use App\Traits\BelongsToChurch;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
+use Illuminate\Support\Carbon;
 
 /**
  * @property int $id
  * @property int $user_id
  * @property int $points
- * @property \App\Enums\PointType $type
+ * @property PointType $type
  * @property string|null $reference_type
  * @property int|null $reference_id
  * @property int|null $added_by
  * @property string|null $description
  * @property int|null $church_id
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
- * @property-read \App\Models\User|null $user
- * @property-read \Illuminate\Database\Eloquent\Model|\Eloquent $reference
- * @property-read \App\Models\User|null $addedBy
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
+ * @property-read User|null $user
+ * @property-read Model|\Eloquent $reference
+ * @property-read User|null $addedBy
  */
 class Point extends Model
 {
@@ -47,8 +49,18 @@ class Point extends Model
         ];
     }
 
+    protected static function booted(): void
+    {
+        static::creating(function (Point $point) {
+            $user = User::find($point->user_id);
+            if (! $user || $user->role !== UserRole::Member) {
+                throw new \RuntimeException('Points can only be assigned to members.');
+            }
+        });
+    }
+
     /**
-     * @return BelongsTo<\App\Models\User, $this>
+     * @return BelongsTo<User, $this>
      */
     public function user(): BelongsTo
     {
@@ -56,7 +68,7 @@ class Point extends Model
     }
 
     /**
-     * @return MorphTo<\Illuminate\Database\Eloquent\Model, $this>
+     * @return MorphTo<Model, $this>
      */
     public function reference(): MorphTo
     {
@@ -64,7 +76,7 @@ class Point extends Model
     }
 
     /**
-     * @return BelongsTo<\App\Models\User, $this>
+     * @return BelongsTo<User, $this>
      */
     public function addedBy(): BelongsTo
     {

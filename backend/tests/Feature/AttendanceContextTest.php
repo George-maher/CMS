@@ -17,10 +17,15 @@ class AttendanceContextTest extends TestCase
     use RefreshDatabase;
 
     private Church $church1;
+
     private Church $church2;
+
     private User $admin;
+
     private User $assistantAdmin;
+
     private User $servant;
+
     private User $member;
 
     protected function setUp(): void
@@ -62,6 +67,7 @@ class AttendanceContextTest extends TestCase
     private function actingAsUser(User $user): self
     {
         $token = $user->createToken('test')->plainTextToken;
+
         return $this->withHeader('Authorization', "Bearer $token");
     }
 
@@ -531,5 +537,27 @@ class AttendanceContextTest extends TestCase
         // Verify all 6 default contexts
         $count = AttendanceContext::where('church_id', $church->id)->count();
         $this->assertEquals(6, $count, 'New church should have exactly 6 default contexts');
+    }
+
+    public function test_active_contexts_require_authentication(): void
+    {
+        $this->getJson('/api/v1/attendance-contexts')->assertUnauthorized();
+    }
+
+    public function test_client_church_header_cannot_change_active_context_scope(): void
+    {
+        AttendanceContext::create([
+            'church_id' => $this->church2->id,
+            'name' => 'Church 2 Only',
+            'slug' => 'church-2-only',
+            'is_active' => true,
+            'created_by' => null,
+        ]);
+
+        $this->actingAsUser($this->admin)
+            ->withHeader('X-Church-ID', (string) $this->church2->id)
+            ->getJson('/api/v1/attendance-contexts')
+            ->assertOk()
+            ->assertJsonMissing(['name' => 'Church 2 Only']);
     }
 }

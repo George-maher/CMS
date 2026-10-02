@@ -26,7 +26,7 @@ return new class extends Migration
             Schema::table('attendances', function (Blueprint $t) {
                 $t->unique(['user_id', 'attended_at', 'church_id'], 'attendances_user_date_church_unique');
             });
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Index may already exist
         }
 
@@ -34,7 +34,7 @@ return new class extends Migration
             Schema::table('points', function (Blueprint $t) {
                 $t->index(['user_id', 'church_id', 'created_at'], 'points_user_church_date_idx');
             });
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Index may already exist
         }
 
@@ -45,18 +45,18 @@ return new class extends Migration
                 $t->index('email', 'membership_req_email_idx');
                 $t->index('created_at', 'membership_req_created_at_idx');
             });
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Indexes may already exist
         }
 
         // 4. Add email verification columns to users if not present
-        if (!Schema::hasColumn('users', 'email_verified_at')) {
+        if (! Schema::hasColumn('users', 'email_verified_at')) {
             Schema::table('users', function (Blueprint $t) {
                 $t->timestamp('email_verified_at')->nullable()->after('email');
             });
         }
 
-        if (!Schema::hasColumn('users', 'email_verification_token')) {
+        if (! Schema::hasColumn('users', 'email_verification_token')) {
             Schema::table('users', function (Blueprint $t) {
                 $t->string('email_verification_token', 64)->nullable()->unique()->after('email_verified_at');
             });
@@ -78,7 +78,7 @@ return new class extends Migration
                     Schema::table($table, function (Blueprint $t) use ($index) {
                         $t->dropIndex($index);
                     });
-                } catch (\Exception $e) {
+                } catch (Exception $e) {
                     // Index may not exist
                 }
             }
