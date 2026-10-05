@@ -126,68 +126,56 @@ class EventAccommodationService implements EventAccommodationServiceInterface
     {
         $room = $this->findRoom($event, $roomId);
 
-        if (isset($data['capacity'])) {
-            /** @var int|string|float|null $rawCapacity */
-            $rawCapacity = $data['capacity'];
-            $newCapacity = is_int($rawCapacity) ? $rawCapacity : intval($rawCapacity);
+        return DB::transaction(function () use ($room, $data): EventRoom {
+            if (isset($data['capacity'])) {
+                /** @var int|string|float|null $rawCapacity */
+                $rawCapacity = $data['capacity'];
+                $newCapacity = is_int($rawCapacity) ? $rawCapacity : intval($rawCapacity);
 
-            // Capture the CURRENT state BEFORE the update below (Phase 1C
-            // finding B-4): Eloquent's update() writes the new capacity into
-            // the model's attributes, so reading $room->capacity afterwards
-            // returned the NEW value. The comparison then compared the capacity
-            // to itself, both cell-sync branches were unreachable, and a
-            // resized room kept its old cell inventory.
-            $currentTotal = (int) $room->capacity;
-            $currentCells = $room->cells()->count();
+                $currentTotal = (int) $room->capacity;
+                $currentCells = $room->cells()->count();
 
-            // Cannot reduce capacity below the number of OCCUPIED member cells
-            // (plus the reserved servant cell). The guard previously counted
-            // ALL member cells — which for a consistent inventory equals
-            // capacity-1 — so every reduction was refused no matter the actual
-            // occupancy, while the message claimed to be counting occupied
-            // cells.
-            $occupiedMemberCells = $room->cells()
-                ->where('type', 'member')
-                ->where('is_available', false)
-                ->count();
+                $occupiedMemberCells = $room->cells()
+                    ->where('type', 'member')
+                    ->where('is_available', false)
+                    ->count();
 
-            if ($newCapacity < $occupiedMemberCells + 1) {
-                throw ValidationException::withMessages([
-                    'capacity' => ['Cannot reduce capacity below the number of occupied cells ('.$occupiedMemberCells.'). Minimum allowed: '.($occupiedMemberCells + 1).'.'],
-                ]);
-            }
-
-            $newMemberCapacity = $newCapacity - 1;
-            $room->update([
-                'capacity' => $newCapacity,
-                'member_capacity' => max(0, $newMemberCapacity),
-            ]);
-
-            if ($newCapacity > $currentTotal) {
-                // Add new member cells
-                for ($c = $currentCells + 1; $c <= $newCapacity; $c++) {
-                    EventRoomCell::create([
-                        'room_id' => $room->id,
-                        'cell_number' => $c,
-                        'type' => 'member',
-                        'is_available' => true,
+                if ($newCapacity < $occupiedMemberCells + 1) {
+                    throw ValidationException::withMessages([
+                        'capacity' => ['Cannot reduce capacity below the number of occupied cells ('.$occupiedMemberCells.'). Minimum allowed: '.($occupiedMemberCells + 1).'.'],
                     ]);
                 }
-            } elseif ($newCapacity < $currentTotal) {
-                // Remove unoccupied member cells from the end
-                $room->cells()
-                    ->where('type', 'member')
-                    ->where('is_available', true)
-                    ->where('cell_number', '>', $newCapacity)
-                    ->delete();
+
+                $newMemberCapacity = $newCapacity - 1;
+                $room->update([
+                    'capacity' => $newCapacity,
+                    'member_capacity' => max(0, $newMemberCapacity),
+                ]);
+
+                if ($newCapacity > $currentTotal) {
+                    for ($c = $currentCells + 1; $c <= $newCapacity; $c++) {
+                        EventRoomCell::create([
+                            'room_id' => $room->id,
+                            'cell_number' => $c,
+                            'type' => 'member',
+                            'is_available' => true,
+                        ]);
+                    }
+                } elseif ($newCapacity < $currentTotal) {
+                    $room->cells()
+                        ->where('type', 'member')
+                        ->where('is_available', true)
+                        ->where('cell_number', '>', $newCapacity)
+                        ->delete();
+                }
             }
-        }
 
-        if (isset($data['is_active'])) {
-            $room->update(['is_active' => (bool) $data['is_active']]);
-        }
+            if (isset($data['is_active'])) {
+                $room->update(['is_active' => (bool) $data['is_active']]);
+            }
 
-        return $room->refresh();
+            return $room->refresh();
+        });
     }
 
     public function deleteRoom(Event $event, int $roomId): void

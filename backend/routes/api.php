@@ -82,31 +82,12 @@ Route::prefix('v1')->group(function () {
         ->middleware('throttle:invite-public');
 
     /*
-    | Daily Verse — public
-    */
-    Route::get('/verses/active', [DailyVerseController::class, 'getActive'])
-        ->middleware('throttle:verse-read');
-
-    /*
     | Church Applications — public registration
     */
     Route::post('/church-applications', [ChurchApplicationController::class, 'store'])
         ->middleware('throttle:register');
     Route::post('/church-applications/lookup', [ChurchApplicationController::class, 'lookup'])
         ->middleware('throttle:register');
-
-    /*
-    | Active churches — public listing for join request form
-    */
-    Route::get('/churches/active', function () {
-        $churches = Church::where('is_active', true)
-            ->where('is_suspended', false)
-            ->get(['id', 'name', 'slug', 'address']);
-
-        return response()->json([
-            'data' => $churches,
-        ]);
-    })->middleware('throttle:api');
 
 });
 
@@ -301,8 +282,23 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'approval', 'throttle:api'])->g
     */
     Route::get('/verses', [DailyVerseController::class, 'index'])
         ->middleware('throttle:verse-read');
+    Route::get('/verses/active', [DailyVerseController::class, 'getActive'])
+        ->middleware('throttle:verse-read');
     Route::get('/verses/{id}', [DailyVerseController::class, 'show'])
         ->middleware('throttle:verse-read');
+
+    /*
+    | Active churches — authenticated listing
+    */
+    Route::get('/churches/active', function () {
+        $churches = Church::where('is_active', true)
+            ->where('is_suspended', false)
+            ->get(['id', 'name', 'slug']);
+
+        return response()->json([
+            'data' => $churches,
+        ]);
+    })->middleware('throttle:api');
 
     /*
     | Feedback — member submit, any read own
@@ -662,9 +658,12 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'approval', 'throttle:api'])->g
 
         /*
         | User management
+        |
+        | NOTE: the former `GET /users/{id}/servants` route was removed —
+        | its {id} segment was ignored server-side (the action always derived
+        | scope from the authenticated caller), which made the contract
+        | misleading. `GET /users/servants` (below) is the supported endpoint.
         */
-        Route::get('/users/{id}/servants', [UserController::class, 'servants'])
-            ->middleware('throttle:user-list');
         Route::post('/users/{id}/promote', [UserController::class, 'promote'])
             ->middleware('throttle:sensitive');
         Route::post('/users/{id}/demote', [UserController::class, 'demote'])

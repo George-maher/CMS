@@ -249,7 +249,20 @@ client.interceptors.request.use(async (config) => {
             }
             return res
           })
-          .catch(() => {})
+          .catch((err: unknown) => {
+            // A 401 on background refresh means the session expired —
+            // invalidate it just like the main interceptor would.
+            if (err && typeof err === 'object' && 'response' in err &&
+                (err as { response?: { status?: number } }).response?.status === 401) {
+              clearRequestCache()
+              localStorage.removeItem('auth_token')
+              localStorage.removeItem('auth_user')
+              localStorage.removeItem('auth_validated_at')
+              if (!window.location.pathname.startsWith('/login')) {
+                window.location.href = '/login'
+              }
+            }
+          })
         setInflight(cacheKey, bgPromise)
       }
       const headers = config.headers ?? {}

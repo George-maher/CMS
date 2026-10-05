@@ -95,7 +95,7 @@ class EventAccommodationController extends Controller
                 'data' => new EventRoomResource($room),
             ]);
         } catch (ValidationException $e) {
-            return response()->json(['message' => $e->getMessage()], 404);
+            return response()->json(['message' => $e->getMessage(), 'errors' => $e->errors()], 422);
         }
     }
 
@@ -121,7 +121,7 @@ class EventAccommodationController extends Controller
                 'data' => new EventRoomResource($room),
             ]);
         } catch (ValidationException $e) {
-            return response()->json(['message' => $e->getMessage()], 422);
+            return response()->json(['message' => $e->getMessage(), 'errors' => $e->errors()], 422);
         }
     }
 
@@ -138,7 +138,7 @@ class EventAccommodationController extends Controller
 
             return response()->json(['message' => 'Room deleted.']);
         } catch (ValidationException $e) {
-            return response()->json(['message' => $e->getMessage()], 422);
+            return response()->json(['message' => $e->getMessage(), 'errors' => $e->errors()], 422);
         }
     }
 
@@ -172,7 +172,7 @@ class EventAccommodationController extends Controller
                 'data' => $accommodation->load(['cell.room', 'registration.user']),
             ], 201);
         } catch (ValidationException $e) {
-            return response()->json(['message' => $e->getMessage()], 422);
+            return response()->json(['message' => $e->getMessage(), 'errors' => $e->errors()], 422);
         }
     }
 
@@ -189,7 +189,7 @@ class EventAccommodationController extends Controller
 
             return response()->json(['message' => 'Accommodation removed.']);
         } catch (ValidationException $e) {
-            return response()->json(['message' => $e->getMessage()], 422);
+            return response()->json(['message' => $e->getMessage(), 'errors' => $e->errors()], 422);
         }
     }
 
@@ -274,6 +274,6 @@ class EventAccommodationController extends Controller
 
     private function findEvent(int $id): ?Event
     {
-        return Event::query()->find($id);
+        return Event::byChurch()->find($id);
     }
 }

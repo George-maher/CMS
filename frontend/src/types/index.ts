@@ -465,6 +465,15 @@ export interface DailyVerse {
   updated_at: string
 }
 
+/**
+ * Minimal verse shape returned by GET /verses/active.
+ * Only the fields required by the frontend consumer.
+ */
+export interface ActiveVerse {
+  verse_text: string
+  reference: string
+}
+
 export interface Church {
   id: number
   name: string

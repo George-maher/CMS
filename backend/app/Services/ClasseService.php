@@ -227,8 +227,10 @@ class ClasseService implements ClasseServiceInterface
 
         $this->assertActorCanManageUser($servant, 'servant');
 
-        $this->syncUserStageWithClass($servant, $classe, UserScope::ClassScope);
-        $classe->servants()->syncWithoutDetaching([$servantId]);
+        DB::transaction(function () use ($servant, $classe, $servantId): void {
+            $this->syncUserStageWithClass($servant, $classe, UserScope::ClassScope);
+            $classe->servants()->syncWithoutDetaching([$servantId]);
+        });
 
         return [
             'data' => new UserResource($servant->fresh()),
@@ -254,9 +256,11 @@ class ClasseService implements ClasseServiceInterface
 
         $this->assertActorCanManageUser($member, 'member');
 
-        $this->syncUserStageWithClass($member, $classe, UserScope::Self);
-        $member->class_id = $classe->id;
-        $member->save();
+        DB::transaction(function () use ($member, $classe): void {
+            $this->syncUserStageWithClass($member, $classe, UserScope::Self);
+            $member->class_id = $classe->id;
+            $member->save();
+        });
 
         return [
             'data' => new UserResource($member->fresh()),

@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Contracts\VerseRepositoryInterface;
 use App\Contracts\VerseServiceInterface;
+use App\Http\Resources\ActiveVerseResource;
 use App\Http\Resources\DailyVerseResource;
 use Illuminate\Validation\ValidationException;
 
@@ -138,7 +139,7 @@ class VerseService implements VerseServiceInterface
             }
 
             return [
-                'data' => new DailyVerseResource($verse),
+                'data' => new ActiveVerseResource($verse),
             ];
         });
     }

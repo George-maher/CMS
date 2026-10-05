@@ -23,6 +23,27 @@ class DashboardController extends Controller
         $user = $request->user();
         $churchId = $user->church_id;
 
+        // Fail closed (audit AUD-0005): an authenticated non-platform
+        // principal without a church must not receive global aggregates —
+        // without this guard the `if ($churchId)` filters below were skipped
+        // entirely and every count became a cross-tenant read. Mirrors
+        // ChurchScope / AttendanceContextService. Zeros are returned
+        // directly so no shared cache key is written or read for such a
+        // principal. The platform admin keeps its intentional cross-church
+        // view.
+        if ($churchId === null && ! $user->isPlatformAdmin()) {
+            return response()->json([
+                'data' => [
+                    'total_members' => 0,
+                    'active_members' => 0,
+                    'total_servants' => 0,
+                    'total_attendances' => 0,
+                    'total_points' => 0,
+                    'total_members_managed' => 0,
+                ],
+            ]);
+        }
+
         $data = $this->cacheService->rememberDashboardStats($churchId ?: 0, function () use ($churchId) {
             $query = User::query();
             if ($churchId) {

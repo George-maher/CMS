@@ -155,20 +155,20 @@ class EventRegistrationService implements EventRegistrationServiceInterface
             ]);
         }
 
-        $updated = $this->repository->update($registration, [
-            'status' => RegistrationStatus::Cancelled->value,
-            'attendance_status' => EventAttendanceStatus::NotCheckedIn->value,
-            'checked_in_at' => null,
-        ]);
+        $updated = DB::transaction(function () use ($registration): EventRegistration {
+            $updated = $this->repository->update($registration, [
+                'status' => RegistrationStatus::Cancelled->value,
+                'attendance_status' => EventAttendanceStatus::NotCheckedIn->value,
+                'checked_in_at' => null,
+            ]);
 
-        // Freeing a seat promotes the earliest waitlisted registration.
-        $promoted = $this->repository->promoteFirstWaitlisted($updated->event);
+            // Freeing a seat promotes the earliest waitlisted registration.
+            $this->repository->promoteFirstWaitlisted($updated->event);
+
+            return $updated;
+        });
 
         $this->notifyMember($updated, 'Registration Cancelled', "Your registration for '{$updated->event->name}' was cancelled.");
-
-        if ($promoted) {
-            $this->notifyMember($promoted, 'You Are Off the Waitlist', "A spot opened up for '{$promoted->event->name}'. Your registration is now pending confirmation.");
-        }
 
         return $updated;
     }
@@ -204,15 +204,15 @@ class EventRegistrationService implements EventRegistrationServiceInterface
         }
 
         $event = $registration->event;
+        $wasCancelled = $registration->status === RegistrationStatus::Cancelled;
 
-        $this->repository->delete($registration);
+        DB::transaction(function () use ($registration, $event, $wasCancelled): void {
+            $this->repository->delete($registration);
 
-        if ($registration->status !== RegistrationStatus::Cancelled) {
-            $promoted = $this->repository->promoteFirstWaitlisted($event);
-            if ($promoted) {
-                $this->notifyMember($promoted, 'You Are Off the Waitlist', "A spot opened up for '{$promoted->event->name}'. Your registration is now pending confirmation.");
+            if (! $wasCancelled) {
+                $this->repository->promoteFirstWaitlisted($event);
             }
-        }
+        });
     }
 
     public function checkInByToken(Event $event, string $token, int $checkedInBy): EventRegistration
@@ -252,19 +252,21 @@ class EventRegistrationService implements EventRegistrationServiceInterface
             ]);
         }
 
-        $updated = $this->repository->update($registration, [
-            'attendance_status' => EventAttendanceStatus::CheckedIn->value,
-            'checked_in_at' => now(),
-            'checked_in_by' => $checkedInBy,
-        ]);
-
-        if ($updated->status === RegistrationStatus::Waitlisted) {
-            $updated = $this->repository->update($updated, [
-                'status' => RegistrationStatus::Confirmed->value,
+        return DB::transaction(function () use ($registration, $checkedInBy): EventRegistration {
+            $updated = $this->repository->update($registration, [
+                'attendance_status' => EventAttendanceStatus::CheckedIn->value,
+                'checked_in_at' => now(),
+                'checked_in_by' => $checkedInBy,
             ]);
-        }
 
-        return $updated;
+            if ($updated->status === RegistrationStatus::Waitlisted) {
+                $updated = $this->repository->update($updated, [
+                    'status' => RegistrationStatus::Confirmed->value,
+                ]);
+            }
+
+            return $updated;
+        });
     }
 
     public function undoCheckIn(EventRegistration $registration): EventRegistration

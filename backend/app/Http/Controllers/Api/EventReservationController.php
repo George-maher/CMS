@@ -45,7 +45,7 @@ class EventReservationController extends Controller
                 'data' => new EventRegistrationResource($updated->load(['user.classe', 'bus'])),
             ]);
         } catch (ValidationException $e) {
-            return response()->json(['message' => $e->getMessage()], 422);
+            return response()->json(['message' => $e->getMessage(), 'errors' => $e->errors()], 422);
         }
     }
 
@@ -80,7 +80,7 @@ class EventReservationController extends Controller
                 'data' => new EventRegistrationResource($updated->load(['user.classe', 'bus'])),
             ]);
         } catch (ValidationException $e) {
-            return response()->json(['message' => $e->getMessage()], 422);
+            return response()->json(['message' => $e->getMessage(), 'errors' => $e->errors()], 422);
         }
     }
 }

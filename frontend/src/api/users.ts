@@ -42,9 +42,10 @@ export async function deleteUser(id: number): Promise<void> {
   await client.delete(`/users/${id}`)
 }
 
-export async function getServants(adminId?: number): Promise<User[]> {
-  const url = adminId ? `/users/${adminId}/servants` : '/users/servants'
-  const { data } = await client.get<{ data: User[] }>(url)
+export async function getServants(): Promise<User[]> {
+  // The former `/users/{id}/servants` variant was removed: its {id} segment
+  // was ignored server-side. This always hits the supported `/users/servants`.
+  const { data } = await client.get<{ data: User[] }>('/users/servants')
   return data.data
 }
 

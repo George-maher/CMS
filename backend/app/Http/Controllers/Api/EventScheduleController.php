@@ -11,7 +11,6 @@ use App\Models\Event;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Validation\ValidationException;
 
 class EventScheduleController extends Controller
 {
@@ -180,13 +179,9 @@ class EventScheduleController extends Controller
         /** @var \Illuminate\Validation\Validator $validator */
         $validator = Validator::make($request->all(), $rules);
 
-        try {
-            $validated = $validator->validate();
-        } catch (ValidationException $e) {
-            throw $e;
-        }
-
         /** @var array<string, mixed> $validated */
+        $validated = $validator->validate();
+
         return $validated;
     }
 }

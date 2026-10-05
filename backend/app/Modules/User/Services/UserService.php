@@ -365,7 +365,8 @@ class UserService implements UserServiceInterface
 
         $user->stage_id = $effectiveStageId;
         $user->scope = $this->deriveScopeValue($newRole, $effectiveStageId);
-        $user->save();
+
+        DB::transaction(fn () => $user->save());
 
         return [
             'message' => 'User promoted successfully.',
@@ -406,9 +407,11 @@ class UserService implements UserServiceInterface
 
         $user->stage_id = $effectiveStageId;
         $user->scope = $this->deriveScopeValue($newRole, $effectiveStageId);
-        $user->save();
 
-        $this->cacheService->invalidateUserAuth($userId);
+        DB::transaction(function () use ($user, $userId): void {
+            $user->save();
+            $this->cacheService->invalidateUserAuth($userId);
+        });
 
         return ['message' => 'User demoted from admin successfully.'];
     }

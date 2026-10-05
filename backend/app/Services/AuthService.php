@@ -30,6 +30,19 @@ class AuthService implements AuthServiceInterface
         private readonly CacheService $cacheService,
     ) {}
 
+    /**
+     * Constant dummy hash for timing-safe login failure.
+     *
+     * When the submitted email does not correspond to a user, we perform
+     * password verification against this fixed hash using the same bcrypt
+     * algorithm/cost as real passwords. This prevents an observable timing
+     * side-channel that would allow account enumeration.
+     *
+     * This is a valid bcrypt hash for the password "password" with cost 12.
+     * It is NEVER used for real authentication — only for timing equalization.
+     */
+    private const DUMMY_PASSWORD_HASH = '$2y$12$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi';
+
     /** @param array<string, mixed> $credentials */
     public function login(array $credentials): array
     {
@@ -40,8 +53,16 @@ class AuthService implements AuthServiceInterface
 
         $user = $this->userRepository->findByEmail($email);
 
-        if (! $user || ! Hash::check($password, $user->password)) {
-            if ($user && Hash::check(Hash::make($password), $user->password)) {
+        if (! $user) {
+            // Timing-safe failure: perform password verification against a
+            // constant dummy hash so the response time is indistinguishable
+            // from a real user with a wrong password.
+            Hash::check($password, self::DUMMY_PASSWORD_HASH);
+            throw new LoginFailedException(LoginFailureCode::InvalidCredentials);
+        }
+
+        if (! Hash::check($password, $user->password)) {
+            if (Hash::check(Hash::make($password), $user->password)) {
                 Log::info('Detected double-hashed password — re-hashing', [
                     'user_id' => $user->id,
                     'email' => $user->email,

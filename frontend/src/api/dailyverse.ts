@@ -1,9 +1,9 @@
-import type { ApiResponse, DailyVerse, PaginationMeta } from '@/types'
+import type { ActiveVerse, ApiResponse, DailyVerse, PaginationMeta } from '@/types'
 import client from './client'
 
-export async function getActiveVerse(): Promise<DailyVerse | null> {
+export async function getActiveVerse(): Promise<ActiveVerse | null> {
   try {
-    const { data } = await client.get<ApiResponse<DailyVerse | null>>('/verses/active')
+    const { data } = await client.get<ApiResponse<ActiveVerse | null>>('/verses/active')
     return data.data ?? null
   } catch {
     return null

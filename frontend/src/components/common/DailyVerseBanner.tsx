@@ -4,12 +4,12 @@ import { useAuth } from '@/hooks/useAuth'
 import { useTranslation } from 'react-i18next'
 import { BookOpen } from 'lucide-react'
 import { getActiveVerse } from '@/api/dailyverse'
-import type { DailyVerse } from '@/types'
+import type { ActiveVerse } from '@/types'
 
 export default function DailyVerseBanner() {
   const { user } = useAuth()
   const { t } = useTranslation()
-  const [verse, setVerse] = useState<DailyVerse | null>(null)
+  const [verse, setVerse] = useState<ActiveVerse | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {

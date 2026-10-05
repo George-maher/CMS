@@ -102,8 +102,10 @@ class EventScheduleService implements EventScheduleServiceInterface
     public function deleteBus(Event $event, int $busId): void
     {
         $bus = $this->findBus($event, $busId);
-        $bus->registrations()->update(['bus_id' => null]);
-        $bus->delete();
+        DB::transaction(function () use ($bus): void {
+            $bus->registrations()->update(['bus_id' => null]);
+            $bus->delete();
+        });
     }
 
     public function assignBus(Event $event, int $registrationId, ?int $busId): EventRegistration

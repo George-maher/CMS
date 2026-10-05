@@ -429,6 +429,20 @@ class User extends Authenticatable
             return $query->where('users.church_id', $churchId);
         }
 
+        // Fail closed for an authenticated non-platform principal without a
+        // church (audit AUD-0004): falling through to an unfiltered query
+        // turned every `User::byChurch()` caller — the /users directory, the
+        // attendance QR/member lookup, attendance history — into a
+        // cross-tenant read. This mirrors ChurchScope, which already refuses
+        // to resolve a church for such a principal. The platform admin keeps
+        // its intentional global visibility, and unauthenticated contexts
+        // (CLI, queue workers, seeders) resolve no principal and keep their
+        // existing behavior.
+        $actor = auth()->user();
+        if ($actor !== null && ! $actor->isPlatformAdmin()) {
+            return $query->whereRaw('1 = 0');
+        }
+
         return $query;
     }
 
