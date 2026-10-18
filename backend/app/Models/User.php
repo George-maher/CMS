@@ -336,7 +336,9 @@ class User extends Authenticatable
             UserRole::PlatformAdmin,
             UserRole::Admin,
             UserRole::AssistantAdmin => UserScope::Church,
-            UserRole::StageAdmin => $this->stage_id ? UserScope::Stage : UserScope::Self,
+            // Stage admins never fall back to a class or personal scope. A missing
+            // or invalid explicit assignment resolves to an empty Stage scope.
+            UserRole::StageAdmin => UserScope::Stage,
             UserRole::Servant => UserScope::ClassScope,
             UserRole::Member => UserScope::Self,
         };

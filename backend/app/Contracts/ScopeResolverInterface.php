@@ -35,7 +35,7 @@ interface ScopeResolverInterface
     public function canAccessUser(User $actor, User $target): bool;
 
     /**
-     * Stage a user effectively belongs to (explicit stage_id or class→stage).
+     * Stage a user effectively belongs to. Stage Admins require a valid explicit stage_id; other roles may resolve via their class.
      */
     public function userStageId(User $user): ?int;
 

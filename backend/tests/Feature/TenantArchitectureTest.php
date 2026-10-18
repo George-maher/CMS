@@ -361,8 +361,8 @@ class TenantArchitectureTest extends TestCase
             [UserRole::Admin, null, UserScope::Church],
             [UserRole::AssistantAdmin, null, UserScope::Church],
             [UserRole::StageAdmin, 7, UserScope::Stage],
-            // No stage -> fails safe to Self, never widens.
-            [UserRole::StageAdmin, null, UserScope::Self],
+            // Missing stage assignment remains an empty Stage scope, never Self/class fallback.
+            [UserRole::StageAdmin, null, UserScope::Stage],
             [UserRole::Servant, 7, UserScope::ClassScope],
             [UserRole::Member, 7, UserScope::Self],
         ];

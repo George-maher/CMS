@@ -69,6 +69,11 @@ export async function getAttendanceStats(userId?: number): Promise<{ total_atten
   return data.data
 }
 
+export async function getStageAttendanceStats(): Promise<{ total_attendances: number; this_month: number }> {
+  const { data } = await client.get<ApiResponse<{ total_attendances: number; this_month: number }>>('/attendances/stage-stats')
+  return data.data
+}
+
 export interface AbsentMember {
   id: number
   name: string

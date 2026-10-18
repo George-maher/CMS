@@ -283,6 +283,26 @@ class StageAdminScopeTest extends TestCase
         ]);
     }
 
+    public function test_update_cannot_promote_to_stage_admin_using_only_the_member_class(): void
+    {
+        $s = $this->makeScenario();
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'church_id' => $s['church']->id,
+            'application_status' => 'approved',
+        ]);
+        $adminToken = $admin->createToken('test', [$admin->role->value])->plainTextToken;
+
+        $this->authAs($adminToken)
+            ->putJson('/api/v1/users/'.$s['secMember']->id, ['role' => UserRole::StageAdmin->value])
+            ->assertForbidden();
+
+        $this->assertDatabaseHas('users', [
+            'id' => $s['secMember']->id,
+            'role' => UserRole::Member->value,
+        ]);
+    }
+
     public function test_promote_to_admin_clears_stage(): void
     {
         $s = $this->makeScenario();
@@ -857,5 +877,119 @@ class StageAdminScopeTest extends TestCase
             'id' => $event->id,
             'class_year_id' => $s['secClasse']->id,
         ]);
+    }
+
+    public function test_church_admin_cannot_assign_stage_admin_scope_from_class_alone(): void
+    {
+        $s = $this->makeScenario();
+        $churchAdmin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'church_id' => $s['church']->id,
+            'application_status' => 'approved',
+        ]);
+        $token = $churchAdmin->createToken('test', [$churchAdmin->role->value])->plainTextToken;
+
+        $this->authAs($token)
+            ->postJson('/api/v1/users', [
+                'name' => 'Unassigned Stage Admin',
+                'email' => 'unassigned-stage-admin@test.com',
+                'password' => 'password123',
+                'password_confirmation' => 'password123',
+                'role' => UserRole::StageAdmin->value,
+                'class_id' => $s['secClasse']->id,
+            ])
+            ->assertForbidden();
+
+        $this->assertDatabaseMissing('users', ['email' => 'unassigned-stage-admin@test.com']);
+    }
+
+    public function test_stage_admin_without_valid_explicit_stage_fails_closed_even_with_class_id(): void
+    {
+        $s = $this->makeScenario();
+        $foreignChurch = Church::factory()->create();
+        $foreignStage = Stage::factory()->forChurch($foreignChurch)->create();
+
+        $invalidAssignment = new User;
+        $invalidAssignment->forceFill([
+            'role' => UserRole::StageAdmin,
+            'church_id' => $s['church']->id,
+            'stage_id' => $foreignStage->id,
+            'class_id' => $s['secClasse']->id,
+        ]);
+        $resolver = app(\App\Contracts\ScopeResolverInterface::class);
+        $this->assertSame([], $resolver->allowedStageIds($invalidAssignment));
+        $this->assertSame([], $resolver->allowedClassIds($invalidAssignment));
+
+        $unassigned = User::factory()->create([
+            'role' => UserRole::StageAdmin,
+            'church_id' => $s['church']->id,
+            'stage_id' => null,
+            'class_id' => $s['secClasse']->id,
+            'application_status' => 'approved',
+        ]);
+        $token = $unassigned->createToken('test', [$unassigned->role->value])->plainTextToken;
+
+        $this->authAs($token)
+            ->getJson('/api/v1/structure/classes')
+            ->assertOk()
+            ->assertJsonPath('data', []);
+        $this->authAs($token)
+            ->getJson('/api/v1/structure/stages-with-classes')
+            ->assertOk()
+            ->assertJsonPath('data', []);
+        $this->authAs($token)
+            ->getJson('/api/v1/structure/my-classes')
+            ->assertOk()
+            ->assertJsonPath('data', []);
+        $this->authAs($token)
+            ->getJson('/api/v1/users')
+            ->assertOk()
+            ->assertJsonPath('data', []);
+        $this->authAs($token)
+            ->getJson('/api/v1/users/servants')
+            ->assertOk()
+            ->assertJsonPath('data', []);
+        $this->authAs($token)
+            ->getJson('/api/v1/qr/invites')
+            ->assertOk()
+            ->assertJsonPath('data', []);
+        $this->authAs($token)
+            ->getJson('/api/v1/dashboard/stats')
+            ->assertForbidden();
+        $this->authAs($token)
+            ->getJson('/api/v1/attendances/stage-stats')
+            ->assertForbidden();
+    }
+
+    public function test_stage_admin_structure_contains_only_the_assigned_stage(): void
+    {
+        $s = $this->makeScenario();
+
+        $response = $this->authAs($s['secAdminToken'])->getJson('/api/v1/structure/classes')->assertOk();
+        $this->assertSame([$s['secStage']->id], collect($response->json('data'))->pluck('id')->all());
+        $visibleClassIds = collect($response->json('data'))
+            ->flatMap(fn (array $stage) => $stage['classes'] ?? [])
+            ->pluck('id')
+            ->all();
+        $this->assertSame([$s['secClasse']->id], $visibleClassIds);
+
+        $nested = $this->authAs($s['secAdminToken'])->getJson('/api/v1/structure/stages-with-classes')->assertOk();
+        $this->assertSame([$s['secStage']->id], collect($nested->json('data'))->pluck('stage_id')->all());
+        $this->assertSame([$s['secClasse']->id], collect($nested->json('data'))->flatMap(fn (array $stage) => $stage['classes'])->pluck('id')->all());
+    }
+
+    public function test_member_structure_exposes_only_their_own_class(): void
+    {
+        $s = $this->makeScenario();
+        $memberToken = $s['secMember']->createToken('test', [$s['secMember']->role->value])->plainTextToken;
+
+        $response = $this->authAs($memberToken)->getJson('/api/v1/structure/classes')->assertOk();
+        $visibleClassIds = collect($response->json('data'))
+            ->flatMap(fn (array $stage) => $stage['classes'] ?? [])
+            ->pluck('id')
+            ->all();
+
+        $this->assertSame([$s['secClasse']->id], $visibleClassIds);
+        $this->assertNotContains($s['prepClasse']->id, $visibleClassIds);
     }
 }

@@ -30,19 +30,6 @@ class AuthService implements AuthServiceInterface
         private readonly CacheService $cacheService,
     ) {}
 
-    /**
-     * Constant dummy hash for timing-safe login failure.
-     *
-     * When the submitted email does not correspond to a user, we perform
-     * password verification against this fixed hash using the same bcrypt
-     * algorithm/cost as real passwords. This prevents an observable timing
-     * side-channel that would allow account enumeration.
-     *
-     * This is a valid bcrypt hash for the password "password" with cost 12.
-     * It is NEVER used for real authentication — only for timing equalization.
-     */
-    private const DUMMY_PASSWORD_HASH = '$2y$12$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi';
-
     /** @param array<string, mixed> $credentials */
     public function login(array $credentials): array
     {
@@ -54,15 +41,20 @@ class AuthService implements AuthServiceInterface
         $user = $this->userRepository->findByEmail($email);
 
         if (! $user) {
-            // Timing-safe failure: perform password verification against a
-            // constant dummy hash so the response time is indistinguishable
-            // from a real user with a wrong password.
-            Hash::check($password, self::DUMMY_PASSWORD_HASH);
+            // Use the configured hasher and configured work factor rather than
+            // a hard-coded bcrypt hash. Match the two verification operations
+            // and the intermediate hash used by the legacy double-hash check.
+            $dummyHash = Hash::make('login-dummy-'.bin2hex(random_bytes(32)));
+            Hash::check($password, $dummyHash);
+            $doubleHashedCandidate = Hash::make($password);
+            Hash::check($doubleHashedCandidate, $dummyHash);
+
             throw new LoginFailedException(LoginFailureCode::InvalidCredentials);
         }
 
         if (! Hash::check($password, $user->password)) {
-            if (Hash::check(Hash::make($password), $user->password)) {
+            $doubleHashedCandidate = Hash::make($password);
+            if (Hash::check($doubleHashedCandidate, $user->password)) {
                 Log::info('Detected double-hashed password — re-hashing', [
                     'user_id' => $user->id,
                     'email' => $user->email,
@@ -70,6 +62,10 @@ class AuthService implements AuthServiceInterface
                 $user->password = Hash::make($password);
                 $user->save();
             } else {
+                // Account for the dummy-hash generation performed on the
+                // nonexistent-account path. This balances operation counts;
+                // it is not a constant-time guarantee across hash histories.
+                Hash::make('login-dummy-'.bin2hex(random_bytes(32)));
                 throw new LoginFailedException(LoginFailureCode::InvalidCredentials);
             }
         }
