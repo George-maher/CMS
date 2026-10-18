@@ -26,21 +26,23 @@ class StructureController extends Controller
 
         /** @var User|null $user */
         $user = $request->user();
-        if ($user !== null && ! $user->isAdmin()) {
-            $allowed = $this->scopeResolver->allowedStageIds($user);
+        if ($user !== null && ! $user->isAdmin() && ! $user->isPlatformAdmin()) {
+            $allowedStages = $this->scopeResolver->allowedStageIds($user);
+            $allowedClasses = $this->scopeResolver->allowedClassIds($user) ?? [];
 
             /** @var array<int, array<string, mixed>> $stages */
             $stages = $this->stageService->structure($search)['data'];
+            $stages = array_values(array_filter(
+                $stages,
+                function (array $stage) use ($allowedStages): bool {
+                    $stageId = $stage['id'] ?? null;
+
+                    return is_numeric($stageId) && in_array((int) $stageId, $allowedStages, true);
+                },
+            ));
 
             return response()->json([
-                'data' => array_values(array_filter(
-                    $stages,
-                    function (array $stage) use ($allowed): bool {
-                        $stageId = $stage['id'] ?? null;
-
-                        return is_numeric($stageId) && in_array((int) $stageId, $allowed, true);
-                    },
-                )),
+                'data' => $this->filterStructureClasses($stages, $allowedClasses),
             ]);
         }
 
@@ -54,21 +56,23 @@ class StructureController extends Controller
 
         /** @var User|null $user */
         $user = $request->user();
-        if ($user !== null && ! $user->isAdmin()) {
-            $allowed = $this->scopeResolver->allowedStageIds($user);
+        if ($user !== null && ! $user->isAdmin() && ! $user->isPlatformAdmin()) {
+            $allowedStages = $this->scopeResolver->allowedStageIds($user);
+            $allowedClasses = $this->scopeResolver->allowedClassIds($user) ?? [];
 
             /** @var array<int, array<string, mixed>> $structure */
             $structure = $this->stageService->stagesWithClasses($search);
+            $structure = array_values(array_filter(
+                $structure,
+                function (array $stage) use ($allowedStages): bool {
+                    $stageId = $stage['stage_id'] ?? null;
+
+                    return is_numeric($stageId) && in_array((int) $stageId, $allowedStages, true);
+                },
+            ));
 
             return response()->json([
-                'data' => array_values(array_filter(
-                    $structure,
-                    function (array $stage) use ($allowed): bool {
-                        $stageId = $stage['stage_id'] ?? null;
-
-                        return is_numeric($stageId) && in_array((int) $stageId, $allowed, true);
-                    },
-                )),
+                'data' => $this->filterStructureClasses($structure, $allowedClasses, 'stage_id'),
             ]);
         }
 
@@ -80,11 +84,14 @@ class StructureController extends Controller
         /** @var User $user */
         $user = $request->user();
 
-        if ($user->isStageAdmin() && $user->stage_id) {
-            $classes = Classe::byChurch()
-                ->where('stage_id', $user->stage_id)
-                ->orderBy('display_order')
-                ->get(['id', 'name']);
+        if ($user->isStageAdmin()) {
+            $classIds = $this->scopeResolver->allowedClassIds($user) ?? [];
+            $classes = $classIds === []
+                ? collect()
+                : Classe::byChurch()
+                    ->whereIn('id', $classIds)
+                    ->orderBy('display_order')
+                    ->get(['id', 'name']);
 
             return response()->json(['data' => $classes]);
         }
@@ -103,19 +110,18 @@ class StructureController extends Controller
         /** @var User $user */
         $user = $request->user();
 
-        if ($user->isStageAdmin() && $user->stage_id) {
-            $servants = User::byChurch()
-                ->whereIn('id', function (Builder $q) use ($user) {
-                    $q->select('user_id')
-                        ->from('class_servant')
-                        ->whereIn('class_id', function (Builder $q2) use ($user) {
-                            $q2->select('id')
-                                ->from('classes')
-                                ->where('stage_id', $user->stage_id);
-                        });
-                })
-                ->where('role', UserRole::Servant)
-                ->get(['id', 'name', 'email', 'phone']);
+        if ($user->isStageAdmin()) {
+            $classIds = $this->scopeResolver->allowedClassIds($user) ?? [];
+            $servants = $classIds === []
+                ? collect()
+                : User::byChurch()
+                    ->whereIn('id', function (Builder $q) use ($classIds) {
+                        $q->select('user_id')
+                            ->from('class_servant')
+                            ->whereIn('class_id', $classIds);
+                    })
+                    ->where('role', UserRole::Servant)
+                    ->get(['id', 'name', 'email', 'phone']);
 
             return response()->json(['data' => $servants]);
         }
@@ -136,5 +142,32 @@ class StructureController extends Controller
             ->get(['id', 'name', 'email', 'phone']);
 
         return response()->json(['data' => $servants]);
+    }
+
+    /**
+     * Remove unauthorized nested classes from structure payloads. Stage visibility
+     * alone must never imply access to every class in that stage.
+     *
+     * @param  array<int, array<string, mixed>>  $stages
+     * @param  array<int, int>  $allowedClassIds
+     * @return array<int, array<string, mixed>>
+     */
+    private function filterStructureClasses(array $stages, array $allowedClassIds, string $stageIdKey = 'id'): array
+    {
+        foreach ($stages as &$stage) {
+            $classes = collect($stage['classes'] ?? [])->filter(function ($classe) use ($allowedClassIds): bool {
+                $classId = is_array($classe) ? ($classe['id'] ?? null) : ($classe->id ?? null);
+
+                return is_numeric($classId) && in_array((int) $classId, $allowedClassIds, true);
+            })->values();
+
+            $stage['classes'] = $classes;
+            if ($stageIdKey === 'id') {
+                $stage['classes_count'] = $classes->count();
+            }
+        }
+        unset($stage);
+
+        return $stages;
     }
 }

@@ -153,6 +153,55 @@ class AttendanceRepository implements AttendanceRepositoryInterface
     }
 
     /**
+     * @param array<int, int> $classIds
+     * @return array{total_attendances: int, this_month: int}
+     */
+    public function getAttendanceStatsForClasses(int $churchId, array $classIds, ?string $dateFrom = null, ?string $dateTo = null, ?int $contextId = null): array
+    {
+        if ($classIds === []) {
+            return ['total_attendances' => 0, 'this_month' => 0];
+        }
+
+        $queryForScope = function () use ($churchId, $classIds, $contextId) {
+            $query = Attendance::query()
+                ->where('church_id', $churchId)
+                ->whereIn('class_year_id', $classIds)
+                ->whereHas('classe', fn ($classe) => $classe->where('church_id', $churchId))
+                ->whereHas('user', fn ($user) => $user->where('church_id', $churchId));
+
+            if ($contextId !== null) {
+                $query->where('attendance_context_id', $contextId);
+            }
+
+            return $query;
+        };
+
+        $totalQuery = $queryForScope();
+        if ($dateFrom !== null) {
+            $totalQuery->whereDate('attended_at', '>=', $dateFrom);
+        }
+        if ($dateTo !== null) {
+            $totalQuery->whereDate('attended_at', '<=', $dateTo);
+        }
+
+        $monthStart = now()->startOfMonth()->toDateString();
+        $monthEnd = now()->endOfMonth()->toDateString();
+        $effectiveStart = $dateFrom !== null ? max($monthStart, $dateFrom) : $monthStart;
+        $effectiveEnd = $dateTo !== null ? min($monthEnd, $dateTo) : $monthEnd;
+        $thisMonth = $effectiveStart > $effectiveEnd
+            ? 0
+            : $queryForScope()
+                ->whereDate('attended_at', '>=', $effectiveStart)
+                ->whereDate('attended_at', '<=', $effectiveEnd)
+                ->count();
+
+        return [
+            'total_attendances' => $totalQuery->count(),
+            'this_month' => $thisMonth,
+        ];
+    }
+
+    /**
      * @return Collection<int, Attendance>
      */
     public function getAttendanceByDateRange(string $startDate, string $endDate): Collection

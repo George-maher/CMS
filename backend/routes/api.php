@@ -179,6 +179,8 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'approval', 'throttle:api'])->g
     */
     Route::get('/attendances/history/{userId?}', [AttendanceController::class, 'history'])
         ->middleware('throttle:attendance-read');
+    Route::get('/attendances/stage-stats', [AttendanceController::class, 'stageStats'])
+        ->middleware('throttle:attendance-read');
     Route::get('/attendances/stats/{userId?}', [AttendanceController::class, 'stats'])
         ->middleware('throttle:attendance-read');
 

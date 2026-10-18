@@ -6,7 +6,7 @@ import StatCard from '@/components/common/StatCard'
 import LoadingSpinner from '@/components/common/LoadingSpinner'
 import DailyVerseBanner from '@/components/common/DailyVerseBanner'
 import { useAuth } from '@/hooks/useAuth'
-import { getAttendanceStats } from '@/api/attendance'
+import { getStageAttendanceStats } from '@/api/attendance'
 import { listStages } from '@/api/stages'
 import { getStageClasses } from '@/api/stages'
 import { listEvents } from '@/api/events'
@@ -27,7 +27,7 @@ export default function StageAdminDashboard() {
     const scope = user?.stage_id ? user.stage_id : undefined
 
     Promise.all([
-      getAttendanceStats().catch((e) => { logCatch('StageDashboard.getStats', e); return { total_attendances: 0, this_month: 0 } }),
+      getStageAttendanceStats().catch((e) => { logCatch('StageDashboard.getStats', e); return { total_attendances: 0, this_month: 0 } }),
       listStages().catch((e) => { logCatch('StageDashboard.listStages', e); return [] }),
       scope ? getStageClasses(scope).catch((e) => { logCatch('StageDashboard.getStageClasses', e); return [] }) : Promise.resolve([]),
       listEvents({ upcoming: true, per_page: 3 }).catch((e) => { logCatch('StageDashboard.listEvents', e); return { data: [] } }),

@@ -141,7 +141,7 @@ class UserService implements UserServiceInterface
         /** @var int|null $classId */
         $classId = isset($data['class_id']) && is_numeric($data['class_id']) ? (int) $data['class_id'] : null;
 
-        if ($stageId === null && $classId !== null) {
+        if ($role !== UserRole::StageAdmin->value && $stageId === null && $classId !== null) {
             $stageId = $this->stageForClass($classId);
         }
 
@@ -249,9 +249,11 @@ class UserService implements UserServiceInterface
             /** @var int|null $stageId */
             $stageId = array_key_exists('stage_id', $data)
                 ? (isset($data['stage_id']) && is_numeric($data['stage_id']) ? (int) $data['stage_id'] : null)
-                : ($user->stage_id !== null ? (int) $user->stage_id : null);
+                : ($targetRole === UserRole::StageAdmin->value && $currentRole !== UserRole::StageAdmin->value
+                    ? null
+                    : ($user->stage_id !== null ? (int) $user->stage_id : null));
 
-            if ($stageId === null && array_key_exists('class_id', $data)) {
+            if ($targetRole !== UserRole::StageAdmin->value && $stageId === null && array_key_exists('class_id', $data)) {
                 /** @var int|null $targetClassId */
                 $targetClassId = isset($data['class_id']) && is_numeric($data['class_id']) ? (int) $data['class_id'] : null;
                 $stageId = $this->stageForClass($targetClassId);
@@ -588,7 +590,9 @@ class UserService implements UserServiceInterface
             UserRole::PlatformAdmin->value,
             UserRole::Admin->value,
             UserRole::AssistantAdmin->value => UserScope::Church,
-            UserRole::StageAdmin->value => $stageId !== null ? UserScope::Stage : UserScope::Self,
+            // A Stage Admin without a valid explicit assignment remains an
+            // empty Stage scope; never annotate it as a personal/class scope.
+            UserRole::StageAdmin->value => UserScope::Stage,
             UserRole::Servant->value => UserScope::ClassScope,
             default => UserScope::Self,
         };

@@ -92,7 +92,7 @@ class TenantIsolationMatrixTest extends TestCase
     {
         return match ($role) {
             UserRole::Admin->value, UserRole::AssistantAdmin->value => UserScope::Church,
-            UserRole::StageAdmin->value => $stageKey !== null ? UserScope::Stage : UserScope::Self,
+            UserRole::StageAdmin->value => UserScope::Stage,
             UserRole::Servant->value => UserScope::ClassScope,
             default => UserScope::Self,
         };

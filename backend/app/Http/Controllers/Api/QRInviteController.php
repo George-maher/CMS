@@ -228,10 +228,11 @@ class QRInviteController extends Controller
         if ($user->role === UserRole::Servant && $invite->created_by !== $uid) {
             return response()->json(['message' => 'Forbidden.'], 403);
         }
-        if ($user->isStageAdmin()
-            && $invite->created_by !== $uid
-            && ($invite->stage_id === null || $invite->stage_id !== $user->stage_id)) {
-            return response()->json(['message' => 'Forbidden.'], 403);
+        if ($user->isStageAdmin()) {
+            $stageId = $this->scopeResolver->userStageId($user);
+            if ($stageId === null || $invite->stage_id === null || (int) $invite->stage_id !== $stageId) {
+                return response()->json(['message' => 'Forbidden.'], 403);
+            }
         }
 
         $this->qrInviteService->revokeInvite($id);
@@ -253,10 +254,11 @@ class QRInviteController extends Controller
         if ($user->isServant() && $invite->created_by !== $user->id) {
             return response()->json(['message' => 'Forbidden.'], 403);
         }
-        if ($user->isStageAdmin()
-            && $invite->created_by !== $user->id
-            && ($invite->stage_id === null || $invite->stage_id !== $user->stage_id)) {
-            return response()->json(['message' => 'Forbidden.'], 403);
+        if ($user->isStageAdmin()) {
+            $stageId = $this->scopeResolver->userStageId($user);
+            if ($stageId === null || $invite->stage_id === null || (int) $invite->stage_id !== $stageId) {
+                return response()->json(['message' => 'Forbidden.'], 403);
+            }
         }
         if (! $user->isPlatformAdmin() && $invite->church_id !== $user->church_id) {
             return response()->json(['message' => 'Forbidden.'], 403);
@@ -293,9 +295,10 @@ class QRInviteController extends Controller
             // Stage admins only see invitations scoped to their stage; any
             // client-supplied filters that could leak another stage are dropped.
             unset($filters['created_by'], $filters['class_id'], $filters['class_year_id']);
-            if ($currentUser->stage_id !== null) {
-                $filters['stage_id'] = $currentUser->stage_id;
-            }
+            $stageId = $this->scopeResolver->userStageId($currentUser);
+            // A Stage Admin with a missing or cross-tenant assignment must see
+            // no invitations, never the unfiltered church-wide collection.
+            $filters['stage_id'] = $stageId ?? -1;
         }
 
         /** @var array{data: Collection<int, QRInvite>, meta: array<string, mixed>} $result */

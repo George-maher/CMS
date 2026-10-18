@@ -13,6 +13,7 @@ use App\Http\Resources\UserResource;
 use App\Models\AttendanceContext;
 use App\Models\Classe;
 use App\Models\QRInvite;
+use App\Models\Scopes\ChurchScope;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -476,6 +477,52 @@ class AttendanceController extends Controller
             date: $date,
             dateFrom: $dateFrom,
             dateTo: $dateTo,
+        );
+
+        return response()->json(['data' => $result]);
+    }
+
+    public function stageStats(Request $request): JsonResponse
+    {
+        /** @var User $user */
+        $user = $request->user();
+        if (! $user->isStageAdmin() || $user->church_id === null) {
+            return response()->json(['message' => 'Forbidden.'], 403);
+        }
+
+        $stageIds = $this->scopeResolver->allowedStageIds($user);
+        $classIds = $this->scopeResolver->allowedClassIds($user);
+        if (count($stageIds) !== 1 || $classIds === null) {
+            return response()->json(['message' => 'Forbidden.'], 403);
+        }
+
+        /** @var array<string, mixed> $validated */
+        $validated = $request->validate([
+            'date_from' => ['sometimes', 'date'],
+            'date_to' => ['sometimes', 'date', 'after_or_equal:date_from'],
+            'attendance_context_id' => ['sometimes', 'integer', 'min:1'],
+        ]);
+
+        $contextId = $validated['attendance_context_id'] ?? null;
+        if ($contextId !== null) {
+            $context = AttendanceContext::withoutGlobalScope(ChurchScope::class)
+                ->whereKey($contextId)
+                ->where(function ($query) use ($user): void {
+                    $query->where('church_id', $user->church_id)
+                        ->orWhereNull('church_id');
+                })
+                ->exists();
+            if (! $context) {
+                return response()->json(['message' => 'Not found.'], 404);
+            }
+        }
+
+        $result = $this->attendanceService->getAttendanceStatsForClasses(
+            churchId: (int) $user->church_id,
+            classIds: array_values(array_unique(array_map('intval', $classIds))),
+            dateFrom: $validated['date_from'] ?? null,
+            dateTo: $validated['date_to'] ?? null,
+            contextId: $contextId !== null ? (int) $contextId : null,
         );
 
         return response()->json(['data' => $result]);

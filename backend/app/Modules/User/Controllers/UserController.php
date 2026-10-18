@@ -40,10 +40,11 @@ class UserController extends Controller
 
             if ($authUser->isStageAdmin()) {
                 $filters['class_ids'] = $this->scopeResolver->allowedClassIds($authUser);
-                if ($authUser->stage_id !== null) {
-                    // Stage admins also see stage-scoped users not tied to a class
-                    // (e.g. pivot-assigned servants whose users.class_id is null).
-                    $filters['scope_stage_id'] = (int) $authUser->stage_id;
+                $allowedStageIds = $this->scopeResolver->allowedStageIds($authUser);
+                if (count($allowedStageIds) === 1) {
+                    // Include stage-scoped users not tied to a class only when
+                    // the explicit assignment resolves inside this church.
+                    $filters['scope_stage_id'] = $allowedStageIds[0];
                 }
             }
         }
@@ -182,7 +183,10 @@ class UserController extends Controller
             $requestedStageId = isset($data['stage_id']) && is_numeric($data['stage_id']) ? (int) $data['stage_id'] : null;
             if (($data['role'] ?? null) === UserRole::StageAdmin->value) {
                 /** @var int|null $checkStageId */
-                $checkStageId = $requestedStageId ?? $target->stage_id;
+                $checkStageId = $requestedStageId;
+                if ($checkStageId === null && $target->isStageAdmin() && ! array_key_exists('stage_id', $data)) {
+                    $checkStageId = $target->stage_id !== null ? (int) $target->stage_id : null;
+                }
                 if ($checkStageId === null || ! $this->stageWithinScope($authUser, $checkStageId)) {
                     return response()->json(['message' => 'Forbidden.'], 403);
                 }
@@ -280,20 +284,26 @@ class UserController extends Controller
             return response()->json(['message' => 'Unauthenticated.'], 401);
         }
 
-        if ($authUser->isStageAdmin() && $authUser->stage_id) {
-            $servants = User::byChurch()
+        if ($authUser->isStageAdmin()) {
+            $stageIds = $this->scopeResolver->allowedStageIds($authUser);
+            $classIds = $this->scopeResolver->allowedClassIds($authUser);
+            if (count($stageIds) !== 1 || $classIds === null) {
+                return response()->json(['data' => []]);
+            }
+
+            $stageId = $stageIds[0];
+            $servants = User::query()
+                ->where('church_id', $churchId)
                 ->where('role', UserRole::Servant)
-                ->where(function (Builder $q) use ($authUser) {
-                    $q->where('stage_id', $authUser->stage_id)
-                        ->orWhereIn('id', function (\Illuminate\Database\Query\Builder $q2) use ($authUser) {
-                            $q2->select('user_id')
+                ->where(function (Builder $query) use ($stageId, $classIds): void {
+                    $query->where('stage_id', $stageId);
+                    if ($classIds !== []) {
+                        $query->orWhereIn('id', function (\Illuminate\Database\Query\Builder $pivot) use ($classIds): void {
+                            $pivot->select('user_id')
                                 ->from('class_servant')
-                                ->whereIn('class_id', function (\Illuminate\Database\Query\Builder $q3) use ($authUser) {
-                                    $q3->select('id')
-                                        ->from('classes')
-                                        ->where('stage_id', $authUser->stage_id);
-                                });
+                                ->whereIn('class_id', $classIds);
                         });
+                    }
                 })
                 ->orderBy('name')
                 ->get();

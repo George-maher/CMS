@@ -112,12 +112,12 @@ class CacheService
      * @param  \Closure(): T  $callback
      * @return T
      */
-    public function rememberDashboardStats(?int $churchId, \Closure $callback): mixed
+    public function rememberDashboardStats(?int $churchId, \Closure $callback, string $scope = 'church'): mixed
     {
         if ($churchId === null) {
             return $callback();
         }
-        $key = $this->vKey('dashboard', $churchId, 'stats');
+        $key = $this->vKey('dashboard', $churchId, 'stats:'.$scope);
 
         return Cache::remember($key, self::LONG_TTL, $callback);
     }

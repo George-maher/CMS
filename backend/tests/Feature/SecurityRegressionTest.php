@@ -7,6 +7,7 @@ use App\Models\Church;
 use App\Models\DailyVerse;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
 
 /**
@@ -83,6 +84,36 @@ class SecurityRegressionTest extends TestCase
         $this->assertEquals($responseExisting->json('code'), $responseNonExisting->json('code'));
         $this->assertEquals($responseExisting->json('message'), $responseNonExisting->json('message'));
         $this->assertEquals($responseExisting->json('success'), $responseNonExisting->json('success'));
+    }
+
+    // These assertions pin comparable hasher call counts only; they do not
+    // measure latency or prove constant-time behavior.
+    public function test_login_failure_hash_operation_counts_match_for_nonexistent_account(): void
+    {
+        Hash::shouldReceive('make')->twice()->andReturn('dummy-hash');
+        Hash::shouldReceive('check')->twice()->andReturn(false);
+
+        $this->postJson('/api/v1/auth/login', [
+            'email' => 'missing-account@test.com',
+            'password' => 'WrongPass1!',
+        ])->assertStatus(401);
+    }
+
+    public function test_login_failure_hash_operation_counts_match_for_existing_account(): void
+    {
+        User::factory()->create([
+            'email' => 'known-account@test.com',
+            'password' => bcrypt('CorrectPass1!'),
+            'application_status' => 'approved',
+        ]);
+
+        Hash::shouldReceive('check')->twice()->andReturn(false);
+        Hash::shouldReceive('make')->twice()->andReturn('candidate-hash');
+
+        $this->postJson('/api/v1/auth/login', [
+            'email' => 'known-account@test.com',
+            'password' => 'WrongPass1!',
+        ])->assertStatus(401);
     }
 
     public function test_login_success_behavior_unchanged(): void

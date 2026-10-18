@@ -24,7 +24,7 @@ class ScopeResolver implements ScopeResolverInterface
 
         return match ($scope) {
             UserScope::Church => $this->stageIdsForQuery(),
-            UserScope::Stage => $user->stage_id ? [(int) $user->stage_id] : [],
+            UserScope::Stage => $this->allowedStageAdminIds($user),
             UserScope::ClassScope => $this->stageIdsOfClasses($this->allowedClassIds($user) ?? []),
             UserScope::Self => $this->stageIdsOfClasses($user->class_id ? [(int) $user->class_id] : []),
         };
@@ -39,8 +39,8 @@ class ScopeResolver implements ScopeResolverInterface
 
         return match ($scope) {
             UserScope::Church => null,
-            UserScope::Stage => $user->stage_id
-                ? $this->classIdsForStage((int) $user->stage_id)
+            UserScope::Stage => ($stageId = $this->stageIdForUser($user)) !== null
+                ? $this->classIdsForStage($stageId)
                 : [],
             UserScope::ClassScope => $user->getServantClassIds() ?? [],
             UserScope::Self => $user->class_id ? [(int) $user->class_id] : [],
@@ -98,6 +98,10 @@ class ScopeResolver implements ScopeResolverInterface
 
     public function userStageId(User $user): ?int
     {
+        if ($user->isStageAdmin()) {
+            return $this->stageIdForUser($user);
+        }
+
         if ($user->stage_id) {
             return (int) $user->stage_id;
         }
@@ -114,6 +118,32 @@ class ScopeResolver implements ScopeResolverInterface
     public function userClassId(User $user): ?int
     {
         return $user->class_id !== null ? (int) $user->class_id : null;
+    }
+
+    /** @return array<int, int> */
+    private function allowedStageAdminIds(User $user): array
+    {
+        $stageId = $this->stageIdForUser($user);
+
+        return $stageId === null ? [] : [$stageId];
+    }
+
+    /**
+     * Resolve only an explicit Stage Admin assignment belonging to the
+     * authenticated user's church. Invalid and cross-tenant IDs fail closed.
+     */
+    private function stageIdForUser(User $user): ?int
+    {
+        if (! $user->isStageAdmin() || $user->church_id === null || $user->stage_id === null) {
+            return null;
+        }
+
+        $stageId = Stage::query()
+            ->where('church_id', $user->church_id)
+            ->whereKey($user->stage_id)
+            ->value('id');
+
+        return is_numeric($stageId) ? (int) $stageId : null;
     }
 
     /**
