@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Contracts\ScopeResolverInterface;
 use App\Enums\QRInviteType;
 use App\Enums\UserRole;
 use App\Enums\UserScope;
@@ -916,7 +917,7 @@ class StageAdminScopeTest extends TestCase
             'stage_id' => $foreignStage->id,
             'class_id' => $s['secClasse']->id,
         ]);
-        $resolver = app(\App\Contracts\ScopeResolverInterface::class);
+        $resolver = app(ScopeResolverInterface::class);
         $this->assertSame([], $resolver->allowedStageIds($invalidAssignment));
         $this->assertSame([], $resolver->allowedClassIds($invalidAssignment));
 
@@ -953,9 +954,17 @@ class StageAdminScopeTest extends TestCase
             ->getJson('/api/v1/qr/invites')
             ->assertOk()
             ->assertJsonPath('data', []);
-        $this->authAs($token)
+        // Dashboard: fails closed to zeros, never church-wide aggregates.
+        // The role resolves to Stage scope, but the missing assignment leaves
+        // no stage or class to aggregate, so every count is zero.
+        $stats = $this->authAs($token)
             ->getJson('/api/v1/dashboard/stats')
-            ->assertForbidden();
+            ->assertOk()
+            ->json('data');
+        $this->assertSame(0, $stats['total_members']);
+        $this->assertSame(0, $stats['total_servants']);
+        $this->assertSame(0, $stats['total_attendances']);
+        $this->assertSame(0, $stats['total_points']);
         $this->authAs($token)
             ->getJson('/api/v1/attendances/stage-stats')
             ->assertForbidden();

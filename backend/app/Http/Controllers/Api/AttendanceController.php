@@ -526,7 +526,16 @@ class AttendanceController extends Controller
             'attendance_context_id' => ['sometimes', 'integer', 'min:1'],
         ]);
 
+        $dateFrom = $validated['date_from'] ?? null;
+        $dateTo = $validated['date_to'] ?? null;
         $contextId = $validated['attendance_context_id'] ?? null;
+
+        // `validate()` returns untyped values; narrow them before they reach
+        // the typed service contract.
+        $dateFrom = is_string($dateFrom) ? $dateFrom : null;
+        $dateTo = is_string($dateTo) ? $dateTo : null;
+        $contextId = is_numeric($contextId) ? (int) $contextId : null;
+
         if ($contextId !== null) {
             $context = AttendanceContext::withoutGlobalScope(ChurchScope::class)
                 ->whereKey($contextId)
@@ -543,9 +552,9 @@ class AttendanceController extends Controller
         $result = $this->attendanceService->getAttendanceStatsForClasses(
             churchId: (int) $user->church_id,
             classIds: array_values(array_unique(array_map('intval', $classIds))),
-            dateFrom: $validated['date_from'] ?? null,
-            dateTo: $validated['date_to'] ?? null,
-            contextId: $contextId !== null ? (int) $contextId : null,
+            dateFrom: $dateFrom,
+            dateTo: $dateTo,
+            contextId: $contextId,
         );
 
         return response()->json(['data' => $result]);

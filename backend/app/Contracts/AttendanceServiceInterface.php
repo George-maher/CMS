@@ -28,7 +28,7 @@ interface AttendanceServiceInterface
     public function getAttendanceStats(?int $userId = null): array;
 
     /** @param array<int, int> $classIds
-     *  @return array{total_attendances: int, this_month: int}
+     * @return array{total_attendances: int, this_month: int}
      */
     public function getAttendanceStatsForClasses(int $churchId, array $classIds, ?string $dateFrom = null, ?string $dateTo = null, ?int $contextId = null): array;
 

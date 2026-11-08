@@ -147,11 +147,23 @@ class DashboardScopeTest extends TestCase
         $this->assertSame(18, $adminResponse->json('data.total_points'));
     }
 
-    public function test_dashboard_stats_are_denied_to_servants_and_members(): void
+    public function test_dashboard_stats_are_scoped_to_the_callers_own_class_for_members(): void
     {
-        foreach ([$this->member, $this->otherStageMember] as $member) {
-            $this->authAs($member)->getJson('/api/v1/dashboard/stats')->assertForbidden();
-        }
+        // Members (and servants) may read the dashboard, but only within their
+        // own class boundary — never the church-wide aggregates asserted above.
+        $this->authAs($this->member)
+            ->getJson('/api/v1/dashboard/stats')
+            ->assertOk()
+            ->assertJsonPath('data.total_members', 1)
+            ->assertJsonPath('data.total_attendances', 3)
+            ->assertJsonPath('data.total_points', 7);
+
+        $this->authAs($this->otherStageMember)
+            ->getJson('/api/v1/dashboard/stats')
+            ->assertOk()
+            ->assertJsonPath('data.total_members', 1)
+            ->assertJsonPath('data.total_attendances', 1)
+            ->assertJsonPath('data.total_points', 11);
     }
 
     public function test_stage_attendance_statistics_are_scoped_and_support_date_and_context_filters(): void

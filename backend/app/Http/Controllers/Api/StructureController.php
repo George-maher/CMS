@@ -155,15 +155,34 @@ class StructureController extends Controller
     private function filterStructureClasses(array $stages, array $allowedClassIds, string $stageIdKey = 'id'): array
     {
         foreach ($stages as &$stage) {
-            $classes = collect($stage['classes'] ?? [])->filter(function ($classe) use ($allowedClassIds): bool {
-                $classId = is_array($classe) ? ($classe['id'] ?? null) : ($classe->id ?? null);
+            $stageClasses = $stage['classes'] ?? [];
+            if (! is_iterable($stageClasses)) {
+                $stageClasses = [];
+            }
 
-                return is_numeric($classId) && in_array((int) $classId, $allowedClassIds, true);
-            })->values();
+            // Iterate instead of collect(): the value is `mixed` and may be an
+            // array, a Collection or a ResourceCollection whose items are
+            // models, arrays or resources.
+            $classes = [];
+            foreach ($stageClasses as $classe) {
+                if (is_array($classe)) {
+                    $classId = $classe['id'] ?? null;
+                } elseif (is_object($classe)) {
+                    $classId = $classe->id ?? null;
+                } else {
+                    continue;
+                }
+
+                if (! is_numeric($classId) || ! in_array((int) $classId, $allowedClassIds, true)) {
+                    continue;
+                }
+
+                $classes[] = $classe;
+            }
 
             $stage['classes'] = $classes;
             if ($stageIdKey === 'id') {
-                $stage['classes_count'] = $classes->count();
+                $stage['classes_count'] = count($classes);
             }
         }
         unset($stage);

@@ -90,7 +90,7 @@ class SecurityRegressionTest extends TestCase
     // measure latency or prove constant-time behavior.
     public function test_login_failure_hash_operation_counts_match_for_nonexistent_account(): void
     {
-        Hash::shouldReceive('make')->twice()->andReturn('dummy-hash');
+        Hash::shouldReceive('make')->once()->andReturn('dummy-hash');
         Hash::shouldReceive('check')->twice()->andReturn(false);
 
         $this->postJson('/api/v1/auth/login', [
@@ -108,7 +108,7 @@ class SecurityRegressionTest extends TestCase
         ]);
 
         Hash::shouldReceive('check')->twice()->andReturn(false);
-        Hash::shouldReceive('make')->twice()->andReturn('candidate-hash');
+        Hash::shouldReceive('make')->once()->andReturn('candidate-hash');
 
         $this->postJson('/api/v1/auth/login', [
             'email' => 'known-account@test.com',
