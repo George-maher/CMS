@@ -22,12 +22,15 @@ class MemberProfileController extends Controller
         $userId = $user->id;
         $result = $this->memberProfileService->getProfile($id, $userId);
 
-        if (! $result['found']) {
+        // F-04: a member profile must not disclose its own existence to a
+        // caller who is not allowed to read it. A missing id, a member of
+        // another church, and a member of another stage/class all produce the
+        // exact same status code and byte-identical body, so the endpoint
+        // cannot be used as an existence oracle. The authorization decision
+        // itself is still made by MemberProfileService::canViewProfile(); only
+        // the externally observable response is unified.
+        if (! $result['found'] || (isset($result['authorized']) && ! $result['authorized'])) {
             return response()->json(['message' => 'Member not found.'], 404);
-        }
-
-        if (isset($result['authorized']) && ! $result['authorized']) {
-            return response()->json(['message' => 'Unauthorized to view this member profile.'], 403);
         }
 
         /** @var User $member */

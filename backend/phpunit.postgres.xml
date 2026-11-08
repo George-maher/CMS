@@ -30,6 +30,9 @@
         <env name="MAIL_MAILER" value="array" force="true"/>
         <env name="QUEUE_CONNECTION" value="sync" force="true"/>
         <env name="SESSION_DRIVER" value="array" force="true"/>
+        <!-- Test-only: send logs to the console so tests never append to
+             storage/logs/laravel.log. See phpunit.xml for why `null` is wrong. -->
+        <env name="LOG_CHANNEL" value="stderr" force="true"/>
         <env name="PULSE_ENABLED" value="false" force="true"/>
         <env name="TELESCOPE_ENABLED" value="false" force="true"/>
         <env name="NIGHTWATCH_ENABLED" value="false" force="true"/>

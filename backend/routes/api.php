@@ -345,14 +345,15 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'approval', 'throttle:api'])->g
             ->middleware('throttle:event-crud');
 
         /*
-        | Event Analytics — view_users permission
+        | Event Analytics — view_users permission + event scope (the event must
+        | be reachable for the caller's stage/class authorization).
         */
         Route::get('/events/{id}/analytics/summary', [EventAnalyticsController::class, 'summary'])
-            ->middleware('throttle:event-read');
+            ->middleware(['event.scope', 'throttle:event-read']);
         Route::get('/events/{id}/analytics/viewed', [EventAnalyticsController::class, 'viewed'])
-            ->middleware('throttle:event-read');
+            ->middleware(['event.scope', 'throttle:event-read']);
         Route::get('/events/{id}/analytics/not-viewed', [EventAnalyticsController::class, 'notViewed'])
-            ->middleware('throttle:event-read');
+            ->middleware(['event.scope', 'throttle:event-read']);
 
         /*
         | Daily Verse — CRUD + activate

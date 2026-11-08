@@ -59,34 +59,55 @@ class ChurchApplicationAccessTest extends TestCase
         ], $overrides);
     }
 
-    public function test_lookup_does_not_leak_application_pii_to_unauthenticated_caller(): void
+    public function test_lookup_reveals_nothing_to_unauthenticated_caller(): void
     {
         $response = $this->postJson('/api/v1/church-applications/lookup', [
             'email' => 'applicant@gracechurch.org',
         ]);
 
         $response->assertOk();
-        $data = $response->json('data');
-        $this->assertIsArray($data);
 
-        // Anonymous callers may only learn existence + status. Every PII field
-        // of ChurchApplicationResource must be absent from the projection.
-        $piiKeys = [
-            'church_name', 'service_name', 'priest_name', 'main_servant_name',
-            'priest_phone', 'phone', 'address',
-            'front_id_url', 'back_id_url', 'church_permission_doc_url',
-            'id_type', 'admin_notes', 'rejection_reason',
-        ];
-        foreach ($piiKeys as $piiKey) {
-            $this->assertArrayNotHasKey(
-                $piiKey,
-                $data,
-                "PII field [{$piiKey}] leaked to an unauthenticated lookup caller."
-            );
-        }
+        // An anonymous caller must learn nothing at all: not the application
+        // body, not the contact email, not the approval status, and not even
+        // whether an application exists for the address.
+        $response->assertJsonPath('data', null);
+        $response->assertJsonPath('message', __('application.exists_sign_in'));
 
-        $this->assertSame('pending', $data['status'] ?? null);
-        $this->assertSame('applicant@gracechurch.org', $data['contact_email'] ?? null);
+        /** @var array<string, mixed> $body */
+        $body = $response->json();
+        $this->assertSame(['data', 'message'], array_keys($body));
+    }
+
+    public function test_lookup_is_indistinguishable_for_existing_missing_and_foreign_owner(): void
+    {
+        $existing = $this->postJson('/api/v1/church-applications/lookup', [
+            'email' => 'applicant@gracechurch.org',
+        ]);
+
+        $missing = $this->postJson('/api/v1/church-applications/lookup', [
+            'email' => 'nobody@gracechurch.org',
+        ]);
+
+        $this->assertSame(200, $existing->getStatusCode());
+        $this->assertSame($existing->getStatusCode(), $missing->getStatusCode());
+        $this->assertSame($existing->json('data'), $missing->json('data'));
+        $this->assertSame($existing->json('message'), $missing->json('message'));
+
+        // A signed-in account that is NOT the application owner gets the very
+        // same response, so the endpoint cannot be used as an existence or
+        // approval-status oracle by an authenticated bystander either.
+        Sanctum::actingAs(User::factory()->create([
+            'email' => 'bystander@gracechurch.org',
+            'role' => UserRole::Member,
+        ]));
+
+        $bystander = $this->postJson('/api/v1/church-applications/lookup', [
+            'email' => 'applicant@gracechurch.org',
+        ]);
+
+        $this->assertSame(200, $bystander->getStatusCode());
+        $this->assertSame($existing->json('data'), $bystander->json('data'));
+        $this->assertSame($existing->json('message'), $bystander->json('message'));
     }
 
     public function test_lookup_returns_full_application_to_authenticated_owner(): void

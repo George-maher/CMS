@@ -33,3 +33,31 @@ export function roleBadgeVariant(role: UserRole): 'warning' | 'info' | 'success'
   }
   return map[role] ?? 'default'
 }
+
+/**
+ * Landing route per role — the single source of truth for post-login,
+ * post-approval and "wrong dashboard for this role" redirects.
+ *
+ * This map used to be duplicated in Login.tsx, AppLayout.tsx and
+ * ApplicationStatus.tsx (and a fourth, inconsistent copy inside
+ * useRoleAccess.ts sent `assistant_admin` to `/admin`). Keeping one map means
+ * a role can no longer be routed to two different dashboards depending on
+ * which component performed the redirect.
+ */
+const ROLE_DASHBOARD_PATHS: Readonly<Record<string, string>> = {
+  platform_admin: '/platform',
+  admin: '/admin',
+  assistant_admin: '/assistant-admin',
+  stage_admin: '/stage',
+  servant: '/servant',
+  member: '/member',
+}
+
+/**
+ * Resolve the dashboard route for a role, falling back to the login screen for
+ * an unknown or missing role.
+ */
+export function roleDashboardPath(role: string | null | undefined): string {
+  if (!role) return '/login'
+  return ROLE_DASHBOARD_PATHS[role] || '/login'
+}

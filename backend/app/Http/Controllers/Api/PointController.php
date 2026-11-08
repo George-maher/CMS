@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Contracts\PointServiceInterface;
 use App\Contracts\ScopeResolverInterface;
+use App\Enums\UserScope;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\AddBonusPointsRequest;
 use App\Http\Resources\PointResource;
@@ -56,15 +57,57 @@ class PointController extends Controller
 
     public function leaderboard(Request $request): JsonResponse
     {
-        /** @var int $limit */
-        $limit = $request->integer('limit', 10);
+        /** @var User $user */
+        $user = $request->user();
+        $limit = $this->normalizeLeaderboardLimit(
+            $request->integer('limit', PointServiceInterface::DEFAULT_LEADERBOARD_LIMIT)
+        );
+
+        // Stage/class-scoped principals only rank members inside their scope;
+        // church-scope principals keep the church-wide ranking.
+        $scope = $this->scopeResolver->getScope($user);
+        $classIds = null;
+        $stageId = null;
+        if ($user->isStageAdmin() && $scope !== UserScope::Stage) {
+            $classIds = []; // stage admin without a stage: fail closed
+        } elseif ($scope === UserScope::Stage) {
+            $stageId = $user->stage_id !== null ? (int) $user->stage_id : null;
+            $classIds = $this->scopeResolver->allowedClassIds($user) ?? [];
+        } elseif ($scope === UserScope::ClassScope || $scope === UserScope::Self) {
+            // Servants (ClassScope) and members (Self) must never see the
+            // church-wide ranking. `allowedClassIds` resolves a servant's
+            // classes and a member's own class, and returns an empty list for a
+            // member without a class — which fails closed inside the service.
+            $classIds = $this->scopeResolver->allowedClassIds($user) ?? [];
+        }
+
         $result = $this->pointService->getLeaderboard(
             limit: $limit,
+            classIds: $classIds,
+            stageId: $stageId,
         );
 
         return response()->json([
             'data' => $result['data'],
         ]);
+    }
+
+    /**
+     * Normalise the client-supplied leaderboard limit.
+     *
+     * `Request::integer()` yields 0 for a missing, empty or non-numeric value,
+     * so anything below 1 falls back to the documented default and anything
+     * above the documented maximum is clamped rather than rejected: the
+     * endpoint keeps its "always answers" contract while the underlying query
+     * stays bounded.
+     */
+    private function normalizeLeaderboardLimit(int $limit): int
+    {
+        if ($limit < 1) {
+            return PointServiceInterface::DEFAULT_LEADERBOARD_LIMIT;
+        }
+
+        return min($limit, PointServiceInterface::MAX_LEADERBOARD_LIMIT);
     }
 
     public function userBalance(int $userId): JsonResponse

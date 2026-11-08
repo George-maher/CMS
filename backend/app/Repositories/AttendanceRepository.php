@@ -284,12 +284,13 @@ class AttendanceRepository implements AttendanceRepositoryInterface
      */
     public function getMembersByClassYear(int $classYearId): Collection
     {
+        // `classYearId` is a `classes.id`. `users.class_year_id` references the
+        // deprecated `class_years` table (see
+        // EventPolicy::eventTargetsServantsClass()), so it must not widen the
+        // member list — otherwise absent-members would leak foreign members.
         return User::byChurch()
             ->byRole(UserRole::Member)
-            ->where(function ($q) use ($classYearId) {
-                $q->where('class_id', $classYearId)
-                    ->orWhere('class_year_id', $classYearId);
-            })
+            ->where('class_id', $classYearId)
             ->active()
             ->with(['classe', 'servant'])
             ->get();

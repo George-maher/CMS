@@ -71,9 +71,14 @@ class EventAuthorizationService
         $overlap = ! empty($targetClassIds)
             && ! empty(array_intersect($servantClassIds, $targetClassIds));
 
+        // `events.class_year_id` holds a `classes.id`; `users.class_year_id`
+        // still references the deprecated `class_years` table (see
+        // EventPolicy::eventTargetsServantsClass()). Comparing the two let a
+        // servant reach another class's event whenever the independent id
+        // sequences collided, so the comparison uses `class_id`.
         return ! $hasAllClasses
             && ! $overlap
             && $event->class_year_id !== null
-            && $event->class_year_id !== $user->class_year_id;
+            && (int) $event->class_year_id !== (int) $user->class_id;
     }
 }

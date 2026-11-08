@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Contracts\DailySpiritualRecordServiceInterface;
+use App\Contracts\ScopeResolverInterface;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreDailySpiritualRecordRequest;
 use App\Http\Resources\DailySpiritualRecordResource;
@@ -19,6 +20,7 @@ class DailySpiritualRecordController extends Controller
 
     public function __construct(
         private readonly DailySpiritualRecordServiceInterface $spiritualRecordService,
+        private readonly ScopeResolverInterface $scopeResolver,
     ) {}
 
     public function index(Request $request): JsonResponse
@@ -28,8 +30,9 @@ class DailySpiritualRecordController extends Controller
 
         $memberId = (int) $user->id;
 
-        // Admin/servant can view other members' records
-        if ($user->isAdmin() || $user->isServant()) {
+        // Admin/stage admin/servant can view other members' records — each
+        // strictly limited by their own authorization scope.
+        if ($user->isAdmin() || $user->isServant() || $user->isStageAdmin()) {
             $requestedMemberId = $request->integer('member_id');
             if ($requestedMemberId > 0) {
                 $targetMember = User::where('id', $requestedMemberId)
@@ -40,12 +43,11 @@ class DailySpiritualRecordController extends Controller
                     return $this->notFound('Member not found.');
                 }
 
-                // Servants can only view their assigned members
-                if ($user->isServant()) {
-                    $servantClassIds = $user->getServantClassIds();
-                    if ($servantClassIds === null || $targetMember->class_id === null || ! in_array($targetMember->class_id, $servantClassIds)) {
-                        return $this->forbidden('You are not authorized to view this member\'s records.');
-                    }
+                // Servants: only their assigned members. Stage admins: only
+                // members of the assigned stage. Admins: whole church. The
+                // ScopeResolver derives the answer from trusted context.
+                if (! $this->scopeResolver->canAccessUser($user, $targetMember)) {
+                    return $this->forbidden('You are not authorized to view this member\'s records.');
                 }
 
                 $memberId = $requestedMemberId;
@@ -80,8 +82,9 @@ class DailySpiritualRecordController extends Controller
 
         $memberId = (int) $user->id;
 
-        // Admin/servant can view other members' records
-        if ($user->isAdmin() || $user->isServant()) {
+        // Admin/stage admin/servant can view other members' records — each
+        // strictly limited by their own authorization scope.
+        if ($user->isAdmin() || $user->isServant() || $user->isStageAdmin()) {
             $requestedMemberId = $request->integer('member_id');
             if ($requestedMemberId > 0) {
                 $targetMember = User::where('id', $requestedMemberId)
@@ -92,11 +95,8 @@ class DailySpiritualRecordController extends Controller
                     return $this->notFound('Member not found.');
                 }
 
-                if ($user->isServant()) {
-                    $servantClassIds = $user->getServantClassIds();
-                    if ($servantClassIds === null || $targetMember->class_id === null || ! in_array($targetMember->class_id, $servantClassIds)) {
-                        return $this->forbidden('You are not authorized to view this member\'s records.');
-                    }
+                if (! $this->scopeResolver->canAccessUser($user, $targetMember)) {
+                    return $this->forbidden('You are not authorized to view this member\'s records.');
                 }
 
                 $memberId = $requestedMemberId;

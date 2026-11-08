@@ -98,7 +98,11 @@ export default function JoinNow() {
         setIdType(result.application.id_type === 'church_permission' ? 'church_permission' : 'national_id')
       } else {
         setExistingApp(null)
-        setLookupMessage('')
+        // The backend answers identically for "no application" and "an
+        // application exists but you are not signed in as its owner", so the
+        // generic sign-in hint must still be surfaced without an application
+        // body.
+        setLookupMessage(result.message || '')
       }
     } catch (e) {
       logCatch('JoinNow.lookupByEmail', e)
@@ -135,7 +139,9 @@ export default function JoinNow() {
             setIdType(result.application.id_type === 'church_permission' ? 'church_permission' : 'national_id')
           } else {
             setExistingApp(null)
-            setLookupMessage('')
+            // Same response for "no application" and "not the owner": show the
+            // generic sign-in hint, never an existence signal.
+            setLookupMessage(result.message || '')
           }
         }).catch(() => {}).finally(() => setIsLookingUp(false))
       }

@@ -104,8 +104,19 @@ class UserRepository implements UserRepositoryInterface
                     $q->whereRaw('1 = 0');
                 } else {
                     if ($classIds !== []) {
-                        $q->whereIn('class_id', $classIds)
-                            ->orWhereIn('class_year_id', $classIds);
+                        // `users.class_year_id` is deliberately NOT part of this
+                        // authorization scope. It is the one remaining
+                        // `class_year_id` still foreign-keyed to the deprecated
+                        // `class_years` table (every other one was repointed at
+                        // `classes` by 2026_06_18_000002 — see
+                        // EventPolicy::eventTargetsServantsClass()), so its ids
+                        // come from a different sequence than `classes.id`.
+                        // Comparing the two would pull unrelated users into a
+                        // class-scoped directory whenever a legacy id happened
+                        // to collide with an allowed class id.
+                        // `class_id` is what ScopeResolver::canAccessUser()
+                        // resolves against, so the list matches the IDOR check.
+                        $q->whereIn('class_id', $classIds);
                     }
                     if ($scopeStageId !== null) {
                         // Include users scoped directly to the stage (e.g. pivot-assigned servants).
@@ -156,14 +167,16 @@ class UserRepository implements UserRepositoryInterface
         $classIds = $servant->classes()->pluck('classes.id');
 
         if ($classIds->isEmpty()) {
-            $fallbackClassId = $servant->class_id ?? $servant->class_year_id;
+            // `users.class_year_id` is NOT a class id: it still references the
+            // deprecated `class_years` table (see
+            // EventPolicy::eventTargetsServantsClass()). Using it here would
+            // resolve an id from an unrelated table, so a legacy servant with
+            // no `class_id` simply has no class scope and sees no members.
+            $fallbackClassId = $servant->class_id;
             if ($fallbackClassId) {
                 return User::byChurch()
                     ->byRole(UserRole::Member)
-                    ->where(function ($q) use ($fallbackClassId) {
-                        $q->where('class_id', $fallbackClassId)
-                            ->orWhere('class_year_id', $fallbackClassId);
-                    })
+                    ->where('class_id', $fallbackClassId)
                     ->active()
                     ->withSum('points as points_sum', 'points')
                     ->get();
@@ -185,12 +198,12 @@ class UserRepository implements UserRepositoryInterface
      */
     public function findMembersByClassYear(int $classYearId): Collection
     {
+        // `classYearId` is a `classes.id` (every caller passes a Class row).
+        // `users.class_year_id` is excluded: it references the deprecated
+        // `class_years` table, so comparing it here would match unrelated rows.
         return User::byChurch()
             ->byRole(UserRole::Member)
-            ->where(function ($q) use ($classYearId) {
-                $q->where('class_id', $classYearId)
-                    ->orWhere('class_year_id', $classYearId);
-            })
+            ->where('class_id', $classYearId)
             ->active()
             ->with(['servant', 'classe'])
             ->withSum('points as points_sum', 'points')
@@ -204,10 +217,7 @@ class UserRepository implements UserRepositoryInterface
     {
         return User::byChurch()
             ->byRole(UserRole::Member)
-            ->where(function ($q) use ($classYearId) {
-                $q->where('class_id', $classYearId)
-                    ->orWhere('class_year_id', $classYearId);
-            })
+            ->where('class_id', $classYearId)
             ->active()
             ->with(['servant', 'classe'])
             ->withSum('points as points_sum', 'points')

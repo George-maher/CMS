@@ -45,15 +45,19 @@ class CacheService
     /**
      * @template T
      *
+     * @param  int|string|null  $scopeKey  class id, or a scope discriminator
+     *                                     (e.g. "classes:1,2") so a class-scoped
+     *                                     result can never share the
+     *                                     church-wide cache entry.
      * @param  \Closure(): T  $callback
      * @return T
      */
-    public function rememberAttendanceToday(?int $churchId, ?int $classYearId, \Closure $callback): mixed
+    public function rememberAttendanceToday(?int $churchId, int|string|null $scopeKey, \Closure $callback): mixed
     {
         if ($churchId === null) {
             return $callback();
         }
-        $key = $this->vKey('attendance', $churchId, 'today:'.($classYearId ?? 'all'));
+        $key = $this->vKey('attendance', $churchId, 'today:'.($scopeKey ?? 'all'));
 
         return Cache::remember($key, self::DEFAULT_TTL, $callback);
     }
@@ -80,7 +84,7 @@ class CacheService
      * @param  \Closure(): T  $callback
      * @return T
      */
-    public function rememberLeaderboard(?int $churchId, ?int $classYearId, int $limit, \Closure $callback): mixed
+    public function rememberLeaderboard(?int $churchId, int|string|null $classYearId, int $limit, \Closure $callback): mixed
     {
         if ($churchId === null) {
             return $callback();
@@ -112,28 +116,46 @@ class CacheService
      * @param  \Closure(): T  $callback
      * @return T
      */
-    public function rememberDashboardStats(?int $churchId, \Closure $callback, string $scope = 'church'): mixed
-    {
-        if ($churchId === null) {
-            return $callback();
-        }
-        $key = $this->vKey('dashboard', $churchId, 'stats:'.$scope);
-
-        return Cache::remember($key, self::LONG_TTL, $callback);
-    }
-
     /**
+     * @param  string  $scopeKey  authorization scope discriminator
+     *                            ("global", "church", "stage:5", "class:1,2",
+     *                            ...). Dashboard aggregates are computed per
+     *                            scope, so the cache entry must be per scope —
+     *                            otherwise a stage admin's stage-scoped
+     *                            totals would be served to the church admin
+     *                            (or vice versa) from the shared key.
+     *
      * @template T
      *
      * @param  \Closure(): T  $callback
      * @return T
      */
-    public function rememberStagesLeaderboards(?int $churchId, \Closure $callback): mixed
+    public function rememberDashboardStats(?int $churchId, string $scopeKey, \Closure $callback): mixed
     {
         if ($churchId === null) {
             return $callback();
         }
-        $key = $this->vKey('leaderboard', $churchId, 'stages');
+        $key = $this->vKey('dashboard', $churchId, 'stats:'.$scopeKey);
+
+        return Cache::remember($key, self::LONG_TTL, $callback);
+    }
+
+    /**
+     * @param  string  $scopeKey  authorization scope discriminator (e.g.
+     *                            "all", "stage:5") — stage-scoped results must
+     *                            never share the church-wide cache entry.
+     *
+     * @template T
+     *
+     * @param  \Closure(): T  $callback
+     * @return T
+     */
+    public function rememberStagesLeaderboards(?int $churchId, string $scopeKey, \Closure $callback): mixed
+    {
+        if ($churchId === null) {
+            return $callback();
+        }
+        $key = $this->vKey('leaderboard', $churchId, 'stages:'.$scopeKey);
 
         return Cache::remember($key, self::LONG_TTL, $callback);
     }
@@ -171,17 +193,26 @@ class CacheService
     }
 
     /**
+     * @param  int|string|array<int>|null  $classScope  the resolved class scope
+     *                                                  (null = church-wide, a
+     *                                                  class id, or the full
+     *                                                  id list) — it is part
+     *                                                  of the key so a
+     *                                                  scoped summary can
+     *                                                  never be served from
+     *                                                  the church-wide entry.
+     *
      * @template T
      *
      * @param  \Closure(): T  $callback
      * @return T
      */
-    public function rememberContextSummary(?int $churchId, ?string $dateFrom, ?string $dateTo, ?int $classYearId, \Closure $callback): mixed
+    public function rememberContextSummary(?int $churchId, ?string $dateFrom, ?string $dateTo, int|string|array|null $classScope, \Closure $callback): mixed
     {
         if ($churchId === null) {
             return $callback();
         }
-        $hash = md5(serialize([$dateFrom, $dateTo, $classYearId]));
+        $hash = md5(serialize([$dateFrom, $dateTo, $classScope]));
         $key = $this->vKey('attendance', $churchId, "context:summary:{$hash}");
 
         return Cache::remember($key, self::DEFAULT_TTL, $callback);

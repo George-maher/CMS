@@ -79,29 +79,26 @@ class ChurchApplicationController extends Controller
         $email = $request->input('email');
         $application = $this->churchApplicationService->findByEmail($email);
 
-        if (! $application) {
-            return response()->json(['data' => null]);
-        }
-
-        // PII minimization: the full resource (names, phones, address, ID
-        // document URLs, reviewer notes) is only returned to the authenticated
-        // applicant account. Anonymous callers get existence + status only.
+        // Only the authenticated owner of the application ever receives it.
         /** @var User|null $authUser */
         $authUser = Auth::guard('sanctum')->user();
 
-        if ($authUser === null || $authUser->church_application_id !== $application->id) {
+        if ($application !== null && $authUser !== null && $authUser->church_application_id === $application->id) {
             return response()->json([
-                'data' => [
-                    'contact_email' => $application->contact_email,
-                    'status' => $application->status,
-                ],
-                'message' => __('application.exists_sign_in'),
+                'data' => new ChurchApplicationResource($application),
+                'message' => 'We found an existing application associated with this email. Your previously submitted information has been loaded.',
             ]);
         }
 
+        // PII/existence minimization: every other caller — anonymous, signed in
+        // as a different account, or using an email with no application at all
+        // — receives a byte-identical response. Previously a match returned the
+        // contact email and application status while a miss returned
+        // `{data: null}`, which made this public endpoint an oracle for
+        // application existence and approval status.
         return response()->json([
-            'data' => new ChurchApplicationResource($application),
-            'message' => 'We found an existing application associated with this email. Your previously submitted information has been loaded.',
+            'data' => null,
+            'message' => __('application.exists_sign_in'),
         ]);
     }
 }

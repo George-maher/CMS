@@ -37,7 +37,16 @@ vi.mock('axios', () => ({
   ),
 }))
 
-const PRODUCTION_API_URL = 'https://cms-production-7eb4.up.railway.app'
+/*
+ * The URL is deliberately an absolute production host: the regression this
+ * pins was that the replay path dropped `/api`, which only differs from the
+ * live client when VITE_API_URL is absolute. The host does not need to be
+ * reachable for these assertions — no request leaves the process — but it
+ * should be the hostname the deployed bundle is built with, otherwise this
+ * file documents a stale environment.
+ * https://vite.dev/guide/env-and-mode#env-variables
+ */
+const PRODUCTION_API_URL = 'https://cms-production-2305.up.railway.app'
 
 /** The config object the replay loop handed to axios on a given call. */
 function asReplayedRequest(

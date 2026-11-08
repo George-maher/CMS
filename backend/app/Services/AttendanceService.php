@@ -188,8 +188,10 @@ class AttendanceService implements AttendanceServiceInterface
         ];
     }
 
-    /** @param array<int>|int|null $classYearIds */
-    /** @return array<string, mixed> */
+    /**
+     * @param  array<int, int>|int|null  $classYearIds  null = church-wide (admin tier).
+     * @return array<string, mixed>
+     */
     public function getTodayAttendance(array|int|null $classYearIds = null, int $perPage = 15): array
     {
         /** @var User|null $user */
@@ -199,7 +201,12 @@ class AttendanceService implements AttendanceServiceInterface
         if ($classYearIds !== null) {
             $classYearIds = is_array($classYearIds) ? $classYearIds : [$classYearIds];
 
-            return $this->cacheService->rememberAttendanceToday($churchId, null, function () use ($classYearIds, $perPage) {
+            // The scope must be part of the cache key: a class-scoped result
+            // may never be stored under (or served from) the church-wide
+            // "today:all" entry — that would leak one scope's rows to another.
+            $scopeKey = 'classes:'.implode(',', array_map('intval', $classYearIds));
+
+            return $this->cacheService->rememberAttendanceToday($churchId, $scopeKey, function () use ($classYearIds, $perPage) {
                 $paginator = $this->attendanceRepository->paginateTodayAttendanceByClass($classYearIds, $perPage);
 
                 return [
@@ -386,16 +393,17 @@ class AttendanceService implements AttendanceServiceInterface
         ];
     }
 
-    /** @param array<int, int>|int|null $classYearIds */
-    /** @return array<string, mixed> */
+    /**
+     * @param  array<int, int>|int|null  $classYearIds  null = church-wide (admin tier).
+     * @return array<string, mixed>
+     */
     public function getContextSummary(?string $dateFrom = null, ?string $dateTo = null, array|int|null $classYearIds = null): array
     {
         /** @var User|null $user */
         $user = auth()->user();
         $churchId = $user?->church_id;
-        $classYearId = is_array($classYearIds) ? null : $classYearIds;
 
-        return $this->cacheService->rememberContextSummary($churchId, $dateFrom, $dateTo, $classYearId, function () use ($dateFrom, $dateTo, $classYearIds) {
+        return $this->cacheService->rememberContextSummary($churchId, $dateFrom, $dateTo, $classYearIds, function () use ($dateFrom, $dateTo, $classYearIds) {
             $rows = $this->attendanceRepository->getContextSummary($dateFrom, $dateTo, $classYearIds);
 
             $summary = $rows->map(function (Attendance $row): array {

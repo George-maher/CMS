@@ -46,6 +46,14 @@ class UserController extends Controller
                     // the explicit assignment resolves inside this church.
                     $filters['scope_stage_id'] = $allowedStageIds[0];
                 }
+            } else {
+                // Every other scoped principal (servant, member, ...) is bounded
+                // by their own class scope: the list must never fall back to a
+                // church-wide directory just because no filter was supplied.
+                $allowedClassIds = $this->scopeResolver->allowedClassIds($authUser);
+                if ($allowedClassIds !== null) {
+                    $filters['class_ids'] = $allowedClassIds;
+                }
             }
         }
 

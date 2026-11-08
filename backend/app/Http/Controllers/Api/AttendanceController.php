@@ -138,10 +138,24 @@ class AttendanceController extends Controller
     {
         /** @var User $user */
         $user = $request->user();
-        /** @var array<int, int>|null $classYearIds */
-        $classYearIds = $user->role === UserRole::Servant || $user->isStageAdmin()
-            ? $this->allowedClassScope($user)
-            : ($request->input('class_id') ? [$request->integer('class_id')] : null);
+
+        if ($user->role === UserRole::Servant || $user->isStageAdmin()) {
+            // Servants and stage admins are always narrowed to their own
+            // classes — a client-supplied class_id can never widen them.
+            $classYearIds = $this->allowedClassScope($user);
+        } elseif ($request->input('class_id')) {
+            // Admin-tier (and any other) caller: the requested class must be
+            // resolved from the database (ChurchScope) and be inside the
+            // caller's authorization scope. Never trust the raw id.
+            $requestedClassId = $request->integer('class_id');
+            $classe = Classe::query()->where('id', $requestedClassId)->first();
+            if ($classe === null || ! $this->scopeResolver->canAccessClass($user, $classe)) {
+                return response()->json(['message' => 'Forbidden.'], 403);
+            }
+            $classYearIds = [$requestedClassId];
+        } else {
+            $classYearIds = null;
+        }
 
         /** @var string|null $dateFrom */
         $dateFrom = $request->input('date_from');
@@ -195,6 +209,15 @@ class AttendanceController extends Controller
         $contextId = $validated['context_id'];
         /** @var int|null $servantId */
         $servantId = $validated['servant_id'] ?? null;
+
+        // A client-supplied servant_id must never grant scope: the target has
+        // to resolve inside the caller's church and authorization scope.
+        if ($servantId !== null && $servantId !== (int) $user->id) {
+            $targetServant = User::byChurch()->find($servantId);
+            if ($targetServant === null || ! $this->scopeResolver->canAccessUser($user, $targetServant)) {
+                return response()->json(['message' => 'Forbidden.'], 403);
+            }
+        }
 
         $result = $this->attendanceService->getContextAnalytics(
             contextId: $contextId,

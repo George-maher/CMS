@@ -4,6 +4,7 @@ import { useAuth } from '@/hooks/useAuth'
 import Sidebar from './Sidebar'
 import Header from './Header'
 import { PageSkeleton } from '@/components/common/Skeleton'
+import { roleDashboardPath } from '@/lib/roles'
 
 interface Props {
   allowedRoles: string[]
@@ -21,8 +22,7 @@ export default function AppLayout({ allowedRoles }: Props) {
   if (user?.application_status === 'pending' || user?.application_status === 'rejected') return <Navigate to="/application-status" replace />
 
   if (user && !allowedRoles.includes(user.role)) {
-    const redirectMap: Record<string, string> = { platform_admin: '/platform', admin: '/admin', assistant_admin: '/assistant-admin', stage_admin: '/stage', servant: '/servant', member: '/member' }
-    return <Navigate to={redirectMap[user.role] || '/login'} replace />
+    return <Navigate to={roleDashboardPath(user.role)} replace />
   }
 
   return (

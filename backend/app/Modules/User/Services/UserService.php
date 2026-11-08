@@ -245,6 +245,23 @@ class UserService implements UserServiceInterface
             }
         }
 
+        // Defense in depth for the stage ownership boundary (mirrors the
+        // controller's stageWithinScope() and the class check below): a
+        // client-supplied stage_id can never move a user into a stage the
+        // acting principal does not control — sibling stages and foreign
+        // churches are refused here even if a future caller skips the
+        // controller guard.
+        if (array_key_exists('stage_id', $data) && isset($data['stage_id']) && is_numeric($data['stage_id'])) {
+            /** @var int $requestedStageId */
+            $requestedStageId = (int) $data['stage_id'];
+            /** @var Stage|null $requestedStage */
+            $requestedStage = Stage::query()->find($requestedStageId);
+
+            if ($requestedStage === null || ! $this->scopeResolver->canAccessStage($authUser, $requestedStage)) {
+                throw ValidationException::withMessages(['stage_id' => ['The selected stage is outside your authority.']]);
+            }
+        }
+
         if (array_key_exists('stage_id', $data) || $targetRole !== $currentRole || array_key_exists('class_id', $data)) {
             /** @var int|null $stageId */
             $stageId = array_key_exists('stage_id', $data)

@@ -50,17 +50,28 @@ class LeaderboardService implements LeaderboardServiceInterface
         );
     }
 
-    /** @return array<string, mixed> */
-    public function globalLeaderboard(int $limit = 5): array
+    /**
+     * @param  array<int, int>|null  $classIds  null = church-wide (admin tier);
+     *                                          otherwise only these classes are
+     *                                          ranked.
+     * @return array<string, mixed>
+     */
+    public function globalLeaderboard(int $limit = 5, ?array $classIds = null): array
     {
         $churchId = $this->getAuthChurchId();
 
+        $scopeKey = $classIds === null ? 'all' : 'classes:'.implode(',', array_map('intval', $classIds));
+
         return $this->cacheService->rememberLeaderboard(
             $churchId,
-            null,
+            $scopeKey,
             $limit,
-            function () use ($limit) {
-                $members = $this->baseLeaderboardQuery()
+            function () use ($limit, $classIds) {
+                $query = $this->baseLeaderboardQuery();
+                if ($classIds !== null) {
+                    $query->whereIn('users.class_id', $classIds);
+                }
+                $members = $query
                     ->limit($limit)
                     ->get();
 
@@ -71,15 +82,27 @@ class LeaderboardService implements LeaderboardServiceInterface
         );
     }
 
-    /** @return array<int, array<string, mixed>> */
-    public function stagesLeaderboards(): array
+    /**
+     * @param  array<int, int>|null  $stageIds  null = every stage of the church
+     *                                          (admin tier); stage admins only
+     *                                          receive their own stage.
+     * @return array<int, array<string, mixed>>
+     */
+    public function stagesLeaderboards(?array $stageIds = null): array
     {
         $churchId = $this->getAuthChurchId();
 
+        $scopeKey = $stageIds === null ? 'all' : 'stages:'.implode(',', array_map('intval', $stageIds));
+
         return $this->cacheService->rememberStagesLeaderboards(
             $churchId,
-            function () {
-                $stages = Stage::byChurch()
+            $scopeKey,
+            function () use ($stageIds) {
+                $stagesQuery = Stage::byChurch();
+                if ($stageIds !== null) {
+                    $stagesQuery->whereIn('id', $stageIds);
+                }
+                $stages = $stagesQuery
                     ->with(['classes' => function (Relation $query) {
                         $query->orderBy('display_order');
                     }])

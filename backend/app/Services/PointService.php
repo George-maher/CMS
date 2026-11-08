@@ -115,12 +115,44 @@ class PointService implements PointServiceInterface
         ];
     }
 
-    /** @return array<string, mixed> */
-    public function getLeaderboard(int $limit = 10): array
+    /**
+     * @param  array<int, int>|null  $classIds
+     * @return array<string, mixed>
+     */
+    public function getLeaderboard(int $limit = 10, ?array $classIds = null, ?int $stageId = null): array
     {
+        // The limit arrives from a query-string parameter, so it is bounded
+        // here as well as in the controller: the ranking query must never be
+        // able to return an unbounded result set.
+        $limit = max(1, min($limit, PointServiceInterface::MAX_LEADERBOARD_LIMIT));
+
         $topUsers = User::byChurch()
             ->withSum('points as total_points', 'points')
             ->byRole(UserRole::Member)
+            ->when($stageId !== null || $classIds !== null, function ($query) use ($stageId, $classIds) {
+                $query->where(function ($q) use ($stageId, $classIds) {
+                    if ($stageId !== null) {
+                        $q->where('stage_id', $stageId);
+                    }
+                    if (! empty($classIds)) {
+                        // `users.class_year_id` is deliberately NOT used here.
+                        // It is the one remaining `class_year_id` still
+                        // foreign-keyed to the deprecated `class_years` table
+                        // (see CreateUserRequest and EventPolicy); every other
+                        // one was repointed at `classes` by 2026_06_18_000002.
+                        // Comparing it against `classes.id` compares two id
+                        // spaces, so a member whose legacy class_years id
+                        // happened to equal an allowed class id would be pulled
+                        // into a ranking they do not belong to. `class_id` is
+                        // what ScopeResolver::canAccessUser() and
+                        // userClassId() also resolve against.
+                        $q->orWhereIn('class_id', $classIds);
+                    }
+                    if ($stageId === null && empty($classIds)) {
+                        $q->whereRaw('1 = 0');
+                    }
+                });
+            })
             ->orderByDesc('total_points')
             ->limit($limit)
             ->get()
@@ -128,11 +160,14 @@ class PointService implements PointServiceInterface
                 /** @var int $totalPoints */
                 $totalPoints = $user->total_points;
 
+                // Minimum necessary fields only: this ranking is readable by
+                // any approved user, so no contact data (email/phone) is
+                // exposed. LeaderboardService::formatLeaderboard() omits email
+                // for the same reason.
                 return [
                     'rank' => $index + 1,
                     'user_id' => $user->id,
                     'name' => $user->name,
-                    'email' => $user->email,
                     'total_points' => $totalPoints,
                 ];
             });

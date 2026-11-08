@@ -1,4 +1,4 @@
-import { defineConfig, type Plugin } from 'vite'
+import { defineConfig, loadEnv, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
@@ -47,96 +47,118 @@ function modulePreloadPlugin(): Plugin {
   }
 }
 
-export default defineConfig({
-  plugins: [
-    react(),
-    tailwindcss(),
-    modulePreloadPlugin(),
-    VitePWA({
-      registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg', 'icons.svg', 'icons/*.png'],
-      manifest: {
-        id: '/',
-        name: 'Church Manager',
-        short_name: 'Church Mgr',
-        description: 'Church Management System — Manage your church community with attendance tracking, events, and member management.',
-        theme_color: '#d4af37',
-        background_color: '#0f172a',
-        display: 'standalone',
-        display_override: ['window-controls-overlay', 'standalone', 'minimal-ui'],
-        orientation: 'any',
-        scope: '/',
-        start_url: '/',
-        lang: 'en',
-        dir: 'ltr',
-        categories: ['productivity', 'education', 'utilities'],
-        icons: [
-          { src: '/icons/icon-192x192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
-          { src: '/icons/icon-192x192-maskable.png', sizes: '192x192', type: 'image/png', purpose: 'maskable' },
-          { src: '/icons/icon-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
-          { src: '/icons/icon-512x512-maskable.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
-          { src: '/icons/icon.svg', sizes: '192x192', type: 'image/svg+xml', purpose: 'any' },
-          { src: '/favicon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' },
-        ],
-        screenshots: [
-          { src: '/screenshots/mobile.png', sizes: '390x844', type: 'image/png', form_factor: 'narrow', label: 'Mobile view' },
-          { src: '/screenshots/desktop.png', sizes: '1280x800', type: 'image/png', form_factor: 'wide', label: 'Desktop view' },
-        ],
-        shortcuts: [
-          { name: 'Dashboard', url: '/admin', icons: [{ src: '/favicon.svg', sizes: 'any' }] },
-          { name: 'Attendance', url: '/servant/attendance', icons: [{ src: '/favicon.svg', sizes: 'any' }] },
-          { name: 'Scan QR', url: '/servant/scan', icons: [{ src: '/favicon.svg', sizes: 'any' }] },
-        ],
-      },
-      workbox: {
-        globPatterns: ['**/*.{js,css,html,woff2,svg,png,jpg,jpeg,gif,ico}'],
-        globIgnores: ['**/workbox-*.js', '**/manifest.webmanifest'],
-        skipWaiting: true,
-        clientsClaim: true,
-        navigateFallback: '/index.html',
-        navigateFallbackDenylist: [/^\/api\//],
-        runtimeCaching: [
-          {
-            urlPattern: /^https?:\/\/fonts\.(googleapis|gstatic)\.com\/.*/,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'google-fonts-cache',
-              expiration: { maxEntries: 20, maxAgeSeconds: 60 * 60 * 24 * 365 },
+export default defineConfig(({ mode }) => {
+  /*
+   * Vite does NOT copy `.env*` values into `process.env`. Reading them there
+   * only works when the variable was exported by the shell/container, so a
+   * developer who set VITE_API_PROXY in `frontend/.env` was silently ignored
+   * and the proxy fell back to a Docker-only hostname. `loadEnv` is the
+   * documented way to read env files from the config.
+   * https://vite.dev/config/#using-environment-variables-in-config
+   *
+   * Docker Compose still wins: it exports VITE_API_PROXY=http://nginx as a
+   * real process env var, and `loadEnv` lets process.env override the file.
+   */
+  const env = loadEnv(mode, process.cwd(), 'VITE_')
+
+  return {
+    plugins: [
+      react(),
+      tailwindcss(),
+      modulePreloadPlugin(),
+      VitePWA({
+        registerType: 'autoUpdate',
+        includeAssets: ['favicon.svg', 'icons.svg', 'icons/*.png'],
+        manifest: {
+          id: '/',
+          name: 'Church Manager',
+          short_name: 'Church Mgr',
+          description: 'Church Management System — Manage your church community with attendance tracking, events, and member management.',
+          theme_color: '#d4af37',
+          background_color: '#0f172a',
+          display: 'standalone',
+          display_override: ['window-controls-overlay', 'standalone', 'minimal-ui'],
+          orientation: 'any',
+          scope: '/',
+          start_url: '/',
+          lang: 'en',
+          dir: 'ltr',
+          categories: ['productivity', 'education', 'utilities'],
+          icons: [
+            { src: '/icons/icon-192x192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+            { src: '/icons/icon-192x192-maskable.png', sizes: '192x192', type: 'image/png', purpose: 'maskable' },
+            { src: '/icons/icon-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+            { src: '/icons/icon-512x512-maskable.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+            { src: '/icons/icon.svg', sizes: '192x192', type: 'image/svg+xml', purpose: 'any' },
+            { src: '/favicon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' },
+          ],
+          screenshots: [
+            { src: '/screenshots/mobile.png', sizes: '390x844', form_factor: 'narrow', label: 'Mobile view' },
+            { src: '/screenshots/desktop.png', sizes: '1280x800', form_factor: 'wide', label: 'Desktop view' },
+          ],
+          shortcuts: [
+            { name: 'Dashboard', url: '/admin', icons: [{ src: '/favicon.svg', sizes: 'any' }] },
+            { name: 'Attendance', url: '/servant/attendance', icons: [{ src: '/favicon.svg', sizes: 'any' }] },
+            { name: 'Scan QR', url: '/servant/scan', icons: [{ src: '/favicon.svg', sizes: 'any' }] },
+          ],
+        },
+        workbox: {
+          globPatterns: ['**/*.{js,css,html,woff2,svg,png,jpg,jpeg,gif,ico}'],
+          globIgnores: ['**/workbox-*.js', '**/manifest.webmanifest'],
+          skipWaiting: true,
+          clientsClaim: true,
+          navigateFallback: '/index.html',
+          navigateFallbackDenylist: [/^\/api\//],
+          runtimeCaching: [
+            {
+              urlPattern: /^https?:\/\/fonts\.(googleapis|gstatic)\.com\/.*/,
+              handler: 'CacheFirst',
+              options: {
+                cacheName: 'google-fonts-cache',
+                expiration: { maxEntries: 20, maxAgeSeconds: 60 * 60 * 24 * 365 },
+              },
             },
-          },
-        ],
-      },
-    }),
-  ],
-  resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './src'),
-    },
-  },
-  server: {
-    port: 5173,
-    proxy: {
-      '/api': {
-        target: process.env.VITE_API_PROXY || 'http://nginx',
-        changeOrigin: true,
+          ],
+        },
+      }),
+    ],
+    resolve: {
+      alias: {
+        '@': path.resolve(__dirname, './src'),
       },
     },
-  },
-  define: {
-    __APP_ENV__: JSON.stringify(process.env.APP_ENV),
-  },
-  build: {
-    target: 'es2020',
-    sourcemap: false,
-    rollupOptions: {
-      output: {
-        manualChunks(id: string) {
-          if (id.includes('node_modules/react-dom') || id.includes('node_modules/react/') || id.includes('node_modules/react-router')) return 'vendor'
-          if (id.includes('node_modules/lucide-react') || id.includes('node_modules/react-hot-toast')) return 'ui'
-          if (id.includes('node_modules/i18next') || id.includes('node_modules/react-i18next')) return 'i18n'
-          if (id.includes('node_modules/html5-qrcode') || id.includes('node_modules/qrcode')) return 'qr'
+    server: {
+      port: 5173,
+      proxy: {
+        '/api': {
+          /*
+           * Docker Compose exports VITE_API_PROXY=http://nginx so the dev
+           * server proxies to the nginx service. When the dev server runs on
+           * the host instead, `http://nginx` does not resolve and every API
+           * call fails with a bare "Network Error"; fall back to the port the
+           * compose nginx publishes on the host.
+           */
+          target: env.VITE_API_PROXY || 'http://127.0.0.1:8000',
+          changeOrigin: true,
         },
       },
     },
-  },
+    define: {
+      __APP_ENV__: JSON.stringify(process.env.APP_ENV),
+    },
+    build: {
+      target: 'es2020',
+      sourcemap: false,
+      rollupOptions: {
+        output: {
+          manualChunks(id: string) {
+            if (id.includes('node_modules/react-dom') || id.includes('node_modules/react/') || id.includes('node_modules/react-router')) return 'vendor'
+            if (id.includes('node_modules/lucide-react') || id.includes('node_modules/react-hot-toast')) return 'ui'
+            if (id.includes('node_modules/i18next') || id.includes('node_modules/react-i18next')) return 'i18n'
+            if (id.includes('node_modules/html5-qrcode') || id.includes('node_modules/qrcode')) return 'qr'
+          },
+        },
+      },
+    },
+  }
 })

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Contracts\LeaderboardServiceInterface;
 use App\Contracts\ScopeResolverInterface;
+use App\Enums\UserScope;
 use App\Http\Controllers\Controller;
 use App\Models\Classe;
 use App\Models\User;
@@ -18,7 +19,25 @@ class LeaderboardController extends Controller
 
     public function global(): JsonResponse
     {
-        $result = $this->leaderboardService->globalLeaderboard(5);
+        /** @var User $user */
+        $user = request()->user();
+
+        // Stage/class-scoped principals must not receive church-wide rankings.
+        // Church-scope (admin/assistant_admin) and self-scope (member,
+        // gamification view) keep the existing church-wide leaderboard. A
+        // stage admin without a valid stage assignment fails closed.
+        $scope = $this->scopeResolver->getScope($user);
+        if ($scope === UserScope::Church) {
+            $classIds = null;
+        } elseif ($user->isStageAdmin() && $scope !== UserScope::Stage) {
+            $classIds = [];
+        } elseif (in_array($scope, [UserScope::Stage, UserScope::ClassScope], true)) {
+            $classIds = $this->scopeResolver->allowedClassIds($user) ?? [];
+        } else {
+            $classIds = null;
+        }
+
+        $result = $this->leaderboardService->globalLeaderboard(5, $classIds);
 
         return response()->json([
             'data' => $result['leaderboard'],
@@ -45,7 +64,25 @@ class LeaderboardController extends Controller
 
     public function stages(): JsonResponse
     {
-        $result = $this->leaderboardService->stagesLeaderboards();
+        /** @var User $user */
+        $user = request()->user();
+
+        // Stage admins only receive their own stage's aggregates; class-scoped
+        // principals only the stages containing their classes. Church-scope
+        // principals keep the full church view, while a stage admin without a
+        // valid stage assignment fails closed.
+        $scope = $this->scopeResolver->getScope($user);
+        if ($user->isStageAdmin() && $scope !== UserScope::Stage) {
+            $stageIds = [];
+        } elseif ($scope === UserScope::Stage) {
+            $stageIds = $user->stage_id !== null ? [(int) $user->stage_id] : [];
+        } elseif ($scope === UserScope::ClassScope) {
+            $stageIds = $this->scopeResolver->allowedStageIds($user);
+        } else {
+            $stageIds = null;
+        }
+
+        $result = $this->leaderboardService->stagesLeaderboards($stageIds);
 
         return response()->json([
             'data' => $result,

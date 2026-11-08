@@ -352,8 +352,9 @@ class MultiTenantAuthorizationAuditTest extends TestCase
 
     public function test_admin_cannot_read_foreign_member_profile(): void
     {
+        // F-04: a forbidden profile is indistinguishable from a missing one.
         $this->getJson('/api/v1/member-profile/'.$this->memberB1->id, $this->headers($this->adminA))
-            ->assertStatus(403);
+            ->assertStatus(404);
     }
 
     public function test_admin_cannot_read_foreign_attendance_history(): void
@@ -953,8 +954,9 @@ class MultiTenantAuthorizationAuditTest extends TestCase
 
     public function test_stage_admin_cannot_view_sibling_stage_member_profile(): void
     {
+        // F-04: a forbidden profile is indistinguishable from a missing one.
         $this->getJson('/api/v1/member-profile/'.$this->memberA2->id, $this->headers($this->stageAdminA1))
-            ->assertStatus(403);
+            ->assertStatus(404);
     }
 
     // =========================================================================

@@ -12,12 +12,12 @@ class AttendanceContextPolicy
 
     public function viewAny(User $user): bool
     {
-        return $user->isAdmin() || $user->isServant();
+        return $user->isAdmin() || $user->isServant() || $user->isStageAdmin();
     }
 
     public function view(User $user, ?AttendanceContext $context = null): bool
     {
-        if (! ($user->isAdmin() || $user->isServant())) {
+        if (! ($user->isAdmin() || $user->isServant() || $user->isStageAdmin())) {
             return false;
         }
 

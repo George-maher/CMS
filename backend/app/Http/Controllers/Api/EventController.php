@@ -174,9 +174,12 @@ class EventController extends Controller
             data: $data,
             creatorId: $creatorId,
             creatorRole: $user->role->value,
+            // `$user->class_id` only: `users.class_year_id` still references the
+            // deprecated `class_years` table (see EventPolicy), so it is not a
+            // valid `classes.id` and must not become an event target.
             creatorClassYearId: $user->role === UserRole::Servant
                 ? ($servantClassIds[0] ?? null)
-                : ($user->class_year_id ?? $user->class_id),
+                : $user->class_id,
         );
 
         return response()->json([
@@ -311,7 +314,15 @@ class EventController extends Controller
         $targetClassIds = $event->targets()->where('is_all_classes', false)->pluck('class_id')->filter()->toArray();
         $overlap = ! empty($targetClassIds) && ! empty(array_intersect($servantClassIds, $targetClassIds));
 
-        return ! $hasAccess && ! $overlap && $event->class_year_id !== null && $event->class_year_id !== $user->class_year_id;
+        // `events.class_year_id` holds a `classes.id`, but `users.class_year_id`
+        // still references the deprecated `class_years` table (see
+        // EventPolicy::eventTargetsServantsClass()). Comparing them granted a
+        // servant access to another class's event whenever the two independent
+        // id sequences happened to collide, so the comparison uses `class_id`.
+        $classMismatch = $event->class_year_id !== null
+            && (int) $event->class_year_id !== (int) $user->class_id;
+
+        return ! $hasAccess && ! $overlap && $classMismatch;
     }
 
     private function stageAdminCannotAccessEvent(User $user, Event $event): bool

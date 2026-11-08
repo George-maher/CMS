@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Contracts\EventRepositoryInterface;
 use App\Contracts\EventServiceInterface;
+use App\Contracts\ScopeResolverInterface;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Models\User;
@@ -16,14 +17,34 @@ class EventAnalyticsController extends Controller
     public function __construct(
         private readonly EventServiceInterface $eventService,
         private readonly EventRepositoryInterface $eventRepository,
+        private readonly ScopeResolverInterface $scopeResolver,
     ) {}
+
+    /**
+     * Class scope for the caller: null = church-wide (admin tier), otherwise
+     * the ids the caller is authorized for (servant classes / stage classes).
+     *
+     * @return array<int, int>|null
+     */
+    private function classScope(User $user): ?array
+    {
+        if ($user->isAdmin()) {
+            return null;
+        }
+
+        if ($user->isServant() || $user->isStageAdmin()) {
+            return $this->scopeResolver->allowedClassIds($user) ?? [];
+        }
+
+        return null;
+    }
 
     public function summary(Request $request, int $id): JsonResponse
     {
         /** @var User $user */
         $user = $request->user();
-        $servantClassIds = $user->role === UserRole::Servant ? $user->getServantClassIds() : null;
-        $summary = $this->eventService->viewSummary($id, $servantClassIds);
+        $classScope = $this->classScope($user);
+        $summary = $this->eventService->viewSummary($id, $classScope);
 
         return response()->json(['data' => $summary]);
     }
@@ -34,12 +55,19 @@ class EventAnalyticsController extends Controller
         $filters = $request->only(['class_id', 'search']);
         /** @var User $user */
         $user = $request->user();
-        $servantClassIds = $user->role === UserRole::Servant ? $user->getServantClassIds() : null;
-        if ($servantClassIds !== null) {
-            unset($filters['class_year_id']);
+        $classScope = $this->classScope($user);
+        if ($classScope !== null) {
+            // A client-supplied class filter can only narrow within the scope,
+            // never widen beyond it.
+            if (isset($filters['class_id']) && ! in_array($request->integer('class_id'), $classScope, true)) {
+                unset($filters['class_id']);
+            }
+            if ($classScope === []) {
+                return response()->json(['data' => []]);
+            }
         }
         /** @var Collection<int, User> $users */
-        $users = $this->eventService->viewedUsers($id, $filters, $servantClassIds);
+        $users = $this->eventService->viewedUsers($id, $filters, $classScope);
 
         return response()->json([
             'data' => $users->map(fn (User $u) => [
@@ -62,13 +90,18 @@ class EventAnalyticsController extends Controller
         $user = $request->user();
         /** @var array<string, mixed> $filters */
         $filters = $request->only(['class_id', 'search']);
-        $servantClassIds = $user->role === UserRole::Servant ? $user->getServantClassIds() : null;
-        if ($servantClassIds !== null) {
-            unset($filters['class_year_id']);
+        $classScope = $this->classScope($user);
+        if ($classScope !== null) {
+            if (isset($filters['class_id']) && ! in_array($request->integer('class_id'), $classScope, true)) {
+                unset($filters['class_id']);
+            }
+            if ($classScope === []) {
+                return response()->json(['data' => []]);
+            }
         }
 
         /** @var Collection<int, User> $users */
-        $users = $this->eventService->notViewedUsers($id, $user->church_id, $filters, $servantClassIds);
+        $users = $this->eventService->notViewedUsers($id, $user->church_id, $filters, $classScope);
 
         return response()->json([
             'data' => $users->map(fn (User $u) => [

@@ -13,7 +13,16 @@ export async function getPointsHistory(
   return data
 }
 
-export async function getLeaderboard(limit = 10): Promise<{ data: { rank: number; user_id: number; name: string; total_points: number; email?: string }[] }> {
+/**
+ * GET /points/leaderboard.
+ *
+ * The response is scope-filtered server-side (church / stage / class / own
+ * class) and intentionally returns only rank, user id, display name and points
+ * — no email address or other contact data.
+ */
+export async function getLeaderboard(
+  limit = 10,
+): Promise<{ data: { rank: number; user_id: number; name: string; total_points: number }[] }> {
   const { data } = await client.get('/points/leaderboard', { params: { limit } })
   return data
 }

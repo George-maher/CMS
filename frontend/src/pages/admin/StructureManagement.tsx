@@ -18,7 +18,9 @@ export default function StructureManagement() {
   const [stages, setStages] = useState<Stage[]>([])
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
   const hasLoadedRef = useRef(false)
+  const requestIdRef = useRef(0)
 
   const [showWizard, setShowWizard] = useState(false)
   const [stageCount, setStageCount] = useState(3)
@@ -33,9 +35,13 @@ export default function StructureManagement() {
 
   const fetch = useCallback(async (q?: string, showSpinner = false) => {
     if (showSpinner) setLoading(true)
+    // The search box fires a request per keystroke (after the debounce), so a
+    // slow earlier response must not overwrite the results of a newer one.
+    const requestId = ++requestIdRef.current
     try {
       if (q) {
         const structure = await listStructureClasses(q)
+        if (requestId !== requestIdRef.current) return
         setStages(structure.map(s => ({
           id: s.id,
           name: s.name,
@@ -45,13 +51,26 @@ export default function StructureManagement() {
         })))
       } else {
         const data = await listStages()
+        if (requestId !== requestIdRef.current) return
         setStages(data)
       }
+      setLoadError(false)
+    } catch (e) {
+      if (requestId !== requestIdRef.current) return
+      // Without this catch a failed request (unreachable API, CORS preflight
+      // rejected, 5xx) escaped as an unhandled promise rejection and the page
+      // silently rendered the "no stages yet" wizard as if the church had no
+      // data.
+      logCatch('StructureManagement.fetch', e)
+      setLoadError(true)
+      toast.error(t('common.failedToLoad'))
     } finally {
-      setLoading(false)
-      hasLoadedRef.current = true
+      if (requestId === requestIdRef.current) {
+        setLoading(false)
+        hasLoadedRef.current = true
+      }
     }
-  }, [])
+  }, [t])
 
   useEffect(() => {
     const timer = setTimeout(() => fetch(search || undefined, !hasLoadedRef.current), 300)
@@ -167,7 +186,7 @@ export default function StructureManagement() {
           <p className="text-sm text-secondary mt-1">{t('structure.subtitle')}</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          {stages.length === 0 && !loading && (
+          {stages.length === 0 && !loading && !loadError && (
             <button onClick={() => setShowWizard(true)} className="btn-secondary btn-md">
               <Layers className="h-4 w-4" /> {t('structure.setupWizard')}
             </button>
@@ -179,7 +198,7 @@ export default function StructureManagement() {
       </div>
 
       {/* Setup Wizard */}
-      {stages.length === 0 && !loading && !showWizard && (
+      {stages.length === 0 && !loading && !loadError && !showWizard && (
         <div className="card p-8 text-center">
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary-100 dark:bg-primary-900/30">
             <Layers className="h-8 w-8 text-primary-600 dark:text-primary-400" />
@@ -232,6 +251,13 @@ export default function StructureManagement() {
         <div className="flex items-center justify-center py-20" role="status" aria-label={t('common.loading')}>
           <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary-600 border-t-transparent" />
         </div>
+      ) : loadError && stages.length === 0 ? (
+        <div className="card p-8 text-center" role="alert">
+          <p className="text-sm text-secondary">{t('common.failedToLoad')}</p>
+          <button onClick={() => fetch(search || undefined, true)} className="btn-secondary btn-md mt-4">
+            {t('common.retry')}
+          </button>
+        </div>
       ) : stages.length > 0 ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {stages.map((stage) => (
@@ -266,7 +292,7 @@ export default function StructureManagement() {
             </div>
           ))}
         </div>
-      ) : !loading && !showWizard && (
+      ) : !loading && !showWizard && !loadError && (
         <p className="py-12 text-center text-muted">{t('structure.noStages')}</p>
       )}
 

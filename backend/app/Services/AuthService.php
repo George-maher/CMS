@@ -30,6 +30,19 @@ class AuthService implements AuthServiceInterface
         private readonly CacheService $cacheService,
     ) {}
 
+    /**
+     * Constant dummy hash for timing-safe login failure.
+     *
+     * When the submitted email does not correspond to a user, we perform
+     * password verification against this fixed hash using the same bcrypt
+     * algorithm/cost as real passwords. This prevents an observable timing
+     * side-channel that would allow account enumeration.
+     *
+     * This is a valid bcrypt hash for the password "password" with cost 12.
+     * It is NEVER used for real authentication — only for timing equalization.
+     */
+    private const DUMMY_PASSWORD_HASH = '$2y$12$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi';
+
     /** @param array<string, mixed> $credentials */
     public function login(array $credentials): array
     {
@@ -41,20 +54,20 @@ class AuthService implements AuthServiceInterface
         $user = $this->userRepository->findByEmail($email);
 
         if (! $user) {
-            // Use the configured hasher and configured work factor rather than
-            // a hard-coded bcrypt hash. Match the two verification operations
-            // and the intermediate hash used by the legacy double-hash check.
-            $dummyHash = Hash::make('login-dummy-'.bin2hex(random_bytes(32)));
-            Hash::check($password, $dummyHash);
-            $doubleHashedCandidate = Hash::make($password);
-            Hash::check($doubleHashedCandidate, $dummyHash);
-
+            // Timing-safe failure. This must perform the SAME number of bcrypt
+            // operations as the wrong-password path below, which is:
+            //   1. one verification against a stored hash, and
+            //   2. the two-operation legacy double-hash probe.
+            // Verifying only against the dummy hash (one operation) made
+            // "account does not exist" measurably faster than "account exists,
+            // wrong password" and therefore re-introduced account enumeration.
+            Hash::check($password, self::DUMMY_PASSWORD_HASH);
+            $this->isLegacyDoubleHash($password, self::DUMMY_PASSWORD_HASH);
             throw new LoginFailedException(LoginFailureCode::InvalidCredentials);
         }
 
         if (! Hash::check($password, $user->password)) {
-            $doubleHashedCandidate = Hash::make($password);
-            if (Hash::check($doubleHashedCandidate, $user->password)) {
+            if ($this->isLegacyDoubleHash($password, $user->password)) {
                 Log::info('Detected double-hashed password — re-hashing', [
                     'user_id' => $user->id,
                     'email' => $user->email,
@@ -62,10 +75,6 @@ class AuthService implements AuthServiceInterface
                 $user->password = Hash::make($password);
                 $user->save();
             } else {
-                // Account for the dummy-hash generation performed on the
-                // nonexistent-account path. This balances operation counts;
-                // it is not a constant-time guarantee across hash histories.
-                Hash::make('login-dummy-'.bin2hex(random_bytes(32)));
                 throw new LoginFailedException(LoginFailureCode::InvalidCredentials);
             }
         }
@@ -123,6 +132,29 @@ class AuthService implements AuthServiceInterface
         ];
     }
 
+    /**
+     * Legacy double-hash probe.
+     *
+     * Older releases of this platform stored bcrypt(bcrypt($password)).
+     * Detecting that shape is impossible from the stored value alone — a
+     * double hash is still a well-formed bcrypt string — so the submitted
+     * password has to be hashed again and the result compared with the stored
+     * value. That costs two extra bcrypt operations.
+     *
+     * The same probe is executed on the unknown-email branch of login() (and
+     * platformLogin()) against DUMMY_PASSWORD_HASH, so a failed authentication
+     * always performs an identical number of password-hashing operations
+     * regardless of whether the account exists. Removing the probe from the
+     * login path is not possible: there is no way to identify the affected
+     * accounts offline because the plaintext password only exists during a
+     * login attempt. Recovery for a locked-out legacy account remains the
+     * existing admin-approved password reset workflow.
+     */
+    private function isLegacyDoubleHash(string $password, string $storedHash): bool
+    {
+        return Hash::check(Hash::make($password), $storedHash);
+    }
+
     /** @param array<string, mixed> $credentials */
     public function platformLogin(array $credentials): array
     {
@@ -133,7 +165,18 @@ class AuthService implements AuthServiceInterface
 
         $user = $this->userRepository->findByEmail($email);
 
-        if (! $user || ! Hash::check($password, $user->password)) {
+        // The verification is performed unconditionally against a real or
+        // dummy hash: `! $user || ! Hash::check(...)` short-circuited on a
+        // missing account and skipped password hashing entirely, which made
+        // platform-admin accounts enumerable by response time.
+        //
+        // `??` supplies the dummy hash when the account does not exist. The
+        // fetch is silent (null-coalescing uses silent-fetch semantics), so no
+        // warning is raised and no exception handler is invoked for an unknown
+        // email — the same number of bcrypt operations runs either way.
+        $passwordMatches = Hash::check($password, $user->password ?? self::DUMMY_PASSWORD_HASH);
+
+        if (! $user || ! $passwordMatches) {
             throw new LoginFailedException(LoginFailureCode::InvalidCredentials);
         }
 

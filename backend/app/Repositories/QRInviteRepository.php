@@ -59,17 +59,24 @@ class QRInviteRepository implements QRInviteRepositoryInterface
      */
     private function applySearch(Builder $query, string $search): void
     {
-        $query->where(function (Builder $q) use ($search) {
+        // `ilike` is PostgreSQL-only. SQLite — and any other driver — rejects it
+        // with a syntax error, so the operator is selected per driver.
+        // PostgreSQL gets ILIKE; every other driver gets LIKE, which is already
+        // case-insensitive for ASCII on SQLite and is the behaviour the admin
+        // search relies on.
+        $likeOperator = DB::connection()->getDriverName() === 'pgsql' ? 'ilike' : 'like';
+
+        $query->where(function (Builder $q) use ($search, $likeOperator) {
             $q->where('token', 'like', "%{$search}%")
-                ->orWhereHas('creator', function (Builder $u) use ($search) {
-                    $u->where('name', 'ilike', "%{$search}%")
-                        ->orWhere('email', 'ilike', "%{$search}%")
+                ->orWhereHas('creator', function (Builder $u) use ($search, $likeOperator) {
+                    $u->where('name', $likeOperator, "%{$search}%")
+                        ->orWhere('email', $likeOperator, "%{$search}%")
                         ->orWhere('phone', 'like', "%{$search}%")
                         ->orWhere('member_id', 'like', "%{$search}%");
                 })
-                ->orWhereHas('usedBy', function (Builder $u) use ($search) {
-                    $u->where('name', 'ilike', "%{$search}%")
-                        ->orWhere('email', 'ilike', "%{$search}%")
+                ->orWhereHas('usedBy', function (Builder $u) use ($search, $likeOperator) {
+                    $u->where('name', $likeOperator, "%{$search}%")
+                        ->orWhere('email', $likeOperator, "%{$search}%")
                         ->orWhere('phone', 'like', "%{$search}%")
                         ->orWhere('member_id', 'like', "%{$search}%");
                 });

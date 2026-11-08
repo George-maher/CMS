@@ -358,13 +358,13 @@ class TenantIsolationMatrixTest extends TestCase
             ->getJson('/api/v1/users/'.$foreignMember->id)
             ->assertStatus(404);
 
-        // /member-profile/{id} resolves the member first and then applies
-        // MemberProfileService::canViewProfile(), which compares churches and
-        // refuses with 403. The 403 vs 404 difference reveals only that the id
-        // exists — no Church B data is returned, which is what matters here.
+        // /member-profile/{id} applies MemberProfileService::canViewProfile(),
+        // which compares churches. F-04 makes the refusal externally identical
+        // to a missing id (uniform 404 + the same body), so the endpoint no
+        // longer confirms that the id exists.
         $profile = $this->withHeaders($this->auth($adminA))
             ->getJson('/api/v1/member-profile/'.$foreignMember->id)
-            ->assertStatus(403);
+            ->assertStatus(404);
 
         $this->assertNull($profile->json('data'));
         $this->assertStringNotContainsString(

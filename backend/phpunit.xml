@@ -8,8 +8,51 @@
         <testsuite name="Unit">
             <directory>tests/Unit</directory>
         </testsuite>
+        <!--
+        The Feature suite excludes every file that is listed explicitly in the
+        Security suite below.
+
+        Before this, each of those files was executed TWICE per run: once by
+        this directory glob and once by the named Security list. The duplicate
+        executions inflated the reported test count and, on PostgreSQL, ran the
+        same concurrency/isolation tests twice against the same database.
+
+        The exclusion list must be kept in sync with the Security list. A file
+        that is added to Security but not excluded here (or vice versa) either
+        runs twice or drops out of the full run entirely.
+        tests/Unit/PhpunitSuiteConfigurationTest.php enforces that parity.
+        -->
         <testsuite name="Feature">
             <directory>tests/Feature</directory>
+            <exclude>tests/Feature/CompositeForeignKeyTest.php</exclude>
+            <exclude>tests/Feature/AttendanceConcurrencyTest.php</exclude>
+            <exclude>tests/Feature/AttendanceClassIdSpaceTest.php</exclude>
+            <exclude>tests/Feature/CreateUserStageOwnershipTest.php</exclude>
+            <exclude>tests/Feature/TenantArchitectureTest.php</exclude>
+            <exclude>tests/Feature/TenantConsistencyTest.php</exclude>
+            <exclude>tests/Feature/TenantHierarchyIntegrityTest.php</exclude>
+            <exclude>tests/Feature/TenantIsolationMatrixTest.php</exclude>
+            <exclude>tests/Feature/TenantOrphanRepairTest.php</exclude>
+            <exclude>tests/Feature/TenantOwnershipBoundaryTest.php</exclude>
+            <exclude>tests/Feature/TenantScopeHeaderIsolationTest.php</exclude>
+            <exclude>tests/Feature/PlatformAdminAuthorizationMatrixTest.php</exclude>
+            <exclude>tests/Feature/ChurchScopeLoginTest.php</exclude>
+            <exclude>tests/Feature/StageAdminScopeTest.php</exclude>
+            <exclude>tests/Feature/StageAdminAuthorizationMatrixTest.php</exclude>
+            <exclude>tests/Feature/StageClassBulkTest.php</exclude>
+            <exclude>tests/Feature/QRInviteCrossChurchScopingTest.php</exclude>
+            <exclude>tests/Feature/QRInviteTest.php</exclude>
+            <exclude>tests/Feature/ChurchApplicationAccessTest.php</exclude>
+            <exclude>tests/Feature/ChurchDeletionTest.php</exclude>
+            <exclude>tests/Feature/StorageEndpointAuthorizationTest.php</exclude>
+            <exclude>tests/Feature/EmailVerificationTokenSecurityTest.php</exclude>
+            <exclude>tests/Feature/InviteRegistrationFlowTest.php</exclude>
+            <exclude>tests/Feature/ServantLoginLifecycleTest.php</exclude>
+            <exclude>tests/Feature/MembershipRequestSubmitTest.php</exclude>
+            <exclude>tests/Feature/PasswordResetRequestTest.php</exclude>
+            <exclude>tests/Feature/PasswordHashTest.php</exclude>
+            <exclude>tests/Feature/RequestIdTest.php</exclude>
+            <exclude>tests/Feature/LegacyClassYearIdScopeTest.php</exclude>
         </testsuite>
         <!--
         Security testsuite: the tenant-isolation and authorization gate.
@@ -39,6 +82,7 @@
             <file>tests/Feature/PlatformAdminAuthorizationMatrixTest.php</file>
             <file>tests/Feature/ChurchScopeLoginTest.php</file>
             <file>tests/Feature/StageAdminScopeTest.php</file>
+            <file>tests/Feature/StageAdminAuthorizationMatrixTest.php</file>
             <file>tests/Feature/StageClassBulkTest.php</file>
             <file>tests/Feature/QRInviteCrossChurchScopingTest.php</file>
             <file>tests/Feature/QRInviteTest.php</file>
@@ -52,6 +96,7 @@
             <file>tests/Feature/PasswordResetRequestTest.php</file>
             <file>tests/Feature/PasswordHashTest.php</file>
             <file>tests/Feature/RequestIdTest.php</file>
+            <file>tests/Feature/LegacyClassYearIdScopeTest.php</file>
         </testsuite>
     </testsuites>
     <source>
@@ -72,6 +117,26 @@
         <env name="MAIL_MAILER" value="array"/>
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="SESSION_DRIVER" value="array"/>
+        <!--
+        Test-only logging configuration.
+
+        `LOG_CHANNEL` was absent, so Dotenv filled it from .env (LOG_CHANNEL=
+        stack) and every `Log::` call inside a test appended to
+        storage/logs/laravel.log — a git-ignored file that grew to tens of
+        megabytes across suite runs. The `stderr` channel sends those records to
+        the console instead, so the application log is never touched by a test
+        run and the records stay visible when debugging a failing test.
+
+        `value="null"` is deliberately NOT used here, even though a `null`
+        channel (Monolog's NullHandler) exists in config/logging.php:
+        Illuminate\Support\Env::getOption() converts the bare words `true`,
+        `false`, `empty` and `null` to their PHP equivalents, so `LOG_CHANNEL=
+        null` resolves to PHP null, the configured logger cannot be built
+        ("Log [] is not defined") and Laravel falls back to the EMERGENCY
+        logger — which writes to storage/logs/laravel.log anyway. That was
+        verified by running the suite: the log file kept growing.
+        -->
+        <env name="LOG_CHANNEL" value="stderr"/>
         <env name="PULSE_ENABLED" value="false"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="NIGHTWATCH_ENABLED" value="false"/>

@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/hooks/useAuth'
 import { getApplicationStatus } from '@/api/churchApplications'
 import { logCatch } from '@/lib/debug'
+import { roleDashboardPath } from '@/lib/roles'
 import toast from 'react-hot-toast'
 import {
   Clock, XCircle, LogOut, Loader2, User, Building2, Mail, AlertTriangle,
@@ -66,16 +67,7 @@ export default function ApplicationStatus() {
 
   useEffect(() => {
     if (!loading && status === 'approved' && authUser) {
-      const roleRedirect: Record<string, string> = {
-        platform_admin: '/platform',
-        admin: '/admin',
-        assistant_admin: '/assistant-admin',
-        stage_admin: '/stage',
-        servant: '/servant',
-        member: '/member',
-      }
-      const target = roleRedirect[authUser.role] || '/login'
-      navigate(target, { replace: true })
+      navigate(roleDashboardPath(authUser.role), { replace: true })
     }
   }, [loading, status, authUser, navigate])
 

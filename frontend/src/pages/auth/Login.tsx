@@ -7,6 +7,7 @@ import { Church, Eye, EyeOff, Loader2 } from 'lucide-react'
 import PublicLayout from '@/components/layout/PublicLayout'
 import client from '@/api/client'
 import { logCatch } from '@/lib/debug'
+import { roleDashboardPath } from '@/lib/roles'
 
 export default function Login() {
   const { login, isAuthenticated, user } = useAuth()
@@ -17,18 +18,9 @@ export default function Login() {
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
 
-  const roleRedirect: Record<string, string> = {
-    platform_admin: '/platform',
-    admin: '/admin',
-    assistant_admin: '/assistant-admin',
-    stage_admin: '/stage',
-    servant: '/servant',
-    member: '/member',
-  }
-
   if (isAuthenticated && user) {
     if (user.application_status === 'pending' || user.application_status === 'rejected') return <Navigate to="/application-status" replace />
-    return <Navigate to={roleRedirect[user.role] || '/login'} replace />
+    return <Navigate to={roleDashboardPath(user.role)} replace />
   }
 
   const handleSubmit = async (e: FormEvent) => {
@@ -50,7 +42,7 @@ export default function Login() {
         return
       }
 
-      navigate(roleRedirect[result.user.role] || '/login')
+      navigate(roleDashboardPath(result.user.role))
     } catch (err: unknown) {
       logCatch('Login.login', err)
       const axiosErr = err as {

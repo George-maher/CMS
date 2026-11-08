@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Contracts\MemberProfileServiceInterface;
+use App\Contracts\ScopeResolverInterface;
 use App\Models\Attendance;
 use App\Models\DailySpiritualRecord;
 use App\Models\User;
@@ -10,6 +11,10 @@ use Illuminate\Support\Carbon;
 
 class MemberProfileService implements MemberProfileServiceInterface
 {
+    public function __construct(
+        private readonly ScopeResolverInterface $scopeResolver,
+    ) {}
+
     /**
      * Get comprehensive member profile data including attendance and spiritual summary.
      *
@@ -143,6 +148,12 @@ class MemberProfileService implements MemberProfileServiceInterface
         // Admin/AssistantAdmin can view any member in their church
         if ($requester->isAdminOrAssistantAdmin()) {
             return $requester->church_id === $member->church_id;
+        }
+
+        // Stage admin: exactly the assigned Stage (trusted authorization
+        // context resolved by the ScopeResolver — never a client input).
+        if ($requester->isStageAdmin()) {
+            return $this->scopeResolver->canAccessUser($requester, $member);
         }
 
         // Servant can view members in their assigned classes
