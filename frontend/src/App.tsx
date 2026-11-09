@@ -255,6 +255,7 @@ export default function App() {
 
               <Route element={<AppLayout allowedRoles={['servant']} />}>
                 <Route path="/servant" element={<ServantDashboard />} />
+                <Route path="/servant/classes/:id" element={<ClasseDetail />} />
                 <Route path="/servant/members" element={<ServantMembers />} />
                 <Route path="/servant/members/:id" element={<ServantMemberDetail />} />
                 <Route path="/servant/scan" element={<ServantScanQR />} />

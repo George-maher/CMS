@@ -14,7 +14,7 @@ class ClasseRepository implements ClasseRepositoryInterface
     public function all(?string $search = null): Collection
     {
         /** @var Builder<Classe> $query */
-        $query = Classe::with(['stage'])
+        $query = Classe::with(['stage', 'secretary'])
             ->withCount([
                 'allUsers as member_count' => fn (Builder $q) => $q->where('role', UserRole::Member),
                 'servants as servant_count',
@@ -32,11 +32,30 @@ class ClasseRepository implements ClasseRepositoryInterface
     public function findById(int $id): ?Classe
     {
         /** @var Builder<Classe> $query */
-        $query = Classe::with(['stage'])
+        $query = Classe::with(['stage', 'secretary'])
             ->withCount([
                 'allUsers as member_count' => fn (Builder $q) => $q->where('role', UserRole::Member),
                 'servants as servant_count',
             ]);
+
+        return $query->find($id);
+    }
+
+    /**
+     * Load a class and lock its row for the duration of the surrounding
+     * transaction.
+     *
+     * Secretary assignment is a read-modify-write on a single column: without
+     * the lock two concurrent requests could each read "no secretary", each
+     * validate against that snapshot and both write, so the last writer wins
+     * silently. The lock serializes the decision. SQLite (used by the test
+     * suite) ignores FOR UPDATE, but the single `class_secretary_id` column
+     * still makes a duplicate secretary unrepresentable.
+     */
+    public function findByIdForUpdate(int $id): ?Classe
+    {
+        /** @var Builder<Classe> $query */
+        $query = Classe::with(['stage', 'secretary'])->lockForUpdate();
 
         return $query->find($id);
     }
@@ -77,6 +96,7 @@ class ClasseRepository implements ClasseRepositoryInterface
     {
         /** @var Builder<Classe> $query */
         $query = Classe::where('stage_id', $stageId)
+            ->with(['secretary'])
             ->withCount([
                 'allUsers as member_count' => fn (Builder $q) => $q->where('role', UserRole::Member),
                 'servants as servant_count',

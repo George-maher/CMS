@@ -61,3 +61,29 @@ export function roleDashboardPath(role: string | null | undefined): string {
   if (!role) return '/login'
   return ROLE_DASHBOARD_PATHS[role] || '/login'
 }
+
+/**
+ * Base path for the shared structure screens (stage list, stage detail, class
+ * detail). The same components are mounted under /admin, /assistant-admin and
+ * /stage, so links inside them must be derived from the signed-in role instead
+ * of being hardcoded to /admin.
+ */
+const STRUCTURE_BASE_PATHS: Readonly<Record<string, string>> = {
+  admin: '/admin',
+  assistant_admin: '/assistant-admin',
+  stage_admin: '/stage',
+}
+
+export function structureBasePath(role: string | null | undefined): string {
+  if (!role) return '/admin'
+  return STRUCTURE_BASE_PATHS[role] ?? '/admin'
+}
+
+/**
+ * Whether the role may create/edit classes, appoint a class secretary or
+ * manage servants. The backend enforces the same boundary; this only decides
+ * which controls are rendered.
+ */
+export function canManageStructure(role: string | null | undefined): boolean {
+  return role === 'admin' || role === 'assistant_admin' || role === 'stage_admin'
+}

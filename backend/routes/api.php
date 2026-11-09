@@ -333,6 +333,19 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'approval', 'throttle:api'])->g
     Route::middleware(['permission:view_users', 'approved'])->group(function () {
 
         /*
+        | Class reads — the controller re-checks canAccessClass() on every
+        | call, so a servant (or class secretary) only ever sees their own
+        | class. These used to sit under manage_users, which made the class
+        | detail screen unreachable for the people who actually serve in it.
+        */
+        Route::get('/classes/{id}/detail', [ClasseController::class, 'detail'])
+            ->middleware('throttle:structure-read');
+        Route::get('/classes/{id}/members', [ClasseController::class, 'members'])
+            ->middleware('throttle:structure-read');
+        Route::get('/classes/{id}/servants', [ClasseController::class, 'servants'])
+            ->middleware('throttle:structure-read');
+
+        /*
         | Events — CRUD
         */
         Route::post('/events', [EventController::class, 'store'])
@@ -713,17 +726,18 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'approval', 'throttle:api'])->g
         Route::delete('/classes/{id}', [ClasseController::class, 'destroy'])
             ->middleware('throttle:structure-crud');
 
-        Route::get('/classes/{id}/detail', [ClasseController::class, 'detail'])
-            ->middleware('throttle:structure-read');
-        Route::get('/classes/{id}/members', [ClasseController::class, 'members'])
-            ->middleware('throttle:structure-read');
-        Route::get('/classes/{id}/servants', [ClasseController::class, 'servants'])
-            ->middleware('throttle:structure-read');
-
         Route::post('/classes/{id}/assign-servant', [ClasseController::class, 'assignServant'])
             ->middleware('throttle:structure-crud');
         Route::post('/classes/{id}/remove-servant', [ClasseController::class, 'removeServant'])
             ->middleware('throttle:structure-crud');
+        Route::post('/classes/{id}/move-servant', [ClasseController::class, 'moveServant'])
+            ->middleware('throttle:structure-crud');
+        Route::post('/classes/{id}/assign-secretary', [ClasseController::class, 'assignSecretary'])
+            ->middleware('throttle:structure-crud');
+        Route::post('/classes/{id}/remove-secretary', [ClasseController::class, 'removeSecretary'])
+            ->middleware('throttle:structure-crud');
+        Route::get('/classes/{id}/eligible-secretaries', [ClasseController::class, 'eligibleSecretaries'])
+            ->middleware('throttle:structure-read');
         Route::post('/classes/{id}/assign-member', [ClasseController::class, 'assignMember'])
             ->middleware('throttle:structure-crud');
         Route::post('/classes/reorder', [ClasseController::class, 'updateOrder'])

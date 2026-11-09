@@ -2,22 +2,27 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import toast from 'react-hot-toast'
-import { ArrowLeft, Plus, Pencil, Trash2, Search, Users, UserCheck, BookOpen, ShieldCheck } from 'lucide-react'
+import { ArrowLeft, Plus, Pencil, Trash2, Search, Users, UserCheck, BookOpen, ShieldCheck, RefreshCw } from 'lucide-react'
 import LoadingSpinner from '@/components/common/LoadingSpinner'
 import Modal from '@/components/common/Modal'
 import type { Stage, Classe, User } from '@/types'
 import { getStage, getStageClasses } from '@/api/stages'
 import { bulkCreateClasses, createClasse, updateClasse, deleteClasse } from '@/api/classes'
 import { listUsers, promoteToStageAdmin, demoteFromAdmin } from '@/api/users'
+import { useAuth } from '@/hooks/useAuth'
+import { structureBasePath } from '@/lib/roles'
 import { logCatch } from '@/lib/debug'
 
 export default function StageDetail() {
   const { t } = useTranslation()
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const { user } = useAuth()
+  const basePath = structureBasePath(user?.role)
   const [stage, setStage] = useState<Stage | null>(null)
   const [classes, setClasses] = useState<Classe[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
   const hasLoadedRef = useRef(false)
   const [search, setSearch] = useState('')
 
@@ -47,6 +52,10 @@ export default function StageDetail() {
       ])
       setStage(stageData)
       setClasses(classesData)
+      setLoadError(false)
+    } catch (e) {
+      logCatch('StageDetail.fetch', e)
+      setLoadError(true)
     } finally {
       setLoading(false)
       hasLoadedRef.current = true
@@ -182,7 +191,7 @@ export default function StageDetail() {
   }
 
   const openClassDetail = (classeId: number) => {
-    navigate(`/admin/classes/${classeId}`)
+    navigate(`${basePath}/classes/${classeId}`)
   }
 
   if (loading && !stage) {
@@ -203,18 +212,23 @@ export default function StageDetail() {
     )
   }
 
-  if (!stage) {
+  if (loadError || !stage) {
     return (
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <button onClick={() => navigate('/admin/structure')} className="btn-icon btn-ghost mt-1">
+          <button onClick={() => navigate(`${basePath}/structure`)} className="btn-icon btn-ghost mt-1">
             <ArrowLeft className="h-4 w-4 rtl-flip" /> {t('structure.backToStages')}
           </button>
-          <button onClick={openCreate} aria-label={t('structure.addClass')} className="btn-primary btn-md shrink-0">
-            <Plus className="h-4 w-4" /> {t('structure.addClass')}
+        </div>
+        <div className="py-12 text-center">
+          <p className="text-sm text-muted">{t('structure.loadFailed')}</p>
+          <button
+            onClick={() => fetch(search, true)}
+            className="btn-secondary btn-md mx-auto mt-4 gap-2"
+          >
+            <RefreshCw className="h-4 w-4" /> {t('common.retry')}
           </button>
         </div>
-        <p className="py-12 text-center text-muted">{t('structure.noStages')}</p>
       </div>
     )
   }
@@ -224,7 +238,7 @@ export default function StageDetail() {
     <div className="space-y-6">
       {/* Back button + Header */}
       <div className="flex items-start gap-4">
-        <button onClick={() => navigate('/admin/structure')} className="btn-icon btn-ghost mt-1">
+        <button onClick={() => navigate(`${basePath}/structure`)} className="btn-icon btn-ghost mt-1">
           <ArrowLeft className="h-4 w-4 rtl-flip" /> {t('structure.backToStages')}
         </button>
       </div>
@@ -318,6 +332,13 @@ export default function StageDetail() {
                     <span>{classe.servant_count} {t('structure.servants')}</span>
                   </span>
                 </div>
+
+                <p className="mt-2 flex items-center gap-1.5 text-xs text-secondary">
+                  <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-gold-500" />
+                  <span className="truncate">
+                    {classe.secretary ? classe.secretary.name : t('structure.noClassSecretary')}
+                  </span>
+                </p>
 
                 <div className="mt-3 flex gap-2 pt-3 border-t border-border">
                   <button onClick={(e) => { e.stopPropagation(); openClassDetail(classe.id) }} className="btn-sm btn-ghost gap-1.5 flex-1">

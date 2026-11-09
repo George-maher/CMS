@@ -56,6 +56,17 @@ class ClassePolicy
         return $this->canManage($user, $classe);
     }
 
+    /**
+     * Assign / replace / remove the class secretary (أمين الفصل).
+     *
+     * The same boundary as every other class mutation: church-wide admins
+     * inside their church, Stage Admins inside their assigned stage only.
+     */
+    public function manageSecretary(User $user, Classe $classe): bool
+    {
+        return $this->canManage($user, $classe);
+    }
+
     public function manageMembers(User $user, Classe $classe): bool
     {
         return $this->canManage($user, $classe);

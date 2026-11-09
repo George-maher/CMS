@@ -12,6 +12,12 @@ interface ClasseRepositoryInterface
 
     public function findById(int $id): ?Classe;
 
+    /**
+     * Same as findById(), but takes a row lock for the surrounding
+     * transaction (used by class-secretary assignment).
+     */
+    public function findByIdForUpdate(int $id): ?Classe;
+
     /** @param array<string, mixed> $data */
     public function create(array $data): Classe;
 

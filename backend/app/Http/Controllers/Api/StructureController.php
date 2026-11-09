@@ -96,11 +96,26 @@ class StructureController extends Controller
             return response()->json(['data' => $classes]);
         }
 
-        $classes = $user->classes()->get(['classes.id', 'classes.name']);
+        // Servants (including class secretaries, whose class is unioned into
+        // getServantClassIds()) resolve through the same scope helper the
+        // authorization layer uses, so the list can never disagree with what
+        // the API will actually allow them to open.
+        $classIds = $user->getServantClassIds();
 
-        if ($classes->isEmpty() && $user->class_id) {
-            $classes = collect([(object) ['id' => $user->class_id, 'name' => $user->classe?->name]]);
+        if ($classIds !== null) {
+            $classes = $classIds === []
+                ? collect()
+                : Classe::byChurch()
+                    ->whereIn('id', $classIds)
+                    ->orderBy('display_order')
+                    ->get(['id', 'name']);
+
+            return response()->json(['data' => $classes->values()]);
         }
+
+        $classes = $user->class_id
+            ? Classe::byChurch()->whereKey($user->class_id)->get(['id', 'name'])
+            : collect();
 
         return response()->json(['data' => $classes->values()]);
     }
@@ -128,15 +143,20 @@ class StructureController extends Controller
 
         $classId = $user->class_id;
 
-        if (! $classId) {
+        // A class secretary may not have class_id set (the responsibility is
+        // stored on the class row), so resolve every class they can serve via
+        // the same scope helper used by authorization.
+        $classIds = $user->getServantClassIds() ?? ($classId !== null ? [(int) $classId] : []);
+
+        if ($classIds === []) {
             return response()->json(['data' => []]);
         }
 
         $servants = User::byChurch()
-            ->whereIn('id', function (Builder $q) use ($classId) {
+            ->whereIn('id', function (Builder $q) use ($classIds) {
                 $q->select('user_id')
                     ->from('class_servant')
-                    ->where('class_id', $classId);
+                    ->whereIn('class_id', $classIds);
             })
             ->where('role', UserRole::Servant)
             ->get(['id', 'name', 'email', 'phone']);

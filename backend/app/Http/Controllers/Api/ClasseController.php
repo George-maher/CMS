@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Api;
 use App\Contracts\ClasseServiceInterface;
 use App\Contracts\ScopeResolverInterface;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\AssignSecretaryRequest;
 use App\Http\Requests\BulkCreateClassesRequest;
+use App\Http\Requests\MoveServantRequest;
 use App\Http\Requests\StoreClasseRequest;
 use App\Http\Requests\UpdateClasseRequest;
 use App\Http\Resources\ClasseResource;
@@ -71,7 +73,11 @@ class ClasseController extends Controller
             return response()->json(['message' => 'Stage not found.'], 404);
         }
 
-        $this->authorize('create', $stage);
+        // ClassePolicy::create() owns the rule (admin in own church, Stage
+        // Admin in own stage). Passing the Stage model alone used to resolve
+        // StagePolicy::create(), which is admin-only and wrongly blocked Stage
+        // Admins from creating classes in their own stage.
+        $this->authorize('create', [Classe::class, $stage]);
 
         $result = $this->classeService->create($data);
 
@@ -90,7 +96,7 @@ class ClasseController extends Controller
         if ($stage === null) {
             return response()->json(['message' => 'Stage not found.'], 404);
         }
-        $this->authorize('create', $stage);
+        $this->authorize('create', [Classe::class, $stage]);
 
         $result = $this->classeService->createBulk($stage->id, $request->integer('count'));
 
@@ -326,6 +332,76 @@ class ClasseController extends Controller
 
         return response()->json([
             'message' => 'Member assigned to class successfully.',
+            'data' => $result['data'],
+        ]);
+    }
+
+    public function assignSecretary(AssignSecretaryRequest $request, int $id): JsonResponse
+    {
+        $classe = Classe::query()->find($id);
+        if ($classe === null) {
+            return response()->json(['message' => 'Class not found.'], 404);
+        }
+        $this->authorize('manageSecretary', $classe);
+
+        $result = $this->classeService->assignSecretary(
+            classeId: $id,
+            secretaryId: $request->integer('user_id'),
+        );
+
+        return response()->json([
+            'message' => 'Class secretary assigned successfully.',
+            'data' => $result['data'],
+        ]);
+    }
+
+    public function removeSecretary(Request $request, int $id): JsonResponse
+    {
+        $classe = Classe::query()->find($id);
+        if ($classe === null) {
+            return response()->json(['message' => 'Class not found.'], 404);
+        }
+        $this->authorize('manageSecretary', $classe);
+
+        return response()->json($this->classeService->removeSecretary($id));
+    }
+
+    public function eligibleSecretaries(Request $request, int $id): JsonResponse
+    {
+        $classe = Classe::query()->find($id);
+        if ($classe === null) {
+            return response()->json(['message' => 'Class not found.'], 404);
+        }
+        $this->authorize('manageSecretary', $classe);
+
+        return response()->json($this->classeService->getEligibleSecretaries($id));
+    }
+
+    public function moveServant(MoveServantRequest $request, int $id): JsonResponse
+    {
+        $to = Classe::query()->find($id);
+        if ($to === null) {
+            return response()->json(['message' => 'Class not found.'], 404);
+        }
+
+        $from = Classe::query()->find($request->integer('from_class_id'));
+        if ($from === null) {
+            return response()->json(['message' => 'Source class not found.'], 404);
+        }
+
+        // Both sides of the move must be manageable; the service re-checks
+        // this inside the transaction as defense in depth.
+        $this->authorize('manageServants', $from);
+        $this->authorize('manageServants', $to);
+
+        $result = $this->classeService->moveServant(
+            fromClasseId: $from->id,
+            toClasseId: $to->id,
+            servantId: $request->integer('user_id'),
+        );
+
+        return response()->json([
+            'message' => 'Servant moved successfully.',
             'data' => $result['data'],
         ]);
     }

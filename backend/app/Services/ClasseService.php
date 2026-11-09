@@ -13,6 +13,7 @@ use App\Http\Resources\UserResource;
 use App\Models\Classe;
 use App\Models\Stage;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -277,9 +278,235 @@ class ClasseService implements ClasseServiceInterface
             ]);
         }
 
-        $classe->servants()->detach($servantId);
+        $servant = User::byChurch()->find($servantId);
+        if ($servant === null) {
+            throw ValidationException::withMessages([
+                'user_id' => ['User not found.'],
+            ]);
+        }
+
+        // Defense in depth: removing a servant must not become a way to detach
+        // an arbitrary user id that the actor cannot otherwise manage.
+        $this->assertActorCanManageUser($servant, 'user_id');
+
+        $classe->servants()->detach($servant->id);
 
         return ['message' => 'Servant removed from class.'];
+    }
+
+    /**
+     * Assign (or replace) the single class secretary.
+     *
+     * Replacement is an overwrite of the same column, so a class can never end
+     * up with two active secretaries. The class row is locked for the whole
+     * read-validate-write sequence.
+     *
+     * @return array<string, mixed>
+     */
+    public function assignSecretary(int $classeId, int $secretaryId): array
+    {
+        /** @var User $actor */
+        $actor = auth()->user();
+
+        return DB::transaction(function () use ($classeId, $secretaryId, $actor): array {
+            $classe = $this->classeRepository->findByIdForUpdate($classeId);
+            if ($classe === null) {
+                throw ValidationException::withMessages([
+                    'class' => ['Class not found.'],
+                ]);
+            }
+
+            if (! $this->scopeResolver->canAccessClass($actor, $classe)) {
+                throw ValidationException::withMessages([
+                    'class' => ['Forbidden.'],
+                ]);
+            }
+
+            $secretary = User::byChurch()->find($secretaryId);
+            if ($secretary === null || $secretary->role !== UserRole::Servant) {
+                throw ValidationException::withMessages([
+                    'user_id' => ['Invalid class secretary.'],
+                ]);
+            }
+
+            if (! $this->scopeResolver->canAccessUser($actor, $secretary)) {
+                throw ValidationException::withMessages([
+                    'user_id' => ['The user is outside your scope.'],
+                ]);
+            }
+
+            // The secretary must belong to the class's stage, otherwise a
+            // Stage Admin could grant a class to a servant from another stage
+            // simply by knowing their id.
+            if ($classe->stage_id !== null
+                && $this->scopeResolver->userStageId($secretary) !== (int) $classe->stage_id) {
+                throw ValidationException::withMessages([
+                    'user_id' => ["The user does not belong to this class's stage."],
+                ]);
+            }
+
+            // One user may lead only one class at a time. Rejecting is safer
+            // than silently stealing the other class's secretary.
+            $alreadySecretaryElsewhere = Classe::byChurch()
+                ->where('class_secretary_id', $secretary->id)
+                ->where('id', '!=', $classe->id)
+                ->lockForUpdate()
+                ->exists();
+
+            if ($alreadySecretaryElsewhere) {
+                throw ValidationException::withMessages([
+                    'user_id' => ['The user is already the secretary of another class.'],
+                ]);
+            }
+
+            $classe->class_secretary_id = $secretary->id;
+            $classe->save();
+
+            return ['data' => new UserResource($secretary)];
+        });
+    }
+
+    /**
+     * Remove the class secretary without touching any other assignment.
+     *
+     * @return array<string, mixed>
+     */
+    public function removeSecretary(int $classeId): array
+    {
+        /** @var User $actor */
+        $actor = auth()->user();
+
+        DB::transaction(function () use ($classeId, $actor): void {
+            $classe = $this->classeRepository->findByIdForUpdate($classeId);
+            if ($classe === null) {
+                throw ValidationException::withMessages([
+                    'class' => ['Class not found.'],
+                ]);
+            }
+
+            if (! $this->scopeResolver->canAccessClass($actor, $classe)) {
+                throw ValidationException::withMessages([
+                    'class' => ['Forbidden.'],
+                ]);
+            }
+
+            $classe->class_secretary_id = null;
+            $classe->save();
+        });
+
+        return ['message' => 'Class secretary removed.'];
+    }
+
+    /**
+     * Servants in the class's stage that may be appointed as its secretary.
+     *
+     * The current secretary is always included (flagged by id on the client),
+     * so "replace" can render the existing selection.
+     *
+     * @return array<string, mixed>
+     */
+    public function getEligibleSecretaries(int $classeId): array
+    {
+        $classe = $this->classeRepository->findById($classeId);
+        if ($classe === null) {
+            throw ValidationException::withMessages([
+                'class' => ['Class not found.'],
+            ]);
+        }
+
+        $stageId = $classe->stage_id !== null ? (int) $classe->stage_id : null;
+
+        $servants = User::byChurch()
+            ->where('role', UserRole::Servant)
+            ->where(function (Builder $query) use ($stageId): void {
+                if ($stageId === null) {
+                    $query->whereRaw('1 = 0');
+
+                    return;
+                }
+
+                // stage_id is the canonical assignment, but a legacy servant
+                // may only have class_id; resolve the stage through the class
+                // exactly like ScopeResolver::userStageId() does.
+                $query->where('stage_id', $stageId)
+                    ->orWhereHas('classe', function (Builder $classQuery) use ($stageId): void {
+                        $classQuery->where('stage_id', $stageId);
+                    });
+            })
+            ->where(function (Builder $query) use ($classe): void {
+                $query->whereDoesntHave('secretaryClasses')
+                    ->orWhere('id', $classe->class_secretary_id);
+            })
+            ->orderBy('name')
+            ->get();
+
+        return ['data' => UserResource::collection($servants)];
+    }
+
+    /**
+     * Move a servant from one class to another inside the same stage.
+     *
+     * Only the source assignment is detached; every other class the servant
+     * legitimately serves is preserved.
+     *
+     * @return array<string, mixed>
+     */
+    public function moveServant(int $fromClasseId, int $toClasseId, int $servantId): array
+    {
+        /** @var User $actor */
+        $actor = auth()->user();
+
+        return DB::transaction(function () use ($fromClasseId, $toClasseId, $servantId, $actor): array {
+            $from = $this->classeRepository->findByIdForUpdate($fromClasseId);
+            $to = $this->classeRepository->findByIdForUpdate($toClasseId);
+
+            if ($from === null || $to === null) {
+                throw ValidationException::withMessages([
+                    'class' => ['Class not found.'],
+                ]);
+            }
+
+            if ($from->id === $to->id) {
+                throw ValidationException::withMessages([
+                    'to_class_id' => ['The source and target class must be different.'],
+                ]);
+            }
+
+            if (! $this->scopeResolver->canAccessClass($actor, $from)
+                || ! $this->scopeResolver->canAccessClass($actor, $to)) {
+                throw ValidationException::withMessages([
+                    'class' => ['Forbidden.'],
+                ]);
+            }
+
+            // Cross-stage moves are rejected: a Stage Admin may only rearrange
+            // servants inside their own stage.
+            if ($from->stage_id !== $to->stage_id) {
+                throw ValidationException::withMessages([
+                    'to_class_id' => ['A servant can only be moved between classes of the same stage.'],
+                ]);
+            }
+
+            $servant = User::byChurch()->find($servantId);
+            if ($servant === null || $servant->role !== UserRole::Servant) {
+                throw ValidationException::withMessages([
+                    'user_id' => ['Invalid servant.'],
+                ]);
+            }
+
+            if (! $this->scopeResolver->canAccessUser($actor, $servant)) {
+                throw ValidationException::withMessages([
+                    'user_id' => ['The user is outside your scope.'],
+                ]);
+            }
+
+            $from->servants()->detach($servant->id);
+            $to->servants()->syncWithoutDetaching([$servant->id]);
+
+            $this->syncUserStageWithClass($servant, $to, UserScope::ClassScope);
+
+            return ['data' => new UserResource($servant->refresh())];
+        });
     }
 
     /** @param array<int, int> $orderedIds */

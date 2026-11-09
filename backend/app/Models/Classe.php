@@ -16,12 +16,14 @@ use Illuminate\Support\Carbon;
  * @property int $id
  * @property int|null $church_id
  * @property int|null $stage_id
+ * @property int|null $class_secretary_id
  * @property string $name
  * @property string|null $description
  * @property int|null $display_order
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read Stage|null $stage
+ * @property-read User|null $secretary
  * @property-read Collection<int, User> $allUsers
  * @property-read Collection<int, User> $servants
  * @property-read Collection<int, Attendance> $attendances
@@ -39,6 +41,7 @@ class Classe extends Model
     protected $fillable = [
         'church_id',
         'stage_id',
+        'class_secretary_id',
         'name',
         'description',
         'display_order',
@@ -50,6 +53,21 @@ class Classe extends Model
     public function stage(): BelongsTo
     {
         return $this->belongsTo(Stage::class);
+    }
+
+    /**
+     * The single active class secretary (أمين الفصل).
+     *
+     * The assignment is a class-level responsibility stored on the class row,
+     * not a global role: the user keeps their existing role (normally
+     * `servant`) and only gains read access to this class through
+     * User::getServantClassIds().
+     *
+     * @return BelongsTo<User, $this>
+     */
+    public function secretary(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'class_secretary_id');
     }
 
     /** @return HasMany<User, $this> */

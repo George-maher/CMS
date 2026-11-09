@@ -62,6 +62,32 @@ export async function assignMemberToClasse(classeId: number, userId: number): Pr
   return data.data
 }
 
+export async function assignClasseSecretary(classeId: number, userId: number): Promise<User> {
+  const { data } = await client.post<{ data: User }>(`/classes/${classeId}/assign-secretary`, { user_id: userId })
+  return data.data
+}
+
+export async function removeClasseSecretary(classeId: number): Promise<void> {
+  await client.post(`/classes/${classeId}/remove-secretary`)
+}
+
+export async function listEligibleSecretaries(classeId: number): Promise<User[]> {
+  const { data } = await client.get<{ data: User[] }>(`/classes/${classeId}/eligible-secretaries`)
+  return data.data
+}
+
+export async function moveServantBetweenClasses(
+  toClasseId: number,
+  userId: number,
+  fromClasseId: number,
+): Promise<User> {
+  const { data } = await client.post<{ data: User }>(`/classes/${toClasseId}/move-servant`, {
+    user_id: userId,
+    from_class_id: fromClasseId,
+  })
+  return data.data
+}
+
 export async function reorderClasses(orderedIds: number[]): Promise<void> {
   await client.post('/classes/reorder', { ordered_ids: orderedIds })
 }

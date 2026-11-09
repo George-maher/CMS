@@ -9,11 +9,13 @@ export interface Stage {
 export interface Classe {
   id: number
   stage_id: number
+  class_secretary_id: number | null
   name: string
   description: string | null
   display_order: number
   member_count: number
   servant_count: number
+  secretary: { id: number; name: string; email: string } | null
   stage: { id: number; name: string } | null
   created_at: string
 }

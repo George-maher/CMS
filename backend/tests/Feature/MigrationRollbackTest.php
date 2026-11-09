@@ -42,7 +42,7 @@ class MigrationRollbackTest extends TestCase
      * 2026_09_13_000002 — the qr_invites stage_id migration whose down() was
      * broken.
      */
-    private const ROLLBACK_STEPS = 4;
+    private const ROLLBACK_STEPS = 5;
 
     public function test_tenant_migrations_roll_back_and_re_apply_cleanly(): void
     {
@@ -86,8 +86,8 @@ class MigrationRollbackTest extends TestCase
     {
         $this->assertSame(
             0,
-            Artisan::call('migrate:rollback', ['--step' => 1, '--force' => true]),
-            'rolling back the newest migration must succeed.'
+            Artisan::call('migrate:rollback', ['--step' => 2, '--force' => true]),
+            'rolling back the two newest migrations must succeed.'
         );
 
         $this->assertSame(

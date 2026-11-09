@@ -354,20 +354,47 @@ class StageAdminScopeTest extends TestCase
     // D. Class management — stage boundary
     // ---------------------------------------------------------------
 
-    public function test_stage_admin_cannot_create_class(): void
+    public function test_stage_admin_can_create_class_in_own_stage(): void
     {
         $s = $this->makeScenario();
 
-        // Class creation is gated by StagePolicy::create (admin only), so a
-        // stage admin is denied even for their own stage.
+        // A Stage Admin manages classes inside their assigned stage. The
+        // ownership (church_id + stage_id) is derived from the authenticated
+        // stage admin, not from the payload.
         $response = $this->authAs($s['secAdminToken'])
             ->postJson('/api/v1/classes', [
                 'name' => 'New Class',
                 'stage_id' => $s['secStage']->id,
             ]);
 
-        $response->assertStatus(403);
-        $this->assertDatabaseMissing('classes', ['name' => 'New Class']);
+        $response->assertStatus(201);
+        $this->assertDatabaseHas('classes', [
+            'name' => 'New Class',
+            'stage_id' => $s['secStage']->id,
+            'church_id' => $s['church']->id,
+        ]);
+    }
+
+    public function test_stage_admin_class_creation_ignores_client_church_and_stage_ownership(): void
+    {
+        $s = $this->makeScenario();
+        $otherChurch = Church::factory()->create();
+
+        // church_id is not even accepted by the request; a smuggled value must
+        // not move the class out of the actor's tenant.
+        $response = $this->authAs($s['secAdminToken'])
+            ->postJson('/api/v1/classes', [
+                'name' => 'Spoofed Class',
+                'stage_id' => $s['secStage']->id,
+                'church_id' => $otherChurch->id,
+            ]);
+
+        $response->assertStatus(201);
+        $this->assertDatabaseHas('classes', [
+            'name' => 'Spoofed Class',
+            'church_id' => $s['church']->id,
+            'stage_id' => $s['secStage']->id,
+        ]);
     }
 
     public function test_stage_admin_cannot_create_class_in_other_stage(): void

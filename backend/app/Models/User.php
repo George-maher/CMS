@@ -179,6 +179,20 @@ class User extends Authenticatable
     }
 
     /**
+     * Classes this user leads as class secretary (أمين الفصل).
+     *
+     * Class secretary is a class-level responsibility, not a role: the user
+     * keeps their existing role and only gains visibility of the classes
+     * returned here.
+     *
+     * @return HasMany<Classe, $this>
+     */
+    public function secretaryClasses(): HasMany
+    {
+        return $this->hasMany(Classe::class, 'class_secretary_id');
+    }
+
+    /**
      * @return BelongsTo<QRInvite, $this>
      */
     public function invite(): BelongsTo
@@ -274,6 +288,17 @@ class User extends Authenticatable
         if ($this->isServant()) {
             /** @var array<int, int> $classIds */
             $classIds = $this->classes()->pluck('classes.id')->toArray();
+
+            // A class secretary keeps the `servant` role and gains no global
+            // permission; the class they lead is simply added to the set of
+            // classes they may read. This is the single place where the
+            // class-secretary responsibility widens scope, and it widens it by
+            // exactly one class (or the classes they were explicitly given).
+            /** @var array<int, int> $secretaryClassIds */
+            $secretaryClassIds = $this->secretaryClasses()->pluck('classes.id')->toArray();
+
+            $classIds = array_values(array_unique([...$classIds, ...$secretaryClassIds]));
+
             if (! empty($classIds)) {
                 return $classIds;
             }

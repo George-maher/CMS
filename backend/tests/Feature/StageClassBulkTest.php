@@ -127,18 +127,21 @@ class StageClassBulkTest extends TestCase
         $this->assertCount(5, $classes->pluck('name')->unique());
     }
 
-    public function test_stage_admin_cannot_bulk_create_classes_even_in_own_stage(): void
+    public function test_stage_admin_can_bulk_create_classes_in_own_stage(): void
     {
         $s = $this->makeScenario();
 
-        // Mirrors the existing single-create rule (StageAdminScopeTest::
-        // test_stage_admin_cannot_create_class): class creation is gated by
-        // StagePolicy::create (admin only). Bulk must not widen permissions.
+        // Class creation inside the assigned stage is a Stage Admin capability;
+        // bulk creation must expose exactly the same boundary.
         $this->withHeader('Authorization', "Bearer {$s['stageAdminToken']}")
             ->postJson("/api/v1/stages/{$s['stageA']->id}/classes/bulk", ['count' => 2])
-            ->assertStatus(403);
+            ->assertStatus(201);
 
-        $this->assertEquals(0, Classe::where('stage_id', $s['stageA']->id)->count());
+        $classes = Classe::where('stage_id', $s['stageA']->id)->get();
+        $this->assertCount(2, $classes);
+        foreach ($classes as $class) {
+            $this->assertEquals($s['church']->id, $class->church_id);
+        }
     }
 
     public function test_stage_admin_cannot_bulk_create_in_other_stage(): void

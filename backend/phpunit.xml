@@ -40,6 +40,7 @@
             <exclude>tests/Feature/StageAdminScopeTest.php</exclude>
             <exclude>tests/Feature/StageAdminAuthorizationMatrixTest.php</exclude>
             <exclude>tests/Feature/StageClassBulkTest.php</exclude>
+            <exclude>tests/Feature/ClassSecretaryScopeTest.php</exclude>
             <exclude>tests/Feature/QRInviteCrossChurchScopingTest.php</exclude>
             <exclude>tests/Feature/QRInviteTest.php</exclude>
             <exclude>tests/Feature/ChurchApplicationAccessTest.php</exclude>
@@ -84,6 +85,7 @@
             <file>tests/Feature/StageAdminScopeTest.php</file>
             <file>tests/Feature/StageAdminAuthorizationMatrixTest.php</file>
             <file>tests/Feature/StageClassBulkTest.php</file>
+            <file>tests/Feature/ClassSecretaryScopeTest.php</file>
             <file>tests/Feature/QRInviteCrossChurchScopingTest.php</file>
             <file>tests/Feature/QRInviteTest.php</file>
             <file>tests/Feature/ChurchApplicationAccessTest.php</file>

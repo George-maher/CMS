@@ -36,6 +36,18 @@ interface ClasseServiceInterface
     /** @return array<string, mixed> */
     public function removeServant(int $classeId, int $servantId): array;
 
+    /** @return array<string, mixed> */
+    public function assignSecretary(int $classeId, int $secretaryId): array;
+
+    /** @return array<string, mixed> */
+    public function removeSecretary(int $classeId): array;
+
+    /** @return array<string, mixed> */
+    public function getEligibleSecretaries(int $classeId): array;
+
+    /** @return array<string, mixed> */
+    public function moveServant(int $fromClasseId, int $toClasseId, int $servantId): array;
+
     /** @param array<int, int> $orderedIds */
     public function updateOrder(array $orderedIds, User $actor): bool;
 

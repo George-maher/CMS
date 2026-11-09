@@ -7,6 +7,8 @@ import Modal from '@/components/common/Modal'
 import type { Stage } from '@/types'
 import { listStructureClasses } from '@/api/structure'
 import { listStages, createStage, updateStage, deleteStage, bulkCreateStages } from '@/api/stages'
+import { useAuth } from '@/hooks/useAuth'
+import { structureBasePath } from '@/lib/roles'
 import { logCatch } from '@/lib/debug'
 
 const BULK_MIN = 1
@@ -15,6 +17,8 @@ const BULK_MAX = 50
 export default function StructureManagement() {
   const { t } = useTranslation()
   const navigate = useNavigate()
+  const { user } = useAuth()
+  const basePath = structureBasePath(user?.role)
   const [stages, setStages] = useState<Stage[]>([])
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
@@ -174,7 +178,7 @@ export default function StructureManagement() {
     }
   }
 
-  const openStage = (id: number) => navigate(`/admin/stages/${id}`)
+  const openStage = (id: number) => navigate(`${basePath}/stages/${id}`)
   const previewCount = Math.min(Math.max(bulkCount || 0, 0), 10)
 
   return (

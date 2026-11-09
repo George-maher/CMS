@@ -221,12 +221,13 @@ class TenantOwnershipBoundaryTest extends TestCase
     /**
      * E. Stage admin -> own stage.
      *
-     * Class creation is deliberately admin-only (StagePolicy::create), so a
-     * stage admin is refused even inside their own stage. This is the
-     * pre-existing contract and it must stay exactly as it is — the fix for
-     * the cross-tenant leak must not hand stage admins a new capability.
+     * Class creation inside the assigned stage is a Stage Admin capability
+     * (see StageAdminScopeTest). The cross-tenant fix must keep the boundary:
+     * a stage admin can create classes only in their own stage, and the
+     * ownership (church_id + stage_id) is derived from the actor, not the
+     * payload.
      */
-    public function test_e_stage_admin_cannot_create_class_even_in_own_stage(): void
+    public function test_e_stage_admin_can_create_class_in_own_stage(): void
     {
         [$churchA, $stageA] = $this->tenant('A');
         $admin = $this->stageAdmin($churchA, $stageA);
@@ -235,9 +236,13 @@ class TenantOwnershipBoundaryTest extends TestCase
             ->postJson('/api/v1/classes', [
                 'stage_id' => $stageA->id,
                 'name' => 'Stage Admin Class',
-            ])->assertStatus(403);
+            ])->assertStatus(201);
 
-        $this->assertDatabaseMissing('classes', ['name' => 'Stage Admin Class']);
+        $this->assertDatabaseHas('classes', [
+            'name' => 'Stage Admin Class',
+            'church_id' => $churchA->id,
+            'stage_id' => $stageA->id,
+        ]);
     }
 
     /** F. Stage admin -> another stage in the same church is refused (404). */

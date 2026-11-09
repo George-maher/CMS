@@ -1,7 +1,8 @@
 import { fmtDate } from '@/lib/dates'
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { CalendarDays, Layers, Users, Cross, Trophy } from 'lucide-react'
+import { CalendarDays, Layers, Users, Cross, Trophy, BookOpen, ShieldCheck, Settings } from 'lucide-react'
 import StatCard from '@/components/common/StatCard'
 import LoadingSpinner from '@/components/common/LoadingSpinner'
 import DailyVerseBanner from '@/components/common/DailyVerseBanner'
@@ -11,6 +12,7 @@ import { listStages } from '@/api/stages'
 import { getStageClasses } from '@/api/stages'
 import { listEvents } from '@/api/events'
 import { getLeaderboard } from '@/api/points'
+import type { Classe } from '@/types'
 import { logCatch } from '@/lib/debug'
 
 interface UpcomingEvent { id: number; name: string; event_date: string }
@@ -18,7 +20,9 @@ interface UpcomingEvent { id: number; name: string; event_date: string }
 export default function StageAdminDashboard() {
   const { t } = useTranslation()
   const { user } = useAuth()
+  const navigate = useNavigate()
   const [stats, setStats] = useState({ total_members: 0, active_members: 0, total_servants: 0, total_attendances: 0, total_points: 0, total_members_managed: 0 })
+  const [classes, setClasses] = useState<Classe[]>([])
   const [classesCount, setClassesCount] = useState<number>(0)
   const [stageName, setStageName] = useState<string>('')
   const [upcomingEvents, setUpcomingEvents] = useState<UpcomingEvent[]>([])
@@ -45,7 +49,9 @@ export default function StageAdminDashboard() {
       setStats(s)
       const ownStage = stages.find((st) => st.id === user?.stage_id)
       setStageName(ownStage?.name ?? '')
-      setClassesCount(Array.isArray(classes) ? classes.length : 0)
+      const stageClasses = Array.isArray(classes) ? classes : []
+      setClasses(stageClasses)
+      setClassesCount(stageClasses.length)
       setUpcomingEvents(ev.data)
       setLeaderboard(lb.data)
     }).finally(() => setLoading(false))
@@ -82,6 +88,49 @@ export default function StageAdminDashboard() {
         <StatCard title={t('dashboard.activeMembers')} value={stats.active_members} subtitle={t('dashboard.currentlyActive')} icon={<Cross className="h-5 w-5" />} color="navy" />
         <StatCard title={t('dashboard.totalServants')} value={stats.total_servants} subtitle={`${stats.total_members_managed} ${t('dashboard.myMembers')}`} icon={<Users className="h-5 w-5" />} color="primary" />
         <StatCard title={t('dashboard.stageClasses')} value={classesCount} subtitle={stageName || t('structure.selectStage')} icon={<Layers className="h-5 w-5" />} color="info" />
+      </div>
+
+      <div className="glass-card-solid p-5">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <h2 className="flex items-center gap-2 text-lg font-semibold">
+            <BookOpen className="h-5 w-5 gold-text" />
+            {t('structure.classes')}
+          </h2>
+          {user?.stage_id && (
+            <button
+              onClick={() => navigate(`/stage/stages/${user.stage_id}`)}
+              className="btn-sm btn-ghost gap-1.5 shrink-0"
+            >
+              <Settings className="h-3.5 w-3.5" /> {t('structure.manageClasses')}
+            </button>
+          )}
+        </div>
+        {classes.length === 0 ? (
+          <p className="py-6 text-center text-sm text-muted">{t('structure.noClasses')}</p>
+        ) : (
+          <div className="space-y-2">
+            {classes.map((classe) => (
+              <button
+                key={classe.id}
+                onClick={() => navigate(`/stage/classes/${classe.id}`)}
+                className="flex w-full flex-col gap-1 rounded-lg border border-border px-4 py-3 text-start transition-colors hover:bg-surface-secondary sm:flex-row sm:items-center sm:justify-between"
+              >
+                <span className="flex items-center gap-2 font-medium">
+                  <BookOpen className="h-4 w-4 text-success-dark" />
+                  {classe.name}
+                </span>
+                <span className="flex items-center gap-1.5 text-xs text-secondary">
+                  <ShieldCheck className="h-3.5 w-3.5 text-gold-500" />
+                  {classe.secretary ? classe.secretary.name : t('structure.noClassSecretary')}
+                  <span className="mx-1 text-muted">·</span>
+                  {classe.member_count} {t('structure.members')}
+                  <span className="mx-1 text-muted">·</span>
+                  {classe.servant_count} {t('structure.servants')}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
