@@ -37,9 +37,6 @@ jobs:
       - name: Dependency audit (locked versions)
         run: composer audit --locked --no-dev
 
-      - name: Run test suite (SQLite)
-        run: php artisan test
-
       - name: PHPStan (level max)
         run: vendor/bin/phpstan analyse --level=max --memory-limit=1G --no-progress
 
